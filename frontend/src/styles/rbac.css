@@ -1,0 +1,333 @@
+/* ==========================================================================
+   RBAC — Roles & Permissions
+   ========================================================================== */
+.rbac-roles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rbac-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 15px;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+
+.rbac-card:hover {
+  border-color: color-mix(in srgb, var(--orange) 45%, var(--line));
+}
+
+.rbac-card.is-selected {
+  border-color: var(--orange);
+  box-shadow:
+    0 0 0 1px var(--orange),
+    0 14px 30px -20px rgba(242, 106, 61, 0.7);
+}
+
+.rbac-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rbac-card__badge {
+  padding: 3px 7px;
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--tone-fg);
+  background: var(--tone-bg);
+  border-radius: 5px;
+}
+
+.rbac-card__members {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.rbac-card__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.rbac-card__summary {
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* role tones */
+.rbac-card--maroon {
+  --tone-bg: #fbe9e9;
+  --tone-fg: #a83b3b;
+}
+.rbac-card--purple {
+  --tone-bg: #efecfd;
+  --tone-fg: #5b4bd6;
+}
+.rbac-card--orange {
+  --tone-bg: #ffece2;
+  --tone-fg: #d9531f;
+}
+.rbac-card--amber {
+  --tone-bg: #fdf2dc;
+  --tone-fg: #a86a08;
+}
+
+[data-theme='dark'] .rbac-card--maroon {
+  --tone-bg: rgba(176, 62, 62, 0.22);
+  --tone-fg: #ff9b9b;
+}
+[data-theme='dark'] .rbac-card--purple {
+  --tone-bg: rgba(109, 92, 232, 0.22);
+  --tone-fg: #b3a6ff;
+}
+[data-theme='dark'] .rbac-card--orange {
+  --tone-bg: rgba(242, 106, 61, 0.18);
+  --tone-fg: #ff9f74;
+}
+[data-theme='dark'] .rbac-card--amber {
+  --tone-bg: rgba(217, 138, 11, 0.2);
+  --tone-fg: #eab85a;
+}
+
+/* matrix */
+.perm-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.perm-card > .surface-card__head {
+  padding: 18px 18px 14px;
+}
+
+.perm-card__legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.perm-card__legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.perm-scroll {
+  overflow-x: auto;
+}
+
+.perm-table {
+  min-width: 900px;
+  border-top: 1px solid var(--line);
+}
+
+.perm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px 122px 142px 128px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.perm-cap {
+  min-width: 0;
+  padding: 11px 18px;
+}
+
+.perm-cap--head {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.perm-cap strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.perm-cap small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.perm-role {
+  padding: 11px 8px;
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.07em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.perm-role.is-active {
+  color: var(--accent-text);
+}
+
+.perm-col {
+  display: flex;
+  justify-content: center;
+  align-self: stretch;
+  padding: 9px 8px;
+}
+
+.perm-col.is-active {
+  background: color-mix(in srgb, var(--orange) 5%, transparent);
+}
+
+.perm-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: var(--soft);
+  border-bottom: 1px solid var(--line);
+}
+
+.perm-section__title {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.perm-section__ar {
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--accent-text) 60%, var(--muted));
+}
+
+.perm-check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: #ffffff;
+  background: linear-gradient(180deg, #ff7a45, #e2541f);
+  border-radius: 8px;
+  box-shadow: 0 3px 8px -4px rgba(226, 84, 31, 0.7);
+}
+
+.perm-check .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.perm-check--empty {
+  position: relative;
+  background: transparent;
+  border: 1px solid var(--check-border);
+  box-shadow: none;
+}
+
+.perm-check--empty::after {
+  content: '';
+  width: 9px;
+  height: 2px;
+  background: var(--faint);
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+.perm-tag {
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 5px;
+}
+
+.perm-tag--muted {
+  color: var(--muted);
+  background: var(--soft);
+  border: 1px solid var(--line);
+}
+
+.perm-tag--orange {
+  color: var(--accent-text);
+  background: var(--badge-bg);
+}
+
+.perm-tag--blue {
+  color: #2f6fed;
+  background: #e8f0ff;
+}
+
+.perm-tag--danger {
+  color: #c62a2f;
+  background: #fdeaea;
+}
+
+[data-theme='dark'] .perm-tag--blue {
+  color: #8bb6ff;
+  background: rgba(47, 111, 237, 0.18);
+}
+
+[data-theme='dark'] .perm-tag--danger {
+  color: #ff8b90;
+  background: rgba(229, 72, 77, 0.14);
+}
+
+.perm-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  font-size: 9px;
+  color: var(--muted);
+  background: var(--soft);
+}
+
+.perm-card__version {
+  font-weight: 700;
+  color: var(--faint);
+}
+
+.perm-card__sync {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perm-card__sync b {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.perm-card__updated {
+  font-size: 8.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
