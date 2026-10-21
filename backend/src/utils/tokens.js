@@ -1,15 +1,19 @@
-import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { env } from '../config/env.js';
 
-export const signAccessToken = (user) =>
-  jwt.sign({ role: user.role }, env.JWT_ACCESS_SECRET, {
-    subject: user.id,
-    expiresIn: env.JWT_ACCESS_EXPIRES_IN,
-  });
+export const generateAccessToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
 
-export const verifyAccessToken = (token) => jwt.verify(token, env.JWT_ACCESS_SECRET);
-
-// Opaque random token (بيتخزن hash بس في الـ DB)
-export const generateOpaqueToken = () => crypto.randomBytes(48).toString('hex');
-export const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+  return jwt.sign(
+    {
+      sub: String(user.id),
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || '1d',
+      issuer: 'orvia-agency-os',
+      audience: 'orvia-api',
+    },
+  );
+};

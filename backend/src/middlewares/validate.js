@@ -1,11 +1,19 @@
-// validate({ body, query, params }) بـ zod schemas
-export const validate = (schemas) => (req, _res, next) => {
-  try {
-    if (schemas.body) req.body = schemas.body.parse(req.body);
-    if (schemas.params) req.params = schemas.params.parse(req.params);
-    if (schemas.query) Object.assign(req.query, schemas.query.parse(req.query));
+export const validate = (schema) => {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.body);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: result.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
+      });
+    }
+
+    req.body = result.data;
     next();
-  } catch (err) {
-    next(err);
-  }
+  };
 };

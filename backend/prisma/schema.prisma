@@ -7,66 +7,143 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  ACCOUNT_MANAGER
-  EMPLOYEE
-  CLIENT
+// enum Role {
+//   ADMIN
+//   ACCOUNT_MANAGER
+//   EMPLOYEE
+//   CLIENT
+// }
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model JobTitle {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(100)
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  users User[]
+
+  @@map("job_titles")
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  fullName     String
-  phone        String?
-  role         Role
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id           Int       @id @default(autoincrement())
+  fullName     String    @map("full_name") @db.VarChar(150)
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  phone        String?   @db.VarChar(30)
+  roleId       Int       @map("role_id")
+  jobTitleId   Int?      @map("job_title_id")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdBy    Int?      @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  refreshTokens  RefreshToken[]
-  passwordResets PasswordResetToken[]
+  role         Role      @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  jobTitle     JobTitle? @relation(fields: [jobTitleId], references: [id], onDelete: SetNull)
+  creator      User?     @relation("UserCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  createdUsers User[]    @relation("UserCreator")
 
-  @@index([role])
+  ledTeams     Team[]           @relation("TeamLeader")
+  createdTeams Team[]           @relation("TeamCreator")
+  memberships  TeamMembership[] @relation("MembershipUser")
+
+  managedBrands Brand[] @relation("AccountManager")
+  createdBrands Brand[] @relation("BrandCreator")
+
+  failedLoginAttempts    Int       @default(0) @map("failed_login_attempts")
+  failedLoginWindowStart DateTime? @map("failed_login_window_start") @db.Timestamptz(6)
+  loginLockedUntil       DateTime? @map("login_locked_until") @db.Timestamptz(6)
+
+  @@index([roleId])
+  @@index([jobTitleId])
+  @@map("users")
 }
 
-model RefreshToken {
-  id        String    @id @default(uuid())
-  tokenHash String    @unique
-  userId    String
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+model Team {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(100)
+  description String?
+  teamLeadId  Int?     @map("team_lead_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   Int?     @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamLead    User?            @relation("TeamLeader", fields: [teamLeadId], references: [id], onDelete: SetNull)
+  creator     User?            @relation("TeamCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  memberships TeamMembership[]
+  brands      Brand[]
 
+  @@index([teamLeadId])
+  @@map("teams")
+}
+
+model TeamMembership {
+  teamId   Int      @map("team_id")
+  userId   Int      @map("user_id")
+  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation("MembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
   @@index([userId])
+  @@map("team_memberships")
 }
 
-model PasswordResetToken {
-  id        String    @id @default(uuid())
-  tokenHash String    @unique
-  userId    String
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
+model Brand {
+  id               Int      @id @default(autoincrement())
+  name             String   @db.VarChar(150)
+  industry         String?  @db.VarChar(100)
+  websiteUrl       String?  @map("website_url")
+  description      String?
+  status           String   @default("active") @db.VarChar(20)
+  accountManagerId Int?     @map("account_manager_id")
+  teamId           Int?     @map("team_id")
+  createdBy        Int?     @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountManager User? @relation("AccountManager", fields: [accountManagerId], references: [id], onDelete: Restrict)
+  team           Team? @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  creator        User? @relation("BrandCreator", fields: [createdBy], references: [id], onDelete: SetNull)
 
-  @@index([userId])
+  @@index([accountManagerId])
+  @@index([teamId])
+  @@map("brands")
 }
 
-// Audit trail للأحداث المهمة (صلاحيات، موافقات، تغييرات بيانات)
-model AuditLog {
-  id        String   @id @default(uuid())
-  actorId   String?
-  action    String
-  entity    String
-  entityId  String?
-  meta      Json?
-  createdAt DateTime @default(now())
+model Permission {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique @db.VarChar(100)
+  description String?
 
-  @@index([entity, entityId])
-  @@index([actorId])
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int @map("role_id")
+  permissionId Int @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }

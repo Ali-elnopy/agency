@@ -1,36 +1,66 @@
-import { prisma } from '../config/prisma.js';
+import jwt from 'jsonwebtoken';
 import { ApiError } from '../utils/ApiError.js';
-import { verifyAccessToken } from '../utils/tokens.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import { AuthModel } from '../modules/auth/auth.model.js';
 
-// بيتأكد من التوكن وإن اليوزر لسه active، وبيحط req.user
-export const authenticate = asyncHandler(async (req, _res, next) => {
-  const header = req.headers.authorization ?? '';
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) throw ApiError.unauthorized('Missing access token');
-
-  let payload;
+export const authenticate = async (req, res, next) => {
   try {
-    payload = verifyAccessToken(token);
-  } catch {
-    throw ApiError.unauthorized('Invalid or expired access token');
-  }
+    const authorization = req.headers.authorization;
 
-  const user = await prisma.user.findUnique({
-    where: { id: payload.sub },
-    select: { id: true, email: true, fullName: true, role: true, isActive: true },
-  });
-  if (!user || !user.isActive) throw ApiError.unauthorized('Account not available');
+    if (!authorization?.startsWith('Bearer ')) {
+      throw new ApiError(401, 'Authentication required');
+    }
 
-  req.user = user;
-  next();
-});
+    const token = authorization.slice(7).trim();
 
-// authorize('ADMIN', 'ACCOUNT_MANAGER')
-export const authorize =
-  (...roles) =>
-  (req, _res, next) => {
-    if (!req.user) return next(ApiError.unauthorized());
-    if (!roles.includes(req.user.role)) return next(ApiError.forbidden('Insufficient permissions'));
+    if (!token) {
+      throw new ApiError(401, 'Authentication required');
+    }
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
+    const payload = jwt.verify(token, process.env.JWT_SECRET, {
+      issuer: 'orvia-agency-os',
+      audience: 'orvia-api',
+    });
+
+    if (
+      typeof payload === 'string' ||
+      typeof payload.sub !== 'string' ||
+      !/^\d+$/.test(payload.sub)
+    ) {
+      throw new ApiError(401, 'Invalid access token');
+    }
+
+    const userId = Number(payload.sub);
+
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      throw new ApiError(401, 'Invalid access token');
+    }
+
+    const user = await AuthModel.findUserById(userId);
+
+    if (!user || !user.isActive) {
+      throw new ApiError(401, 'User account is unavailable');
+    }
+
+    req.user = user;
+
     next();
-  };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return next(error);
+    }
+
+    if (
+      error instanceof jwt.JsonWebTokenError ||
+      error instanceof jwt.TokenExpiredError ||
+      error instanceof jwt.NotBeforeError
+    ) {
+      return next(new ApiError(401, 'Invalid or expired access token'));
+    }
+
+    next(error);
+  }
+};

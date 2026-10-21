@@ -1,119 +1,105 @@
 import bcrypt from 'bcryptjs';
-import { prisma } from '../../config/prisma.js';
-import { env } from '../../config/env.js';
+import { AuthModel } from './auth.model.js';
 import { ApiError } from '../../utils/ApiError.js';
-import { signAccessToken, generateOpaqueToken, hashToken } from '../../utils/tokens.js';
-import { sendMail } from '../../utils/mailer.js';
-import { audit } from '../../utils/audit.js';
+import { generateAccessToken } from '../../utils/tokens.js';
 
-const DAY = 24 * 60 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOCK_DURATION_MS = 15 * 60 * 1000;
 
-export const toSafeUser = ({ passwordHash: _p, ...user }) => user;
+const getPublicUser = (user) => ({
+  id: user.id,
+  fullName: user.fullName,
+  email: user.email,
+  phone: user.phone,
+  isActive: user.isActive,
+  lastLoginAt: user.lastLoginAt,
+  createdAt: user.createdAt,
+  role: user.role,
+  jobTitle: user.jobTitle ?? null,
+});
 
-async function issueTokens(user) {
-  const refreshToken = generateOpaqueToken();
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      tokenHash: hashToken(refreshToken),
-      expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * DAY),
-    },
-  });
-  return { accessToken: signAccessToken(user), refreshToken };
-}
+export const AuthService = {
+  async login({ email, password }) {
+    const user = await AuthModel.findUserByEmail(email.toLowerCase());
 
-export async function login({ email, password }) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  // نفس الرسالة في كل الحالات عشان منكشفش وجود الإيميل
-  const ok = user && user.isActive && (await bcrypt.compare(password, user.passwordHash));
-  if (!ok) throw ApiError.unauthorized('Invalid email or password');
+    if (!user) {
+      throw new ApiError(401, 'Invalid email or password');
+    }
 
-  return { user: toSafeUser(user), ...(await issueTokens(user)) };
-}
+    if (!user.isActive) {
+      throw new ApiError(403, 'This account is inactive');
+    }
 
-// Refresh token rotation + reuse detection
-export async function refresh(refreshToken) {
-  const record = await prisma.refreshToken.findUnique({
-    where: { tokenHash: hashToken(refreshToken) },
-    include: { user: true },
-  });
-  if (!record) throw ApiError.unauthorized('Invalid refresh token');
+    const now = Date.now();
 
-  if (record.revokedAt) {
-    await prisma.refreshToken.updateMany({
-      where: { userId: record.userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-    throw ApiError.unauthorized('Refresh token reuse detected');
-  }
-  if (record.expiresAt < new Date() || !record.user.isActive) {
-    throw ApiError.unauthorized('Refresh token expired');
-  }
+    if (user.loginLockedUntil && user.loginLockedUntil.getTime() > now) {
+      throw new ApiError(423, 'Too many failed attempts. Please try again later.');
+    }
 
-  await prisma.refreshToken.update({ where: { id: record.id }, data: { revokedAt: new Date() } });
-  return issueTokens(record.user);
-}
+    const passwordIsValid = await bcrypt.compare(password, user.passwordHash);
 
-export async function logout(refreshToken) {
-  await prisma.refreshToken.updateMany({
-    where: { tokenHash: hashToken(refreshToken), revokedAt: null },
-    data: { revokedAt: new Date() },
-  });
-}
+    if (!passwordIsValid) {
+      const currentWindowStart = user.failedLoginWindowStart?.getTime();
 
-export async function forgotPassword(email) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (user && user.isActive) {
-    const token = generateOpaqueToken();
-    await prisma.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: hashToken(token),
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      },
-    });
-    await sendMail({
-      to: user.email,
-      subject: 'Reset your password',
-      text: `${env.FRONTEND_URL}/reset-password?token=${token}`,
-    });
-  }
-  // دايمًا نفس الرد
-}
+      const windowExpired = !currentWindowStart || now - currentWindowStart >= LOGIN_WINDOW_MS;
 
-export async function resetPassword({ token, newPassword }) {
-  const record = await prisma.passwordResetToken.findUnique({
-    where: { tokenHash: hashToken(token) },
-  });
-  if (!record || record.usedAt || record.expiresAt < new Date()) {
-    throw ApiError.badRequest('Invalid or expired reset token');
-  }
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: record.userId },
-      data: { passwordHash: await bcrypt.hash(newPassword, 12) },
-    }),
-    prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-    prisma.refreshToken.updateMany({
-      where: { userId: record.userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    }),
-  ]);
-  await audit({ actorId: record.userId, action: 'PASSWORD_RESET', entity: 'User', entityId: record.userId });
-}
+      const attempts = windowExpired ? 1 : user.failedLoginAttempts + 1;
 
-export async function changePassword(userId, { currentPassword, newPassword }) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
-    throw ApiError.badRequest('Current password is incorrect');
-  }
-  await prisma.user.update({
-    where: { id: userId },
-    data: { passwordHash: await bcrypt.hash(newPassword, 12) },
-  });
-  await prisma.refreshToken.updateMany({
-    where: { userId, revokedAt: null },
-    data: { revokedAt: new Date() },
-  });
-  await audit({ actorId: userId, action: 'PASSWORD_CHANGED', entity: 'User', entityId: userId });
-}
+      const windowStart = windowExpired ? new Date(now) : user.failedLoginWindowStart;
+
+      const lockedUntil = attempts >= MAX_LOGIN_ATTEMPTS ? new Date(now + LOCK_DURATION_MS) : null;
+
+      await AuthModel.recordFailedLogin(user.id, attempts, windowStart, lockedUntil);
+
+      if (lockedUntil) {
+        throw new ApiError(423, 'Too many failed attempts. Please try again later.');
+      }
+
+      throw new ApiError(401, 'Invalid email or password');
+    }
+
+    await AuthModel.resetLoginFailures(user.id);
+    await AuthModel.updateLastLogin(user.id);
+
+    const accessToken = generateAccessToken(user);
+
+    return {
+      user: getPublicUser({
+        ...user,
+        lastLoginAt: new Date(),
+      }),
+      accessToken,
+    };
+  },
+
+  async getCurrentUser(userId) {
+    const user = await AuthModel.findUserById(userId);
+
+    if (!user || !user.isActive) {
+      throw new ApiError(401, 'User account is unavailable');
+    }
+
+    return user;
+  },
+
+  async changePassword(userId, { currentPassword, newPassword }) {
+    const user = await AuthModel.findUserByEmailForPassword?.(userId);
+
+    if (!user || !user.isActive) {
+      throw new ApiError(401, 'User account is unavailable');
+    }
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+
+    if (!valid) {
+      throw new ApiError(400, 'Current password is incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await AuthModel.updatePassword(userId, passwordHash);
+
+    return { message: 'Password changed successfully' };
+  },
+};

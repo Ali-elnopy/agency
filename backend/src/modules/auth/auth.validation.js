@@ -1,25 +1,24 @@
 import { z } from 'zod';
 
-export const passwordField = z
-  .string()
-  .min(8, 'Password must be at least 8 characters')
-  .max(72, 'Password too long');
+export const loginSchema = z
+  .object({
+    email: z.string().trim().email('Please enter a valid email address').max(255),
 
-export const loginSchema = z.object({
-  email: z.string().email().toLowerCase(),
-  password: z.string().min(1),
-});
+    password: z.string().min(1, 'Password is required').max(128, 'Password is too long'),
+  })
+  .strict();
 
-export const refreshSchema = z.object({ refreshToken: z.string().min(1) });
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128),
 
-export const forgotPasswordSchema = z.object({ email: z.string().email().toLowerCase() });
-
-export const resetPasswordSchema = z.object({
-  token: z.string().min(1),
-  newPassword: passwordField,
-});
-
-export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1),
-  newPassword: passwordField,
-});
+    newPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .max(128, 'Password is too long'),
+  })
+  .strict()
+  .refine((data) => data.currentPassword !== data.newPassword, {
+    path: ['newPassword'],
+    message: 'New password must differ from current password',
+  });

@@ -1,22 +1,36 @@
 import express from 'express';
-import helmet from 'helmet';
 import cors from 'cors';
+import helmet from 'helmet';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
-import { env } from './config/env.js';
-import routes from './routes/index.js';
+
+import { authRouter } from './modules/auth/auth.routes.js';
 import { notFound, errorHandler } from './middlewares/error.js';
 
 const app = express();
 
 app.disable('x-powered-by');
-app.use(helmet());
-app.use(cors({ origin: env.CORS_ORIGINS.split(',').map((s) => s.trim()), credentials: true }));
-app.use(rateLimit({ windowMs: 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
-app.use(express.json({ limit: '1mb' }));
-if (env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
-app.use('/api/v1', routes);
+app.use(helmet());
+
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL
+      ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
+      : 'http://localhost:3000',
+  }),
+);
+
+app.use(express.json({ limit: '10kb' }));
+app.use(morgan('dev'));
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Orvia Agency OS API is running',
+  });
+});
+
+app.use('/api/auth', authRouter);
 
 app.use(notFound);
 app.use(errorHandler);
