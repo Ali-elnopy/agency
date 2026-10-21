@@ -28,6 +28,7 @@ export const authenticate = async (req, res, next) => {
     if (
       typeof payload === 'string' ||
       typeof payload.sub !== 'string' ||
+      typeof payload.sid !== 'string' ||
       !/^\d+$/.test(payload.sub)
     ) {
       throw new ApiError(401, 'Invalid access token');
@@ -39,6 +40,17 @@ export const authenticate = async (req, res, next) => {
       throw new ApiError(401, 'Invalid access token');
     }
 
+    const session = await AuthModel.findSessionById(payload.sid);
+
+    if (
+      !session ||
+      session.userId !== userId ||
+      session.revokedAt ||
+      session.expiresAt.getTime() <= Date.now()
+    ) {
+      throw new ApiError(401, 'Session is invalid or expired');
+    }
+
     const user = await AuthModel.findUserById(userId);
 
     if (!user || !user.isActive) {
@@ -46,7 +58,7 @@ export const authenticate = async (req, res, next) => {
     }
 
     req.user = user;
-
+    req.authSession = { id: session.id };
     next();
   } catch (error) {
     if (error instanceof ApiError) {

@@ -30,10 +30,12 @@ export const AuthController = {
     });
   }),
 
-  logout: (req, res) => {
+  logout: asyncHandler(async (req, res) => {
+    const result = await AuthService.logout(req.user.id, req.authSession.id);
+
     res.status(200).json({
       success: true,
-      message: 'Logout acknowledged. Discard the access token on the client.',
+      message: result.message,
     });
-  },
+  }),
 };

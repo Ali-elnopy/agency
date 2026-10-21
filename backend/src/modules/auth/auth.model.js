@@ -34,6 +34,29 @@ export const AuthModel = {
     });
   },
 
+  createSession(data) {
+    return prisma.authSession.create({ data });
+  },
+
+  findSessionById(id) {
+    return prisma.authSession.findUnique({
+      where: { id },
+    });
+  },
+
+  revokeSession(sessionId, userId) {
+    return prisma.authSession.updateMany({
+      where: {
+        id: sessionId,
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  },
+
   findUserByEmail(email) {
     return prisma.user.findUnique({
       where: { email },

@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-export const generateAccessToken = (user) => {
+export const generateAccessToken = (user, sessionId) => {
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not configured');
   }
@@ -8,6 +8,7 @@ export const generateAccessToken = (user) => {
   return jwt.sign(
     {
       sub: String(user.id),
+      sid: sessionId,
     },
     process.env.JWT_SECRET,
     {

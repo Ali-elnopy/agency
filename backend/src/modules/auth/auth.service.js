@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { AuthModel } from './auth.model.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { generateAccessToken } from '../../utils/tokens.js';
-
+import { generateRefreshToken, hashRefreshToken } from '../../utils/refreshTokens.js';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
@@ -59,10 +59,20 @@ export const AuthService = {
       throw new ApiError(401, 'Invalid email or password');
     }
 
+    const refreshToken = generateRefreshToken();
+
+    const session = await AuthModel.createSession({
+      userId: user.id,
+      refreshTokenHash: hashRefreshToken(refreshToken),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      userAgent: undefined,
+      ipAddress: undefined,
+    });
+
     await AuthModel.resetLoginFailures(user.id);
     await AuthModel.updateLastLogin(user.id);
 
-    const accessToken = generateAccessToken(user);
+    const accessToken = generateAccessToken(user, session.id);
 
     return {
       user: getPublicUser({
@@ -70,7 +80,24 @@ export const AuthService = {
         lastLoginAt: new Date(),
       }),
       accessToken,
+      refreshToken,
     };
+  },
+
+  async logout(userId, sessionId) {
+    const session = await AuthModel.findSessionById(sessionId);
+
+    if (!session || session.userId !== userId) {
+      throw new ApiError(401, 'Invalid session');
+    }
+
+    if (session.revokedAt) {
+      return { message: 'Already logged out' };
+    }
+
+    await AuthModel.revokeSession(sessionId, userId);
+
+    return { message: 'Logout successful' };
   },
 
   async getCurrentUser(userId) {

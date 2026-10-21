@@ -71,6 +71,8 @@ model User {
   @@index([roleId])
   @@index([jobTitleId])
   @@map("users")
+
+  sessions AuthSession[]
 }
 
 model Team {
@@ -146,4 +148,21 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@map("role_permissions")
+}
+
+
+model AuthSession {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          Int       @map("user_id")
+  refreshTokenHash String   @unique @map("refresh_token_hash") @db.VarChar(64)
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  userAgent       String?   @map("user_agent") @db.VarChar(500)
+  ipAddress       String?   @map("ip_address") @db.VarChar(45)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("auth_sessions")
 }
