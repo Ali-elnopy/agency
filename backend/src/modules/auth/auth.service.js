@@ -110,22 +110,40 @@ export const AuthService = {
     return user;
   },
 
-  async changePassword(userId, { currentPassword, newPassword }) {
-    const user = await AuthModel.findUserByEmailForPassword?.(userId);
+  async changePassword(
+    userId,
+    currentSessionId,
+    { currentPassword, newPassword },
+    requestMeta = {},
+  ) {
+    const user = await AuthModel.findUserForPasswordChange(userId);
 
     if (!user || !user.isActive) {
       throw new ApiError(401, 'User account is unavailable');
     }
 
-    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    const passwordIsValid = await bcrypt.compare(currentPassword, user.passwordHash);
 
-    if (!valid) {
+    if (!passwordIsValid) {
       throw new ApiError(400, 'Current password is incorrect');
+    }
+
+    // Defense in depth: reject reuse of the current password.
+    const isSamePassword = await bcrypt.compare(newPassword, user.passwordHash);
+
+    if (isSamePassword) {
+      throw new ApiError(400, 'New password must differ from current password');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    await AuthModel.updatePassword(userId, passwordHash);
+    await AuthModel.changePasswordAndAudit({
+      userId,
+      passwordHash,
+      currentSessionId,
+      ipAddress: requestMeta.ipAddress,
+      userAgent: requestMeta.userAgent,
+    });
 
     return { message: 'Password changed successfully' };
   },

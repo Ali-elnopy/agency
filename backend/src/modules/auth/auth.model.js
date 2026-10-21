@@ -112,4 +112,46 @@ export const AuthModel = {
       data: { passwordHash },
     });
   },
+
+  findUserForPasswordChange(userId) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        passwordHash: true,
+        isActive: true,
+      },
+    });
+  },
+
+  async changePasswordAndAudit({ userId, passwordHash, currentSessionId, ipAddress, userAgent }) {
+    return prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      });
+
+      // Keep the current session active.
+      // Revoke every other active session.
+      await tx.authSession.updateMany({
+        where: {
+          userId,
+          id: { not: currentSessionId },
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date() },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'AUTH_PASSWORD_CHANGED',
+          targetType: 'User',
+          targetId: String(userId),
+          ipAddress: ipAddress?.slice(0, 45),
+          userAgent: userAgent?.slice(0, 500),
+        },
+      });
+    });
+  },
 };

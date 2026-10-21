@@ -22,7 +22,10 @@ export const AuthController = {
   }),
 
   changePassword: asyncHandler(async (req, res) => {
-    const result = await AuthService.changePassword(req.user.id, req.body);
+    const result = await AuthService.changePassword(req.user.id, req.authSession.id, req.body, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     res.status(200).json({
       success: true,

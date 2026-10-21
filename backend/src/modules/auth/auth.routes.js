@@ -12,7 +12,7 @@ authRouter.post('/login', validate(loginSchema), AuthController.login);
 
 authRouter.get('/me', authenticate, AuthController.me);
 
-authRouter.patch(
+authRouter.post(
   '/change-password',
   authenticate,
   validate(changePasswordSchema),
