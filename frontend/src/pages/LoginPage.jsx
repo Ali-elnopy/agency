@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { loginApi } from '../services/api';
+import { getMockCredentials } from '../services/api';
 import InfoModal from '../components/modals/InfoModal';
+import useAuth from '../hooks/useAuth';
 
-export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuccess }) {
-  const [email, setEmail] = useState('elena.vance@orvia-creative.com');
-  const [password, setPassword] = useState('password1234');
+export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
+  const auth = useAuth();
+  const { login } = auth;
+  const DEV_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true';
+  const demoAccounts = getMockCredentials();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -15,33 +20,37 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuc
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (import.meta.env.DEV && DEV_BYPASS && !email.trim() && !password.trim()) {
+      try {
+        auth.devLogin();
+        onNavigate('dashboard');
+      } catch {
+        setError('Development login bypass is disabled.');
+      }
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const result = await loginApi({ email, password });
+      const result = await login({ email, password });
+
       if (result.success) {
-        if (onLoginSuccess) {
-          onLoginSuccess(result.data.user);
-        }
         onNavigate('dashboard');
       } else {
-        setError(result.message || 'Login failed. Please check credentials.');
+        setError(result.message || 'Login failed. Please check your credentials.');
       }
-    } catch (_err) {
-      setError('An error occurred during sign in.');
+    } catch {
+      setError('An unexpected error occurred during sign in.');
     } finally {
       setLoading(false);
     }
   };
 
-  const setDemoCredentials = (role) => {
-    if (role === 'admin') {
-      setEmail('admin@agency.local');
-      setPassword('ChangeMe123!');
-    } else {
-      setEmail('elena.vance@orvia-creative.com');
-      setPassword('password1234');
-    }
+  const applyDemoAccount = (account) => {
+    setEmail(account.email);
+    setPassword(account.password);
     setError('');
   };
 
@@ -49,7 +58,14 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuc
     <>
       <section className="login">
         <header className="login__header">
-          <a href="#login" className="brand" onClick={(e) => { e.preventDefault(); onNavigate('login'); }}>
+          <a
+            href="#login"
+            className="brand"
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigate('login');
+            }}
+          >
             <span className="brand__mark" aria-hidden="true" />
             <span className="brand__text">
               <strong>ORVIA</strong>
@@ -93,31 +109,23 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuc
 
         <div className="login__body">
           <span className="badge">
-            <i />Workspace Portal v3.4
+            <i />
+            Workspace Portal v3.4
           </span>
 
           <h1 className="login__title">Welcome back</h1>
           <p className="login__subtitle">
-            Log in to your workspace to manage creative briefs, team reviews, and client deliverables.
+            Log in to your workspace to manage creative briefs, team reviews, and client
+            deliverables.
           </p>
 
           {error && (
-            <div
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(229, 72, 77, 0.12)',
-                border: '1px solid rgba(229, 72, 77, 0.3)',
-                color: 'var(--red)',
-                fontSize: '13px',
-                marginBottom: '16px',
-              }}
-            >
+            <div className="form__error" role="alert">
               {error}
             </div>
           )}
 
-          <form className="form" onSubmit={handleSubmit}>
+          <form className="form" onSubmit={handleSubmit} noValidate={DEV_BYPASS}>
             <div className="field">
               <label htmlFor="email">WORK EMAIL</label>
               <div className="input">
@@ -128,7 +136,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuc
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
-                  required
+                  required={!DEV_BYPASS}
                 />
                 <svg className="input__icon input__icon--ok" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M5 12.5l4.5 4.5L19 7.5" />
@@ -208,55 +216,28 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuc
               </svg>
             </button>
 
-            <div
-              style={{
-                marginTop: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                fontSize: '11px',
-                color: 'var(--muted)',
-              }}
-            >
-              <span>Quick Login:</span>
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('account_manager')}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--line)',
-                  borderRadius: '6px',
-                  padding: '3px 8px',
-                  color: 'var(--accent-text)',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                }}
-              >
-                Elena (Studio Lead)
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('admin')}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--line)',
-                  borderRadius: '6px',
-                  padding: '3px 8px',
-                  color: 'var(--accent-text)',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                }}
-              >
-                Admin
-              </button>
-            </div>
+            {demoAccounts.length > 0 && (
+              <div className="quick-login">
+                <span>Demo login:</span>
+                {demoAccounts.map((account) => (
+                  <button
+                    key={account.email}
+                    type="button"
+                    className="quick-login__btn"
+                    onClick={() => applyDemoAccount(account)}
+                    title={account.email}
+                  >
+                    {account.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </form>
         </div>
 
         <footer className="login__footer">
           <p>
-            Don't have an agency team yet?{' '}
+            Don&apos;t have an agency team yet?{' '}
             <a
               href="#trial"
               className="link link--strong"
@@ -269,8 +250,12 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuc
             </a>
           </p>
           <nav className="footer-nav">
-            <a href="#terms" onClick={(e) => e.preventDefault()}>Terms</a>
-            <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy</a>
+            <a href="#terms" onClick={(e) => e.preventDefault()}>
+              Terms
+            </a>
+            <a href="#privacy" onClick={(e) => e.preventDefault()}>
+              Privacy
+            </a>
             <span>SOC2 Type II</span>
           </nav>
         </footer>
@@ -285,10 +270,11 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuc
         icon="#i-users"
         iconColor="orange"
       >
-        <p style={{ marginBottom: '8px' }}>
-          For login assistance, password resets, or enterprise single sign-on (SSO) queries, please contact your studio administrator.
+        <p className="modal-copy">
+          For login assistance, password resets, or enterprise single sign-on (SSO) queries, please
+          contact your studio administrator.
         </p>
-        <p style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        <p className="modal-copy modal-copy--muted">
           Support desk: <code>support@orvia-creative.com</code>
         </p>
       </InfoModal>
@@ -303,10 +289,11 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuc
         iconColor="green"
         actionText="Request Access"
       >
-        <p style={{ marginBottom: '10px' }}>
-          Includes 20 user seats, multi-brand asset review gates, real-time feedback canvases, and priority support.
+        <p className="modal-copy">
+          Includes 20 user seats, multi-brand asset review gates, real-time feedback canvases, and
+          priority support.
         </p>
-        <p style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        <p className="modal-copy modal-copy--muted">
           Direct onboarding: <code>sales@orvia-creative.com</code>
         </p>
       </InfoModal>

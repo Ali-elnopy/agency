@@ -1,0 +1,77 @@
+/* ==========================================================================
+   Tokens
+   ========================================================================== */
+:root {
+  /* Theme: light (default) */
+  --surface: #fff8f3;
+  --field: #ffffff;
+  --ink: #1d1b2e;
+  --muted: #6b7287;
+  --label: #4a4f63;
+  --faint: #9aa0b2;
+  --line: #e9e2dc;
+  --check-border: #d6cdc5;
+  --accent-text: #d9531f;
+  --badge-bg: #ffe9de;
+  --badge-line: #fbd3bf;
+
+  /* Dashboard surfaces */
+  --app-bg: #f7f3ee;
+  --card: #ffffff;
+  --soft: #f6f2ed;
+  --shadow: 0 1px 2px rgba(29, 27, 46, 0.04), 0 10px 24px -14px rgba(29, 27, 46, 0.12);
+  --sidebar-bg: #1d2160;
+  --sidebar-ink: #b9bce0;
+  --sidebar-active-bg: rgba(255, 255, 255, 0.12);
+  --sidebar-active-ink: #ffffff;
+  --sidebar-line: transparent;
+
+  /* Brand */
+  --bg-dark: #100d1f;
+  --white: #ffffff;
+
+  --orange: #f26a3d;
+  --orange-dark: #d9531f;
+  --orange-soft: #ffe9de;
+  --green: #2f9e6b;
+  --amber: #d98a0b;
+  --red: #e5484d;
+  --purple: #6d5ce8;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+
+  --radius: 12px;
+}
+
+/* Theme: dark */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface: #13111d;
+  --field: #1b1928;
+  --ink: #f4f2fa;
+  --muted: #9b98b2;
+  --label: #cfcbe0;
+  --faint: #6f6c88;
+  --line: #2b2840;
+  --check-border: #3a3752;
+  --accent-text: #ff7a45;
+  --badge-bg: rgba(242, 106, 61, 0.14);
+  --badge-line: rgba(242, 106, 61, 0.3);
+
+  --app-bg: #0e0c16;
+  --card: #16141f;
+  --soft: #1d1a29;
+  --shadow: none;
+  --sidebar-bg: #0c0b13;
+  --sidebar-ink: #9a97b0;
+  --sidebar-active-bg: rgba(242, 106, 61, 0.14);
+  --sidebar-active-ink: #ff8a5b;
+  --sidebar-line: #2b2840;
+
+  --green: #3ecf8e;
+  --amber: #f5b942;
+  --red: #ff6b6b;
+  --purple: #a393ff;
+}

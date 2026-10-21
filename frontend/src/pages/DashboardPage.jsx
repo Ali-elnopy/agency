@@ -10,10 +10,11 @@ import UserAccessPage from './UserAccessPage';
 import NewBriefModal from '../components/modals/NewBriefModal';
 import InfoModal from '../components/modals/InfoModal';
 import Toast from '../components/ui/Toast';
+import useAuth from '../hooks/useAuth';
+import useToast from '../hooks/useToast';
 
-// Sections that are actually built in this delivery. Anything else in the
-// sidebar is announced as "coming soon" instead of silently showing the
-// dashboard under a different highlighted tab.
+// Anything outside this list is announced as "coming soon" instead of
+// silently rendering the dashboard under a different highlighted tab.
 const AVAILABLE_SECTIONS = ['dashboard', 'users', 'roles', 'settings'];
 
 const SECTION_LABELS = {
@@ -27,7 +28,6 @@ const SECTION_LABELS = {
 };
 
 export default function DashboardPage({
-  user,
   theme,
   onToggleTheme,
   isCollapsed,
@@ -35,26 +35,19 @@ export default function DashboardPage({
   onSignOut,
   onNavigate,
 }) {
+  const { user } = useAuth();
+  const { toast, showToast, clearToast } = useToast();
+
   const [section, setSection] = useState('dashboard');
   const [isNewBriefOpen, setIsNewBriefOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
-  const [toast, setToast] = useState(null);
   const [newActivity, setNewActivity] = useState(null);
 
-  const showToast = (message, tone = 'success') => {
-    setToast({ message, tone });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  /**
-   * Sidebar navigation guard: out-of-scope sections never replace the
-   * current screen, they just explain that they are not built yet.
-   */
   const handleSelect = (id) => {
     if (AVAILABLE_SECTIONS.includes(id)) {
       setSection(id);
-      setToast(null);
+      clearToast();
       return;
     }
 
@@ -66,19 +59,25 @@ export default function DashboardPage({
     setNewActivity({
       id: Date.now(),
       avatarClass: 'is-a',
-      initials: user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2) : 'EV',
+      initials: user?.fullName
+        ? user.fullName
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .substring(0, 2)
+        : 'EV',
       name: user?.fullName || 'Elena Vance',
       time: 'Just now',
       role: 'Creative Lead',
       action: (
         <>
           <span className="pill is-orange">
-            <svg className="icon">
+            <svg aria-hidden="true" className="icon">
               <use href="#i-send" />
             </svg>
             Launched
           </span>{' '}
-          Brief "{brief.title}" for {brief.brand}
+          Brief &quot;{brief.title}&quot; for {brief.brand}
         </>
       ),
     });
@@ -97,12 +96,12 @@ export default function DashboardPage({
       action: (
         <>
           <span className={`pill is-${role.color}`}>
-            <svg className="icon">
+            <svg aria-hidden="true" className="icon">
               <use href="#i-users" />
             </svg>
             Configured
           </span>{' '}
-          New Role "{role.title}" with {role.badge} permissions.
+          New Role &quot;{role.title}&quot; with {role.badge} permissions.
         </>
       ),
     });
@@ -120,13 +119,18 @@ export default function DashboardPage({
 
       <div className="workspace">
         <Topbar
-          user={user}
           theme={theme}
           onToggleTheme={onToggleTheme}
           onSignOut={() => setIsSignOutOpen(true)}
           onNewBrief={() => setIsNewBriefOpen(true)}
           onOpenHelp={() => setIsHelpOpen(true)}
-          actionLabel={section === 'roles' ? 'New Custom Role' : section === 'users' ? 'Add New User' : 'New Brief'}
+          actionLabel={
+            section === 'roles'
+              ? 'New Custom Role'
+              : section === 'users'
+                ? 'Add New User'
+                : 'New Brief'
+          }
           onAction={
             section === 'roles'
               ? () => showToast('Opening the custom role builder…', 'info')
@@ -138,7 +142,7 @@ export default function DashboardPage({
 
         <main className="content">
           {section === 'settings' ? (
-            <SettingsPage user={user} />
+            <SettingsPage />
           ) : section === 'users' ? (
             <UserAccessPage onOpenRoles={() => setSection('roles')} />
           ) : section === 'roles' ? (
@@ -156,7 +160,7 @@ export default function DashboardPage({
                   >
                     Home
                   </a>
-                  <svg className="icon">
+                  <svg aria-hidden="true" className="icon">
                     <use href="#i-chevron" />
                   </svg>
                   <strong>Dashboard</strong>
@@ -168,14 +172,18 @@ export default function DashboardPage({
               <section className="page-head">
                 <h1 className="page-head__title">Dashboard</h1>
                 <p className="page-head__text">
-                  Agency Operating System &amp; Real-Time Production Velocity across active brand partners and user seats.
+                  Agency Operating System &amp; Real-Time Production Velocity across active brand
+                  partners and user seats.
                 </p>
               </section>
 
               <StatsSection />
 
               <section className="row row--admin">
-                <RolesSection onRoleCreated={handleRoleCreated} onOpenMatrix={() => setSection('roles')} />
+                <RolesSection
+                  onRoleCreated={handleRoleCreated}
+                  onOpenMatrix={() => setSection('roles')}
+                />
                 <ActivitySection incomingActivity={newActivity} />
               </section>
             </>
@@ -200,13 +208,23 @@ export default function DashboardPage({
         iconColor="orange"
         actionText="Close Help Center"
       >
-        <p style={{ marginBottom: '10px' }}>
-          Welcome to the ORVIA Agency Operating System. Here are quick tips for managing your studio:
+        <p className="modal-copy">
+          Welcome to the ORVIA Agency Operating System. Here are quick tips for managing your
+          studio:
         </p>
-        <ul style={{ paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--muted)', fontSize: '13px' }}>
-          <li><strong>Role Management:</strong> Use the <code>+ New Role</code> modal to configure RBAC permissions for creative teams and client portals.</li>
-          <li><strong>Briefs &amp; Campaigns:</strong> Launch new creative briefs from the top navigation bar to trigger automated team pipelines.</li>
-          <li><strong>Dark / Light Mode:</strong> Toggle anytime via the sun/moon button; preferences persist across sessions.</li>
+        <ul className="modal-list">
+          <li>
+            <strong>Role Management:</strong> Use the <code>+ New Role</code> modal to configure
+            RBAC permissions for creative teams and client portals.
+          </li>
+          <li>
+            <strong>Briefs &amp; Campaigns:</strong> Launch new creative briefs from the top
+            navigation bar to trigger automated team pipelines.
+          </li>
+          <li>
+            <strong>Dark / Light Mode:</strong> Toggle anytime via the sun/moon button; preferences
+            persist across sessions.
+          </li>
         </ul>
       </InfoModal>
 
@@ -221,8 +239,9 @@ export default function DashboardPage({
         actionText="Confirm Sign Out"
         onAction={onSignOut}
       >
-        <p style={{ color: 'var(--muted)', fontSize: '13px' }}>
-          Your draft changes and cached credentials will be cleared for security. You can sign back in at any time.
+        <p className="modal-copy modal-copy--muted">
+          Your draft changes and cached credentials will be cleared for security. You can sign back
+          in at any time.
         </p>
       </InfoModal>
 

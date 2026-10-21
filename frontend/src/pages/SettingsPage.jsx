@@ -1,22 +1,124 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Switch from '../components/ui/Switch';
 import Toast from '../components/ui/Toast';
+import useAuth from '../hooks/useAuth';
+import useToast from '../hooks/useToast';
+import { changePassword } from '../services/users';
+import { validatePasswordChange, validateProfile } from '../utils/validation';
 
 const BRANDS = ['Aura Mobility', 'Kinetic Health', 'Vanguard Audio', 'Solace Skincare'];
 
-export default function SettingsPage({ user }) {
-  const name = user?.fullName || 'Elena Vance';
-  const email = user?.email || 'elena.vance@orvia-creative.com';
+const PROFILE_DEFAULTS = {
+  jobTitle: 'Executive Studio Lead',
+  phone: '+1 (555) 234-8900',
+  department: 'exec',
+  timezone: 'cairo',
+};
+
+export default function SettingsPage() {
+  const { user, updateProfile } = useAuth();
+  const { toast, showToast } = useToast(3500);
+
+  const currentProfile = useMemo(
+    () => ({
+      fullName: user?.fullName || 'Elena Vance',
+      email: user?.email || 'elena.vance@orvia-creative.com',
+      ...PROFILE_DEFAULTS,
+    }),
+    [user],
+  );
+
+  const [profile, setProfile] = useState(currentProfile);
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const [twoFA, setTwoFA] = useState(true);
   const [urgentAlerts, setUrgentAlerts] = useState(true);
   const [auditLogs, setAuditLogs] = useState(true);
   const [weeklyDigest, setWeeklyDigest] = useState(false);
-  const [toast, setToast] = useState('');
 
-  const notify = (message) => {
-    setToast(message);
-    window.setTimeout(() => setToast(''), 3500);
+  useEffect(() => {
+    setProfile(currentProfile);
+    setErrors({});
+  }, [currentProfile]);
+
+  const notify = (message, tone = 'success') => showToast(message, tone);
+
+  const updateField = (field) => (event) => {
+    const { value } = event.target;
+
+    setProfile((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const updatePasswordField = (field) => (event) => {
+    const { value } = event.target;
+
+    setPasswordForm((prev) => ({ ...prev, [field]: value }));
+    setPasswordErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    const nextErrors = validateProfile(profile);
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length) return;
+
+    setSaving(true);
+
+    try {
+      await updateProfile({
+        name: profile.fullName.trim(),
+        email: profile.email.trim().toLowerCase(),
+        jobTitle: profile.jobTitle.trim(),
+        phone: profile.phone.trim(),
+        department: profile.department,
+        timezone: profile.timezone,
+      });
+      notify('Profile changes saved successfully.');
+    } catch (error) {
+      notify(error.message || 'Could not save your profile. Please try again.', 'danger');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    setProfile(currentProfile);
+    setErrors({});
+    notify('Changes discarded.', 'info');
+  };
+
+  const handlePasswordUpdate = async () => {
+    const nextErrors = validatePasswordChange(passwordForm);
+    setPasswordErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length) return;
+
+    setChangingPassword(true);
+
+    try {
+      await changePassword(passwordForm);
+      setPasswordForm({ currentPassword: '', newPassword: '' });
+      notify('Password updated successfully.');
+    } catch (error) {
+      notify(error.message || 'Could not update your password. Please try again.', 'danger');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   return (
@@ -25,11 +127,11 @@ export default function SettingsPage({ user }) {
       <div className="crumbs">
         <nav aria-label="Breadcrumb">
           <span>Workspace</span>
-          <svg className="icon">
+          <svg aria-hidden="true" className="icon">
             <use href="#i-chevron" />
           </svg>
           <span>Settings</span>
-          <svg className="icon">
+          <svg aria-hidden="true" className="icon">
             <use href="#i-chevron" />
           </svg>
           <strong>My Profile &amp; Identity</strong>
@@ -45,16 +147,26 @@ export default function SettingsPage({ user }) {
             <span className="id-chip">ID: #ORV-0014</span>
           </div>
           <p className="page-head__text">
-            Manage your personal profile, workspace role credentials, security authentication, and brand notifications.
+            Manage your personal profile, workspace role credentials, security authentication, and
+            brand notifications.
           </p>
         </div>
 
         <div className="settings-head__actions">
-          <button type="button" className="button button--ghost" onClick={() => notify('Opening audit activity…')}>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => notify('Opening audit activity…')}
+          >
             View Audit Activity
           </button>
-          <button type="button" className="button button--primary" onClick={() => notify('Profile changes saved successfully.')}>
-            Save Profile Changes
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : 'Save Profile Changes'}
           </button>
         </div>
       </section>
@@ -76,18 +188,26 @@ export default function SettingsPage({ user }) {
 
               <div className="profile-id">
                 <div className="profile-name">
-                  <strong>{name}</strong>
+                  <strong>{currentProfile.fullName}</strong>
                   <span className="badge-internal">Internal</span>
                 </div>
                 <span className="profile-email">
-                  {email}
+                  {currentProfile.email}
                   <span className="profile-email__meta"> • Added Oct 12, 2026</span>
                 </span>
                 <div className="profile-actions">
-                  <button type="button" className="button button--primary button--sm" onClick={() => notify('Choose a new profile photo…')}>
+                  <button
+                    type="button"
+                    className="button button--primary button--sm"
+                    onClick={() => notify('Choose a new profile photo…')}
+                  >
                     Update Avatar
                   </button>
-                  <button type="button" className="button button--ghost button--sm" onClick={() => notify('Avatar removed.')}>
+                  <button
+                    type="button"
+                    className="button button--ghost button--sm"
+                    onClick={() => notify('Avatar removed.')}
+                  >
                     Remove
                   </button>
                 </div>
@@ -104,7 +224,9 @@ export default function SettingsPage({ user }) {
               <div className="role-box__body">
                 <span className="caps">Assigned Workspace Role</span>
                 <p className="role-box__name">Studio Lead &amp; Admin</p>
-                <p className="role-box__desc">Full governance: budgets, client invites, system API keys</p>
+                <p className="role-box__desc">
+                  Full governance: budgets, client invites, system API keys
+                </p>
               </div>
               <span className="role-box__tag">
                 Full
@@ -126,7 +248,7 @@ export default function SettingsPage({ user }) {
                   }}
                 >
                   Manage Access
-                  <svg className="icon">
+                  <svg aria-hidden="true" className="icon">
                     <use href="#i-arrow" />
                   </svg>
                 </a>
@@ -166,7 +288,7 @@ export default function SettingsPage({ user }) {
           <section className="surface-card security-card">
             <header className="security-head">
               <span className="security-head__icon">
-                <svg className="icon">
+                <svg aria-hidden="true" className="icon">
                   <use href="#i-shield" />
                 </svg>
               </span>
@@ -192,7 +314,7 @@ export default function SettingsPage({ user }) {
               </div>
               <span className="security-link">
                 Connected
-                <svg className="icon">
+                <svg aria-hidden="true" className="icon">
                   <use href="#i-check" />
                 </svg>
               </span>
@@ -218,38 +340,79 @@ export default function SettingsPage({ user }) {
             </header>
 
             <div className="set-form">
-              <label className="set-field">
+              <label className={`set-field${errors.fullName ? ' is-invalid' : ''}`}>
                 <span className="set-label">Full Name *</span>
-                <input className="set-input" defaultValue={name} />
+                <input
+                  className="set-input"
+                  value={profile.fullName}
+                  onChange={updateField('fullName')}
+                  autoComplete="name"
+                  aria-invalid={Boolean(errors.fullName)}
+                  aria-describedby={errors.fullName ? 'settings-fullname-error' : undefined}
+                />
+                {errors.fullName && (
+                  <span className="set-error" id="settings-fullname-error" role="alert">
+                    {errors.fullName}
+                  </span>
+                )}
               </label>
 
-              <label className="set-field set-field--ok">
+              <label className={`set-field set-field--ok${errors.email ? ' is-invalid' : ''}`}>
                 <span className="set-label">Work Email *</span>
-                <input className="set-input" type="email" defaultValue={email} />
-                <svg className="icon set-field__ok">
-                  <use href="#i-check" />
-                </svg>
+                <input
+                  className="set-input"
+                  type="email"
+                  value={profile.email}
+                  onChange={updateField('email')}
+                  autoComplete="email"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? 'settings-email-error' : undefined}
+                />
+                {!errors.email && (
+                  <svg aria-hidden="true" className="icon set-field__ok">
+                    <use href="#i-check" />
+                  </svg>
+                )}
+                {errors.email && (
+                  <span className="set-error" id="settings-email-error" role="alert">
+                    {errors.email}
+                  </span>
+                )}
               </label>
 
               <label className="set-field">
                 <span className="set-label">Job Title / Display Role</span>
-                <input className="set-input" defaultValue="Executive Studio Lead" />
+                <input
+                  className="set-input"
+                  value={profile.jobTitle}
+                  onChange={updateField('jobTitle')}
+                  autoComplete="organization-title"
+                />
               </label>
 
               <label className="set-field">
                 <span className="set-label">Phone / Direct WhatsApp</span>
-                <input className="set-input" defaultValue="+1 (555) 234-8900" />
+                <input
+                  className="set-input"
+                  value={profile.phone}
+                  onChange={updateField('phone')}
+                  autoComplete="tel"
+                />
               </label>
 
               <label className="set-field">
                 <span className="set-label">Department / Pod</span>
                 <span className="set-select-wrap">
-                  <select className="set-select" defaultValue="exec">
+                  <select
+                    className="set-select"
+                    value={profile.department}
+                    onChange={updateField('department')}
+                  >
                     <option value="exec">Executive &amp; Creative Operations</option>
                     <option value="content">Content Production</option>
                     <option value="design">Brand Design</option>
                   </select>
-                  <svg className="icon">
+                  <svg aria-hidden="true" className="icon">
                     <use href="#i-chevron" />
                   </svg>
                 </span>
@@ -258,12 +421,16 @@ export default function SettingsPage({ user }) {
               <label className="set-field">
                 <span className="set-label">Timezone &amp; Workspace Locale</span>
                 <span className="set-select-wrap">
-                  <select className="set-select" defaultValue="cairo">
+                  <select
+                    className="set-select"
+                    value={profile.timezone}
+                    onChange={updateField('timezone')}
+                  >
                     <option value="cairo">(GMT+02:00) Cairo / EET • English (US)</option>
                     <option value="london">(GMT+00:00) London / GMT • English (UK)</option>
                     <option value="dubai">(GMT+04:00) Dubai / GST • English (US)</option>
                   </select>
-                  <svg className="icon">
+                  <svg aria-hidden="true" className="icon">
                     <use href="#i-chevron" />
                   </svg>
                 </span>
@@ -279,17 +446,58 @@ export default function SettingsPage({ user }) {
                 <span className="status-text">Strong</span>
               </header>
 
-              <div className="set-field pw-field">
+              <div
+                className={`set-field pw-field${passwordErrors.currentPassword ? ' is-invalid' : ''}`}
+              >
                 <span className="set-label">Current Password</span>
-                <input className="set-input" type="password" defaultValue="orvia2026secure" />
+                <input
+                  className="set-input"
+                  type="password"
+                  placeholder="Enter current password"
+                  value={passwordForm.currentPassword}
+                  onChange={updatePasswordField('currentPassword')}
+                  autoComplete="current-password"
+                  aria-invalid={Boolean(passwordErrors.currentPassword)}
+                  aria-describedby={
+                    passwordErrors.currentPassword ? 'settings-current-password-error' : undefined
+                  }
+                />
+                {passwordErrors.currentPassword && (
+                  <span className="set-error" id="settings-current-password-error" role="alert">
+                    {passwordErrors.currentPassword}
+                  </span>
+                )}
               </div>
 
-              <div className="set-field pw-field">
+              <div
+                className={`set-field pw-field${passwordErrors.newPassword ? ' is-invalid' : ''}`}
+              >
                 <span className="set-label">New Password</span>
-                <input className="set-input" type="password" defaultValue="orvia2026secure!" />
-                <button type="button" className="pw-update" onClick={() => notify('Password updated successfully.')}>
-                  Update
+                <input
+                  className="set-input"
+                  type="password"
+                  placeholder="At least 8 characters"
+                  value={passwordForm.newPassword}
+                  onChange={updatePasswordField('newPassword')}
+                  autoComplete="new-password"
+                  aria-invalid={Boolean(passwordErrors.newPassword)}
+                  aria-describedby={
+                    passwordErrors.newPassword ? 'settings-new-password-error' : undefined
+                  }
+                />
+                <button
+                  type="button"
+                  className="pw-update"
+                  onClick={handlePasswordUpdate}
+                  disabled={changingPassword}
+                >
+                  {changingPassword ? 'Updating…' : 'Update'}
                 </button>
+                {passwordErrors.newPassword && (
+                  <span className="set-error" id="settings-new-password-error" role="alert">
+                    {passwordErrors.newPassword}
+                  </span>
+                )}
               </div>
 
               <div className="pw-foot">
@@ -320,7 +528,11 @@ export default function SettingsPage({ user }) {
                     <p className="notif__title">Urgent Client Sign-Off Alerts</p>
                     <p className="notif__sub">Instant push &amp; email on bottleneck items</p>
                   </div>
-                  <Switch checked={urgentAlerts} onChange={setUrgentAlerts} label="Urgent client sign-off alerts" />
+                  <Switch
+                    checked={urgentAlerts}
+                    onChange={setUrgentAlerts}
+                    label="Urgent client sign-off alerts"
+                  />
                 </div>
 
                 <div className="notif">
@@ -328,7 +540,11 @@ export default function SettingsPage({ user }) {
                     <p className="notif__title">Role &amp; Permission Audit Logs</p>
                     <p className="notif__sub">Alert when admin modifies user roles</p>
                   </div>
-                  <Switch checked={auditLogs} onChange={setAuditLogs} label="Role and permission audit logs" />
+                  <Switch
+                    checked={auditLogs}
+                    onChange={setAuditLogs}
+                    label="Role and permission audit logs"
+                  />
                 </div>
 
                 <div className="notif">
@@ -336,7 +552,11 @@ export default function SettingsPage({ user }) {
                     <p className="notif__title">Weekly Production Velocity Digest</p>
                     <p className="notif__sub">Every Monday at 09:00 AM</p>
                   </div>
-                  <Switch checked={weeklyDigest} onChange={setWeeklyDigest} label="Weekly production velocity digest" />
+                  <Switch
+                    checked={weeklyDigest}
+                    onChange={setWeeklyDigest}
+                    label="Weekly production velocity digest"
+                  />
                 </div>
               </div>
             </section>
@@ -354,14 +574,19 @@ export default function SettingsPage({ user }) {
                 href="#discard"
                 onClick={(e) => {
                   e.preventDefault();
-                  notify('Changes discarded.');
+                  handleDiscard();
                 }}
               >
                 Discard
               </a>
-              <button type="button" className="button button--primary" onClick={() => notify('Profile changes saved successfully.')}>
-                Save Changes
-                <svg className="icon">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : 'Save Changes'}
+                <svg aria-hidden="true" className="icon">
                   <use href="#i-arrow" />
                 </svg>
               </button>
@@ -370,7 +595,7 @@ export default function SettingsPage({ user }) {
         </div>
       </div>
 
-      <Toast message={toast} />
+      <Toast message={toast?.message} tone={toast?.tone} />
     </div>
   );
 }

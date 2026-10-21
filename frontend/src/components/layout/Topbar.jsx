@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
+import useAuth from '../../hooks/useAuth';
 
 export default function Topbar({
-  user,
   theme,
   onToggleTheme,
   onSignOut,
@@ -10,6 +10,7 @@ export default function Topbar({
   actionLabel = 'New Brief',
   onAction,
 }) {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
 
   const displayName = user?.fullName || 'Studio Lead';
@@ -30,7 +31,7 @@ export default function Topbar({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <svg className="icon">
+        <svg aria-hidden="true" className="icon">
           <use href="#i-search" />
         </svg>
       </label>
@@ -43,7 +44,7 @@ export default function Topbar({
           onClick={onOpenHelp}
           title="Help &amp; Documentation"
         >
-          <svg className="icon" viewBox="0 0 24 24">
+          <svg aria-hidden="true" className="icon" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="9" />
             <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01" />
           </svg>
@@ -86,7 +87,7 @@ export default function Topbar({
           className="button button--primary button--sm"
           onClick={onAction || onNewBrief}
         >
-          <svg className="icon">
+          <svg aria-hidden="true" className="icon">
             <use href="#i-plus" />
           </svg>
           {actionLabel}

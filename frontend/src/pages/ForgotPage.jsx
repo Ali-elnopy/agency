@@ -6,27 +6,38 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email) return;
-    setLoading(true);
 
-    try {
-      const res = await forgotPasswordApi(email);
+    setLoading(true);
+    setError('');
+
+    const result = await forgotPasswordApi(email);
+
+    if (result.success) {
       setSubmitted(true);
-      setMessage(res.message);
-    } catch (_err) {
-      setMessage('Failed to send reset link. Please check the email address.');
-    } finally {
-      setLoading(false);
+      setMessage(result.message);
+    } else {
+      setError(result.message);
     }
+
+    setLoading(false);
   };
 
   return (
     <section className="login">
       <header className="login__header">
-        <a href="#login" className="brand" onClick={(e) => { e.preventDefault(); onNavigate('login'); }}>
+        <a
+          href="#login"
+          className="brand"
+          onClick={(e) => {
+            e.preventDefault();
+            onNavigate('login');
+          }}
+        >
           <span className="brand__mark" aria-hidden="true" />
           <span className="brand__text">
             <strong>ORVIA</strong>
@@ -69,33 +80,23 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
 
       <div className="login__body">
         <span className="badge">
-          <i />Account Security
+          <i />
+          Account Security
         </span>
 
         <h1 className="login__title">Reset your password</h1>
         <p className="login__subtitle">
-          Enter the email associated with your ORVIA account and we'll send you a secure verification link to reset your password.
+          Enter the email associated with your ORVIA account and we&apos;ll send you a secure
+          verification link to reset your password.
         </p>
 
         {submitted ? (
-          <div
-            style={{
-              padding: '16px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(47, 158, 107, 0.12)',
-              border: '1px solid rgba(47, 158, 107, 0.3)',
-              color: 'var(--green)',
-              fontSize: '14px',
-              marginBottom: '20px',
-              lineHeight: '1.5',
-            }}
-          >
+          <div className="auth-notice" role="status">
             <strong>Check your inbox!</strong>
-            <p style={{ marginTop: '6px', fontSize: '13px', color: 'var(--ink)' }}>{message}</p>
+            <p className="auth-notice__text">{message}</p>
             <button
               type="button"
-              className="btn"
-              style={{ marginTop: '16px' }}
+              className="btn auth-notice__btn"
               onClick={() => onNavigate('login')}
             >
               Return to Sign In
@@ -103,6 +104,12 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
           </div>
         ) : (
           <form className="form" onSubmit={handleSubmit}>
+            {error && (
+              <div className="form__error" role="alert">
+                {error}
+              </div>
+            )}
+
             <div className="field">
               <label htmlFor="reset-email">WORK EMAIL</label>
               <div className="input">
@@ -116,7 +123,11 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
                   autoComplete="email"
                   required
                 />
-                <svg className="input__icon input__icon--mail" viewBox="0 0 24 24" aria-hidden="true">
+                <svg
+                  className="input__icon input__icon--mail"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <rect x="3" y="5" width="18" height="14" rx="2" />
                   <path d="M3 7l9 6 9-6" />
                 </svg>
@@ -157,14 +168,18 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
 
       <footer className="login__footer">
         <p>
-          Don't have an agency team yet?{' '}
+          Don&apos;t have an agency team yet?{' '}
           <a href="#trial" className="link link--strong" onClick={(e) => e.preventDefault()}>
             Start 14-day trial
           </a>
         </p>
         <nav className="footer-nav">
-          <a href="#terms" onClick={(e) => e.preventDefault()}>Terms</a>
-          <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy</a>
+          <a href="#terms" onClick={(e) => e.preventDefault()}>
+            Terms
+          </a>
+          <a href="#privacy" onClick={(e) => e.preventDefault()}>
+            Privacy
+          </a>
           <span>SOC2 Type II</span>
         </nav>
       </footer>

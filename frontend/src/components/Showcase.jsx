@@ -5,7 +5,8 @@ export default function Showcase() {
     <aside className="showcase">
       <div className="showcase__top">
         <span className="eyebrow">
-          <i />VELOCITY ENGINE
+          <i />
+          VELOCITY ENGINE
         </span>
         <span className="status">
           Enterprise Agency Cloud <i /> 99.99% Uptime
@@ -59,16 +60,16 @@ export default function Showcase() {
           <svg className="ribbon" viewBox="0 0 420 260" aria-hidden="true">
             <defs>
               <linearGradient id="gradPurple" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#5a4a8a" />
-                <stop offset="1" stop-color="#1d1840" />
+                <stop offset="0" stopColor="#5a4a8a" />
+                <stop offset="1" stopColor="#1d1840" />
               </linearGradient>
               <linearGradient id="gradOrange" x1="0" y1="1" x2="1" y2="0">
-                <stop offset="0" stop-color="#ff7a45" />
-                <stop offset="1" stop-color="#ffb48a" />
+                <stop offset="0" stopColor="#ff7a45" />
+                <stop offset="1" stopColor="#ffb48a" />
               </linearGradient>
               <linearGradient id="gradDeep" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0" stop-color="#e2531c" />
-                <stop offset="1" stop-color="#ff8c55" />
+                <stop offset="0" stopColor="#e2531c" />
+                <stop offset="1" stopColor="#ff8c55" />
               </linearGradient>
             </defs>
             <path

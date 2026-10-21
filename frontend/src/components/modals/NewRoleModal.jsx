@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import Modal from '../common/Modal';
 
-const GOVERNANCE_LEVELS = [
-  'Full Control',
-  'Review & Approve',
-  'Edit & Draft',
-  'External Sign-off',
-];
+const GOVERNANCE_LEVELS = ['Full Control', 'Review & Approve', 'Edit & Draft', 'External Sign-off'];
 
 const COLOR_OPTIONS = [
   { id: 'orange', label: 'Orange', bgClass: 'c-orange' },
@@ -85,7 +80,7 @@ export default function NewRoleModal({ isOpen, onClose, onAddRole }) {
             Cancel
           </button>
           <button type="button" className="button button--primary" onClick={handleSubmit}>
-            <svg className="icon">
+            <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
             </svg>
             Create Role
@@ -93,21 +88,8 @@ export default function NewRoleModal({ isOpen, onClose, onAddRole }) {
         </>
       }
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {error && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(229, 72, 77, 0.12)',
-              border: '1px solid rgba(229, 72, 77, 0.3)',
-              color: 'var(--red)',
-              fontSize: '13px',
-            }}
-          >
-            {error}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="modal-form">
+        {error && <div className="modal-error">{error}</div>}
 
         {/* Role Title */}
         <div className="modal-field">
@@ -140,8 +122,19 @@ export default function NewRoleModal({ isOpen, onClose, onAddRole }) {
                 onClick={() => setBadge(level)}
               >
                 {badge === level && (
-                  <svg className="icon" viewBox="0 0 24 24" width="12" height="12">
-                    <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2.5" />
+                  <svg
+                    aria-hidden="true"
+                    className="icon"
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                  >
+                    <path
+                      d="M5 12.5l4.5 4.5L19 7.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    />
                   </svg>
                 )}
                 {level}
@@ -164,9 +157,7 @@ export default function NewRoleModal({ isOpen, onClose, onAddRole }) {
                 aria-label={c.label}
               />
             ))}
-            <span style={{ fontSize: '12px', color: 'var(--muted)', marginLeft: '8px', textTransform: 'capitalize' }}>
-              {color} Accent
-            </span>
+            <span className="modal-color-label">{color} Accent</span>
           </div>
         </div>
 
@@ -212,13 +203,12 @@ export default function NewRoleModal({ isOpen, onClose, onAddRole }) {
           </label>
           <input
             id="member-count"
-            className="modal-input"
+            className="modal-input modal-input--narrow"
             type="number"
             min="1"
             max="100"
             value={memberCount}
             onChange={(e) => setMemberCount(Math.max(1, parseInt(e.target.value) || 1))}
-            style={{ width: '120px' }}
           />
         </div>
       </form>

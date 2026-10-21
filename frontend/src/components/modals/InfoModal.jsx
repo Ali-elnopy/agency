@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Modal from '../common/Modal';
 
 export default function InfoModal({
@@ -11,11 +11,41 @@ export default function InfoModal({
   children,
   actionText = 'Got it',
   onAction,
+  closeOnAction = true,
+  actionDisabled = false,
+  actionBusy = false,
 }) {
+  const [running, setRunning] = useState(false);
+  const busy = running || actionBusy;
+
+  const handleAction = async () => {
+    if (actionDisabled || busy) return;
+
+    if (!onAction) {
+      onClose();
+      return;
+    }
+
+    const result = onAction();
+
+    if (result && typeof result.then === 'function') {
+      setRunning(true);
+      try {
+        await result;
+        if (closeOnAction) onClose();
+      } finally {
+        setRunning(false);
+      }
+      return;
+    }
+
+    if (closeOnAction) onClose();
+  };
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={busy ? () => {} : onClose}
       title={title}
       subtitle={subtitle}
       icon={icon}
@@ -25,18 +55,15 @@ export default function InfoModal({
         <button
           type="button"
           className="button button--primary"
-          onClick={() => {
-            if (onAction) onAction();
-            onClose();
-          }}
+          onClick={handleAction}
+          disabled={actionDisabled || busy}
+          aria-busy={busy}
         >
           {actionText}
         </button>
       }
     >
-      <div style={{ fontSize: '13.5px', color: 'var(--ink)', lineHeight: '1.6' }}>
-        {children}
-      </div>
+      <div className="modal-lead">{children}</div>
     </Modal>
   );
 }

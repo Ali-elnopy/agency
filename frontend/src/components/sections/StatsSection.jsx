@@ -13,7 +13,7 @@ export default function StatsSection() {
             <span className="stat__badges">
               <span className="pill is-green trend-pill">↗ +2.6%</span>
               <span className="chip is-orange">
-                <svg className="icon">
+                <svg aria-hidden="true" className="icon">
                   <use href="#i-briefcase" />
                 </svg>
               </span>
@@ -32,7 +32,7 @@ export default function StatsSection() {
               <i className="avatar avatar--c">21</i>
             </span>
             <span className="stat__go">
-              <svg className="icon">
+              <svg aria-hidden="true" className="icon">
                 <use href="#i-arrow" />
               </svg>
             </span>
@@ -45,7 +45,7 @@ export default function StatsSection() {
             <span className="stat__badges">
               <span className="pill is-green trend-pill">↗ +5.1%</span>
               <span className="chip is-green">
-                <svg className="icon">
+                <svg aria-hidden="true" className="icon">
                   <use href="#i-users" />
                 </svg>
               </span>
@@ -76,7 +76,7 @@ export default function StatsSection() {
             <span className="stat__badges">
               <span className="pill is-amber trend-pill">8</span>
               <span className="chip is-amber">
-                <svg className="icon">
+                <svg aria-hidden="true" className="icon">
                   <use href="#i-eye" />
                 </svg>
               </span>
@@ -97,7 +97,7 @@ export default function StatsSection() {
             <span className="stat__badges">
               <span className="pill is-green trend-pill">↗ New</span>
               <span className="chip is-orange">
-                <svg className="icon">
+                <svg aria-hidden="true" className="icon">
                   <use href="#i-trend" />
                 </svg>
               </span>
@@ -110,7 +110,12 @@ export default function StatsSection() {
             <span className="trend">↗ +28.4%</span> vs last month
           </p>
           <div className="stat__foot">
-            <svg className="spark is-orange" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
+            <svg
+              className="spark is-orange"
+              viewBox="0 0 120 30"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
               <path d="M0 24 L15 19 L30 22 L45 13 L60 17 L75 9 L90 12 L105 6 L120 9" />
             </svg>
           </div>
@@ -127,14 +132,16 @@ export default function StatsSection() {
         iconColor="orange"
         actionText="Contact Enterprise Sales"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="modal-stack">
           <p>
-            You are currently on the <strong>Studio Pro (184 Seats)</strong> tier with 36 seats remaining.
+            You are currently on the <strong>Studio Pro (184 Seats)</strong> tier with 36 seats
+            remaining.
           </p>
-          <div style={{ padding: '12px', borderRadius: '10px', background: 'var(--soft)', border: '1px solid var(--line)' }}>
-            <h4 style={{ color: 'var(--accent-text)', marginBottom: '4px' }}>Enterprise Velocity</h4>
-            <p style={{ fontSize: '12.5px', color: 'var(--muted)' }}>
-              Includes unlimited seats, custom domain white-labeling, SOC2 compliance reports, and priority 24/7 SLA.
+          <div className="modal-info-card">
+            <h4 className="modal-info-card__title">Enterprise Velocity</h4>
+            <p className="modal-info-card__text">
+              Includes unlimited seats, custom domain white-labeling, SOC2 compliance reports, and
+              priority 24/7 SLA.
             </p>
           </div>
         </div>

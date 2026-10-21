@@ -52,7 +52,7 @@ export default function Sidebar({
             onClick={onToggleCollapse}
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <svg className="icon">
+            <svg aria-hidden="true" className="icon">
               <use href="#i-panel" />
             </svg>
           </button>
@@ -71,7 +71,7 @@ export default function Sidebar({
               title={item.soon ? `${item.label} — coming soon` : item.label}
               aria-disabled={item.soon || undefined}
             >
-              <svg className="icon">
+              <svg aria-hidden="true" className="icon">
                 <use href={item.icon} />
               </svg>
               <span className="sb-label">{item.label}</span>
@@ -88,7 +88,7 @@ export default function Sidebar({
               setIsUiKitOpen(true);
             }}
           >
-            <svg className="icon">
+            <svg aria-hidden="true" className="icon">
               <use href="#i-layers" />
             </svg>
             <span className="sb-label">UI Kit &amp; Tokens</span>
@@ -109,15 +109,16 @@ export default function Sidebar({
         icon="#i-layers"
         iconColor="purple"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <p style={{ color: 'var(--muted)', fontSize: '13px' }}>
-            Built with modern design tokens adhering to strict accessibility and dark mode specifications:
+        <div className="uikit-stack">
+          <p className="uikit-copy">
+            Built with modern design tokens adhering to strict accessibility and dark mode
+            specifications:
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', textAlign: 'center' }}>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--orange)', color: '#fff', fontSize: '11px', fontWeight: 600 }}>Orange (Primary)</div>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--purple)', color: '#fff', fontSize: '11px', fontWeight: 600 }}>Purple (Creative)</div>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--green)', color: '#fff', fontSize: '11px', fontWeight: 600 }}>Green (Success)</div>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--amber)', color: '#fff', fontSize: '11px', fontWeight: 600 }}>Amber (Warning)</div>
+          <div className="uikit-grid">
+            <div className="uikit-swatch uikit-swatch--orange">Orange (Primary)</div>
+            <div className="uikit-swatch uikit-swatch--purple">Purple (Creative)</div>
+            <div className="uikit-swatch uikit-swatch--green">Green (Success)</div>
+            <div className="uikit-swatch uikit-swatch--amber">Amber (Warning)</div>
           </div>
         </div>
       </InfoModal>

@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import Modal from '../common/Modal';
 
-const BRANDS = ['Lumina Health', 'Kinetic Motion', 'Aura Mobility', 'Vortex Digital', 'Nebula Studios'];
+const BRANDS = [
+  'Lumina Health',
+  'Kinetic Motion',
+  'Aura Mobility',
+  'Vortex Digital',
+  'Nebula Studios',
+];
 
 const DELIVERABLE_TYPES = [
   'Motion & 3D Video',
@@ -67,7 +73,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
             Cancel
           </button>
           <button type="button" className="button button--primary" onClick={handleSubmit}>
-            <svg className="icon">
+            <svg aria-hidden="true" className="icon">
               <use href="#i-send" />
             </svg>
             Launch Brief
@@ -75,21 +81,8 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
         </>
       }
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {error && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(229, 72, 77, 0.12)',
-              border: '1px solid rgba(229, 72, 77, 0.3)',
-              color: 'var(--red)',
-              fontSize: '13px',
-            }}
-          >
-            {error}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="modal-form">
+        {error && <div className="modal-error">{error}</div>}
 
         {/* Brief Title */}
         <div className="modal-field">
@@ -111,7 +104,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
         </div>
 
         {/* Brand & Deliverable Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+        <div className="modal-grid">
           <div className="modal-field">
             <label className="modal-label" htmlFor="brief-brand">
               BRAND PARTNER
@@ -160,9 +153,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
                 className={`modal-chip-btn ${priority === p.id ? 'is-selected' : ''}`}
                 onClick={() => setPriority(p.id)}
               >
-                <span className={`pill is-${p.color}`} style={{ padding: '2px 6px', fontSize: '10px' }}>
-                  {p.label}
-                </span>
+                <span className={`pill is-${p.color} pill--compact`}>{p.label}</span>
               </button>
             ))}
           </div>

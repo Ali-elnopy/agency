@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import Toast from '../components/ui/Toast';
+import ViewTabs from '../components/ui/ViewTabs';
+import useToast from '../hooks/useToast';
 import { PERMISSION_GROUPS, RBAC_ROLES } from '../data/rbac';
+import { getPermission } from '../utils/permissions';
+
+const VIEW_TABS = [
+  { id: 'users', label: 'Users Directory' },
+  { id: 'roles', label: 'Roles & Permissions' },
+];
 
 /* ------------------------------------------------------------------ cells */
 
@@ -10,7 +18,14 @@ function PermissionCell({ value }) {
       <span className="perm-cell">
         <span className="perm-check">
           <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M5 12.5l4.5 4.5L19 7.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </span>
       </span>
@@ -36,37 +51,32 @@ function PermissionCell({ value }) {
 
 export default function RolesPermissionsPage({ onOpenUsers }) {
   const [activeRole, setActiveRole] = useState('creator');
-  const [toast, setToast] = useState('');
-
-  const notify = (message) => {
-    setToast(message);
-    window.setTimeout(() => setToast(''), 3500);
-  };
+  const { toast, showToast: notify } = useToast(3500);
 
   return (
-    <div className="page-screen">
+    <div className="page-screen" id="view-panel" role="tabpanel" aria-labelledby="view-tab-roles">
       <div className="crumbs">
         <nav aria-label="Breadcrumb">
           <span>Workspace</span>
-          <svg className="icon">
+          <svg aria-hidden="true" className="icon">
             <use href="#i-chevron" />
           </svg>
           <span>Admin Governance</span>
-          <svg className="icon">
+          <svg aria-hidden="true" className="icon">
             <use href="#i-chevron" />
           </svg>
           <strong>Roles &amp; Permissions</strong>
         </nav>
 
         {onOpenUsers && (
-          <div className="view-switch" role="tablist" aria-label="Users workspace">
-            <button type="button" className="view-switch__item" onClick={onOpenUsers}>
-              Users Directory
-            </button>
-            <button type="button" className="view-switch__item is-active" aria-selected="true">
-              Roles &amp; Permissions
-            </button>
-          </div>
+          <ViewTabs
+            label="Users workspace"
+            tabs={VIEW_TABS}
+            activeId="roles"
+            onChange={(id) => {
+              if (id === 'users') onOpenUsers();
+            }}
+          />
         )}
       </div>
 
@@ -81,17 +91,26 @@ export default function RolesPermissionsPage({ onOpenUsers }) {
             </span>
           </div>
           <p className="page-head__text">
-            Configure and enforce granular module permissions according to each user&apos;s job function across all 24 brands.
+            Configure and enforce granular module permissions according to each user&apos;s job
+            function across all 24 brands.
           </p>
         </div>
 
         <div className="page-head__actions">
-          <button type="button" className="button button--ghost" onClick={() => notify('Role defaults restored.')}>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => notify('Role defaults restored.')}
+          >
             Reset Role Defaults
           </button>
-          <button type="button" className="button button--primary" onClick={() => notify('Permissions applied and pushed to 148 sessions.')}>
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => notify('Permissions applied and pushed to 148 sessions.')}
+          >
             Apply &amp; Enforce Permissions
-            <svg className="icon">
+            <svg aria-hidden="true" className="icon">
               <use href="#i-arrow" />
             </svg>
           </button>
@@ -124,7 +143,8 @@ export default function RolesPermissionsPage({ onOpenUsers }) {
           <div>
             <h2 className="surface-card__title">Granular Permission Matrix</h2>
             <p className="surface-card__sub">
-              Capability-level access control synced across agency workspaces, client portals, and digital assets.
+              Capability-level access control synced across agency workspaces, client portals, and
+              digital assets.
             </p>
           </div>
           <span className="perm-card__legend">
@@ -171,7 +191,7 @@ export default function RolesPermissionsPage({ onOpenUsers }) {
                         role="cell"
                         className={`perm-col${activeRole === role.id ? ' is-active' : ''}`}
                       >
-                        <PermissionCell value={capability.permissions[role.id]} />
+                        <PermissionCell value={getPermission(capability, role.id)} />
                       </span>
                     ))}
                   </div>
@@ -185,14 +205,15 @@ export default function RolesPermissionsPage({ onOpenUsers }) {
           <span className="perm-card__version">v3.4</span>
           <span className="perm-card__sync">
             <i className="perm-card__legend-dot" />
-            SSO &amp; Role-Based SCIM Sync Active: permission updates propagate to all 148 active user sessions in
+            SSO &amp; Role-Based SCIM Sync Active: permission updates propagate to all 148 active
+            user sessions in
             <b> &lt;200ms</b>
           </span>
           <span className="perm-card__updated">Last updated by Elena V. • Today 15:08</span>
         </footer>
       </section>
 
-      <Toast message={toast} />
+      <Toast message={toast?.message} tone={toast?.tone} />
     </div>
   );
 }

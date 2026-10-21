@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import ForgotPage from './pages/ForgotPage';
 import Showcase from './components/Showcase';
 import DashboardPage from './pages/DashboardPage';
 import IconSprite from './components/IconSprite';
-import { getCurrentUser, logout } from './services/api';
+import useAuth from './hooks/useAuth';
+import { hasStoredSession } from './services/tokenStorage';
 
 const TITLES = {
   login: 'ORVIA — Login',
@@ -12,14 +13,21 @@ const TITLES = {
   dashboard: 'ORVIA — Account Manager Dashboard',
 };
 
+const VIEWS = ['login', 'forgot', 'dashboard'];
+
+function readHashView() {
+  const hash = window.location.hash.replace('#', '');
+  return VIEWS.includes(hash) ? hash : 'login';
+}
+
 export default function App() {
-  // Routing view state (login | forgot | dashboard)
+  const { user, logout } = useAuth();
+
   const [view, setView] = useState(() => {
-    const hash = window.location.hash.replace('#', '');
-    return ['login', 'forgot', 'dashboard'].includes(hash) ? hash : 'login';
+    const initial = readHashView();
+    return initial === 'dashboard' && !hasStoredSession() ? 'login' : initial;
   });
 
-  // Dark / Light Theme state
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem('theme');
@@ -30,42 +38,61 @@ export default function App() {
     }
   });
 
-  // Sidebar collapsed state
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Authenticated user state
-  const [user, setUser] = useState(() => getCurrentUser());
-
-  // Synchronize theme with html data-theme and localStorage
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try {
       localStorage.setItem('theme', theme);
-    } catch {}
+    } catch {
+      // Theme persistence is optional.
+    }
   }, [theme]);
 
-  // Synchronize view with title and body data-view
   useEffect(() => {
     document.body.dataset.view = view;
     document.title = TITLES[view] || 'ORVIA — Agency OS';
     window.scrollTo(0, 0);
   }, [view]);
 
-  // Hash listener for deep linking & back/forward navigation
+  // A dashboard URL without a session must never render the dashboard.
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
-      if (['login', 'forgot', 'dashboard'].includes(hash)) {
-        setView(hash);
-      }
+    if (view === 'dashboard' && !user) {
+      setView('login');
+      window.location.hash = '#login';
+    }
+  }, [view, user]);
+
+  // Storage is the source of truth here: reading it avoids a stale closure
+  // racing the hash change that follows a successful sign-in.
+  useEffect(() => {
+    const redirectGuardedView = () => {
+      setView('login');
+      window.location.hash = '#login';
     };
+
+    if (readHashView() === 'dashboard' && !hasStoredSession()) {
+      redirectGuardedView();
+    }
+
+    const handleHashChange = () => {
+      const next = readHashView();
+
+      if (next === 'dashboard' && !hasStoredSession()) {
+        redirectGuardedView();
+        return;
+      }
+
+      setView(next);
+    };
+
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const navigateTo = (newView) => {
-    window.location.hash = `#${newView}`;
-    setView(newView);
+  const navigateTo = (nextView) => {
+    window.location.hash = `#${nextView}`;
+    setView(nextView);
   };
 
   const toggleTheme = () => {
@@ -78,21 +105,17 @@ export default function App() {
 
   const handleSignOut = () => {
     logout();
-    setUser(null);
     navigateTo('login');
   };
 
-  const handleLoginSuccess = (loggedInUser) => {
-    setUser(loggedInUser);
-  };
+  const showDashboard = view === 'dashboard' && Boolean(user);
 
   return (
     <>
       <IconSprite />
 
-      {view === 'dashboard' ? (
+      {showDashboard ? (
         <DashboardPage
-          user={user}
           theme={theme}
           onToggleTheme={toggleTheme}
           isCollapsed={isCollapsed}
@@ -103,18 +126,9 @@ export default function App() {
       ) : (
         <main className="page">
           {view === 'forgot' ? (
-            <ForgotPage
-              onNavigate={navigateTo}
-              theme={theme}
-              onToggleTheme={toggleTheme}
-            />
+            <ForgotPage onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />
           ) : (
-            <LoginPage
-              onNavigate={navigateTo}
-              theme={theme}
-              onToggleTheme={toggleTheme}
-              onLoginSuccess={handleLoginSuccess}
-            />
+            <LoginPage onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />
           )}
           <Showcase />
         </main>

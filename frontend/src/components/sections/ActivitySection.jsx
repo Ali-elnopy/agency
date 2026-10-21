@@ -12,12 +12,12 @@ const INITIAL_ACTIVITIES = [
     action: (
       <>
         <span className="pill is-green">
-          <svg className="icon">
+          <svg aria-hidden="true" className="icon">
             <use href="#i-check" />
           </svg>
           Approved
         </span>{' '}
-        "Lumina Brand Refresh Q3 Hero Motion"
+        &quot;Lumina Brand Refresh Q3 Hero Motion&quot;
       </>
     ),
   },
@@ -90,7 +90,7 @@ export default function ActivitySection({ incomingActivity }) {
             item.isSys ? (
               <li key={item.id} className="feed__item feed__item--sys">
                 <span className="feed__avatar feed__avatar--sys">
-                  <svg className="icon">
+                  <svg aria-hidden="true" className="icon">
                     <use href="#i-layers" />
                   </svg>
                 </span>
@@ -132,27 +132,18 @@ export default function ActivitySection({ incomingActivity }) {
         icon="#i-chart"
         iconColor="purple"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <p style={{ color: 'var(--muted)', fontSize: '13px' }}>
+        <div className="modal-stack modal-stack--lg">
+          <p className="modal-copy modal-copy--muted">
             Listing chronological actions recorded in the agency event ledger.
           </p>
-          <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="modal-audit">
             {activities.map((a) => (
-              <div
-                key={a.id}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  background: 'var(--soft)',
-                  border: '1px solid var(--line)',
-                  fontSize: '12.5px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <div key={a.id} className="modal-audit__item">
+                <div className="modal-audit__head">
                   <strong>{a.name}</strong>
-                  <span style={{ color: 'var(--muted)', fontSize: '11px' }}>{a.time}</span>
+                  <span className="modal-audit__time">{a.time}</span>
                 </div>
-                <div style={{ color: 'var(--ink)' }}>{a.action || a.desc}</div>
+                <div className="modal-audit__body">{a.action || a.desc}</div>
               </div>
             ))}
           </div>

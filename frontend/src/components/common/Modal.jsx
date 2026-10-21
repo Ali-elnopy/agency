@@ -1,5 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import './Modal.css';
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function Modal({
   isOpen,
@@ -13,30 +16,71 @@ export default function Modal({
   footer,
 }) {
   const containerRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  const titleId = useId();
 
-  // Close on Escape key
   useEffect(() => {
-    if (!isOpen) return;
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onClose();
+  // Escape, focus trap, and focus restoration for keyboard/screen-reader users.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const previouslyFocused = document.activeElement;
+    const node = containerRef.current;
+
+    const getFocusable = () =>
+      Array.from(node?.querySelectorAll(FOCUSABLE) ?? []).filter(
+        (element) => element.offsetParent !== null,
+      );
+
+    const frame = window.requestAnimationFrame(() => {
+      const [first] = getFocusable();
+      (first ?? node)?.focus();
+    });
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      const items = getFocusable();
+      if (!items.length) return;
+
+      const first = items[0];
+      const last = items[items.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+    document.addEventListener('keydown', handleKeyDown);
 
-  // Lock background scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
     return () => {
-      document.body.style.overflow = '';
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+    };
+  }, [isOpen]);
+
+  // Lock background scroll when modal is open.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
 
@@ -44,7 +88,7 @@ export default function Modal({
 
   const handleBackdropClick = (e) => {
     if (containerRef.current && !containerRef.current.contains(e.target)) {
-      onClose();
+      onCloseRef.current();
     }
   };
 
@@ -54,21 +98,25 @@ export default function Modal({
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
+      aria-labelledby={titleId}
     >
       <div
         className="modal-container"
         ref={containerRef}
+        tabIndex={-1}
         style={{ '--modal-max-width': maxWidth }}
       >
         <header className="modal-header">
           <div className="modal-header__meta">
             <span className={`modal-header__icon chip is-${iconColor}`}>
-              <svg className="icon">
+              <svg aria-hidden="true" className="icon">
                 <use href={icon} />
               </svg>
             </span>
             <div>
-              <h2 className="modal-header__title">{title}</h2>
+              <h2 className="modal-header__title" id={titleId}>
+                {title}
+              </h2>
               {subtitle && <p className="modal-header__sub">{subtitle}</p>}
             </div>
           </div>
@@ -81,6 +129,7 @@ export default function Modal({
             title="Close"
           >
             <svg
+              aria-hidden="true"
               viewBox="0 0 24 24"
               width="16"
               height="16"
