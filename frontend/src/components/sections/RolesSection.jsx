@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import NewRoleModal from './modals/NewRoleModal';
-import InfoModal from './modals/InfoModal';
+import NewRoleModal from '../modals/NewRoleModal';
+import InfoModal from '../modals/InfoModal';
 
 const INITIAL_ROLES = [
   {
@@ -45,7 +45,7 @@ const INITIAL_ROLES = [
   },
 ];
 
-export default function RolesSection({ onRoleCreated }) {
+export default function RolesSection({ onRoleCreated, onOpenMatrix }) {
   const [roles, setRoles] = useState(INITIAL_ROLES);
   const [isNewRoleOpen, setIsNewRoleOpen] = useState(false);
   const [isMatrixOpen, setIsMatrixOpen] = useState(false);
@@ -130,7 +130,8 @@ export default function RolesSection({ onRoleCreated }) {
             className="link-action"
             onClick={(e) => {
               e.preventDefault();
-              setIsMatrixOpen(true);
+              if (onOpenMatrix) onOpenMatrix();
+              else setIsMatrixOpen(true);
             }}
           >
             Open Permissions Matrix{' '}

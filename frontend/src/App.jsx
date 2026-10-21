@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import LoginView from './components/LoginView';
-import ForgotView from './components/ForgotView';
+import LoginPage from './pages/LoginPage';
+import ForgotPage from './pages/ForgotPage';
 import Showcase from './components/Showcase';
-import DashboardView from './components/DashboardView';
+import DashboardPage from './pages/DashboardPage';
 import IconSprite from './components/IconSprite';
 import { getCurrentUser, logout } from './services/api';
 
@@ -91,7 +91,7 @@ export default function App() {
       <IconSprite />
 
       {view === 'dashboard' ? (
-        <DashboardView
+        <DashboardPage
           user={user}
           theme={theme}
           onToggleTheme={toggleTheme}
@@ -103,13 +103,13 @@ export default function App() {
       ) : (
         <main className="page">
           {view === 'forgot' ? (
-            <ForgotView
+            <ForgotPage
               onNavigate={navigateTo}
               theme={theme}
               onToggleTheme={toggleTheme}
             />
           ) : (
-            <LoginView
+            <LoginPage
               onNavigate={navigateTo}
               theme={theme}
               onToggleTheme={toggleTheme}

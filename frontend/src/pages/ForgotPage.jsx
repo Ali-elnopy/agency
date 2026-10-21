@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { forgotPasswordApi } from '../services/api';
 
-export default function ForgotView({ onNavigate, theme, onToggleTheme }) {
+export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);

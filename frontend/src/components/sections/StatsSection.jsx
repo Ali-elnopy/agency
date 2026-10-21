@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import InfoModal from './modals/InfoModal';
+import InfoModal from '../modals/InfoModal';
 
 export default function StatsSection() {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { loginApi } from '../services/api';
-import InfoModal from './modals/InfoModal';
+import InfoModal from '../components/modals/InfoModal';
 
-export default function LoginView({ onNavigate, theme, onToggleTheme, onLoginSuccess }) {
+export default function LoginPage({ onNavigate, theme, onToggleTheme, onLoginSuccess }) {
   const [email, setEmail] = useState('elena.vance@orvia-creative.com');
   const [password, setPassword] = useState('password1234');
   const [showPassword, setShowPassword] = useState(false);

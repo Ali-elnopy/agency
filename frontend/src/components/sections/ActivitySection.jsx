@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import InfoModal from './modals/InfoModal';
+import InfoModal from '../modals/InfoModal';
 
 const INITIAL_ACTIVITIES = [
   {

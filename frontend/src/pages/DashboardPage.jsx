@@ -1,13 +1,32 @@
 import React, { useState } from 'react';
-import Sidebar from './Sidebar';
-import Topbar from './Topbar';
-import StatsSection from './StatsSection';
-import RolesSection from './RolesSection';
-import ActivitySection from './ActivitySection';
-import NewBriefModal from './modals/NewBriefModal';
-import InfoModal from './modals/InfoModal';
+import Sidebar from '../components/layout/Sidebar';
+import Topbar from '../components/layout/Topbar';
+import StatsSection from '../components/sections/StatsSection';
+import RolesSection from '../components/sections/RolesSection';
+import ActivitySection from '../components/sections/ActivitySection';
+import SettingsPage from './SettingsPage';
+import RolesPermissionsPage from './RolesPermissionsPage';
+import UserAccessPage from './UserAccessPage';
+import NewBriefModal from '../components/modals/NewBriefModal';
+import InfoModal from '../components/modals/InfoModal';
+import Toast from '../components/ui/Toast';
 
-export default function DashboardView({
+// Sections that are actually built in this delivery. Anything else in the
+// sidebar is announced as "coming soon" instead of silently showing the
+// dashboard under a different highlighted tab.
+const AVAILABLE_SECTIONS = ['dashboard', 'users', 'roles', 'settings'];
+
+const SECTION_LABELS = {
+  dashboard: 'Dashboard',
+  brands: 'Brands',
+  teams: 'Teams',
+  users: 'Users & Clients',
+  content: 'Content',
+  analyze: 'Analyze',
+  settings: 'Settings',
+};
+
+export default function DashboardPage({
   user,
   theme,
   onToggleTheme,
@@ -16,11 +35,31 @@ export default function DashboardView({
   onSignOut,
   onNavigate,
 }) {
+  const [section, setSection] = useState('dashboard');
   const [isNewBriefOpen, setIsNewBriefOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
-  const [toast, setToast] = useState('');
+  const [toast, setToast] = useState(null);
   const [newActivity, setNewActivity] = useState(null);
+
+  const showToast = (message, tone = 'success') => {
+    setToast({ message, tone });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  /**
+   * Sidebar navigation guard: out-of-scope sections never replace the
+   * current screen, they just explain that they are not built yet.
+   */
+  const handleSelect = (id) => {
+    if (AVAILABLE_SECTIONS.includes(id)) {
+      setSection(id);
+      setToast(null);
+      return;
+    }
+
+    showToast(`${SECTION_LABELS[id] ?? 'This'} page is coming soon.`, 'info');
+  };
 
   const handleAddBrief = (brief) => {
     // Add activity record
@@ -44,8 +83,7 @@ export default function DashboardView({
       ),
     });
 
-    setToast(`Creative Brief "${brief.title}" launched successfully!`);
-    setTimeout(() => setToast(''), 4000);
+    showToast(`Creative Brief "${brief.title}" launched successfully!`);
   };
 
   const handleRoleCreated = (role) => {
@@ -76,6 +114,8 @@ export default function DashboardView({
         isCollapsed={isCollapsed}
         onToggleCollapse={onToggleCollapse}
         onNavigate={onNavigate}
+        activeTab={section === 'roles' ? 'users' : section}
+        onSelect={handleSelect}
       />
 
       <div className="workspace">
@@ -86,42 +126,60 @@ export default function DashboardView({
           onSignOut={() => setIsSignOutOpen(true)}
           onNewBrief={() => setIsNewBriefOpen(true)}
           onOpenHelp={() => setIsHelpOpen(true)}
+          actionLabel={section === 'roles' ? 'New Custom Role' : section === 'users' ? 'Add New User' : 'New Brief'}
+          onAction={
+            section === 'roles'
+              ? () => showToast('Opening the custom role builder…', 'info')
+              : section === 'users'
+                ? () => showToast('Creating a new user invitation…', 'info')
+                : undefined
+          }
         />
 
         <main className="content">
-          <div className="crumbs">
-            <nav aria-label="Breadcrumb">
-              <a
-                href="#home"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onNavigate('dashboard');
-                }}
-              >
-                Home
-              </a>
-              <svg className="icon">
-                <use href="#i-chevron" />
-              </svg>
-              <strong>Dashboard</strong>
-            </nav>
+          {section === 'settings' ? (
+            <SettingsPage user={user} />
+          ) : section === 'users' ? (
+            <UserAccessPage onOpenRoles={() => setSection('roles')} />
+          ) : section === 'roles' ? (
+            <RolesPermissionsPage onOpenUsers={() => setSection('users')} />
+          ) : (
+            <>
+              <div className="crumbs">
+                <nav aria-label="Breadcrumb">
+                  <a
+                    href="#home"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onNavigate('dashboard');
+                    }}
+                  >
+                    Home
+                  </a>
+                  <svg className="icon">
+                    <use href="#i-chevron" />
+                  </svg>
+                  <strong>Dashboard</strong>
+                </nav>
 
-            <span className="pill is-green live-chip">Live Studio Ops</span>
-          </div>
+                <span className="pill is-green live-chip">Live Studio Ops</span>
+              </div>
 
-          <section className="page-head">
-            <h1 className="page-head__title">Dashboard</h1>
-            <p className="page-head__text">
-              Agency Operating System &amp; Real-Time Production Velocity across active brand partners and user seats.
-            </p>
-          </section>
+              <section className="page-head">
+                <h1 className="page-head__title">Dashboard</h1>
+                <p className="page-head__text">
+                  Agency Operating System &amp; Real-Time Production Velocity across active brand partners and user seats.
+                </p>
+              </section>
 
-          <StatsSection />
+              <StatsSection />
 
-          <section className="row row--admin">
-            <RolesSection onRoleCreated={handleRoleCreated} />
-            <ActivitySection incomingActivity={newActivity} />
-          </section>
+              <section className="row row--admin">
+                <RolesSection onRoleCreated={handleRoleCreated} onOpenMatrix={() => setSection('roles')} />
+                <ActivitySection incomingActivity={newActivity} />
+              </section>
+            </>
+          )}
         </main>
       </div>
 
@@ -169,16 +227,7 @@ export default function DashboardView({
       </InfoModal>
 
       {/* Floating Toast Notification */}
-      {toast && (
-        <div className="toast-notice">
-          <span className="toast-icon chip is-green">
-            <svg className="icon" viewBox="0 0 24 24" width="14" height="14">
-              <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2.5" />
-            </svg>
-          </span>
-          <span>{toast}</span>
-        </div>
-      )}
+      <Toast message={toast?.message} tone={toast?.tone} />
     </div>
   );
 }

@@ -1,19 +1,31 @@
 import React, { useState } from 'react';
-import InfoModal from './modals/InfoModal';
+import InfoModal from '../modals/InfoModal';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '#i-dashboard' },
-  { id: 'brands', label: 'Brands', icon: '#i-briefcase' },
-  { id: 'teams', label: 'Teams', icon: '#i-layers' },
+  { id: 'brands', label: 'Brands', icon: '#i-briefcase', soon: true },
+  { id: 'teams', label: 'Teams', icon: '#i-layers', soon: true },
   { id: 'users', label: 'Users & Clients', icon: '#i-users' },
-  { id: 'content', label: 'Content', icon: '#i-file' },
-  { id: 'analyze', label: 'Analyze', icon: '#i-chart' },
+  { id: 'content', label: 'Content', icon: '#i-file', soon: true },
+  { id: 'analyze', label: 'Analyze', icon: '#i-chart', soon: true },
   { id: 'settings', label: 'Settings', icon: '#i-settings' },
 ];
 
-export default function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
+export default function Sidebar({
+  isCollapsed,
+  onToggleCollapse,
+  onNavigate,
+  activeTab: activeTabProp,
+  onSelect,
+}) {
+  const [localTab, setLocalTab] = useState('dashboard');
+  const activeTab = activeTabProp ?? localTab;
   const [isUiKitOpen, setIsUiKitOpen] = useState(false);
+
+  const selectTab = (id) => {
+    setLocalTab(id);
+    if (onSelect) onSelect(id);
+  };
 
   return (
     <>
@@ -24,7 +36,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }) {
             className="brand"
             onClick={(e) => {
               e.preventDefault();
-              setActiveTab('dashboard');
+              selectTab('dashboard');
               onNavigate('dashboard');
             }}
           >
@@ -54,9 +66,10 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, onNavigate }) {
               className={`nav__item ${activeTab === item.id ? 'is-active' : ''}`}
               onClick={(e) => {
                 e.preventDefault();
-                setActiveTab(item.id);
+                selectTab(item.id);
               }}
-              title={item.label}
+              title={item.soon ? `${item.label} — coming soon` : item.label}
+              aria-disabled={item.soon || undefined}
             >
               <svg className="icon">
                 <use href={item.icon} />

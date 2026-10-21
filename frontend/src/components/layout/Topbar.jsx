@@ -7,6 +7,8 @@ export default function Topbar({
   onSignOut,
   onNewBrief,
   onOpenHelp,
+  actionLabel = 'New Brief',
+  onAction,
 }) {
   const [search, setSearch] = useState('');
 
@@ -82,12 +84,12 @@ export default function Topbar({
         <button
           type="button"
           className="button button--primary button--sm"
-          onClick={onNewBrief}
+          onClick={onAction || onNewBrief}
         >
           <svg className="icon">
             <use href="#i-plus" />
           </svg>
-          New Brief
+          {actionLabel}
         </button>
       </div>
     </header>
