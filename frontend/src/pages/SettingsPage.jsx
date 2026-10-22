@@ -1,29 +1,35 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import Switch from '../components/ui/Switch';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
 import { changePassword } from '../services/users';
 import { validatePasswordChange, validateProfile } from '../utils/validation';
+import managerPhoto from '../assets/managerPhoto';
 
-const BRANDS = ['Aura Mobility', 'Kinetic Health', 'Vanguard Audio', 'Solace Skincare'];
+const PASSWORD_RULES = [
+  { id: 'length', label: '16+ characters', test: (value) => value.length >= 16 },
+  { id: 'upper', label: 'Uppercase (A-Z)', test: (value) => /[A-Z]/.test(value) },
+  { id: 'number', label: 'Numbers (0-9)', test: (value) => /[0-9]/.test(value) },
+  { id: 'symbol', label: 'Special symbol (!@#)', test: (value) => /[^A-Za-z0-9]/.test(value) },
+];
 
-const PROFILE_DEFAULTS = {
-  jobTitle: 'Executive Studio Lead',
-  phone: '+1 (555) 234-8900',
-  department: 'exec',
-  timezone: 'cairo',
-};
+const STRENGTH_LABELS = ['Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 
-export default function SettingsPage() {
+function strengthOf(value) {
+  if (!value) return 0;
+  return PASSWORD_RULES.reduce((count, rule) => (rule.test(value) ? count + 1 : count), 0);
+}
+
+export default function SettingsPage({ onSignOut }) {
   const { user, updateProfile } = useAuth();
   const { toast, showToast } = useToast(3500);
+  const fileRef = useRef(null);
 
   const currentProfile = useMemo(
     () => ({
       fullName: user?.fullName || 'Elena Vance',
       email: user?.email || 'elena.vance@orvia-creative.com',
-      ...PROFILE_DEFAULTS,
+      phone: '+1 (555) 382-9014',
     }),
     [user],
   );
@@ -31,14 +37,16 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState(currentProfile);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+  const [photo, setPhoto] = useState(managerPhoto);
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [passwordErrors, setPasswordErrors] = useState({});
   const [changingPassword, setChangingPassword] = useState(false);
-
-  const [twoFA, setTwoFA] = useState(true);
-  const [urgentAlerts, setUrgentAlerts] = useState(true);
-  const [auditLogs, setAuditLogs] = useState(true);
-  const [weeklyDigest, setWeeklyDigest] = useState(false);
+  const [visible, setVisible] = useState({ current: false, next: false, confirm: false });
 
   useEffect(() => {
     setProfile(currentProfile);
@@ -46,6 +54,11 @@ export default function SettingsPage() {
   }, [currentProfile]);
 
   const notify = (message, tone = 'success') => showToast(message, tone);
+
+  const strength = strengthOf(passwordForm.newPassword);
+  const passwordsMatch =
+    passwordForm.confirmPassword.length > 0 &&
+    passwordForm.confirmPassword === passwordForm.newPassword;
 
   const updateField = (field) => (event) => {
     const { value } = event.target;
@@ -59,9 +72,13 @@ export default function SettingsPage() {
     });
   };
 
+  const updatePhone = (event) => {
+    const digits = event.target.value.replace(/^\+1\s*/, '');
+    setProfile((prev) => ({ ...prev, phone: `+1 ${digits}` }));
+  };
+
   const updatePasswordField = (field) => (event) => {
     const { value } = event.target;
-
     setPasswordForm((prev) => ({ ...prev, [field]: value }));
     setPasswordErrors((prev) => {
       if (!prev[field]) return prev;
@@ -83,10 +100,7 @@ export default function SettingsPage() {
       await updateProfile({
         name: profile.fullName.trim(),
         email: profile.email.trim().toLowerCase(),
-        jobTitle: profile.jobTitle.trim(),
         phone: profile.phone.trim(),
-        department: profile.department,
-        timezone: profile.timezone,
       });
       notify('Profile changes saved successfully.');
     } catch (error) {
@@ -111,8 +125,11 @@ export default function SettingsPage() {
     setChangingPassword(true);
 
     try {
-      await changePassword(passwordForm);
-      setPasswordForm({ currentPassword: '', newPassword: '' });
+      await changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       notify('Password updated successfully.');
     } catch (error) {
       notify(error.message || 'Could not update your password. Please try again.', 'danger');
@@ -121,478 +138,450 @@ export default function SettingsPage() {
     }
   };
 
+  const handlePhotoPick = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhoto(String(reader.result));
+      notify('Profile photo updated.');
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
+  const roleName =
+    user?.role === 'ACCOUNT_MANAGER' ? 'Account Manager / Ops' : 'Studio Lead / Account Manager';
+  const localPhone = profile.phone.replace(/^\+1\s*/, '');
+
   return (
-    <div className="settings">
-      {/* Breadcrumb */}
+    <div className="page-screen pf-page">
       <div className="crumbs">
         <nav aria-label="Breadcrumb">
-          <span>Workspace</span>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
           <span>Settings</span>
           <svg aria-hidden="true" className="icon">
             <use href="#i-chevron" />
           </svg>
-          <strong>My Profile &amp; Identity</strong>
+          <strong>My Profile</strong>
         </nav>
       </div>
 
-      {/* Page head */}
-      <section className="page-head settings-head">
-        <div className="settings-head__main">
-          <div className="settings-title">
-            <h1 className="page-head__title">My Profile</h1>
-            <span className="pill is-green verified-pill">Verified Studio Lead</span>
-            <span className="id-chip">ID: #ORV-0014</span>
-          </div>
-          <p className="page-head__text">
-            Manage your personal profile, workspace role credentials, security authentication, and
-            brand notifications.
-          </p>
+      <header className="pf-head">
+        <div className="pf-head__tags">
+          <span className="pf-account-pill">
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-shield" />
+            </svg>
+            Account Center
+          </span>
+          <span className="pf-head__workspace">
+            <i className="pf-head__dot" aria-hidden="true" />
+            Orvia Agency OS
+          </span>
         </div>
+        <h1>My Profile</h1>
+        <p>
+          Manage your personal details, workspace preferences, and account security credentials.
+        </p>
+      </header>
 
-        <div className="settings-head__actions">
-          <button
-            type="button"
-            className="button button--ghost"
-            onClick={() => notify('Opening audit activity…')}
-          >
-            View Audit Activity
-          </button>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? 'Saving…' : 'Save Profile Changes'}
-          </button>
-        </div>
-      </section>
+      <div className="pf-grid">
+        {/* ---------------- My details ---------------- */}
+        <section className="pf-card">
+          <header className="pf-card__head">
+            <span className="pf-card__icon">
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-user" />
+              </svg>
+            </span>
+            <div className="pf-card__title">
+              <h2>My details</h2>
+              <p>Personal identification and role assignment within the agency.</p>
+            </div>
+            <span className="pf-member">
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-user" />
+              </svg>
+              Active Member
+            </span>
+          </header>
 
-      {/* Body */}
-      <div className="settings-grid">
-        {/* ---------------- Left column ---------------- */}
-        <div className="settings-col">
-          <section className="surface-card profile-card">
-            <div className="profile-top">
-              <span className="profile-avatar">
-                <span className="profile-avatar__inner">
-                  <svg viewBox="0 0 24 24" aria-hidden="true" className="profile-avatar__glyph">
-                    <circle cx="12" cy="8.6" r="4.1" />
-                    <path d="M4.6 20.6a7.4 7.4 0 0 1 14.8 0" />
+          <div className="pf-divider" />
+
+          <div className="pf-photo">
+            <span className="pf-photo__frame">
+              {photo ? (
+                <img src={photo} alt="" />
+              ) : (
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-user" />
+                </svg>
+              )}
+            </span>
+
+            <div className="pf-photo__body">
+              <div className="pf-photo__buttons">
+                <button type="button" className="pf-mini" onClick={() => fileRef.current?.click()}>
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-upload" />
                   </svg>
-                </span>
-              </span>
-
-              <div className="profile-id">
-                <div className="profile-name">
-                  <strong>{currentProfile.fullName}</strong>
-                  <span className="badge-internal">Internal</span>
-                </div>
-                <span className="profile-email">
-                  {currentProfile.email}
-                  <span className="profile-email__meta"> • Added Oct 12, 2026</span>
-                </span>
-                <div className="profile-actions">
-                  <button
-                    type="button"
-                    className="button button--primary button--sm"
-                    onClick={() => notify('Choose a new profile photo…')}
-                  >
-                    Update Avatar
-                  </button>
-                  <button
-                    type="button"
-                    className="button button--ghost button--sm"
-                    onClick={() => notify('Avatar removed.')}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-
-              <span className="pill is-green profile-status">
-                <i className="status-dot" />
-                Active
-              </span>
-            </div>
-
-            {/* Assigned workspace role */}
-            <div className="role-box">
-              <div className="role-box__body">
-                <span className="caps">Assigned Workspace Role</span>
-                <p className="role-box__name">Studio Lead &amp; Admin</p>
-                <p className="role-box__desc">
-                  Full governance: budgets, client invites, system API keys
-                </p>
-              </div>
-              <span className="role-box__tag">
-                Full
-                <br />
-                Control
-              </span>
-            </div>
-
-            {/* Brands */}
-            <div className="brands">
-              <div className="brands__head">
-                <span className="caps caps--muted">Assigned Brands &amp; Workspaces</span>
-                <a
-                  className="link-action"
-                  href="#access"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    notify('Opening workspace access…');
+                  Upload photo
+                </button>
+                <button
+                  type="button"
+                  className="pf-mini"
+                  onClick={() => notify('Crop tool opened.', 'info')}
+                >
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-crop" />
+                  </svg>
+                  Crop
+                </button>
+                <button
+                  type="button"
+                  className="pf-mini pf-mini--danger"
+                  onClick={() => {
+                    setPhoto('');
+                    notify('Profile photo removed.', 'info');
                   }}
                 >
-                  Manage Access
                   <svg aria-hidden="true" className="icon">
-                    <use href="#i-arrow" />
+                    <use href="#i-trash" />
                   </svg>
-                </a>
+                  Remove
+                </button>
               </div>
-              <div className="brands__list">
-                {BRANDS.map((brand) => (
-                  <span key={brand} className="brand-chip">
-                    {brand}
-                  </span>
-                ))}
-                <span className="brand-chip brand-chip--more">+20 Active Brands</span>
-              </div>
+              <p>JPG, PNG or WebP under 5MB. Recommended square 1:1 aspect ratio.</p>
             </div>
 
-            {/* Mini stats */}
-            <div className="profile-stats">
-              <div className="set-stat">
-                <span className="set-stat__label">Sign-Offs</span>
-                <p className="set-stat__value">
-                  142 <small className="is-up">+18%</small>
-                </p>
-              </div>
-              <div className="set-stat">
-                <span className="set-stat__label">Direct Reports</span>
-                <p className="set-stat__value">
-                  18 <small>Creators</small>
-                </p>
-              </div>
-              <div className="set-stat">
-                <span className="set-stat__label">Trust Score</span>
-                <p className="set-stat__value is-trust">99.9%</p>
-              </div>
-            </div>
-          </section>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="pf-file"
+              onChange={handlePhotoPick}
+              aria-label="Upload profile photo"
+            />
+          </div>
 
-          {/* Security */}
-          <section className="surface-card security-card">
-            <header className="security-head">
-              <span className="security-head__icon">
-                <svg aria-hidden="true" className="icon">
-                  <use href="#i-shield" />
-                </svg>
-              </span>
-              <div className="security-head__body">
-                <h2 className="security-head__title">Security &amp; Authentication</h2>
-                <p className="security-head__sub">Enterprise SSO &amp; Two-Factor Protection</p>
+          <div className="pf-fields">
+            <div className="pf-field">
+              <div className="pf-label-row">
+                <label className="pf-label" htmlFor="pf-name">
+                  Full Name<span className="req">*</span>
+                </label>
+                <small className="pf-note">Editable</small>
               </div>
-              <span className="pill is-green soc-pill">SOC2 Verified</span>
-            </header>
-
-            <div className="security-row">
-              <div className="security-row__body">
-                <p className="security-row__title">Two-Factor Authentication (2FA)</p>
-                <p className="security-row__sub">Authenticator App &amp; Hardware Key enforced</p>
-              </div>
-              <Switch checked={twoFA} onChange={setTwoFA} label="Two-factor authentication" />
+              <input
+                id="pf-name"
+                className="pf-input"
+                value={profile.fullName}
+                onChange={updateField('fullName')}
+                autoComplete="name"
+                aria-invalid={Boolean(errors.fullName)}
+              />
+              {errors.fullName && <span className="set-error">{errors.fullName}</span>}
             </div>
 
-            <div className="security-row">
-              <div className="security-row__body">
-                <p className="security-row__title">Google Workspace SSO &amp; Figma Token</p>
-                <p className="security-row__sub">Last synced: Today, 09:42 AM • Cairo, EG</p>
+            <div className="pf-field">
+              <div className="pf-label-row">
+                <label className="pf-label" htmlFor="pf-phone">
+                  Phone Number
+                </label>
               </div>
-              <span className="security-link">
-                Connected
-                <svg aria-hidden="true" className="icon">
-                  <use href="#i-check" />
-                </svg>
-              </span>
-            </div>
-          </section>
-        </div>
-
-        {/* ---------------- Right column ---------------- */}
-        <div className="settings-col">
-          <section className="surface-card">
-            <header className="surface-card__head">
-              <div>
-                <h2 className="surface-card__title">Personal &amp; Contact Information</h2>
-                <p className="surface-card__sub">
-                  Displayed across internal studio briefs, client sign-off portals, and audit logs.
-                </p>
-              </div>
-              <span className="primary-tag">
-                Primary
-                <br />
-                Profile
-              </span>
-            </header>
-
-            <div className="set-form">
-              <label className={`set-field${errors.fullName ? ' is-invalid' : ''}`}>
-                <span className="set-label">Full Name *</span>
-                <input
-                  className="set-input"
-                  value={profile.fullName}
-                  onChange={updateField('fullName')}
-                  autoComplete="name"
-                  aria-invalid={Boolean(errors.fullName)}
-                  aria-describedby={errors.fullName ? 'settings-fullname-error' : undefined}
-                />
-                {errors.fullName && (
-                  <span className="set-error" id="settings-fullname-error" role="alert">
-                    {errors.fullName}
-                  </span>
-                )}
-              </label>
-
-              <label className={`set-field set-field--ok${errors.email ? ' is-invalid' : ''}`}>
-                <span className="set-label">Work Email *</span>
-                <input
-                  className="set-input"
-                  type="email"
-                  value={profile.email}
-                  onChange={updateField('email')}
-                  autoComplete="email"
-                  aria-invalid={Boolean(errors.email)}
-                  aria-describedby={errors.email ? 'settings-email-error' : undefined}
-                />
-                {!errors.email && (
-                  <svg aria-hidden="true" className="icon set-field__ok">
-                    <use href="#i-check" />
+              <div className="pf-phone">
+                <span className="pf-phone__code">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-phone" />
                   </svg>
-                )}
-                {errors.email && (
-                  <span className="set-error" id="settings-email-error" role="alert">
-                    {errors.email}
-                  </span>
-                )}
-              </label>
-
-              <label className="set-field">
-                <span className="set-label">Job Title / Display Role</span>
+                  +1
+                </span>
                 <input
-                  className="set-input"
-                  value={profile.jobTitle}
-                  onChange={updateField('jobTitle')}
-                  autoComplete="organization-title"
-                />
-              </label>
-
-              <label className="set-field">
-                <span className="set-label">Phone / Direct WhatsApp</span>
-                <input
-                  className="set-input"
-                  value={profile.phone}
-                  onChange={updateField('phone')}
+                  id="pf-phone"
+                  className="pf-input"
+                  value={localPhone}
+                  onChange={updatePhone}
                   autoComplete="tel"
                 />
-              </label>
-
-              <label className="set-field">
-                <span className="set-label">Department / Pod</span>
-                <span className="set-select-wrap">
-                  <select
-                    className="set-select"
-                    value={profile.department}
-                    onChange={updateField('department')}
-                  >
-                    <option value="exec">Executive &amp; Creative Operations</option>
-                    <option value="content">Content Production</option>
-                    <option value="design">Brand Design</option>
-                  </select>
-                  <svg aria-hidden="true" className="icon">
-                    <use href="#i-chevron" />
-                  </svg>
-                </span>
-              </label>
-
-              <label className="set-field">
-                <span className="set-label">Timezone &amp; Workspace Locale</span>
-                <span className="set-select-wrap">
-                  <select
-                    className="set-select"
-                    value={profile.timezone}
-                    onChange={updateField('timezone')}
-                  >
-                    <option value="cairo">(GMT+02:00) Cairo / EET • English (US)</option>
-                    <option value="london">(GMT+00:00) London / GMT • English (UK)</option>
-                    <option value="dubai">(GMT+04:00) Dubai / GST • English (US)</option>
-                  </select>
-                  <svg aria-hidden="true" className="icon">
-                    <use href="#i-chevron" />
-                  </svg>
-                </span>
-              </label>
-            </div>
-          </section>
-
-          <div className="settings-duo">
-            {/* Password */}
-            <section className="surface-card">
-              <header className="surface-card__head">
-                <h2 className="surface-card__title">Password &amp; Credentials</h2>
-                <span className="status-text">Strong</span>
-              </header>
-
-              <div
-                className={`set-field pw-field${passwordErrors.currentPassword ? ' is-invalid' : ''}`}
-              >
-                <span className="set-label">Current Password</span>
-                <input
-                  className="set-input"
-                  type="password"
-                  placeholder="Enter current password"
-                  value={passwordForm.currentPassword}
-                  onChange={updatePasswordField('currentPassword')}
-                  autoComplete="current-password"
-                  aria-invalid={Boolean(passwordErrors.currentPassword)}
-                  aria-describedby={
-                    passwordErrors.currentPassword ? 'settings-current-password-error' : undefined
-                  }
-                />
-                {passwordErrors.currentPassword && (
-                  <span className="set-error" id="settings-current-password-error" role="alert">
-                    {passwordErrors.currentPassword}
-                  </span>
-                )}
               </div>
+            </div>
 
-              <div
-                className={`set-field pw-field${passwordErrors.newPassword ? ' is-invalid' : ''}`}
-              >
-                <span className="set-label">New Password</span>
+            <div className="pf-field pf-field--full">
+              <div className="pf-label-row">
+                <span className="pf-label pf-label--locked">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-lock" />
+                  </svg>
+                  Work Email
+                </span>
+                <small className="pf-note">Managed by workspace administrator</small>
+              </div>
+              <div className="pf-readonly">
                 <input
-                  className="set-input"
-                  type="password"
-                  placeholder="At least 8 characters"
-                  value={passwordForm.newPassword}
-                  onChange={updatePasswordField('newPassword')}
-                  autoComplete="new-password"
-                  aria-invalid={Boolean(passwordErrors.newPassword)}
-                  aria-describedby={
-                    passwordErrors.newPassword ? 'settings-new-password-error' : undefined
-                  }
+                  className="pf-input"
+                  value={profile.email}
+                  readOnly
+                  aria-label="Work email"
                 />
                 <button
                   type="button"
-                  className="pw-update"
-                  onClick={handlePasswordUpdate}
-                  disabled={changingPassword}
+                  className="pf-readonly__gear"
+                  aria-label="Email settings"
+                  title="Managed by your administrator"
+                  onClick={() =>
+                    notify('Email is managed by your workspace administrator.', 'info')
+                  }
                 >
-                  {changingPassword ? 'Updating…' : 'Update'}
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-settings" />
+                  </svg>
                 </button>
-                {passwordErrors.newPassword && (
-                  <span className="set-error" id="settings-new-password-error" role="alert">
-                    {passwordErrors.newPassword}
-                  </span>
-                )}
               </div>
+            </div>
 
-              <div className="pw-foot">
-                <span>Last changed 14 days ago</span>
-                <a
-                  className="link-action"
-                  href="#revoke"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    notify('Revoking other active sessions…');
-                  }}
-                >
-                  Revoke other sessions
-                </a>
+            <div className="pf-field">
+              <div className="pf-label-row">
+                <span className="pf-label pf-label--locked">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-lock" />
+                  </svg>
+                  Role Assignment
+                </span>
               </div>
-            </section>
-
-            {/* Notifications */}
-            <section className="surface-card">
-              <header className="surface-card__head">
-                <h2 className="surface-card__title">Workflow Notifications</h2>
-                <span className="caps">Real-Time</span>
-              </header>
-
-              <div className="notif-list">
-                <div className="notif">
-                  <div className="notif__body">
-                    <p className="notif__title">Urgent Client Sign-Off Alerts</p>
-                    <p className="notif__sub">Instant push &amp; email on bottleneck items</p>
-                  </div>
-                  <Switch
-                    checked={urgentAlerts}
-                    onChange={setUrgentAlerts}
-                    label="Urgent client sign-off alerts"
-                  />
-                </div>
-
-                <div className="notif">
-                  <div className="notif__body">
-                    <p className="notif__title">Role &amp; Permission Audit Logs</p>
-                    <p className="notif__sub">Alert when admin modifies user roles</p>
-                  </div>
-                  <Switch
-                    checked={auditLogs}
-                    onChange={setAuditLogs}
-                    label="Role and permission audit logs"
-                  />
-                </div>
-
-                <div className="notif">
-                  <div className="notif__body">
-                    <p className="notif__title">Weekly Production Velocity Digest</p>
-                    <p className="notif__sub">Every Monday at 09:00 AM</p>
-                  </div>
-                  <Switch
-                    checked={weeklyDigest}
-                    onChange={setWeeklyDigest}
-                    label="Weekly production velocity digest"
-                  />
-                </div>
+              <div className="pf-role">
+                <svg aria-hidden="true" className="icon pf-role__icon">
+                  <use href="#i-briefcase" />
+                </svg>
+                <span className="pf-role__name">{roleName}</span>
+                <span className="pf-role__meta">
+                  Level
+                  <b>4</b>
+                </span>
               </div>
-            </section>
+            </div>
+
+            <div className="pf-field">
+              <div className="pf-label-row">
+                <span className="pf-label pf-label--locked">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-lock" />
+                  </svg>
+                  Assigned Squad
+                </span>
+              </div>
+              <div className="pf-squad">
+                <span className="pf-squad__icon">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-layers" />
+                  </svg>
+                </span>
+                <span className="pf-squad__name">Brand Strategy &amp; Growth</span>
+                <span className="pf-squad__meta">
+                  Ops
+                  <b>Assigned</b>
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Sync footer */}
-          <div className="settings-sync">
-            <p className="settings-sync__text">
-              <i className="settings-sync__dot" />
-              All profile changes sync immediately with SSO &amp; active client portals.
-            </p>
-            <div className="settings-sync__actions">
-              <a
-                className="link"
-                href="#discard"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleDiscard();
-                }}
-              >
-                Discard
-              </a>
+          <div className="pf-divider" />
+
+          <div className="pf-actions">
+            <button type="button" className="pf-ghost" onClick={handleDiscard}>
+              Cancel
+            </button>
+            <button type="button" className="pf-save" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </section>
+
+        {/* ---------------- Security ---------------- */}
+        <section className="pf-card">
+          <header className="pf-card__head pf-card__head--security">
+            <div className="pf-card__title">
+              <h2>Security</h2>
+              <p>Update password and session preferences.</p>
+            </div>
+            <span className="pf-card__icon pf-card__icon--purple">
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-lock" />
+              </svg>
+            </span>
+          </header>
+
+          <div className="pf-divider" />
+
+          <div className="pf-field">
+            <div className="pf-label-row">
+              <label className="pf-label" htmlFor="pf-current">
+                Current Password
+              </label>
+            </div>
+            <div className="pf-password">
+              <input
+                id="pf-current"
+                className="pf-input"
+                type={visible.current ? 'text' : 'password'}
+                placeholder="••••••••••••"
+                value={passwordForm.currentPassword}
+                onChange={updatePasswordField('currentPassword')}
+                autoComplete="current-password"
+                aria-invalid={Boolean(passwordErrors.currentPassword)}
+              />
               <button
                 type="button"
-                className="button button--primary"
-                onClick={handleSave}
-                disabled={saving}
+                className="pf-eye"
+                aria-label={visible.current ? 'Hide password' : 'Show password'}
+                onClick={() => setVisible((prev) => ({ ...prev, current: !prev.current }))}
               >
-                {saving ? 'Saving…' : 'Save Changes'}
                 <svg aria-hidden="true" className="icon">
-                  <use href="#i-arrow" />
+                  <use href="#i-eye" />
                 </svg>
               </button>
             </div>
+            {passwordErrors.currentPassword && (
+              <span className="set-error">{passwordErrors.currentPassword}</span>
+            )}
           </div>
-        </div>
+
+          <div className="pf-field">
+            <div className="pf-label-row">
+              <label className="pf-label" htmlFor="pf-new">
+                New Password
+              </label>
+            </div>
+            <div className="pf-password">
+              <input
+                id="pf-new"
+                className="pf-input"
+                type={visible.next ? 'text' : 'password'}
+                placeholder="Enter fresh passphrase"
+                value={passwordForm.newPassword}
+                onChange={updatePasswordField('newPassword')}
+                autoComplete="new-password"
+                aria-invalid={Boolean(passwordErrors.newPassword)}
+              />
+              <button
+                type="button"
+                className="pf-eye"
+                aria-label={visible.next ? 'Hide password' : 'Show password'}
+                onClick={() => setVisible((prev) => ({ ...prev, next: !prev.next }))}
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-eye" />
+                </svg>
+              </button>
+            </div>
+            {passwordErrors.newPassword && (
+              <span className="set-error">{passwordErrors.newPassword}</span>
+            )}
+          </div>
+
+          <div className="pf-strength">
+            <div className="pf-strength__head">
+              <span>Security strength:</span>
+              <span className="pf-strength__bars" aria-hidden="true">
+                {PASSWORD_RULES.map((rule, index) => (
+                  <i key={rule.id} className={index < strength ? 'is-on' : ''} />
+                ))}
+              </span>
+              <strong>
+                {STRENGTH_LABELS[strength]} ({strength}/4)
+              </strong>
+            </div>
+
+            <ul className="pf-checks">
+              {PASSWORD_RULES.map((rule) => {
+                const passed = rule.test(passwordForm.newPassword);
+                return (
+                  <li key={rule.id} className={passed ? 'is-pass' : ''}>
+                    <svg aria-hidden="true" className="icon">
+                      <use href={passed ? '#i-check' : '#i-circle'} />
+                    </svg>
+                    {rule.label}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          <div className="pf-field">
+            <div className="pf-label-row">
+              <label className="pf-label" htmlFor="pf-confirm">
+                Confirm New Password
+              </label>
+            </div>
+            <div className="pf-password">
+              <input
+                id="pf-confirm"
+                className="pf-input"
+                type={visible.confirm ? 'text' : 'password'}
+                placeholder="Re-type new passphrase"
+                value={passwordForm.confirmPassword}
+                onChange={updatePasswordField('confirmPassword')}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                className="pf-eye"
+                aria-label={visible.confirm ? 'Hide password' : 'Show password'}
+                onClick={() => setVisible((prev) => ({ ...prev, confirm: !prev.confirm }))}
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-eye" />
+                </svg>
+              </button>
+            </div>
+            {passwordsMatch && (
+              <span className="pf-match">
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-check" />
+                </svg>
+                Passwords match correctly
+              </span>
+            )}
+          </div>
+
+          <div className="pf-security-actions">
+            <button
+              type="button"
+              className="pf-update"
+              onClick={handlePasswordUpdate}
+              disabled={changingPassword}
+            >
+              {changingPassword ? 'Updating…' : 'Update password'}
+            </button>
+            <button
+              type="button"
+              className="pf-logout"
+              onClick={() => {
+                if (onSignOut) onSignOut();
+                else notify('Signed out.', 'info');
+              }}
+            >
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-logout" />
+              </svg>
+              Log out
+            </button>
+          </div>
+
+          <div className="pf-sessions">
+            <div>
+              <strong>Active Sessions</strong>
+              <p>Logged in on 3 devices</p>
+            </div>
+            <button
+              type="button"
+              className="pf-mini"
+              onClick={() => notify('Signed out of all other devices.')}
+            >
+              Log out all devices
+            </button>
+          </div>
+        </section>
       </div>
 
       <Toast message={toast?.message} tone={toast?.tone} />

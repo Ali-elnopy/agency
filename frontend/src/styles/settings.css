@@ -752,3 +752,752 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==========================================================================
+   Profile (My Profile / Settings) — centered two-card layout
+   ========================================================================== */
+.pf-page {
+  padding-bottom: 6px;
+}
+
+.pf-page .crumbs {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+
+.pf-page .crumbs strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pf-head {
+  margin-top: 2px;
+}
+
+.pf-head__tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pf-account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #5b4bd6;
+  background: rgba(109, 92, 232, 0.12);
+  border-radius: 999px;
+}
+
+[data-theme='dark'] .pf-account-pill {
+  color: #c3baff;
+}
+
+.pf-account-pill .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.pf-head__workspace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--faint);
+}
+
+.pf-head__dot {
+  width: 4px;
+  height: 4px;
+  background: var(--faint);
+  border-radius: 50%;
+}
+
+.pf-head h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.pf-head p {
+  max-width: 620px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.pf-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.pf-card {
+  padding: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 22px 44px -40px rgba(20, 23, 40, 0.55);
+}
+
+.pf-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.pf-card__head--security {
+  justify-content: space-between;
+}
+
+.pf-card__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--accent-text);
+  background: var(--badge-bg);
+  border-radius: 9px;
+}
+
+.pf-card__icon .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.pf-card__icon--purple {
+  color: var(--purple);
+  background: rgba(109, 92, 232, 0.12);
+}
+
+.pf-card__title {
+  min-width: 0;
+}
+
+.pf-card__title h2 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.pf-card__title p {
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.pf-member {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 9px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #0f6b47;
+  background: rgba(47, 158, 107, 0.14);
+  border-radius: 999px;
+}
+
+[data-theme='dark'] .pf-member {
+  color: #3ecf8e;
+}
+
+.pf-member .icon {
+  width: 10px;
+  height: 10px;
+}
+
+.pf-divider {
+  height: 1px;
+  margin: 18px 0;
+  background: var(--line);
+}
+
+/* Photo block */
+.pf-photo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  background: var(--soft);
+  border-radius: 14px;
+}
+
+.pf-photo__frame {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  overflow: hidden;
+  color: var(--faint);
+  background: var(--badge-bg);
+  border-radius: 50%;
+}
+
+.pf-photo__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pf-photo__frame .icon {
+  width: 28px;
+  height: 28px;
+}
+
+.pf-photo__body {
+  min-width: 0;
+}
+
+.pf-photo__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pf-photo__body p {
+  margin-top: 8px;
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.pf-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pf-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 7px;
+  font: 600 9px var(--font-sans);
+  color: var(--label);
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.pf-mini:hover {
+  border-color: var(--check-border);
+}
+
+.pf-mini .icon {
+  width: 10px;
+  height: 10px;
+}
+
+.pf-mini--danger {
+  color: var(--red);
+  background: transparent;
+  border-color: transparent;
+}
+
+.pf-mini--danger:hover {
+  background: rgba(229, 72, 77, 0.08);
+  border-color: transparent;
+}
+
+/* Fields */
+.pf-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.pf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pf-field--full {
+  grid-column: 1 / -1;
+}
+
+.pf-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pf-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--label);
+}
+
+.pf-label .req {
+  color: var(--red);
+}
+
+.pf-label--locked .icon {
+  width: 10px;
+  height: 10px;
+  color: var(--faint);
+}
+
+.pf-note {
+  font-size: 8.5px;
+  font-weight: 500;
+  color: var(--faint);
+}
+
+.pf-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  font: 11.5px var(--font-sans);
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  outline: 0;
+  transition: border-color 0.2s;
+}
+
+.pf-input:focus {
+  border-color: var(--orange);
+}
+
+.pf-input[readonly] {
+  color: var(--muted);
+  background: var(--soft);
+}
+
+.pf-phone {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pf-phone .pf-input {
+  padding-left: 62px;
+}
+
+.pf-phone__code {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  pointer-events: none;
+  border-right: 1px solid var(--line);
+  border-radius: 8px 0 0 8px;
+}
+
+.pf-phone__code .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.pf-readonly {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pf-readonly .pf-input {
+  padding-right: 38px;
+}
+
+.pf-readonly__gear {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--faint);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+}
+
+.pf-readonly__gear:hover {
+  color: var(--muted);
+  background: var(--card);
+}
+
+.pf-readonly__gear .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.pf-role {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 6px 8px;
+  background: rgba(109, 92, 232, 0.08);
+  border: 1px solid rgba(109, 92, 232, 0.16);
+  border-radius: 9px;
+}
+
+.pf-role__icon {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  color: var(--purple);
+}
+
+.pf-role__name {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.pf-role__meta,
+.pf-squad__meta {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-end;
+  font-size: 7px;
+  line-height: 1.3;
+  color: var(--faint);
+}
+
+.pf-role__meta b,
+.pf-squad__meta b {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pf-squad {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 6px 8px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.pf-squad__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--green);
+  background: rgba(47, 158, 107, 0.12);
+  border-radius: 6px;
+}
+
+.pf-squad__icon .icon {
+  width: 10px;
+  height: 10px;
+}
+
+.pf-squad__name {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+/* Actions */
+.pf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.pf-ghost {
+  height: 34px;
+  padding: 0 14px;
+  font: 600 11px var(--font-sans);
+  color: var(--muted);
+  cursor: pointer;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+
+.pf-ghost:hover {
+  color: var(--ink);
+  background: var(--soft);
+}
+
+.pf-save {
+  height: 34px;
+  padding: 0 18px;
+  font: 600 11px var(--font-sans);
+  color: #ffffff;
+  cursor: pointer;
+  background: linear-gradient(90deg, #f7743f, var(--orange-dark));
+  border: 0;
+  border-radius: 9px;
+}
+
+.pf-save:hover {
+  filter: brightness(1.04);
+}
+
+.pf-save:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Password fields */
+.pf-password {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pf-password .pf-input {
+  padding-right: 38px;
+}
+
+.pf-eye {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--faint);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+}
+
+.pf-eye:hover {
+  color: var(--muted);
+}
+
+.pf-eye .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.pf-strength {
+  margin: 12px 0 14px;
+  padding: 11px 12px;
+  background: var(--soft);
+  border-radius: 10px;
+}
+
+.pf-strength__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9.5px;
+  color: var(--muted);
+}
+
+.pf-strength__head strong {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.pf-strength__bars {
+  display: inline-flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 60px;
+}
+
+.pf-strength__bars i {
+  flex: 1;
+  height: 4px;
+  background: var(--check-border);
+  border-radius: 999px;
+}
+
+.pf-strength__bars i.is-on {
+  background: var(--green);
+}
+
+.pf-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  padding: 0;
+  margin-top: 10px;
+  list-style: none;
+}
+
+.pf-checks li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  color: var(--faint);
+}
+
+.pf-checks li .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.pf-checks li.is-pass {
+  color: var(--green);
+}
+
+.pf-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.pf-match .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.pf-security-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.pf-update {
+  height: 36px;
+  padding: 0 18px;
+  font: 600 11px var(--font-sans);
+  color: #ffffff;
+  cursor: pointer;
+  background: #5d2b1d;
+  border: 0;
+  border-radius: 9px;
+  transition: background 0.2s;
+}
+
+.pf-update:hover {
+  background: #6d3423;
+}
+
+.pf-update:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.pf-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 0;
+  font: 600 10.5px var(--font-sans);
+  color: var(--red);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.pf-logout:hover {
+  text-decoration: underline;
+}
+
+.pf-logout .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.pf-sessions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 11px 12px;
+  background: var(--soft);
+  border-radius: 11px;
+}
+
+.pf-sessions strong {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pf-sessions p {
+  margin-top: 2px;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  .pf-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .pf-card {
+    padding: 18px;
+  }
+
+  .pf-fields,
+  .pf-checks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pf-photo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

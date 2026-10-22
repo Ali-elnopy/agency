@@ -140,6 +140,29 @@ export default function IconSprite() {
         <path d="M2.6 21v-1.4A5.6 5.6 0 0 1 8.2 14h1.6a5.6 5.6 0 0 1 4.4 2.1" />
         <path d="M18 13.5v7M14.5 17h7" />
       </symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24">
+        <rect x="4" y="10.5" width="16" height="10.5" rx="2.4" />
+        <path d="M8 10.5V7.4a4 4 0 0 1 8 0v3.1" />
+      </symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24">
+        <path d="M12 16V4M7.5 8.5 12 4l4.5 4.5" />
+        <path d="M4 15v3.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V15" />
+      </symbol>
+      <symbol id="i-crop" viewBox="0 0 24 24">
+        <path d="M6 2v16h16" />
+        <path d="M2 6h16v16" />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6" />
+        <path d="M5.5 6l.9 13a2 2 0 0 0 2 1.9h7.2a2 2 0 0 0 2-1.9L18.5 6" />
+        <path d="M10 11v5M14 11v5" />
+      </symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24">
+        <path d="M6.5 3h3l1.5 4-2 1.5a12 12 0 0 0 5.5 5.5L16 12l4 1.5v3a2.5 2.5 0 0 1-2.7 2.5A16.5 16.5 0 0 1 4 5.7 2.5 2.5 0 0 1 6.5 3z" />
+      </symbol>
+      <symbol id="i-circle" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" />
+      </symbol>
       <symbol id="i-more" viewBox="0 0 24 24">
         <circle cx="12" cy="5" r="1.6" />
         <circle cx="12" cy="12" r="1.6" />

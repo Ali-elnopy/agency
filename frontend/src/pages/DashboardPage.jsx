@@ -73,7 +73,7 @@ export default function DashboardPage({
   const { user } = useAuth();
   const { toast, showToast, clearToast } = useToast();
 
-  const [section, setSection] = useState('dashboard');
+  const [section, setSection] = useState('profile');
   const [activeClient, setActiveClient] = useState('Lumina Health');
   const [activeTeam, setActiveTeam] = useState('Brand Strategy & Growth');
   const [activeUser, setActiveUser] = useState('Marcus Vance');
@@ -170,7 +170,7 @@ export default function DashboardPage({
     switch (section) {
       case 'profile':
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage onSignOut={onSignOut} />;
       case 'roles':
         return <RolesPermissionsPage onOpenUsers={() => go('users')} />;
       case 'users':
@@ -262,7 +262,9 @@ export default function DashboardPage({
           ? 'New'
           : section === 'users' || section === 'addUser' || section === 'editUser'
             ? 'Add User'
-            : 'New Brief';
+            : section === 'profile' || section === 'settings'
+              ? null
+              : 'New Brief';
 
   const handleAction = () => {
     if (section === 'clients' || section === 'clientProfile' || section === 'editClient') {

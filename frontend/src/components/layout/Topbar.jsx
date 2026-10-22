@@ -83,16 +83,18 @@ export default function Topbar({
           <span className="avatar">{initials}</span>
         </a>
 
-        <button
-          type="button"
-          className="button button--primary button--sm"
-          onClick={onAction || onNewBrief}
-        >
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-plus" />
-          </svg>
-          {actionLabel}
-        </button>
+        {actionLabel ? (
+          <button
+            type="button"
+            className="button button--primary button--sm"
+            onClick={onAction || onNewBrief}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-plus" />
+            </svg>
+            {actionLabel}
+          </button>
+        ) : null}
       </div>
     </header>
   );
