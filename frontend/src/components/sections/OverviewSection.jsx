@@ -84,7 +84,36 @@ function initials(name) {
     .toUpperCase();
 }
 
-export default function OverviewSection({ onAddClient, onAddUser, onCreateTeam, onViewWorkload }) {
+export default function OverviewSection({
+  stats,
+  onAddClient,
+  onAddUser,
+  onCreateTeam,
+  onViewWorkload,
+}) {
+  const kpis = [
+    {
+      ...KPIS[0],
+      value: stats ? String(stats.totalClients) : KPIS[0].value,
+      foot: stats
+        ? `${stats.accountManagerAssignment?.unassignedClients ?? 0} clients without an account manager`
+        : KPIS[0].foot,
+    },
+    {
+      ...KPIS[1],
+      value: stats ? String(stats.totalEmployees) : KPIS[1].value,
+      chip: stats ? `${stats.activeEmployees} Active` : KPIS[1].chip,
+      foot: stats
+        ? `${stats.totalEmployees - stats.activeEmployees} deactivated accounts`
+        : KPIS[1].foot,
+    },
+    {
+      ...KPIS[2],
+      value: stats ? String(stats.activeTeams) : KPIS[2].value,
+      foot: stats ? `${stats.totalTeams} operational units in the workspace` : KPIS[2].foot,
+    },
+  ];
+
   return (
     <>
       <section className="ov-quick">
@@ -117,7 +146,7 @@ export default function OverviewSection({ onAddClient, onAddUser, onCreateTeam, 
       </section>
 
       <div className="ov-kpis">
-        {KPIS.map((kpi) => (
+        {kpis.map((kpi) => (
           <article key={kpi.label} className="ov-kpi">
             <span className={`ov-kpi__icon tile ${kpi.tone}`}>
               <svg aria-hidden="true" className="icon">

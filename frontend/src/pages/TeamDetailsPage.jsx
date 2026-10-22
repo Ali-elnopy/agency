@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
+import { getTeamByName } from '../services/teams';
 
 const MEMBERS = [
   {
@@ -99,8 +100,6 @@ const MEMBERS = [
   },
 ];
 
-const ROLES = ['All Roles', 'Account Manager', 'Account Manager', 'Content Creator', 'Strategist'];
-
 // Client retainers currently governed by this squad.
 const TEAM_CLIENTS = [
   {
@@ -163,13 +162,37 @@ const TEAM_CLIENTS = [
 export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBack }) {
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('All Roles');
+  const [teamData, setTeamData] = useState(null);
   const { toast, showToast } = useToast(3000);
+
+  useEffect(() => {
+    let alive = true;
+
+    getTeamByName(team)
+      .then((record) => {
+        if (alive) setTeamData(record);
+      })
+      .catch(() => {
+        if (alive) setTeamData(null);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [team]);
+
+  const roster = teamData?.memberList?.length ? teamData.memberList : MEMBERS;
+
+  const roleOptions = useMemo(
+    () => ['All Roles', ...new Set(roster.map((member) => member.role))],
+    [roster],
+  );
 
   const members = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
-    return MEMBERS.filter((member) => {
-      if (role !== 'All Roles' && !member.role.includes(role)) return false;
+    return roster.filter((member) => {
+      if (role !== 'All Roles' && member.role !== role) return false;
       if (
         needle &&
         !`${member.name} ${member.email} ${member.role}`.toLowerCase().includes(needle)
@@ -178,7 +201,15 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
       }
       return true;
     });
-  }, [query, role]);
+  }, [roster, query, role]);
+
+  const createdLabel = teamData?.createdAt
+    ? new Date(teamData.createdAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : 'Jan 14, 2024';
 
   return (
     <div className="page-screen">
@@ -222,23 +253,25 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
                 Active
               </span>
             </div>
-            <span className="pill is-gray td-cat">Creative Operations</span>
+            <span className="pill is-gray td-cat">
+              {teamData?.category ? `${teamData.category} Operations` : 'Creative Operations'}
+            </span>
             <p className="page-head__text">
-              Specialized squad leading multi-platform brand strategy, market positioning and
-              high-velocity launch campaigns for premium enterprise accounts.
+              {teamData?.description ||
+                'Specialized squad leading multi-platform brand strategy, market positioning and high-velocity launch campaigns for premium enterprise accounts.'}
             </p>
             <div className="head-meta">
               <span>
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-calendar" />
                 </svg>
-                Created Jan 14, 2024
+                Created {createdLabel}
               </span>
               <span>
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-users" />
                 </svg>
-                Lead: Elena Vance (Admin)
+                Lead: {teamData?.lead ?? 'Elena Vance'} (Admin)
               </span>
               <span>
                 <svg aria-hidden="true" className="icon">
@@ -279,9 +312,13 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
             </span>
           </div>
           <strong className="stat__value">
-            8 <small>Employees</small>
+            {roster.length} <small>Employees</small>
           </strong>
-          <p className="stat__meta">4 Account Mgrs · 3 Strategists · 1 Art Lead</p>
+          <p className="stat__meta">
+            {roster.filter((member) => member.role === 'Account Manager').length} Account Mgrs ·{' '}
+            {roster.filter((member) => member.role === 'Content Creator').length} Creators ·{' '}
+            {roster.filter((member) => member.role === 'Admin / Lead').length} Leads
+          </p>
         </article>
 
         <article className="panel stat">
@@ -320,7 +357,7 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
           <div>
             <h2 className="panel__title">
               Team Members
-              <span className="pill is-gray">{MEMBERS.length}</span>
+              <span className="pill is-gray">{roster.length}</span>
             </h2>
             <p className="panel__sub">Roster, disciplines and per-member brief allocation.</p>
           </div>
@@ -341,7 +378,7 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
 
           <span className="filter-select">
             <select value={role} onChange={(e) => setRole(e.target.value)}>
-              {ROLES.filter((item, index) => ROLES.indexOf(item) === index).map((option) => (
+              {roleOptions.map((option) => (
                 <option key={option}>{option}</option>
               ))}
             </select>

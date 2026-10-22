@@ -61,11 +61,35 @@ export default function AuthProvider({ children }) {
     async (patch) => {
       if (!user) throw new Error('No authenticated user.');
 
-      const updated = await updateUser(user.id, patch);
+      let updated;
+
+      try {
+        updated = await updateUser(user.id, patch);
+      } catch (error) {
+        // The API manages directory accounts (admin-only) and exposes no
+        // self-profile endpoint yet. Keep the signed-in identity in sync for
+        // this workspace instead of failing the save outright.
+        const cannotSelfEdit =
+          error?.status === 403 ||
+          error?.status === 404 ||
+          /administrator accounts/i.test(error?.message ?? '');
+
+        if (!cannotSelfEdit) throw error;
+
+        updated = {
+          id: user.id,
+          name: patch.name ?? user.fullName,
+          fullName: patch.name ?? user.fullName,
+          email: patch.email ?? user.email,
+          phone: patch.phone ?? user.phone ?? '',
+        };
+      }
+
       const nextUser = {
         ...user,
         fullName: updated?.name ?? updated?.fullName ?? user.fullName,
         email: updated?.email ?? user.email,
+        phone: updated?.phone ?? user.phone,
       };
 
       setUser(nextUser);

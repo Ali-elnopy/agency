@@ -1,124 +1,41 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
-
-const TEAMS = [
-  {
-    id: 1,
-    name: 'Brand Strategy & Growth',
-    category: 'Strategy',
-    members: 8,
-    clients: 5,
-    tone: 'is-purple',
-    blurb:
-      'Specialized squad leading multi-platform brand strategy, market positioning, and high-velocity launch campaigns.',
-    lead: 'Elana Vance',
-    leadRole: 'Lead',
-    ecosystem: ['Aurora Skincare', 'HyperPulse', 'Nordic Living'],
-    extra: 2,
-    capacity: 94,
-    capacityLabel: '94% Capacity',
-    capacityState: 'is-high',
-  },
-  {
-    id: 2,
-    name: 'Creative & Motion Studio',
-    category: 'Creative',
-    members: 12,
-    clients: 7,
-    tone: 'is-orange',
-    blurb:
-      'End-to-end art direction, visual identity systems, motion graphics and 3D renderings for enterprise launches.',
-    lead: 'Marcus Brady',
-    leadRole: 'Art Director',
-    ecosystem: ['Zenith Watches', 'Solaris Energy', 'Voice Apparel'],
-    extra: 4,
-    capacity: 88,
-    capacityLabel: '⚡ High Velocity',
-    capacityState: 'is-high',
-  },
-  {
-    id: 3,
-    name: 'Performance Content Squad',
-    category: 'Performance',
-    members: 8,
-    clients: 4,
-    tone: 'is-green',
-    blurb:
-      'Short-form video assets, high-converting paid social ad creatives, and multi-variant testing sprints.',
-    lead: 'Sofia Chen',
-    leadRole: 'Squad Lead',
-    ecosystem: ['Volt Beverage', 'Luna Sleep'],
-    extra: 2,
-    capacity: 72,
-    capacityLabel: '◎ ROAS Focus',
-    capacityState: 'is-ok',
-  },
-  {
-    id: 4,
-    name: 'Editorial & Brand Voice',
-    category: 'Creative',
-    members: 5,
-    clients: 5,
-    tone: 'is-amber',
-    blurb:
-      'Brand narratives, campaign copywriting, creative concealing, tone guidelines and editorial governance.',
-    lead: 'David K.',
-    leadRole: 'Editorial Lead',
-    ecosystem: ['Bloom Care Group', 'Kinetic Motors'],
-    extra: 3,
-    capacity: 64,
-    capacityLabel: '◎ Editorial Pace',
-    capacityState: 'is-space',
-  },
-  {
-    id: 5,
-    name: 'Social Operations & Community',
-    category: 'Performance',
-    members: 7,
-    clients: 6,
-    tone: 'is-green',
-    blurb:
-      'Real-time social media management, community engagement workflows and always-on channel operations.',
-    lead: 'Liam Chen',
-    leadRole: 'Community Lead',
-    ecosystem: ['Vertex AI', 'Nova Robotics'],
-    extra: 4,
-    capacity: 81,
-    capacityLabel: '⚡ Always-On',
-    capacityState: 'is-ok',
-  },
-  {
-    id: 6,
-    name: 'Digital Product Design',
-    category: 'Creative',
-    members: 4,
-    clients: 2,
-    tone: 'is-purple',
-    blurb:
-      'Interactive web experiences, UX research, visual design kits and conversion rate UI iterations.',
-    lead: 'Taro Tanaka',
-    leadRole: 'Product Lead',
-    ecosystem: ['Kinetic Motors', 'HyperPulse'],
-    extra: 0,
-    capacity: 46,
-    capacityLabel: '◎ Studio Ready',
-    capacityState: 'is-ready',
-  },
-];
+import { getTeams } from '../services/teams';
 
 const FILTERS = ['All Squads', 'Creative', 'Strategy', 'Performance'];
 
-export default function TeamsPage({ onOpenTeam }) {
+export default function TeamsPage({ onOpenTeam, clientCount }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState(FILTERS[0]);
   const [sort, setSort] = useState('Recently Active');
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { toast, showToast } = useToast(3000);
 
-  const teams = useMemo(() => {
+  useEffect(() => {
+    let alive = true;
+
+    getTeams()
+      .then((items) => {
+        if (alive) setTeams(items);
+      })
+      .catch(() => {
+        if (alive) setTeams([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const visibleTeams = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
-    return TEAMS.filter((team) => {
+    return teams.filter((team) => {
       if (filter !== FILTERS[0] && team.category !== filter) return false;
       if (
         needle &&
@@ -130,7 +47,10 @@ export default function TeamsPage({ onOpenTeam }) {
       }
       return true;
     });
-  }, [query, filter]);
+  }, [teams, query, filter]);
+
+  const totalTalent = teams.reduce((total, team) => total + (team.members || 0), 0);
+  const accountCount = Number.isFinite(clientCount) ? clientCount : 27;
 
   return (
     <div className="page-screen">
@@ -149,7 +69,7 @@ export default function TeamsPage({ onOpenTeam }) {
         <div>
           <div className="page-head__title-row">
             <h1 className="page-head__title">Teams</h1>
-            <span className="pill is-orange">{TEAMS.length} Teams Active</span>
+            <span className="pill is-orange">{teams.length} Teams Active</span>
           </div>
           <p className="page-head__text">
             Organize creative personnel, squad capacities, and assigned brand client ecosystems.
@@ -163,7 +83,7 @@ export default function TeamsPage({ onOpenTeam }) {
             <span>
               Total Talent
               <br />
-              <strong>42 Specialists</strong>
+              <strong>{totalTalent} Specialists</strong>
             </span>
           </span>
           <span className="head-badge">
@@ -173,7 +93,7 @@ export default function TeamsPage({ onOpenTeam }) {
             <span>
               Active Brands
               <br />
-              <strong>27 Accounts</strong>
+              <strong>{accountCount} Accounts</strong>
             </span>
           </span>
           <button
@@ -237,9 +157,9 @@ export default function TeamsPage({ onOpenTeam }) {
         </button>
       </div>
 
-      {teams.length > 0 ? (
+      {visibleTeams.length > 0 ? (
         <div className="team-grid">
-          {teams.map((team) => (
+          {visibleTeams.map((team) => (
             <article key={team.id} className={`team-card ${team.tone}`}>
               <div className="team-card__top">
                 <div className="team-card__chips">
@@ -308,7 +228,7 @@ export default function TeamsPage({ onOpenTeam }) {
       ) : (
         <section className="panel">
           <p className="sub" style={{ padding: '8px 0' }}>
-            No teams match the current filters.
+            {loading ? 'Loading teams…' : 'No teams match the current filters.'}
           </p>
         </section>
       )}

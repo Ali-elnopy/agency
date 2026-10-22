@@ -62,9 +62,29 @@ model User {
 
   sessions AuthSession[]
 
+  auditLogs AuditLog[]
+
   @@index([roleId])
   @@index([jobTitleId])
   @@map("users")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     Int?     @map("user_id")
+  action     String   @db.VarChar(100)
+  targetType String?  @map("target_type") @db.VarChar(100)
+  targetId   String?  @map("target_id") @db.VarChar(100)
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 model Team {

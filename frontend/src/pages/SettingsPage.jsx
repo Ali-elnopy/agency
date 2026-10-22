@@ -29,7 +29,7 @@ export default function SettingsPage({ onSignOut }) {
     () => ({
       fullName: user?.fullName || 'Elena Vance',
       email: user?.email || 'elena.vance@orvia-creative.com',
-      phone: '+1 (555) 382-9014',
+      phone: user?.phone || '+1 (555) 382-9014',
     }),
     [user],
   );

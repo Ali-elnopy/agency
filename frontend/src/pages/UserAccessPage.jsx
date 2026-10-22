@@ -331,7 +331,7 @@ export default function UserAccessPage({ onOpenRoles, onAddUser, onEditUser }) {
               type="button"
               className="button button--ghost button--xs"
               onClick={() =>
-                onEditUser ? onEditUser(headerUser.name) : notify('Edit user profile.', 'info')
+                onEditUser ? onEditUser(headerUser) : notify('Edit user profile.', 'info')
               }
             >
               Edit User Profile
@@ -392,7 +392,7 @@ export default function UserAccessPage({ onOpenRoles, onAddUser, onEditUser }) {
 
           <div className="role-picker__head">
             <span className="caps">
-              Assign Functional Role <span className="caps__ar">(تحديد الـ ROLE والصلاحيات)</span> *
+              Assign Functional Role *
             </span>
             <a
               className="link"
@@ -517,7 +517,7 @@ export default function UserAccessPage({ onOpenRoles, onAddUser, onEditUser }) {
           <div className="governance__suspend">
             <div>
               <p className="governance__row-title">
-                Temporarily Suspend Account <span className="caps__ar">(تجميد مؤقت)</span>
+                Temporarily Suspend Account
               </p>
               <p className="governance__row-sub">
                 Blocks login &amp; revokes active tokens without deleting history

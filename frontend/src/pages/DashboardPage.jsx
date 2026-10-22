@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
 import OverviewSection from '../components/sections/OverviewSection';
@@ -19,6 +19,7 @@ import InfoModal from '../components/modals/InfoModal';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
+import { getDashboardStats } from '../services/dashboard';
 
 // Every screen that can be reached from the sidebar or from a list row.
 const SECTION_LABELS = {
@@ -71,17 +72,36 @@ export default function DashboardPage({
   onNavigate,
 }) {
   const { user } = useAuth();
-  const { toast, showToast, clearToast } = useToast();
+  const { toast, showToast, clearToast } = useToast(8000);
 
   const [section, setSection] = useState('profile');
   const [activeClient, setActiveClient] = useState('Lumina Health');
   const [activeTeam, setActiveTeam] = useState('Brand Strategy & Growth');
   const [activeUser, setActiveUser] = useState('Marcus Vance');
+  const [activeUserRecord, setActiveUserRecord] = useState(null);
+  const [stats, setStats] = useState(null);
   const [isNewBriefOpen, setIsNewBriefOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [newActivity, setNewActivity] = useState(null);
   const [addClientRequest, setAddClientRequest] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+
+    getDashboardStats()
+      .then((data) => {
+        if (alive) setStats(data);
+      })
+      .catch(() => {
+        // The API scopes this endpoint to administrators; other roles keep the
+        // static overview instead of surfacing an error screen.
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const go = (next, message) => {
     setSection(next);
@@ -161,8 +181,10 @@ export default function DashboardPage({
     go('teamDetails');
   };
 
-  const openUser = (name) => {
-    setActiveUser(name || 'Marcus Vance');
+  const openUser = (user) => {
+    const record = typeof user === 'string' ? { fullName: user } : user;
+    setActiveUser(record?.fullName || record?.name || 'Marcus Vance');
+    setActiveUserRecord(record ?? null);
     go('editUser');
   };
 
@@ -182,13 +204,14 @@ export default function DashboardPage({
           />
         );
       case 'addUser':
-        return <AddUserPage onBack={() => go('users')} onSaved={() => go('users')} />;
+        return <AddUserPage onBack={() => go('users')} onSaved={(message) => go('users', message)} />;
       case 'editUser':
         return (
           <EditUserPage
             member={activeUser}
+            record={activeUserRecord}
             onBack={() => go('users')}
-            onSaved={() => go('users')}
+            onSaved={(message) => go('users', message)}
           />
         );
       case 'clients':
@@ -204,7 +227,7 @@ export default function DashboardPage({
       case 'editClient':
         return <EditClientPage onBack={() => go('clientProfile')} onSaved={() => go('clients')} />;
       case 'teams':
-        return <TeamsPage onOpenTeam={openTeam} />;
+        return <TeamsPage onOpenTeam={openTeam} clientCount={stats?.totalClients} />;
       case 'teamDetails':
         return <TeamDetailsPage team={activeTeam} onBack={() => go('teams')} />;
       default:
@@ -238,6 +261,7 @@ export default function DashboardPage({
             </section>
 
             <OverviewSection
+              stats={stats}
               onAddClient={() => go('clients')}
               onAddUser={() => go('addUser')}
               onCreateTeam={() => go('teams')}

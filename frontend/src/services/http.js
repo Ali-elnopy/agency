@@ -1,6 +1,10 @@
 import { clearSession, getAccessToken, getRefreshToken, setSession } from './tokenStorage';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+
+// The Express API mounts its routers directly on `/api` and currently exposes
+// no token-refresh route. Keep the retry plumbing in place for when it lands.
+const REFRESH_ENDPOINT_AVAILABLE = false;
 
 export const SESSION_EXPIRED_EVENT = 'orvia:session-expired';
 
@@ -34,6 +38,8 @@ let refreshRequest = null;
  * invalidate a freshly rotated refresh token.
  */
 async function refreshSession() {
+  if (!REFRESH_ENDPOINT_AVAILABLE) return false;
+
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 

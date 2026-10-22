@@ -49,7 +49,7 @@ export const PERMISSION_GROUPS = [
     id: 'governance',
     index: 1,
     title: 'User Management & Workspace Governance',
-    subtitle: 'إدارة المستخدمين والحسابات',
+    subtitle: 'User and account administration',
     capabilities: [
       {
         id: 'users',
@@ -74,7 +74,7 @@ export const PERMISSION_GROUPS = [
     id: 'creative',
     index: 2,
     title: 'Creative Pipeline, Briefs & Brand Assets',
-    subtitle: 'العمليات الإبداعية والمواد والعلامات التجارية',
+    subtitle: 'Creative operations, assets and brand identity',
     capabilities: [
       {
         id: 'briefs',
@@ -110,7 +110,7 @@ export const PERMISSION_GROUPS = [
     id: 'client',
     index: 3,
     title: 'Client Portal, Approvals & Financial Billing',
-    subtitle: 'البوابة والموافقات والفوترة',
+    subtitle: 'Client portal, approvals and billing',
     capabilities: [
       {
         id: 'annotations',

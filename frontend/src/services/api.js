@@ -1,5 +1,5 @@
 import { ApiError, apiRequest } from './http';
-import { clearSession, getAccessToken, getRefreshToken, setSession } from './tokenStorage';
+import { clearSession, getAccessToken, setSession } from './tokenStorage';
 
 const MOCK_ENABLED = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API === 'true';
 
@@ -86,12 +86,20 @@ export async function loginApi({ email, password }) {
     });
 
     if (body?.success && body.data?.user) {
+      // The API returns `role` as a `{ id, name }` record; the shell components
+      // (Sidebar / Topbar / Settings) compare the role name as a string.
+      const sessionUser = {
+        ...body.data.user,
+        role: body.data.user.role?.name ?? body.data.user.role,
+        roleId: body.data.user.role?.id ?? null,
+      };
+
       setSession({
         accessToken: body.data.accessToken,
         refreshToken: body.data.refreshToken,
-        user: body.data.user,
+        user: sessionUser,
       });
-      return { success: true, data: body.data };
+      return { success: true, data: { ...body.data, user: sessionUser } };
     }
 
     return {
@@ -146,18 +154,18 @@ export async function forgotPasswordApi(email) {
 }
 
 export function logout() {
-  const refreshToken = getRefreshToken();
-  const isDevSession =
-    import.meta.env.DEV &&
-    import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true' &&
-    getAccessToken() === 'dev-bypass-token';
+  const token = getAccessToken();
+  const isLocalSession =
+    !token ||
+    token === 'dev-bypass-token' ||
+    token.startsWith('mock-') ||
+    (import.meta.env.DEV &&
+      import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true' &&
+      token === 'dev-bypass-token');
 
-  if (refreshToken && !isDevSession) {
-    fetch(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/auth/logout`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    }).catch(() => {});
+  if (token && !isLocalSession) {
+    // The API revokes the current session from the bearer token itself.
+    apiRequest('/auth/logout', { method: 'POST', retry: false }).catch(() => {});
   }
 
   clearSession();

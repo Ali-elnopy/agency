@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import Switch from '../components/ui/Switch';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
+import { createUser, getJobTitles } from '../services/users';
+import { addTeamMember, getTeams } from '../services/teams';
 
 const ROLES = [
   {
@@ -41,11 +43,33 @@ const EMPTY_FORM = {
   pod: PODS[0],
 };
 
+// The API provisions accounts with a password. The screen has no password
+// field, so a strong temporary one is generated and shown once on creation.
+function generateTemporaryPassword() {
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const upper = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  const symbols = '!@#$%&*';
+  const pool = lower + upper + digits + symbols;
+
+  const pick = (source) => source[Math.floor(Math.random() * source.length)];
+  const chars = [pick(lower), pick(upper), pick(digits), pick(symbols)];
+
+  while (chars.length < 16) chars.push(pick(pool));
+
+  return chars.sort(() => Math.random() - 0.5).join('');
+}
+
+function podToTeamName(pod) {
+  return String(pod).replace(/\s*\(\d+\s*members?\)$/i, '').trim();
+}
+
 export default function AddUserPage({ onBack, onSaved }) {
-  const { toast, showToast } = useToast(3000);
+  const { toast, showToast } = useToast(12000);
   const [form, setForm] = useState(EMPTY_FORM);
   const [invite, setInvite] = useState(true);
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const role = ROLES.find((item) => item.id === form.roleId) ?? ROLES[0];
   const isDirty =
@@ -68,10 +92,61 @@ export default function AddUserPage({ onBack, onSaved }) {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    showToast(
-      invite ? 'User created — onboarding invitation sent.' : 'User created without an invitation.',
-    );
-    if (onSaved) onSaved();
+    createAccount();
+  };
+
+  const createAccount = async () => {
+    const roleMap = { am: 'ACCOUNT_MANAGER', creator: 'EMPLOYEE' };
+    const roleName = roleMap[form.roleId];
+
+    if (!roleName) {
+      showToast(
+        'Workspace Admin accounts are provisioned by the platform and cannot be created here.',
+        'danger',
+      );
+      return;
+    }
+
+    let jobTitleId = null;
+
+    if (roleName === 'EMPLOYEE') {
+      const titles = await getJobTitles().catch(() => []);
+      jobTitleId = titles.find((title) => title.name === 'Content Creator')?.id ?? null;
+
+      if (!jobTitleId) {
+        showToast('The Content Creator job title is not configured in the database.', 'danger');
+        return;
+      }
+    }
+
+    const password = generateTemporaryPassword();
+
+    setSaving(true);
+
+    try {
+      const created = await createUser({
+        fullName: form.fullName.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        password,
+        roleName,
+        jobTitleId,
+      });
+
+      const teams = await getTeams().catch(() => []);
+      const team = teams.find((item) => item.name === podToTeamName(form.pod));
+
+      if (team && created?.id) {
+        await addTeamMember(team.id, created.id).catch(() => {});
+      }
+
+      showToast(`User created. Temporary password: ${password}`, 'success');
+      if (onSaved) onSaved(`User created. Temporary password: ${password}`);
+    } catch (error) {
+      showToast(error.message || 'Could not create this user. Please try again.', 'danger');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -296,7 +371,7 @@ export default function AddUserPage({ onBack, onSaved }) {
             <button type="button" className="button button--ghost button--sm" onClick={onBack}>
               Cancel
             </button>
-            <button type="submit" className="button button--primary button--sm">
+            <button type="submit" className="button button--primary button--sm" disabled={saving}>
               <svg aria-hidden="true" className="icon">
                 <use href="#i-user-plus" />
               </svg>

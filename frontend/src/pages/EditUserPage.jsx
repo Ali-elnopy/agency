@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
+import { getJobTitles, updateUser } from '../services/users';
+import { addTeamMember, getTeams } from '../services/teams';
 
 const PODS = [
   'Growth & Performance Team (14 members)',
@@ -20,14 +22,15 @@ function initialsOf(name) {
     .toUpperCase();
 }
 
-export default function EditUserPage({ member = 'Marcus Vance', onBack, onSaved }) {
+export default function EditUserPage({ member = 'Marcus Vance', record, onBack, onSaved }) {
   const { toast, showToast } = useToast(3000);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    fullName: member,
-    email: `${member.split(' ')[0].toLowerCase()}.vance@orvia-agency.com`,
-    phone: 'US: +1 (555) 340-1188',
-    jobTitle: 'Senior Account Manager',
+    fullName: record?.fullName || member,
+    email: record?.email || `${member.split(' ')[0].toLowerCase()}.vance@orvia-agency.com`,
+    phone: record?.phone || 'US: +1 (555) 340-1188',
+    jobTitle: record?.jobTitleName || 'Senior Account Manager',
     pod: PODS[0],
   });
 
@@ -36,10 +39,43 @@ export default function EditUserPage({ member = 'Marcus Vance', onBack, onSaved 
     setDirty(true);
   };
 
-  const handleSave = () => {
-    setDirty(false);
-    showToast('Member profile updated successfully.');
-    if (onSaved) onSaved();
+  const handleSave = async () => {
+    if (!record?.id) {
+      setDirty(false);
+      showToast('Member profile updated successfully.');
+      if (onSaved) onSaved('Member profile updated successfully.');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const titles = await getJobTitles().catch(() => []);
+      const match = titles.find(
+        (title) => title.name.toLowerCase() === form.jobTitle.trim().toLowerCase(),
+      );
+
+      await updateUser(record.id, {
+        name: form.fullName.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        ...(match ? { jobTitleId: match.id } : {}),
+      });
+
+      const teamName = form.pod.replace(/\s*\(\d+\s*members?\)$/i, '').trim();
+      const teams = await getTeams().catch(() => []);
+      const team = teams.find((item) => item.name === teamName);
+
+      if (team) await addTeamMember(team.id, record.id).catch(() => {});
+
+      setDirty(false);
+      showToast('Member profile updated successfully.');
+      if (onSaved) onSaved('Member profile updated successfully.');
+    } catch (error) {
+      showToast(error.message || 'Could not update this member. Please try again.', 'danger');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -67,12 +103,20 @@ export default function EditUserPage({ member = 'Marcus Vance', onBack, onSaved 
                 <i className="status-dot" />
                 Active Account
               </span>
-              <span className="pill is-orange">Account Manager</span>
+              <span className="pill is-orange">{record?.role || 'Account Manager'}</span>
             </div>
             <div className="head-meta">
-              <span>Created Oct 14, 2025</span>
-              <span>Last active 2 hours ago</span>
-              <span>ID: USR-84923</span>
+              <span>Created {record?.addedAt || 'Oct 14, 2025'}</span>
+              <span>
+                {record?.lastLoginAt
+                  ? `Last active ${new Date(record.lastLoginAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}`
+                  : 'Never signed in'}
+              </span>
+              <span>ID: {record?.id ? `USR-${String(record.id).padStart(5, '0')}` : 'USR-84923'}</span>
             </div>
           </div>
         </div>
@@ -103,6 +147,7 @@ export default function EditUserPage({ member = 'Marcus Vance', onBack, onSaved 
               type="button"
               className="button button--primary button--xs"
               onClick={handleSave}
+              disabled={saving}
             >
               Save changes
             </button>
@@ -278,7 +323,12 @@ export default function EditUserPage({ member = 'Marcus Vance', onBack, onSaved 
             <button type="button" className="button button--ghost" onClick={onBack}>
               Cancel
             </button>
-            <button type="button" className="button button--primary" onClick={handleSave}>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={handleSave}
+              disabled={saving}
+            >
               Save changes
             </button>
           </div>
@@ -301,19 +351,19 @@ export default function EditUserPage({ member = 'Marcus Vance', onBack, onSaved 
 
             <div className="kv" style={{ marginTop: 12 }}>
               <span>Access Role</span>
-              <strong>Account Manager</strong>
+              <strong>{record?.role || 'Account Manager'}</strong>
             </div>
             <div className="kv">
               <span>Team Pod</span>
-              <strong>Growth &amp; Performance</strong>
+              <strong>{form.pod.replace(/\s*\(\d+\s*members?\)$/i, '')}</strong>
             </div>
             <div className="kv">
               <span>Status</span>
-              <strong>Active</strong>
+              <strong>{record?.status === 'deactivated' ? 'Deactivated' : 'Active'}</strong>
             </div>
             <div className="kv">
               <span>Joined Workspace</span>
-              <strong>Oct 14, 2025</strong>
+              <strong>{record?.addedAt || 'Oct 14, 2025'}</strong>
             </div>
             <div className="kv">
               <span>Last Login</span>
