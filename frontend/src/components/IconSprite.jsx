@@ -135,6 +135,11 @@ export default function IconSprite() {
         <rect x="3" y="4" width="18" height="4" rx="1" />
         <path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M10 12h4" />
       </symbol>
+      <symbol id="i-user-plus" viewBox="0 0 24 24">
+        <circle cx="9" cy="8" r="3.7" />
+        <path d="M2.6 21v-1.4A5.6 5.6 0 0 1 8.2 14h1.6a5.6 5.6 0 0 1 4.4 2.1" />
+        <path d="M18 13.5v7M14.5 17h7" />
+      </symbol>
       <symbol id="i-more" viewBox="0 0 24 24">
         <circle cx="12" cy="5" r="1.6" />
         <circle cx="12" cy="12" r="1.6" />
