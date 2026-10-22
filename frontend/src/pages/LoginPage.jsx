@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getMockCredentials } from '../services/api';
 import InfoModal from '../components/modals/InfoModal';
+import Logo from '../components/Logo';
 import useAuth from '../hooks/useAuth';
 
 export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
@@ -66,10 +67,9 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
               onNavigate('login');
             }}
           >
-            <span className="brand__mark" aria-hidden="true" />
+            <Logo />
             <span className="brand__text">
               <strong>ORVIA</strong>
-              <small>AGENCY OS</small>
             </span>
           </a>
 
@@ -89,34 +89,15 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                 <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
               </svg>
             </button>
-
-            <a
-              href="#help"
-              className="help-link"
-              onClick={(e) => {
-                e.preventDefault();
-                setIsHelpOpen(true);
-              }}
-            >
-              Need help?
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01" />
-              </svg>
-            </a>
           </div>
         </header>
 
         <div className="login__body">
-          <span className="badge">
-            <i />
-            Workspace Portal v3.4
-          </span>
+          <span className="badge">Welcome back</span>
 
-          <h1 className="login__title">Welcome back</h1>
+          <h1 className="login__title">Sign in to your workspace</h1>
           <p className="login__subtitle">
-            Log in to your workspace to manage creative briefs, team reviews, and client
-            deliverables.
+            Access your creative operations, briefs, pipelines, and client approvals.
           </p>
 
           {error && (
@@ -127,26 +108,32 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
 
           <form className="form" onSubmit={handleSubmit} noValidate={DEV_BYPASS}>
             <div className="field">
-              <label htmlFor="email">WORK EMAIL</label>
-              <div className="input">
+              <label htmlFor="email" className="is-req">
+                Work Email
+              </label>
+              <div className="input input--icon">
+                <svg className="input__lead" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                  <path d="M3.5 7.5l8.5 6 8.5-6" />
+                </svg>
                 <input
                   type="email"
                   id="email"
                   name="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="elena.vance@orvia-partners.agency.com"
                   autoComplete="email"
                   required={!DEV_BYPASS}
                 />
-                <svg className="input__icon input__icon--ok" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 12.5l4.5 4.5L19 7.5" />
-                </svg>
               </div>
             </div>
 
             <div className="field">
               <div className="field__row">
-                <label htmlFor="password">PASSWORD</label>
+                <label htmlFor="password" className="is-req">
+                  Password
+                </label>
                 <a
                   href="#forgot"
                   className="link"
@@ -158,13 +145,18 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                   Forgot password?
                 </a>
               </div>
-              <div className="input">
+              <div className="input input--icon">
+                <svg className="input__lead" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4.5" y="10.5" width="15" height="9.5" rx="2.5" />
+                  <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+                </svg>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="password"
                   name="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
                   autoComplete="current-password"
                   required
                 />
@@ -189,28 +181,21 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
               </div>
             </div>
 
-            <div className="form__meta">
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span className="check__box" />
-                Keep me signed in for 30 days
-              </label>
-
-              <span className="secure">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="5" y="11" width="14" height="9" rx="2" />
-                  <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                </svg>
-                SSO &amp; 2FA Enabled
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <span className="check__box" />
+              <span className="check__text">
+                <strong>Keep me signed in for 30 days</strong>
+                <small>Only for trusted private devices</small>
               </span>
-            </div>
+            </label>
 
             <button type="submit" className="btn" disabled={loading}>
-              {loading ? 'Authenticating...' : 'Sign in to ORVIA'}
+              {loading ? 'Authenticating…' : 'Log in to ORVIA'}
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
@@ -232,31 +217,40 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                 ))}
               </div>
             )}
+
+            <div className="divider">Or continue with SSO</div>
+
+            <button type="button" className="btn btn--ghost">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3.5" y="10.5" width="17" height="10" rx="2.5" />
+                <path d="M7.5 10.5V7.5a4.5 4.5 0 0 1 9 0v3M12 15v2" />
+              </svg>
+              Sign in with SAML / OIDC / SSO
+            </button>
           </form>
         </div>
 
         <footer className="login__footer">
-          <p>
-            Don&apos;t have an agency team yet?{' '}
-            <a
-              href="#trial"
-              className="link link--strong"
-              onClick={(e) => {
-                e.preventDefault();
-                setIsTrialOpen(true);
-              }}
-            >
-              Start 14-day trial
-            </a>
-          </p>
+          <p>SOC2 Type II &amp; 256-bit SSL Protected</p>
           <nav className="footer-nav">
-            <a href="#terms" onClick={(e) => e.preventDefault()}>
-              Terms
-            </a>
             <a href="#privacy" onClick={(e) => e.preventDefault()}>
               Privacy
             </a>
-            <span>SOC2 Type II</span>
+            <span className="dot">·</span>
+            <a href="#terms" onClick={(e) => e.preventDefault()}>
+              Terms
+            </a>
+            <span className="dot">·</span>
+            <a
+              href="#contact"
+              className="is-accent"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsHelpOpen(true);
+              }}
+            >
+              Contact Support
+            </a>
           </nav>
         </footer>
       </section>

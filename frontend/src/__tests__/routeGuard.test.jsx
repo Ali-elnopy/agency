@@ -15,7 +15,9 @@ describe('dashboard route guard', () => {
       </AuthProvider>,
     );
 
-    expect(await screen.findByRole('heading', { name: /welcome back/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your workspace/i }),
+    ).toBeInTheDocument();
     await waitFor(() => expect(window.location.hash).toBe('#login'));
     expect(screen.queryByText(/studio activity/i)).not.toBeInTheDocument();
   });

@@ -1,78 +1,90 @@
 /* ==========================================================================
-   Login panel
+   Auth panel (left column of the login / forgot / reset screens)
    ========================================================================== */
 .login {
+  --auth-ink: #1e1b3c;
+  --auth-label: #2b2a44;
+  --auth-input-bg: #ffffff;
+  --auth-input-line: #f1e6db;
+  --auth-box: #faf2eb;
+  --auth-line: #f4eae1;
+  --auth-teal: #28b19f;
+  --auth-teal-ink: #0f7365;
+  --auth-title: clamp(28px, 2.6vw, 38px);
+
   display: flex;
   flex-direction: column;
-  padding: 44px 42px 28px;
+  padding: 34px 46px 26px;
   background: var(--surface);
+}
+
+[data-theme='dark'] .login {
+  --auth-ink: var(--ink);
+  --auth-label: var(--label);
+  --auth-input-bg: var(--field);
+  --auth-input-line: var(--line);
+  --auth-box: #1d1a29;
+  --auth-line: var(--line);
+  --auth-teal: #34c3b0;
+  --auth-teal-ink: #5fe3d0;
 }
 
 .login__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 18px;
+  min-height: 34px;
 }
 
 .login__body {
   width: 100%;
-  max-width: 400px;
+  max-width: 460px;
   margin: auto;
-  padding: 40px 0;
+  padding: 26px 0;
 }
 
-/* Brand */
+/* --------------------------------------------------------------------------
+   Brand (shared by the auth panel and the dashboard sidebar)
+   -------------------------------------------------------------------------- */
+.logo-mark {
+  display: block;
+  width: 40px;
+  height: auto;
+  flex-shrink: 0;
+}
+
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
 }
 
-.brand__mark {
-  width: 22px;
-  height: 26px;
-  border-radius: 60% 40% 55% 45%;
-  background: linear-gradient(135deg, #ff8a5b, var(--orange-dark));
-  transform: rotate(-20deg);
+.brand .logo-mark {
+  width: 40px;
 }
 
 .brand__text {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   line-height: 1.1;
 }
 
 .brand__text strong {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.13em;
+  color: var(--auth-ink);
 }
 
-.brand__text small {
-  font-size: 7.5px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--orange);
-}
-
-.help-link {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--muted);
-}
-
-.help-link svg {
-  width: 13px;
-  height: 13px;
+.brand--body {
+  margin-bottom: 28px;
 }
 
 .login__actions {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 12px;
 }
 
 /* Theme toggle */
@@ -110,38 +122,103 @@
   display: block;
 }
 
-/* Heading */
+/* --------------------------------------------------------------------------
+   Segmented step / state pill (forgot + reset flows)
+   -------------------------------------------------------------------------- */
+.stepper {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  list-style: none;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--auth-input-line);
+  border-radius: 999px;
+}
+
+[data-theme='dark'] .stepper {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stepper li {
+  padding: 5px 10px;
+  font-size: 9.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--faint);
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+.stepper li.is-active {
+  color: var(--auth-ink);
+  background: var(--auth-input-bg);
+  border-color: var(--auth-input-line);
+  box-shadow: 0 1px 2px rgba(30, 27, 60, 0.07);
+}
+
+/* Top-left back link (forgot screen) */
+.back-link--top {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--auth-ink);
+  transition: color 0.2s;
+}
+
+.back-link--top:hover {
+  color: var(--accent-text);
+}
+
+.back-link--top svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* --------------------------------------------------------------------------
+   Heading
+   -------------------------------------------------------------------------- */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 5px 10px;
   font-size: 9.5px;
-  font-weight: 600;
-  color: var(--accent-text);
-  background: var(--badge-bg);
-  border: 1px solid var(--badge-line);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #e4572e;
+  background: rgba(242, 106, 61, 0.1);
+  border-radius: 7px;
 }
 
-.badge i {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--orange);
+[data-theme='dark'] .badge {
+  color: var(--accent-text);
+  background: rgba(242, 106, 61, 0.14);
+}
+
+.badge svg {
+  width: 11px;
+  height: 11px;
 }
 
 .login__title {
-  margin-top: 14px;
-  font-size: 28px;
+  margin-top: 15px;
+  font-size: var(--auth-title);
   font-weight: 800;
-  letter-spacing: -0.02em;
+  line-height: 1.16;
+  letter-spacing: -0.03em;
+  color: var(--auth-ink);
 }
 
 .login__subtitle {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 12.5px;
-  line-height: 1.55;
+  line-height: 1.7;
   color: var(--muted);
 }
 
@@ -152,37 +229,51 @@
   margin-top: 26px;
 }
 
-.field + .field {
-  margin-top: 16px;
+.field + .field,
+.pw-reqs + .field,
+.pw-strength + .field {
+  margin-top: 17px;
 }
 
 .field label {
   display: block;
-  margin-bottom: 6px;
-  font-size: 9.5px;
+  margin-bottom: 7px;
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--label);
+  color: var(--auth-label);
+}
+
+.field label.is-req::after {
+  content: '*';
+  margin-left: 4px;
+  color: #f4632f;
 }
 
 .field__row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: 10px;
+}
+
+.field__row label {
+  margin-bottom: 7px;
 }
 
 .link {
   font-size: 10.5px;
   font-weight: 600;
-  color: var(--accent-text);
+  color: var(--muted);
+  transition: color 0.2s;
 }
 
 .link:hover {
-  text-decoration: underline;
+  color: var(--accent-text);
 }
 
 .link--strong {
   font-weight: 700;
+  color: var(--accent-text);
   text-decoration: underline;
 }
 
@@ -193,81 +284,108 @@
 
 .input input {
   width: 100%;
-  height: 42px;
-  padding: 0 40px 0 14px;
+  height: 46px;
+  padding: 0 42px 0 14px;
   font: 500 12.5px var(--font-sans);
-  color: var(--ink);
-  background: var(--field);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  color: var(--auth-ink);
+  background: var(--auth-input-bg);
+  border: 1px solid var(--auth-input-line);
+  border-radius: 10px;
   outline: none;
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
 }
 
-.input input:focus {
-  border-color: var(--orange);
-  box-shadow: 0 0 0 3px rgba(242, 106, 61, 0.15);
+.input input::placeholder {
+  color: var(--faint);
 }
 
-.input__icon,
+.input input:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(242, 106, 61, 0.14);
+}
+
+/* Leading icon (mail / lock) */
+.input--icon input {
+  padding-left: 40px;
+}
+
+.input__lead {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 15px;
+  height: 15px;
+  color: var(--faint);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.input__lead svg,
+svg.input__lead {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .input__toggle {
   position: absolute;
   top: 50%;
-  right: 14px;
-  width: 15px;
-  height: 15px;
-  transform: translateY(-50%);
-}
-
-.input__icon--ok {
-  color: var(--green);
-}
-
-.input__toggle {
+  right: 12px;
   display: grid;
   place-items: center;
+  width: 24px;
+  height: 24px;
   color: var(--muted);
   background: none;
   border: 0;
   cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.input__toggle:hover {
+  color: var(--auth-ink);
 }
 
 .input__toggle svg {
-  width: 100%;
-  height: 100%;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-/* Checkbox + meta */
-.form__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 16px;
-}
-
+/* Checkbox */
 .check {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10.5px;
-  font-weight: 500;
-  color: var(--label);
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
   cursor: pointer;
 }
 
 .check input {
   position: absolute;
+  width: 0;
+  height: 0;
   opacity: 0;
 }
 
 .check__box {
   display: grid;
+  flex-shrink: 0;
   place-items: center;
-  width: 14px;
-  height: 14px;
-  background: var(--field);
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  background: var(--auth-input-bg);
   border: 1px solid var(--check-border);
   border-radius: 4px;
   transition:
@@ -286,7 +404,7 @@
   height: 7px;
   margin-bottom: 1px;
   border: solid var(--white);
-  border-width: 0 1.5px 1.5px 0;
+  border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
@@ -294,17 +412,21 @@
   box-shadow: 0 0 0 3px rgba(242, 106, 61, 0.25);
 }
 
-.secure {
+.check__text {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 8.5px;
-  color: var(--faint);
+  flex-direction: column;
+  gap: 2px;
 }
 
-.secure svg {
-  width: 10px;
-  height: 10px;
+.check__text strong {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--auth-label);
+}
+
+.check__text small {
+  font-size: 10px;
+  color: var(--faint);
 }
 
 /* Button */
@@ -314,14 +436,14 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 44px;
-  margin-top: 18px;
+  height: 46px;
+  margin-top: 20px;
   font: 600 13px var(--font-sans);
   color: var(--white);
-  background: linear-gradient(90deg, #f7743f, var(--orange-dark));
+  background: linear-gradient(90deg, #f9814f, var(--orange-dark));
   border: 0;
-  border-radius: var(--radius);
-  box-shadow: 0 10px 22px -8px rgba(217, 83, 31, 0.6);
+  border-radius: 10px;
+  box-shadow: 0 10px 22px -9px rgba(217, 83, 31, 0.65);
   cursor: pointer;
   transition:
     transform 0.2s,
@@ -330,19 +452,75 @@
 
 .btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 26px -8px rgba(217, 83, 31, 0.7);
+  box-shadow: 0 14px 26px -9px rgba(217, 83, 31, 0.72);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn svg {
   width: 14px;
   height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* "Or continue with SSO" divider + secondary action */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 0;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--auth-line);
+}
+
+.btn--ghost {
+  margin-top: 14px;
+  font-weight: 600;
+  color: var(--auth-ink);
+  background: var(--auth-input-bg);
+  border: 1px solid var(--auth-input-line);
+  box-shadow: none;
+}
+
+.btn--ghost:hover {
+  border-color: #e7d7c8;
+  box-shadow: none;
+  transform: none;
+}
+
+[data-theme='dark'] .btn--ghost:hover {
+  border-color: var(--faint);
+}
+
+.btn--ghost svg {
+  width: 13px;
+  height: 13px;
 }
 
 /* Inline feedback and demo shortcuts */
 .form__error {
   margin-bottom: 16px;
   padding: 10px 14px;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--red);
   background: rgba(229, 72, 77, 0.12);
   border: 1px solid rgba(229, 72, 77, 0.3);
@@ -374,20 +552,58 @@
   border-color: var(--accent-text);
 }
 
+/* Neutral advisory box (forgot screen) */
+.notice {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: var(--auth-box);
+  border-radius: 12px;
+}
+
+.notice svg {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  color: var(--auth-teal);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.notice__body {
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.notice__body strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--auth-ink);
+}
+
+/* Success panel (after a reset link is sent / password updated) */
 .auth-notice {
-  margin-bottom: 20px;
-  padding: 16px;
+  margin-top: 24px;
+  padding: 18px;
   font-size: 14px;
   line-height: 1.5;
-  color: var(--green);
-  background: rgba(47, 158, 107, 0.12);
-  border: 1px solid rgba(47, 158, 107, 0.3);
-  border-radius: 8px;
+  color: var(--auth-teal-ink);
+  background: rgba(40, 177, 159, 0.1);
+  border: 1px solid rgba(40, 177, 159, 0.28);
+  border-radius: 12px;
 }
 
 .auth-notice__text {
   margin-top: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--ink);
 }
 
@@ -396,36 +612,119 @@
 }
 
 /* ==========================================================================
-   Forgot password
+   Password strength + requirement checklist
    ========================================================================== */
-.input input::placeholder {
-  color: var(--faint);
+.pw-strength {
+  margin-top: 13px;
 }
 
-.input__icon--mail {
-  color: var(--faint);
-}
-
-.note {
+.pw-strength__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 10px 12px;
+  justify-content: space-between;
+  gap: 10px;
   font-size: 10.5px;
-  font-weight: 500;
-  color: var(--accent-text);
-  background: var(--badge-bg);
-  border: 1px solid var(--badge-line);
-  border-radius: 10px;
+  font-weight: 600;
+  color: var(--muted);
 }
 
-.note svg {
+.pw-strength__head strong {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pw-strength__head strong.is-strong {
+  color: var(--auth-teal-ink);
+}
+
+.pw-strength__bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.pw-strength__bar i {
+  height: 4px;
+  background: var(--auth-line);
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+
+.pw-strength__bar i.is-on {
+  background: var(--auth-teal);
+}
+
+.pw-reqs {
+  margin-top: 15px;
+  padding: 15px 16px;
+  background: var(--auth-box);
+  border-radius: 12px;
+}
+
+.pw-reqs ul {
+  display: grid;
+  gap: 8px;
+}
+
+.pw-reqs li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.pw-reqs li svg {
   flex-shrink: 0;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
+.pw-reqs li svg circle {
+  fill: var(--check-border);
+  stroke: none;
+}
+
+.pw-reqs li svg path {
+  fill: none;
+  stroke: var(--white);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pw-reqs li.is-ok {
+  color: var(--auth-teal-ink);
+}
+
+.pw-reqs li.is-ok svg circle {
+  fill: var(--auth-teal);
+}
+
+.pw-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--auth-teal-ink);
+}
+
+.pw-match svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ==========================================================================
+   Secondary links
+   ========================================================================== */
 .back-link {
   display: flex;
   align-items: center;
@@ -433,8 +732,9 @@
   gap: 6px;
   margin-top: 18px;
   font-size: 10.5px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--muted);
+  transition: color 0.2s;
 }
 
 .back-link:hover {
@@ -442,46 +742,82 @@
 }
 
 .back-link svg {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* ==========================================================================
-   Login footer
+   Auth footer
    ========================================================================== */
 .login__footer {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
+  padding-top: 14px;
   font-size: 9.5px;
+  line-height: 1.45;
   color: var(--muted);
+  border-top: 1px solid var(--auth-line);
 }
 
 .login__footer p {
-  max-width: 150px;
-  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 190px;
+}
+
+.login__footer p::before {
+  content: '';
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-top: 3px;
+  background: var(--auth-teal);
+  border-radius: 50%;
+}
+
+.login__footer p.is-plain {
+  max-width: none;
+}
+
+.login__footer p.is-plain::before {
+  display: none;
 }
 
 .footer-nav {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 7px;
+  white-space: nowrap;
   color: var(--faint);
 }
 
+.footer-nav a {
+  transition: color 0.2s;
+}
+
 .footer-nav a:hover {
-  color: var(--ink);
+  color: var(--auth-ink);
 }
 
-.footer-nav a::after {
-  content: '•';
-  margin-left: 14px;
-  font-size: 7px;
-  vertical-align: middle;
+.footer-nav .is-accent {
+  color: var(--accent-text);
+  font-weight: 600;
 }
 
-.footer-nav span {
-  max-width: 50px;
-  line-height: 1.3;
+.footer-nav .dot {
+  color: var(--faint);
+}
+
+@media (max-width: 1180px) {
+  .login {
+    padding: 28px 32px 22px;
+  }
 }

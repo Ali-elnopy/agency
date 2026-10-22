@@ -29,6 +29,23 @@ npm run dev
 Open <http://127.0.0.1:5173>. In local demo mode the login screen offers demo
 accounts (Studio Lead / Admin) that fill the credentials configured in `.env.local`.
 
+## Preview as a single file
+
+Both builds use `vite-plugin-singlefile`, so the whole app (JS + CSS) is inlined into
+one `index.html` that can be opened directly from disk — no server required.
+
+```bash
+npm run build              # → dist/index.html   (production, real API, no demo bypass)
+npm run build:dev-static   # → dist-dev/index.html (local demo build: demo login enabled)
+```
+
+- `dist/index.html` is the production entry point. Sign-in talks to `VITE_API_BASE_URL`.
+- `dist-dev/index.html` is for local preview only: it keeps the demo/mock auth so every
+  screen can be opened without a backend. **Do not deploy it publicly.**
+
+A ready-to-open copy of the demo build is included as `ORVIA-Agency-OS.html` in the
+parent folder.
+
 ### Environment variables
 
 | Variable                   | Purpose                                                                             |

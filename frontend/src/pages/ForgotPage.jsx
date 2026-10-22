@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { forgotPasswordApi } from '../services/api';
+import Logo from '../components/Logo';
 
-export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
+export default function ForgotPage({ onNavigate, theme, onToggleTheme, onEmailSubmit }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -20,6 +21,7 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
     if (result.success) {
       setSubmitted(true);
       setMessage(result.message);
+      if (onEmailSubmit) onEmailSubmit(email);
     } else {
       setError(result.message);
     }
@@ -32,17 +34,16 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
       <header className="login__header">
         <a
           href="#login"
-          className="brand"
+          className="back-link--top"
           onClick={(e) => {
             e.preventDefault();
             onNavigate('login');
           }}
         >
-          <span className="brand__mark" aria-hidden="true" />
-          <span className="brand__text">
-            <strong>ORVIA</strong>
-            <small>AGENCY OS</small>
-          </span>
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor">
+            <path d="M19 12H5M11 6l-6 6 6 6" />
+          </svg>
+          Back to Sign In
         </a>
 
         <div className="login__actions">
@@ -62,32 +63,31 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
             </svg>
           </button>
 
-          <a
-            href="#login"
-            className="help-link"
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate('login');
-            }}
-          >
-            Back to sign in
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </a>
+          <ol className="stepper">
+            <li className={submitted ? '' : 'is-active'}>Forgot Password</li>
+            <li className={submitted ? 'is-active' : ''}>Sent ✓</li>
+          </ol>
         </div>
       </header>
 
       <div className="login__body">
-        <span className="badge">
-          <i />
-          Account Security
-        </span>
+        <a
+          href="#login"
+          className="brand brand--body"
+          onClick={(e) => {
+            e.preventDefault();
+            onNavigate('login');
+          }}
+        >
+          <Logo />
+          <span className="brand__text">
+            <strong>ORVIA</strong>
+          </span>
+        </a>
 
-        <h1 className="login__title">Reset your password</h1>
+        <h1 className="login__title">Forgot your password?</h1>
         <p className="login__subtitle">
-          Enter the email associated with your ORVIA account and we&apos;ll send you a secure
-          verification link to reset your password.
+          Enter the work email your agency uses and we&apos;ll send you a secure reset link.
         </p>
 
         {submitted ? (
@@ -100,7 +100,23 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
               onClick={() => onNavigate('login')}
             >
               Return to Sign In
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
             </button>
+            <a
+              href="#reset"
+              className="back-link"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate('reset');
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+              I already have a reset link
+            </a>
           </div>
         ) : (
           <form className="form" onSubmit={handleSubmit}>
@@ -111,76 +127,57 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme }) {
             )}
 
             <div className="field">
-              <label htmlFor="reset-email">WORK EMAIL</label>
-              <div className="input">
+              <label htmlFor="reset-email">Work Email Address</label>
+              <div className="input input--icon">
+                <svg className="input__lead" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                  <path d="M3.5 7.5l8.5 6 8.5-6" />
+                </svg>
                 <input
                   type="email"
                   id="reset-email"
                   name="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@orvia-creative.com"
+                  placeholder="name@agency.com"
                   autoComplete="email"
                   required
                 />
-                <svg
-                  className="input__icon input__icon--mail"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <rect x="3" y="5" width="18" height="14" rx="2" />
-                  <path d="M3 7l9 6 9-6" />
-                </svg>
               </div>
             </div>
 
-            <p className="note">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 2" />
-              </svg>
-              Links expire in 60 minutes for security.
-            </p>
-
             <button type="submit" className="btn" disabled={loading}>
-              {loading ? 'Sending...' : 'Send Reset Instructions'}
+              {loading ? 'Sending…' : 'Send reset link'}
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </button>
 
-            <a
-              href="#login"
-              className="back-link"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate('login');
-              }}
-            >
+            <div className="notice">
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M19 12H5M11 6l-6 6 6 6" />
+                <path d="M12 3l7 3v6c0 4.2-2.9 7.7-7 9-4.1-1.3-7-4.8-7-9V6z" />
+                <path d="M9.2 12.2l2 2 3.6-3.9" />
               </svg>
-              Back to sign in
-            </a>
+              <div className="notice__body">
+                <strong>Security Notice</strong>
+                For security reasons, we do not confirm whether an account exists with this email
+                address.
+              </div>
+            </div>
           </form>
         )}
       </div>
 
       <footer className="login__footer">
-        <p>
-          Don&apos;t have an agency team yet?{' '}
-          <a href="#trial" className="link link--strong" onClick={(e) => e.preventDefault()}>
-            Start 14-day trial
-          </a>
-        </p>
+        <p>End-to-end 256-bit encryption</p>
         <nav className="footer-nav">
-          <a href="#terms" onClick={(e) => e.preventDefault()}>
-            Terms
-          </a>
           <a href="#privacy" onClick={(e) => e.preventDefault()}>
-            Privacy
+            Privacy Policy
           </a>
-          <span>SOC2 Type II</span>
+          <span className="dot">·</span>
+          <a href="#help" onClick={(e) => e.preventDefault()}>
+            Help Desk
+          </a>
         </nav>
       </footer>
     </section>

@@ -1192,6 +1192,10 @@
   background: linear-gradient(180deg, #10131f 0%, #080a11 100%);
 }
 
+.app .logo-mark {
+  width: 30px;
+}
+
 .app .brand__text strong {
   font-size: 15px;
   font-weight: 800;

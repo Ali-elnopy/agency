@@ -1,208 +1,173 @@
 /* ==========================================================================
-   Showcase panel
+   Brand showcase panel (right column of the auth screens)
+   Deep indigo ORVIA plate: engine pill + stats, big wave, quote, ticker.
    ========================================================================== */
 .showcase {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 44px 42px 28px;
+  padding: 34px 46px 30px;
   overflow: hidden;
-  color: var(--white);
+  color: #fff;
   background:
-    radial-gradient(60% 45% at 85% 10%, rgba(122, 62, 58, 0.65), transparent 70%),
-    radial-gradient(50% 40% at 10% 95%, rgba(110, 70, 40, 0.45), transparent 70%), var(--bg-dark);
+    radial-gradient(52% 38% at 50% 44%, rgba(139, 108, 233, 0.22), transparent 72%),
+    radial-gradient(48% 40% at 6% 94%, rgba(72, 86, 170, 0.18), transparent 72%), #1e1b3c;
 }
 
+/* Header: engine chip + live stats */
 .showcase__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  min-height: 34px;
 }
 
-.eyebrow {
-  display: flex;
+.engine-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 9.5px;
+  gap: 8px;
+  padding: 7px 13px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.14em;
-  color: #f3b79d;
-}
-
-.eyebrow i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--orange);
-}
-
-.status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 12px;
-  font-size: 9.5px;
-  color: #cfcbe0;
-  background: rgba(255, 255, 255, 0.06);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
+  backdrop-filter: blur(6px);
 }
 
-.status i {
-  width: 4px;
-  height: 4px;
+.engine-pill i {
+  width: 5px;
+  height: 5px;
+  background: #f4632f;
   border-radius: 50%;
-  background: #4ade80;
+  box-shadow: 0 0 0 3px rgba(244, 99, 47, 0.18);
 }
 
-/* Hero */
+.showcase__stats {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 9.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.showcase__dot {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* Hero: big mark, quote, supporting copy */
 .showcase__hero {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
-  margin: auto 0;
+  justify-content: center;
+  gap: 24px;
+  padding: 28px 0;
   text-align: center;
 }
 
-.headline {
-  font-size: 42px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+.showcase__art {
+  width: 40%;
+  min-width: 170px;
+  max-width: 290px;
+  height: auto;
+  filter: drop-shadow(0 26px 46px rgba(0, 0, 0, 0.4));
 }
 
-.headline em {
+.showcase__quote {
+  max-width: 260px;
   font-family: var(--font-serif);
+  font-size: 29px;
+  font-style: italic;
   font-weight: 500;
+  line-height: 1.28;
   letter-spacing: -0.01em;
+  color: #fff;
 }
 
-.tagline {
-  margin-top: 10px;
-  font-size: 14px;
-  color: #b8b4cc;
+.showcase__quote em {
+  font-style: italic;
 }
 
-/* Stage: cards + ribbon */
-.stage {
-  position: relative;
-  width: 100%;
-  max-width: 440px;
-  height: 330px;
-  margin-top: 8px;
+.showcase__quote-mark {
+  color: rgba(255, 255, 255, 0.45);
 }
 
-.ribbon {
-  position: absolute;
-  right: 0;
-  bottom: 30px;
-  left: 0;
-  width: 100%;
-  stroke: none;
-  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.45));
+.showcase__copy {
+  max-width: 300px;
+  font-size: 10.5px;
+  line-height: 1.85;
+  color: rgba(255, 255, 255, 0.55);
 }
 
-.card {
-  position: absolute;
-  z-index: 1;
-  width: 156px;
-  padding: 12px 14px;
-  text-align: left;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 14px;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-
-.card h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.card p {
-  margin-top: 8px;
-  font-size: 8.5px;
-  line-height: 1.5;
-  color: #cfcbe0;
-}
-
-.card__icon {
+/* Bottom ticker */
+.showcase__ticker {
   display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  color: #ffb08a;
-  background: rgba(242, 106, 61, 0.22);
-  border: 1px solid rgba(242, 106, 61, 0.35);
-  border-radius: 6px;
+  gap: 10px;
+  justify-items: center;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.card__icon svg {
-  width: 11px;
-  height: 11px;
+.showcase__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.card--flow {
-  top: 14px;
-  left: 0;
+.showcase__row li {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
 }
 
-.card--collab {
-  top: 0;
-  right: 0;
-  width: 170px;
-}
-
-.card--momentum {
-  right: 8px;
-  bottom: 0;
-  width: 176px;
-}
-
-/* Decorative dots */
-.dot {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: var(--white);
+.showcase__row li + li::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 50%;
 }
 
-.dot--left {
-  top: 150px;
-  left: 82px;
+.showcase__row .is-orange {
+  color: #ff9a6b;
 }
 
-.dot--right {
-  top: 228px;
-  right: 48px;
+.showcase__row .is-teal {
+  color: #46cdbc;
 }
 
-/* Bottom steps */
-.steps {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px 18px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #cfcbe0;
-  background: rgba(10, 8, 20, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+.showcase__row .is-orange + li::before,
+.showcase__row li + .is-teal::before {
+  background: currentColor;
+  opacity: 0.4;
 }
 
-.steps li + li::before {
-  content: '•';
-  margin-right: 8px;
-  color: var(--orange);
-}
+@media (max-width: 1180px) {
+  .showcase {
+    padding: 28px 32px 24px;
+  }
 
-.steps .is-active {
-  color: var(--orange);
+  .showcase__quote {
+    font-size: 25px;
+  }
+
+  .showcase__stats {
+    display: none;
+  }
 }

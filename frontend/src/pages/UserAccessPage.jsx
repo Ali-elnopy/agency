@@ -52,7 +52,7 @@ const VIEW_TABS = [
 
 /* ------------------------------------------------------------------ page */
 
-export default function UserAccessPage({ onOpenRoles }) {
+export default function UserAccessPage({ onOpenRoles, onAddUser, onEditUser }) {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(DIRECTORY_STATS);
   const [selectedId, setSelectedId] = useState(null);
@@ -296,7 +296,7 @@ export default function UserAccessPage({ onOpenRoles }) {
           <button
             type="button"
             className="button button--primary"
-            onClick={() => notify('New user invitation draft created.')}
+            onClick={() => (onAddUser ? onAddUser() : notify('New user invitation draft created.'))}
           >
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
@@ -327,6 +327,15 @@ export default function UserAccessPage({ onOpenRoles }) {
                 {headerUser.email} • Added {headerUser.addedAt ?? 'Oct 12, 2026'}
               </span>
             </div>
+            <button
+              type="button"
+              className="button button--ghost button--xs"
+              onClick={() =>
+                onEditUser ? onEditUser(headerUser.name) : notify('Edit user profile.', 'info')
+              }
+            >
+              Edit User Profile
+            </button>
             <span className="member-chip">
               Internal
               <br />

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import ForgotPage from './pages/ForgotPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import Showcase from './components/Showcase';
 import DashboardPage from './pages/DashboardPage';
 import IconSprite from './components/IconSprite';
@@ -10,10 +11,11 @@ import { hasStoredSession } from './services/tokenStorage';
 const TITLES = {
   login: 'ORVIA — Login',
   forgot: 'ORVIA — Forgot Password',
+  reset: 'ORVIA — Reset Password',
   dashboard: 'ORVIA — Account Manager Dashboard',
 };
 
-const VIEWS = ['login', 'forgot', 'dashboard'];
+const VIEWS = ['login', 'forgot', 'reset', 'dashboard'];
 
 function readHashView() {
   const hash = window.location.hash.replace('#', '');
@@ -39,6 +41,9 @@ export default function App() {
   });
 
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // Carried from "Forgot password" into the reset screen so the copy can name
+  // the account being updated.
+  const [resetEmail, setResetEmail] = useState('');
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -126,7 +131,19 @@ export default function App() {
       ) : (
         <main className="page">
           {view === 'forgot' ? (
-            <ForgotPage onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />
+            <ForgotPage
+              onNavigate={navigateTo}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onEmailSubmit={setResetEmail}
+            />
+          ) : view === 'reset' ? (
+            <ResetPasswordPage
+              onNavigate={navigateTo}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              email={resetEmail}
+            />
           ) : (
             <LoginPage onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />
           )}

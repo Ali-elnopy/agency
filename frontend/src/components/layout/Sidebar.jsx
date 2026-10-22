@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import InfoModal from '../modals/InfoModal';
+import Logo from '../Logo';
 
+// "ADMIN CORE" navigation from the ORVIA design.
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '#i-dashboard' },
-  { id: 'brands', label: 'Brands', icon: '#i-briefcase', soon: true },
-  { id: 'teams', label: 'Teams', icon: '#i-layers', soon: true },
-  { id: 'users', label: 'Users & Clients', icon: '#i-users' },
-  { id: 'content', label: 'Content', icon: '#i-file', soon: true },
-  { id: 'analyze', label: 'Analyze', icon: '#i-chart', soon: true },
+  { id: 'clients', label: 'Clients', icon: '#i-briefcase' },
+  { id: 'teams', label: 'Teams', icon: '#i-layers' },
+  { id: 'users', label: 'Users', icon: '#i-users' },
+  { id: 'roles', label: 'Roles & Permissions', icon: '#i-shield' },
   { id: 'settings', label: 'Settings', icon: '#i-settings' },
 ];
 
@@ -40,7 +41,7 @@ export default function Sidebar({
               onNavigate('dashboard');
             }}
           >
-            <span className="brand__mark" aria-hidden="true" />
+            <Logo />
             <span className="brand__text sb-label">
               <strong>ORVIA</strong>
             </span>

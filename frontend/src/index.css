@@ -8,4 +8,6 @@
 @import './styles/shared.css';
 @import './styles/rbac.css';
 @import './styles/users.css';
+@import './styles/pages.css';
+@import './styles/clients.css';
 @import './styles/responsive.css';

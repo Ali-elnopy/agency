@@ -34,7 +34,7 @@ async function submitCredentials(
 
   await user.type(screen.getByLabelText(/work email/i), email);
   await user.type(screen.getByLabelText(/^password$/i), password);
-  await user.click(screen.getByRole('button', { name: /sign in to orvia/i }));
+  await user.click(screen.getByRole('button', { name: /log in to orvia/i }));
 }
 
 describe('LoginPage', () => {
@@ -69,7 +69,7 @@ describe('LoginPage', () => {
       email: 'elena.vance@orvia-creative.com',
       password: 'password1234',
     });
-    expect(await screen.findByRole('button', { name: /sign in to orvia/i })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: /log in to orvia/i })).toBeEnabled();
     expect(onNavigate).toHaveBeenCalledWith('dashboard');
   });
 
@@ -102,12 +102,12 @@ describe('LoginPage', () => {
     vi.stubEnv('VITE_DEV_BYPASS_LOGIN', 'false');
 
     const onNavigate = renderLogin();
-    const form = screen.getByRole('button', { name: /sign in to orvia/i }).closest('form');
+    const form = screen.getByRole('button', { name: /log in to orvia/i }).closest('form');
 
     expect(form).not.toHaveAttribute('novalidate');
     expect(screen.getByLabelText(/work email/i)).toBeRequired();
 
-    await userEvent.setup().click(screen.getByRole('button', { name: /sign in to orvia/i }));
+    await userEvent.setup().click(screen.getByRole('button', { name: /log in to orvia/i }));
 
     expect(onNavigate).not.toHaveBeenCalled();
     expect(loginApi).not.toHaveBeenCalled();
@@ -117,12 +117,12 @@ describe('LoginPage', () => {
     vi.stubEnv('VITE_DEV_BYPASS_LOGIN', 'true');
 
     const onNavigate = renderLogin();
-    const form = screen.getByRole('button', { name: /sign in to orvia/i }).closest('form');
+    const form = screen.getByRole('button', { name: /log in to orvia/i }).closest('form');
 
     expect(form).toHaveAttribute('novalidate');
     expect(screen.getByLabelText(/work email/i)).not.toBeRequired();
 
-    await userEvent.setup().click(screen.getByRole('button', { name: /sign in to orvia/i }));
+    await userEvent.setup().click(screen.getByRole('button', { name: /log in to orvia/i }));
 
     await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('dashboard'));
     expect(loginApi).not.toHaveBeenCalled();

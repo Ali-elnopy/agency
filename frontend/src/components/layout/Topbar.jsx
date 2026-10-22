@@ -9,6 +9,7 @@ export default function Topbar({
   onOpenHelp,
   actionLabel = 'New Brief',
   onAction,
+  searchPlaceholder = 'Search briefs, campaigns, assets, clients...',
 }) {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
@@ -27,7 +28,7 @@ export default function Topbar({
       <label className="search">
         <input
           type="search"
-          placeholder="Search briefs, campaigns, assets, clients..."
+          placeholder={searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
