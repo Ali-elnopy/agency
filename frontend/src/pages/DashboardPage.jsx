@@ -42,7 +42,7 @@ const SECTION_TO_TAB = {
   teamDetails: 'teams',
   addUser: 'users',
   editUser: 'users',
-  roles: 'roles',
+  roles: 'users',
 };
 
 const SEARCH_PLACEHOLDERS = {
@@ -255,7 +255,7 @@ export default function DashboardPage({
       : section === 'clients' || section === 'clientProfile' || section === 'editClient'
         ? 'Add Client'
         : section === 'teams' || section === 'teamDetails'
-          ? 'Create Team'
+          ? 'New'
           : section === 'users' || section === 'addUser' || section === 'editUser'
             ? 'Add User'
             : 'New Brief';
@@ -283,6 +283,8 @@ export default function DashboardPage({
         onNavigate={onNavigate}
         activeTab={SECTION_TO_TAB[section] ?? section}
         onSelect={handleSelect}
+        user={user}
+        onSignOut={onSignOut}
       />
 
       <div className="workspace">

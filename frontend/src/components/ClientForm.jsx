@@ -77,7 +77,7 @@ export default function ClientForm({
             <div className="cl-upload">
               <span className="cl-upload__mark">
                 <svg aria-hidden="true" className="icon">
-                  <use href="#i-layers" />
+                  <use href="#i-camera" />
                 </svg>
               </span>
               <div className="cl-upload__body">
@@ -183,7 +183,7 @@ export default function ClientForm({
 
             <div className="cl-field" style={{ marginTop: 0 }}>
               <label className="cl-field__label" htmlFor={`${idPrefix}-phone`}>
-                Direct Phone
+                Direct Phone<span className="req">*</span>
               </label>
               <input
                 id={`${idPrefix}-phone`}
@@ -208,10 +208,10 @@ export default function ClientForm({
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-check" />
                 </svg>
-                Valid corporate format
+                Valid format
               </span>
             </div>
-            <div className="cl-input-wrap">
+            <div className="cl-input-wrap cl-input-wrap--ok">
               <svg
                 className="cl-input-wrap__icon"
                 viewBox="0 0 24 24"
@@ -231,6 +231,11 @@ export default function ClientForm({
                 onChange={update('contactEmail')}
                 placeholder="aris.thorne@luminahealth.io"
               />
+              <span className="cl-input-wrap__ok" aria-hidden="true">
+                <svg className="icon">
+                  <use href="#i-check" />
+                </svg>
+              </span>
             </div>
           </div>
         </section>

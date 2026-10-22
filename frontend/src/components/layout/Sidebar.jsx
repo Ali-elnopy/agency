@@ -3,12 +3,12 @@ import InfoModal from '../modals/InfoModal';
 import Logo from '../Logo';
 
 // "ADMIN CORE" navigation from the ORVIA design.
+// Roles & Permissions is not a top-level destination — it is reached from the Users page.
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '#i-dashboard' },
   { id: 'clients', label: 'Clients', icon: '#i-briefcase' },
   { id: 'teams', label: 'Teams', icon: '#i-layers' },
   { id: 'users', label: 'Users', icon: '#i-users' },
-  { id: 'roles', label: 'Roles & Permissions', icon: '#i-shield' },
   { id: 'settings', label: 'Settings', icon: '#i-settings' },
 ];
 
@@ -18,14 +18,31 @@ export default function Sidebar({
   onNavigate,
   activeTab: activeTabProp,
   onSelect,
+  user,
+  onSignOut,
 }) {
   const [localTab, setLocalTab] = useState('dashboard');
   const activeTab = activeTabProp ?? localTab;
   const [isUiKitOpen, setIsUiKitOpen] = useState(false);
 
+  const displayName = user?.fullName || 'Elena Vance';
+  const roleDisplay = user?.role === 'ADMIN' ? 'Admin | Studio Lead' : 'Admin | Creative Dir.';
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
+
   const selectTab = (id) => {
     setLocalTab(id);
     if (onSelect) onSelect(id);
+  };
+
+  const handleSignOut = (event) => {
+    event.preventDefault();
+    if (onSignOut) onSignOut();
   };
 
   return (
@@ -98,6 +115,27 @@ export default function Sidebar({
             <i className="mode-chip__dot" />
             Sidebar Mode <b>{isCollapsed ? 'Collapsed' : 'Expanded'}</b>
           </p>
+
+          <div className="sb-user">
+            <span className="sb-user__avatar" aria-hidden="true">
+              {initials}
+            </span>
+            <span className="sb-user__meta sb-label">
+              <strong>{displayName}</strong>
+              <small>{roleDisplay}</small>
+            </span>
+            <button
+              type="button"
+              className="sb-user__out"
+              onClick={handleSignOut}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-logout" />
+              </svg>
+            </button>
+          </div>
         </div>
       </aside>
 

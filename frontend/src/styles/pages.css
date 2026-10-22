@@ -993,6 +993,57 @@
   margin-top: 8px;
 }
 
+/* Compact avatar row (Add user) */
+.upload--compact {
+  gap: 13px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.upload__avatar {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  color: var(--accent-text);
+  background: var(--badge-bg);
+  border-radius: 12px;
+}
+
+.upload__avatar > .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.upload__cam {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  color: #fff;
+  background: linear-gradient(90deg, #f7743f, var(--orange-dark));
+  border: 2px solid var(--card);
+  border-radius: 50%;
+}
+
+.upload__cam .icon {
+  width: 9px;
+  height: 9px;
+}
+
+.upload--compact p {
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 /* Inline notice / info box */
 .notice {
   display: flex;

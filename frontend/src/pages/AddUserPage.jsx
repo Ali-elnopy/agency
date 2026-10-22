@@ -103,18 +103,20 @@ export default function AddUserPage({ onBack, onSaved }) {
             <div className="form-fields">
               <div className="form-field form-field--full">
                 <span className="form-label">Upload Photo</span>
-                <div className="upload">
-                  <span className="upload__mark">
+                <div className="upload upload--compact">
+                  <span className="upload__avatar">
                     <svg aria-hidden="true" className="icon">
                       <use href="#i-users" />
                     </svg>
+                    <span className="upload__cam">
+                      <svg aria-hidden="true" className="icon">
+                        <use href="#i-camera" />
+                      </svg>
+                    </span>
                   </span>
-                  <div className="upload__body">
-                    <strong>Drag &amp; drop or click to upload</strong>
-                    <p>
-                      PNG, JPG or WEBP up to 5MB. Circular display across Kanban &amp; approvals.
-                    </p>
-                  </div>
+                  <p>
+                    PNG, JPG, or WEBP up to 5MB. Circular display across Kanban &amp; approvals.
+                  </p>
                 </div>
               </div>
 

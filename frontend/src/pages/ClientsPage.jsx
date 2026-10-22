@@ -233,12 +233,6 @@ export default function ClientsPage({ onOpenClient, addClientRequest = 0 }) {
     setPage(1);
   };
 
-  const openAddDrawer = () => {
-    setDrawerMode('add');
-    setDrawerInitial(null);
-    setDrawerOpen(true);
-  };
-
   const lastAddRequest = useRef(addClientRequest);
 
   useEffect(() => {
@@ -301,41 +295,6 @@ export default function ClientsPage({ onOpenClient, addClientRequest = 0 }) {
             sprint squads.
           </p>
         </div>
-
-        <div className="cl-head__actions">
-          <div className="cl-head__row">
-            <button
-              type="button"
-              className="button button--ghost button--sm"
-              onClick={() => showToast('Exporting the client roster as CSV…', 'info')}
-            >
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-download" />
-              </svg>
-              Export CSV
-            </button>
-            <button
-              type="button"
-              className="button button--ghost button--sm"
-              onClick={() => showToast('Filter presets are saved per workspace.', 'info')}
-            >
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-filter" />
-              </svg>
-              Filter Presets
-            </button>
-          </div>
-          <button
-            type="button"
-            className="button button--primary button--sm"
-            onClick={openAddDrawer}
-          >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            Add Client
-          </button>
-        </div>
       </header>
 
       <div className="cl-toolbar">
@@ -372,6 +331,29 @@ export default function ClientsPage({ onOpenClient, addClientRequest = 0 }) {
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
+
+        <div className="cl-toolbar__actions">
+          <button
+            type="button"
+            className="button button--ghost button--sm"
+            onClick={() => showToast('Exporting the client roster as CSV…', 'info')}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-download" />
+            </svg>
+            Export CSV
+          </button>
+          <button
+            type="button"
+            className="button button--ghost button--sm"
+            onClick={() => showToast('Filter presets are saved per workspace.', 'info')}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-filter" />
+            </svg>
+            Filter Presets
+          </button>
+        </div>
       </div>
 
       {tab === 'all' ? (
