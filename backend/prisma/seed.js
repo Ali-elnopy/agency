@@ -22,12 +22,15 @@ async function main() {
     });
   }
 
-  // 2. Create the job titles used by User Management.
+  // 2. Create and activate the current job titles.
   const jobTitles = [
-    'Account Manager',
-    'Designer',
-    'Content Creator',
+    'Media Buyer',
+    'Photographer',
     'Video Editor',
+    'Social Media Specialist',
+    'Marketing Manager',
+    'Content Creator',
+    'Graphic Designer',
   ];
 
   for (const name of jobTitles) {
@@ -38,7 +41,29 @@ async function main() {
     });
   }
 
-  // 3. Create the local admin account.
+  // 3. Keep Account Manager active.
+  // Deactivate only the outdated job titles.
+  await prisma.jobTitle.upsert({
+    where: { name: 'Account Manager' },
+    update: { isActive: true },
+    create: {
+      name: 'Account Manager',
+      isActive: true,
+    },
+  });
+
+  await prisma.jobTitle.updateMany({
+    where: {
+      name: {
+        in: [
+          'Designer',
+        ],
+      },
+    },
+    data: { isActive: false },
+  });
+
+  // 4. Create the local admin account.
   const email = (
     process.env.SEED_ADMIN_EMAIL ?? 'admin@agency.local'
   ).trim().toLowerCase();
@@ -47,7 +72,7 @@ async function main() {
 
   if (!password) {
     throw new Error(
-      'Set SEED_ADMIN_PASSWORD in your environment before running the seed.'
+      'Set SEED_ADMIN_PASSWORD in your environment before running the seed.',
     );
   }
 
@@ -67,7 +92,9 @@ async function main() {
   console.log('Seed completed successfully.');
   console.log(`Admin account ready: ${email}`);
   console.log(`Roles ready: ${roleNames.join(', ')}`);
-  console.log(`Job titles ready: ${jobTitles.join(', ')}`);
+  console.log(
+    `Job titles ready: ${[...jobTitles, 'Account Manager'].join(', ')}`,
+  );
 }
 
 main()

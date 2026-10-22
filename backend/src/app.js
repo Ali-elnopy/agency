@@ -6,7 +6,7 @@ import morgan from 'morgan';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import { notFound, errorHandler } from './middlewares/error.js';
-
+import { teamsRouter } from './modules/teams/teams.routes.js';
 const app = express();
 
 app.disable('x-powered-by');
@@ -33,7 +33,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
-
+app.use('/api/teams', teamsRouter);
 app.use(notFound);
 app.use(errorHandler);
 
