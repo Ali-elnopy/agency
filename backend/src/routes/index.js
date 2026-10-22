@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authRoutes from '../modules/auth/auth.routes.js';
 import userRoutes from '../modules/users/users.routes.js';
-
+import { brandsRouter } from '../modules/brands/brands.routes.js';
 const router = Router();
 
 router.get('/health', (_req, res) =>
@@ -10,6 +10,7 @@ router.get('/health', (_req, res) =>
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+router.use('/brands', brandsRouter);
 
 // Sprint 2: clients, brands, teams, requirements ...
 // Sprint 3: briefs, strategies, plans ...
