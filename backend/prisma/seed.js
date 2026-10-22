@@ -5,25 +5,76 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@agency.local';
-  const password = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe123!';
+  // 1. Create the roles required by the application.
+  const roleNames = [
+    'ADMIN',
+    'ACCOUNT_MANAGER',
+    'EMPLOYEE',
+  ];
+
+  const roles = {};
+
+  for (const name of roleNames) {
+    roles[name] = await prisma.role.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+
+  // 2. Create the job titles used by User Management.
+  const jobTitles = [
+    'Account Manager',
+    'Designer',
+    'Content Creator',
+    'Video Editor',
+  ];
+
+  for (const name of jobTitles) {
+    await prisma.jobTitle.upsert({
+      where: { name },
+      update: { isActive: true },
+      create: { name },
+    });
+  }
+
+  // 3. Create the local admin account.
+  const email = (
+    process.env.SEED_ADMIN_EMAIL ?? 'admin@agency.local'
+  ).trim().toLowerCase();
+
+  const password = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!password) {
+    throw new Error(
+      'Set SEED_ADMIN_PASSWORD in your environment before running the seed.'
+    );
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
 
   await prisma.user.upsert({
     where: { email },
     update: {},
     create: {
-      email,
       fullName: 'System Admin',
-      role: 'ADMIN',
-      passwordHash: await bcrypt.hash(password, 12),
+      email,
+      passwordHash,
+      roleId: roles.ADMIN.id,
     },
   });
-  console.log(`✔ Admin ready: ${email}`);
+
+  console.log('Seed completed successfully.');
+  console.log(`Admin account ready: ${email}`);
+  console.log(`Roles ready: ${roleNames.join(', ')}`);
+  console.log(`Job titles ready: ${jobTitles.join(', ')}`);
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
+  .catch((error) => {
+    console.error('Seed failed:', error);
+    process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
