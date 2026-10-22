@@ -5,21 +5,24 @@ import useToast from '../hooks/useToast';
 const MEMBERS = [
   {
     id: 1,
-    name: 'Elana Vance',
+    name: 'Elena Vance',
     email: 'elena.vance@orvia-creative.com',
     role: 'Admin / Lead',
+    roleTone: 'is-orange',
     discipline: 'Account Manager',
     joined: 'Jan 2024',
-    briefs: 3,
+    briefs: 5,
     briefTags: ['Aurora', 'Nordic'],
     tone: 'is-a',
+    verified: true,
   },
   {
     id: 2,
     name: 'Marcus Brody',
     email: 'marcus.brody@orvia-creative.com',
     role: 'Account Manager',
-    discipline: 'Client Operations',
+    roleTone: 'is-gray',
+    discipline: 'Account Manager',
     joined: 'Mar 2024',
     briefs: 4,
     briefTags: ['HyperPulse', 'Kroma'],
@@ -30,10 +33,11 @@ const MEMBERS = [
     name: 'Liam Chen',
     email: 'liam.chen@orvia-creative.com',
     role: 'Content Creator',
+    roleTone: 'is-green',
     discipline: 'Strategist',
     joined: 'Apr 2024',
     briefs: 2,
-    briefTags: ['Solaris'],
+    briefTags: ['Solaria Clean'],
     tone: 'is-c',
   },
   {
@@ -41,10 +45,11 @@ const MEMBERS = [
     name: 'Amara Patel',
     email: 'amara.patel@orvia-creative.com',
     role: 'Content Creator',
-    discipline: 'Social Studio',
+    roleTone: 'is-purple',
+    discipline: 'Content Creator',
     joined: 'May 2024',
     briefs: 2,
-    briefTags: ['Kroma'],
+    briefTags: ['HyperPulse Social'],
     tone: 'is-d',
   },
   {
@@ -52,10 +57,11 @@ const MEMBERS = [
     name: 'David K.',
     email: 'david.k@orvia-creative.com',
     role: 'Strategist',
+    roleTone: 'is-gray',
     discipline: 'Brand Strategy',
     joined: 'Feb 2024',
     briefs: 1,
-    briefTags: ['Market Analytics'],
+    briefTags: ['Market Analysis'],
     tone: 'is-a',
   },
   {
@@ -95,6 +101,65 @@ const MEMBERS = [
 
 const ROLES = ['All Roles', 'Account Manager', 'Account Manager', 'Content Creator', 'Strategist'];
 
+// Client retainers currently governed by this squad.
+const TEAM_CLIENTS = [
+  {
+    id: 1,
+    name: 'Aura Skincare',
+    initials: 'AS',
+    tone: 'is-amber',
+    status: 'Active',
+    statusTone: 'is-green',
+    category: 'Beauty & Wellness',
+    text: 'DTC organic beauty line scaling omnibus influencer campaigns across TikTok & Meta.',
+    manager: 'Elena Vance',
+  },
+  {
+    id: 2,
+    name: 'HyperPulse Energy',
+    initials: 'HP',
+    tone: 'is-orange',
+    status: 'Active',
+    statusTone: 'is-green',
+    category: 'Beverage & Fitness',
+    text: 'High performance electrolyte formula launch with sports sponsorship activation.',
+    manager: 'Marcus Brody',
+  },
+  {
+    id: 3,
+    name: 'Nordic Living Furniture',
+    initials: 'NL',
+    tone: 'is-purple',
+    status: 'Active',
+    statusTone: 'is-green',
+    category: 'Interior Design',
+    text: 'Sustainable Scandinavian timber collection with interactive 3D spatial showroom.',
+    manager: 'Elena Vance',
+  },
+  {
+    id: 4,
+    name: 'Kroma Audio',
+    initials: 'KA',
+    tone: 'is-gray',
+    status: 'Onboarding',
+    statusTone: 'is-purple',
+    category: 'Consumer Tech',
+    text: 'Audiophile noise-cancelling headphones targeting European and APAC distributors.',
+    manager: 'Marcus Brody',
+  },
+  {
+    id: 5,
+    name: 'Solaria Clean Energy',
+    initials: 'SC',
+    tone: 'is-green',
+    status: 'Review',
+    statusTone: 'is-gray',
+    category: 'Renewables',
+    text: 'Commercial solar arrays and clean grid tech positioning for enterprise ESG programs.',
+    manager: 'Liam Chen',
+  },
+];
+
 export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBack }) {
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('All Roles');
@@ -118,20 +183,28 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
   return (
     <div className="page-screen">
       <div className="crumbs">
+        <button type="button" className="link-action" onClick={onBack}>
+          ← Back to Teams
+        </button>
         <nav aria-label="Breadcrumb">
-          <button type="button" className="link-action" onClick={onBack}>
-            ← Back to Teams
-          </button>
+          <span>Admin</span>
           <svg aria-hidden="true" className="icon">
             <use href="#i-chevron" />
           </svg>
-          <span>Admin</span>
+          <a
+            href="#teams"
+            onClick={(e) => {
+              e.preventDefault();
+              onBack?.();
+            }}
+          >
+            Teams
+          </a>
           <svg aria-hidden="true" className="icon">
             <use href="#i-chevron" />
           </svg>
           <strong>{team}</strong>
         </nav>
-        <span className="pill is-green live-chip">Active</span>
       </div>
 
       <section className="page-head page-head--actions">
@@ -149,14 +222,30 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
                 Active
               </span>
             </div>
+            <span className="pill is-gray td-cat">Creative Operations</span>
             <p className="page-head__text">
-              Creative Operations — specialized squad leading multi-platform brand strategy, market
-              positioning and high-velocity launch campaigns for premium enterprise accounts.
+              Specialized squad leading multi-platform brand strategy, market positioning and
+              high-velocity launch campaigns for premium enterprise accounts.
             </p>
             <div className="head-meta">
-              <span>Created Jan 14, 2024</span>
-              <span>Lead: Elana Vance (Admin)</span>
-              <span>Agency Node: North America HQ</span>
+              <span>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-calendar" />
+                </svg>
+                Created Jan 14, 2024
+              </span>
+              <span>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-users" />
+                </svg>
+                Lead: Elena Vance (Admin)
+              </span>
+              <span>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-globe" />
+                </svg>
+                Agency Node: North America HQ
+              </span>
             </div>
           </div>
         </div>
@@ -270,12 +359,12 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
             </svg>
-            Add Employee
+            Add Employees
           </button>
         </div>
 
         <div className="table-wrap">
-          <table className="table">
+          <table className="table td-table">
             <thead>
               <tr>
                 <th>Employee</th>
@@ -298,16 +387,42 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
                           .substring(0, 2)}
                       </span>
                       <span>
-                        <strong>{member.name}</strong>
+                        <strong>
+                          {member.name}
+                          {member.verified && (
+                            <svg
+                              aria-hidden="true"
+                              className="icon td-verified"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                cx="12"
+                                cy="12"
+                                r="9"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                              />
+                              <path
+                                d="m8 12.5 2.8 2.8L16 9.5"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
+                        </strong>
                         <small>{member.email}</small>
                       </span>
                     </div>
                   </td>
                   <td>
-                    <strong>{member.role}</strong>
-                    <small className="sub" style={{ display: 'block' }}>
-                      {member.discipline}
-                    </small>
+                    <div className="td-role">
+                      <span className={`pill ${member.roleTone}`}>{member.role}</span>
+                      <span className="td-role__discipline">{member.discipline}</span>
+                    </div>
                   </td>
                   <td className="sub">{member.joined}</td>
                   <td>
@@ -345,6 +460,41 @@ export default function TeamDetailsPage({ team = 'Brand Strategy & Growth', onBa
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">
+          <div>
+            <h2 className="panel__title">
+              Assigned Clients
+              <span className="pill is-gray">{TEAM_CLIENTS.length} Brands</span>
+            </h2>
+            <p className="panel__sub">
+              Client brand retainers and campaigns currently governed by this team squad.
+            </p>
+          </div>
+          <span className="td-clients__note">Viewing all {TEAM_CLIENTS.length} accounts</span>
+        </div>
+
+        <div className="td-clients">
+          {TEAM_CLIENTS.map((client) => (
+            <article key={client.id} className="td-client">
+              <div className="td-client__top">
+                <span className={`td-client__logo ${client.tone}`}>{client.initials}</span>
+                <div className="td-client__id">
+                  <strong>{client.name}</strong>
+                  <small>{client.category}</small>
+                </div>
+                <span className={`pill ${client.statusTone}`}>{client.status}</span>
+              </div>
+              <p className="td-client__text">{client.text}</p>
+              <div className="td-client__foot">
+                <span>Account Mgr:</span>
+                <strong>{client.manager}</strong>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 

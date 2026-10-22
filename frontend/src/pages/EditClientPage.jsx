@@ -26,22 +26,26 @@ const ACTIVITY = [
 
 const STAGE = ['Intake', 'AI Clarification', 'AM Review', 'Client Sign-Off'];
 
+const INITIAL_FORM = {
+  brandName: 'Aurora Skincare',
+  industry: 'Beauty & Personal Care',
+  website: 'https://auroraskincare.com',
+  positioning:
+    'Clinically-backed, clean-formulation skincare for the modern self-directed consumer. Aurora pairs ingredient transparency with editorial-grade storytelling across retail, DTC and social.',
+  contactName: 'Sophia Chen',
+  contactTitle: 'VP of Global Marketing',
+  contactEmail: 'sophia.chen@auroraskincare.io',
+  contactPhone: '+1 (415) 890-2341',
+  manager: 'Marcus Bell',
+  studio: 'Brand Strategy & Growth',
+};
+
 export default function EditClientPage({ onBack, onSaved }) {
   const { toast, showToast } = useToast(3000);
   const [stage] = useState(2);
-  const [form, setForm] = useState({
-    brandName: 'Aurora Skincare',
-    industry: 'Beauty & Personal Care',
-    website: 'https://auroraskincare.com',
-    positioning:
-      'Clinically-backed, clean-formulation skincare for the modern self-directed consumer. Aurora pairs ingredient transparency with editorial-grade storytelling across retail, DTC and social.',
-    contactName: 'Sophia Chen',
-    contactTitle: 'VP of Global Marketing',
-    contactEmail: 'sophia.chen@auroraskincare.io',
-    contactPhone: '+1 (415) 890-2341',
-    manager: 'Marcus Bell',
-    studio: 'Brand Strategy & Growth',
-  });
+  const [form, setForm] = useState(INITIAL_FORM);
+
+  const isDirty = JSON.stringify(form) !== JSON.stringify(INITIAL_FORM);
 
   const update = (key) => (event) => setForm((prev) => ({ ...prev, [key]: event.target.value }));
 
@@ -52,54 +56,118 @@ export default function EditClientPage({ onBack, onSaved }) {
 
   return (
     <div className="page-screen ec-page">
-      <div className="crumbs">
+      <div className="crumbs ec-crumbs">
         <nav aria-label="Breadcrumb">
-          <button type="button" className="link-action" onClick={onBack}>
-            Admin
-          </button>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
           <button type="button" className="link-action" onClick={onBack}>
             Clients
           </button>
           <svg aria-hidden="true" className="icon">
             <use href="#i-chevron" />
           </svg>
-          <strong>{form.brandName}</strong>
+          <button type="button" className="link-action" onClick={onBack}>
+            {form.brandName}
+          </button>
+          <svg aria-hidden="true" className="icon">
+            <use href="#i-chevron" />
+          </svg>
+          <span className="pill is-orange">Edit</span>
         </nav>
-        <span className="pill is-orange">Client Studio</span>
       </div>
 
-      <header className="ec-head">
-        <div className="ec-id">
-          <span className="ec-logo">
-            <Logo title="" />
+      <header className="ec-hero">
+        <div className="ec-hero__id">
+          <span className="ec-hero__logo">
+            <strong>AS</strong>
+            <small>BOTANIC</small>
+            <button
+              type="button"
+              className="ec-hero__cam"
+              aria-label="Change client logo"
+              title="Change client logo"
+              onClick={() => showToast('Logo upload opened.', 'info')}
+            >
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-camera" />
+              </svg>
+            </button>
           </span>
-          <div>
-            <div className="ec-name">
-              {form.brandName}
+
+          <div className="ec-hero__copy">
+            <div className="ec-hero__title">
+              <h1>{form.brandName}</h1>
+              <button
+                type="button"
+                className="ec-hero__edit"
+                aria-label="Rename client"
+                title="Rename client"
+                onClick={() => {
+                  const input = document.getElementById('ec-brand');
+                  input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  input?.focus({ preventScroll: true });
+                }}
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-pencil" />
+                </svg>
+              </button>
               <span className="pill is-green">
                 <i className="status-dot" />
-                Active Portfolio
+                Active Pipeline
               </span>
             </div>
-            <p className="ec-meta">UID: CLI-9931-AS · {form.industry} · Onboarded Oct 14, 2024</p>
+
+            <p className="ec-hero__meta">
+              <span>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-calendar" />
+                </svg>
+                Created Oct 14, 2024
+              </span>
+              <i className="ec-hero__sep" aria-hidden="true">
+                ·
+              </i>
+              <span>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-user" />
+                </svg>
+                {form.manager}
+              </span>
+              <i className="ec-hero__sep" aria-hidden="true">
+                ·
+              </i>
+              <span>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-layers" />
+                </svg>
+                {form.studio}
+              </span>
+              <i className="ec-hero__sep" aria-hidden="true">
+                ·
+              </i>
+              <span className="ec-hero__tenant">Tenant ID: #ORV-7492</span>
+            </p>
           </div>
         </div>
 
-        <div className="ec-actions">
-          <button type="button" className="button button--ghost button--sm" onClick={onBack}>
-            Cancel
-          </button>
-          <button type="button" className="button button--primary button--sm" onClick={save}>
-            Save Changes
+        <div className="ec-hero__actions">
+          <button
+            type="button"
+            className="button button--sm ec-portal"
+            onClick={() => showToast('Client portal preview opened.', 'info')}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-external" />
+            </svg>
+            Client Portal
           </button>
           <button
             type="button"
             className="button button--sm ec-danger"
             onClick={() => showToast('Archive requires a secondary confirmation.', 'info')}
           >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-archive" />
+            </svg>
             Archive
           </button>
         </div>
@@ -376,62 +444,6 @@ export default function EditClientPage({ onBack, onSaved }) {
               </span>
             </div>
           </section>
-
-          <section className="cl-card">
-            <header className="cl-card__head">
-              <div>
-                <h2 className="cl-card__title">
-                  <span className="cl-card__icon">
-                    <svg aria-hidden="true" className="icon">
-                      <use href="#i-target" />
-                    </svg>
-                  </span>
-                  Lifecycle &amp; Archived
-                </h2>
-                <p className="cl-card__sub">
-                  Track pipeline stage and safely retire the workspace when the engagement closes.
-                </p>
-              </div>
-              <span className="pill is-orange">Stage {stage + 1} of 4</span>
-            </header>
-
-            <div className="ec-stages">
-              {STAGE.map((label, index) => (
-                <div
-                  key={label}
-                  className={`ec-stage${index < stage ? ' is-done' : index === stage ? ' is-active' : ''}`}
-                >
-                  <span className="ec-stage__dot">
-                    {index < stage ? (
-                      <svg aria-hidden="true" className="icon">
-                        <use href="#i-check" />
-                      </svg>
-                    ) : (
-                      index + 1
-                    )}
-                  </span>
-                  <span>{label}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="ec-archive">
-              <div>
-                <strong>Archive Client Workspace</strong>
-                <p>
-                  Archiving hides the brand from active rosters, pauses all briefs, and converts the
-                  account to read-only. Data is retained for 12 months.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="button button--sm ec-danger"
-                onClick={() => showToast('Archive requires a secondary confirmation.', 'info')}
-              >
-                Archive Client
-              </button>
-            </div>
-          </section>
         </div>
 
         <aside className="ec-rail">
@@ -530,6 +542,57 @@ export default function EditClientPage({ onBack, onSaved }) {
             </ul>
           </section>
 
+          <section className="cl-card ec-lifecycle">
+            <header className="cl-card__head">
+              <h2 className="cl-card__title">
+                <span className="cl-card__icon">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-target" />
+                  </svg>
+                </span>
+                Lifecycle &amp; Archival
+              </h2>
+              <span className="pill is-orange">Stage {stage + 1} of 4</span>
+            </header>
+
+            <div className="ec-stages">
+              {STAGE.map((label, index) => (
+                <div
+                  key={label}
+                  className={`ec-stage${index < stage ? ' is-done' : index === stage ? ' is-active' : ''}`}
+                >
+                  <span className="ec-stage__dot">
+                    {index < stage ? (
+                      <svg aria-hidden="true" className="icon">
+                        <use href="#i-check" />
+                      </svg>
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="ec-archive">
+              <div>
+                <strong>Archive Client Workspace</strong>
+                <p>
+                  Archiving hides the brand from active rosters, pauses all briefs, and converts the
+                  account to read-only. Data is retained for 12 months.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="button button--sm ec-danger"
+                onClick={() => showToast('Archive requires a secondary confirmation.', 'info')}
+              >
+                Archive Client
+              </button>
+            </div>
+          </section>
+
           <section className="ec-compliance">
             <span className="ec-compliance__title">
               <svg aria-hidden="true" className="icon">
@@ -543,6 +606,26 @@ export default function EditClientPage({ onBack, onSaved }) {
             </p>
           </section>
         </aside>
+      </div>
+
+      <div className={`ec-savebar${isDirty ? ' is-dirty' : ''}`}>
+        <p className="ec-savebar__note">
+          <i className="ec-savebar__dot" aria-hidden="true" />
+          <strong>{isDirty ? 'Unsaved Modifications' : 'All changes saved'}</strong>
+          <span>
+            {isDirty
+              ? '· Changes pending in Brand Information & Assigned Leadership'
+              : '· This client record is up to date'}
+          </span>
+        </p>
+        <div className="ec-savebar__actions">
+          <button type="button" className="button button--ghost button--sm" onClick={onBack}>
+            Cancel
+          </button>
+          <button type="button" className="button button--primary button--sm" onClick={save}>
+            Save Changes
+          </button>
+        </div>
       </div>
 
       <Toast message={toast?.message} tone={toast?.tone} />

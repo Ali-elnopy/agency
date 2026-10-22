@@ -33,19 +33,26 @@ const PODS = [
   'Performance Content Squad (8 members)',
 ];
 
+const EMPTY_FORM = {
+  fullName: '',
+  phone: '',
+  email: '',
+  roleId: 'am',
+  pod: PODS[0],
+};
+
 export default function AddUserPage({ onBack, onSaved }) {
   const { toast, showToast } = useToast(3000);
-  const [form, setForm] = useState({
-    fullName: '',
-    phone: '',
-    email: '',
-    roleId: 'am',
-    pod: PODS[0],
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [invite, setInvite] = useState(true);
   const [errors, setErrors] = useState({});
 
   const role = ROLES.find((item) => item.id === form.roleId) ?? ROLES[0];
+  const isDirty =
+    Boolean(form.fullName || form.phone || form.email) ||
+    form.roleId !== EMPTY_FORM.roleId ||
+    form.pod !== EMPTY_FORM.pod ||
+    invite !== true;
 
   const update = (key) => (event) => setForm((prev) => ({ ...prev, [key]: event.target.value }));
 
@@ -68,59 +75,67 @@ export default function AddUserPage({ onBack, onSaved }) {
   };
 
   return (
-    <form className="page-screen" onSubmit={handleSubmit}>
-      <div className="crumbs">
-        <nav aria-label="Breadcrumb">
-          <button type="button" className="link-action" onClick={onBack}>
-            Users
-          </button>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-          <strong>Add User</strong>
-        </nav>
-        <span className="pill is-green live-chip">Live Workspace Sync</span>
-      </div>
+    <form className="page-screen au-page" onSubmit={handleSubmit}>
+      <div className="au-wrap">
+        <div className="crumbs au-crumbs">
+          <nav aria-label="Breadcrumb">
+            <button type="button" className="link-action" onClick={onBack}>
+              Users
+            </button>
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-chevron" />
+            </svg>
+            <strong>Add User</strong>
+          </nav>
+        </div>
 
-      <section className="page-head">
-        <h1 className="page-head__title">Add User</h1>
-        <p className="page-head__text">
-          Provision an account and assign workspace privileges to a team member.
-        </p>
-      </section>
+        <header className="au-head">
+          <div className="au-head__copy">
+            <h1>Add User</h1>
+            <p>Provision an account and assign workspace privileges to a team member.</p>
+          </div>
+          <span className="pill is-green live-chip">Live Workspace Sync</span>
+        </header>
 
-      <div className="form-grid">
-        <div className="stack">
-          <section className="form-section">
-            <div className="form-section__head">
-              <div>
-                <h2>Personal Details</h2>
-                <p>Basic contact identity, reachability and public profile visual.</p>
-              </div>
-              <span className="form-step">Step 01</span>
-            </div>
-
-            <div className="form-fields">
-              <div className="form-field form-field--full">
-                <span className="form-label">Upload Photo</span>
-                <div className="upload">
-                  <span className="upload__mark">
-                    <svg aria-hidden="true" className="icon">
-                      <use href="#i-users" />
-                    </svg>
-                  </span>
-                  <div className="upload__body">
-                    <strong>Drag &amp; drop or click to upload</strong>
-                    <p>
-                      PNG, JPG or WEBP up to 5MB. Circular display across Kanban &amp; approvals.
-                    </p>
-                  </div>
+        <div className="au-card">
+          <section className="au-section">
+            <div className="au-sec-head">
+              <div className="au-sec-title">
+                <span className="au-sec-icon">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-user" />
+                  </svg>
+                </span>
+                <div>
+                  <h2>Personal Details</h2>
+                  <p>Basic contact identity, reachability and public profile visual.</p>
                 </div>
               </div>
+              <span className="au-step">Step 01</span>
+            </div>
 
-              <div className="form-field">
-                <label className="form-label" htmlFor="au-name">
-                  Full Name <small>Required</small>
+            <div className="au-upload">
+              <span className="au-upload__avatar">
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-user" />
+                </svg>
+                <span className="au-upload__cam">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-camera" />
+                  </svg>
+                </span>
+              </span>
+              <div className="au-upload__copy">
+                <strong>Upload Photo</strong>
+                <p>PNG, JPG, or WEBP up to 5MB. Circular display across Kanban &amp; avatars.</p>
+              </div>
+            </div>
+
+            <div className="au-grid">
+              <div className="au-field">
+                <label className="au-label" htmlFor="au-name">
+                  Full Name
+                  <span className="req">*</span>
                 </label>
                 <input
                   id="au-name"
@@ -133,50 +148,69 @@ export default function AddUserPage({ onBack, onSaved }) {
                 {errors.fullName && <span className="set-error">{errors.fullName}</span>}
               </div>
 
-              <div className="form-field">
-                <label className="form-label" htmlFor="au-phone">
-                  Phone Number <small>Optional</small>
-                </label>
+              <div className="au-field">
+                <div className="au-label-row">
+                  <label className="au-label" htmlFor="au-phone">
+                    Phone Number
+                  </label>
+                  <small className="au-optional">Optional</small>
+                </div>
                 <input
                   id="au-phone"
                   className="form-input"
-                  placeholder="US: +1 (555) 234-5678"
+                  placeholder="+1 (555) 234-5678"
                   value={form.phone}
                   onChange={update('phone')}
                 />
-                <span className="form-hint">Used strictly for two-factor security alerts.</span>
+                <span className="au-hint">Used strictly for two-factor security alerts.</span>
               </div>
 
-              <div className="form-field form-field--full">
-                <label className="form-label" htmlFor="au-email">
-                  Work Email <small>Required</small>
+              <div className="au-field au-field--full">
+                <label className="au-label" htmlFor="au-email">
+                  Work Email
+                  <span className="req">*</span>
                 </label>
-                <input
-                  id="au-email"
-                  className="form-input"
-                  placeholder="maya@agency.orvia.com"
-                  value={form.email}
-                  onChange={update('email')}
-                  aria-invalid={Boolean(errors.email)}
-                />
+                <div className="input-icon">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-mail" />
+                  </svg>
+                  <input
+                    id="au-email"
+                    className="form-input"
+                    placeholder="maya@agency.orvia.com"
+                    value={form.email}
+                    onChange={update('email')}
+                    aria-invalid={Boolean(errors.email)}
+                  />
+                </div>
                 {errors.email && <span className="set-error">{errors.email}</span>}
               </div>
             </div>
           </section>
 
-          <section className="form-section">
-            <div className="form-section__head">
-              <div>
-                <h2>Access &amp; Team Assignment</h2>
-                <p>Designate administrative boundaries, operational scope and production pod.</p>
+          <div className="au-divider" aria-hidden="true" />
+
+          <section className="au-section">
+            <div className="au-sec-head">
+              <div className="au-sec-title">
+                <span className="au-sec-icon">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-shield" />
+                  </svg>
+                </span>
+                <div>
+                  <h2>Access &amp; Team Assignment</h2>
+                  <p>Designate administrative boundaries, operational scope and production pod.</p>
+                </div>
               </div>
-              <span className="form-step">Step 02</span>
+              <span className="au-step">Step 02</span>
             </div>
 
-            <div className="form-fields">
-              <div className="form-field">
-                <label className="form-label" htmlFor="au-role">
-                  Workspace Role <small>Required</small>
+            <div className="au-grid">
+              <div className="au-field">
+                <label className="au-label" htmlFor="au-role">
+                  Workspace Role
+                  <span className="req">*</span>
                 </label>
                 <span className="form-select-wrap">
                   <select
@@ -197,10 +231,13 @@ export default function AddUserPage({ onBack, onSaved }) {
                 </span>
               </div>
 
-              <div className="form-field">
-                <label className="form-label" htmlFor="au-pod">
-                  Functional Team Pod <small>Optional</small>
-                </label>
+              <div className="au-field">
+                <div className="au-label-row">
+                  <label className="au-label" htmlFor="au-pod">
+                    Functional Team Pod
+                  </label>
+                  <small className="au-optional">Optional</small>
+                </div>
                 <span className="form-select-wrap">
                   <select
                     id="au-pod"
@@ -218,72 +255,55 @@ export default function AddUserPage({ onBack, onSaved }) {
                 </span>
               </div>
 
-              <div className="form-field form-field--full">
-                <div className="notice notice--purple">
-                  <svg aria-hidden="true" className="icon">
-                    <use href="#i-shield" />
-                  </svg>
-                  <span>
-                    <strong>{role.name}</strong> — {role.scope}
-                    <br />
-                    {role.blurb}
+              <div className="au-role-note">
+                <div className="au-role-note__head">
+                  <span className="au-role-note__icon">
+                    <svg aria-hidden="true" className="icon">
+                      <use href="#i-alert" />
+                    </svg>
                   </span>
+                  <strong>{role.name}</strong>
+                  <span className="au-role-note__pill">{role.scope}</span>
                 </div>
+                <p>{role.blurb}</p>
               </div>
 
-              <div className="form-field form-field--full">
-                <div className="notice">
-                  <Switch
-                    checked={invite}
-                    onChange={setInvite}
-                    label="Send onboarding invitation email immediately"
-                  />
-                  <span>
-                    <strong>Send onboarding invitation email immediately</strong>
-                    <br />
-                    The user will receive an authenticated onboarding security magic link valid for
-                    48 hours.
+              <div className="au-invite">
+                <div className="au-invite__head">
+                  <span className="au-invite__icon">
+                    <svg aria-hidden="true" className="icon">
+                      <use href="#i-send" />
+                    </svg>
                   </span>
+                  <strong>Send onboarding invitation email immediately</strong>
+                  <Switch checked={invite} onChange={setInvite} label="Send invitation email" />
                 </div>
+                <p>
+                  The user will receive an authenticated onboarding security magic link valid for 48
+                  hours to establish credentials and complete two-factor registration.
+                </p>
               </div>
-            </div>
-
-            <div className="form-foot">
-              <button type="button" className="button button--ghost" onClick={onBack}>
-                Cancel
-              </button>
-              <button type="submit" className="button button--primary">
-                Create User
-              </button>
             </div>
           </section>
         </div>
 
-        <aside className="rail">
-          <section className="rail-card">
-            <div className="rail-card__head">
-              <h2>Provisioning Checklist</h2>
-            </div>
-            <div className="timeline">
-              <div className="timeline__item is-green">
-                <strong>Identity</strong>
-                <p>Full name and work email are required before provisioning.</p>
-              </div>
-              <div className="timeline__item is-orange">
-                <strong>Access scope</strong>
-                <p>The workspace role sets visibility and edit boundaries.</p>
-              </div>
-              <div className="timeline__item is-purple">
-                <strong>Team pod</strong>
-                <p>Assigned pods receive the member on their capacity board.</p>
-              </div>
-              <div className="timeline__item is-amber">
-                <strong>Invitation</strong>
-                <p>Magic links expire after 48 hours for security.</p>
-              </div>
-            </div>
-          </section>
-        </aside>
+        <div className={`au-savebar${isDirty ? ' is-dirty' : ''}`}>
+          <p className="au-savebar__note">
+            <i className="au-savebar__dot" aria-hidden="true" />
+            {isDirty ? 'Unsaved notifications' : 'All changes saved'}
+          </p>
+          <div className="au-savebar__actions">
+            <button type="button" className="button button--ghost button--sm" onClick={onBack}>
+              Cancel
+            </button>
+            <button type="submit" className="button button--primary button--sm">
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-user-plus" />
+              </svg>
+              Add User
+            </button>
+          </div>
+        </div>
       </div>
 
       <Toast message={toast?.message} tone={toast?.tone} />

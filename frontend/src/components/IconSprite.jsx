@@ -119,6 +119,27 @@ export default function IconSprite() {
         <rect x="3" y="4" width="18" height="16" rx="2" />
         <path d="M3 10h18M9 10v10M15 10v10" />
       </symbol>
+      <symbol id="i-logout" viewBox="0 0 24 24">
+        <path d="M9 21H5.5A2.5 2.5 0 0 1 3 18.5v-13A2.5 2.5 0 0 1 5.5 3H9" />
+        <path d="M16 16.5 20.5 12 16 7.5M20.5 12H9" />
+      </symbol>
+      <symbol id="i-user" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21v-1.5A5.5 5.5 0 0 1 9.5 14h5A5.5 5.5 0 0 1 20 19.5V21" />
+      </symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+      </symbol>
+      <symbol id="i-archive" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="4" rx="1" />
+        <path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M10 12h4" />
+      </symbol>
+      <symbol id="i-user-plus" viewBox="0 0 24 24">
+        <circle cx="9" cy="8" r="3.7" />
+        <path d="M2.6 21v-1.4A5.6 5.6 0 0 1 8.2 14h1.6a5.6 5.6 0 0 1 4.4 2.1" />
+        <path d="M18 13.5v7M14.5 17h7" />
+      </symbol>
       <symbol id="i-more" viewBox="0 0 24 24">
         <circle cx="12" cy="5" r="1.6" />
         <circle cx="12" cy="12" r="1.6" />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Toast from '../components/ui/Toast';
 import Logo from '../components/Logo';
+import managerPhoto from '../assets/managerPhoto';
 import useToast from '../hooks/useToast';
 
 const TABS = [
@@ -421,7 +422,11 @@ export default function ClientProfilePage({ client = 'Lumina Health', onBack, on
 
             <div className="cl-am">
               <div className="cl-am__photo">
-                <span className="cl-am__initials">{initialsOf(data.manager)}</span>
+                <img
+                  className="cl-am__photo-img"
+                  src={managerPhoto}
+                  alt={`${data.manager} portrait`}
+                />
                 <div className="cl-am__badge">
                   <div className="cl-am__badge-top">
                     <span>Studio Workload</span>

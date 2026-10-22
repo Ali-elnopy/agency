@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import InfoModal from '../modals/InfoModal';
 import Logo from '../Logo';
 
 // "ADMIN CORE" navigation from the ORVIA design.
+// Roles & Permissions is not a top-level destination — it is reached from the Users page.
+// Settings is not a nav item either: it lives behind the gear icon in the user card.
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '#i-dashboard' },
   { id: 'clients', label: 'Clients', icon: '#i-briefcase' },
   { id: 'teams', label: 'Teams', icon: '#i-layers' },
   { id: 'users', label: 'Users', icon: '#i-users' },
-  { id: 'roles', label: 'Roles & Permissions', icon: '#i-shield' },
-  { id: 'settings', label: 'Settings', icon: '#i-settings' },
+  { id: 'profile', label: 'Profile', icon: '#i-user' },
 ];
 
 export default function Sidebar({
@@ -18,14 +18,35 @@ export default function Sidebar({
   onNavigate,
   activeTab: activeTabProp,
   onSelect,
+  user,
+  onSignOut,
 }) {
   const [localTab, setLocalTab] = useState('dashboard');
   const activeTab = activeTabProp ?? localTab;
-  const [isUiKitOpen, setIsUiKitOpen] = useState(false);
+
+  const displayName = user?.fullName || 'Elena Vance';
+  const roleLabel =
+    user?.role === 'ADMIN'
+      ? 'Admin'
+      : user?.role === 'ACCOUNT_MANAGER'
+        ? 'Account Manager'
+        : 'Studio Lead';
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
 
   const selectTab = (id) => {
     setLocalTab(id);
     if (onSelect) onSelect(id);
+  };
+
+  const handleSignOut = (event) => {
+    event.preventDefault();
+    if (onSignOut) onSignOut();
   };
 
   return (
@@ -81,48 +102,41 @@ export default function Sidebar({
         </nav>
 
         <div className="sidebar__foot">
-          <a
-            href="#uikit"
-            className="nav__item nav__item--kit"
-            onClick={(e) => {
-              e.preventDefault();
-              setIsUiKitOpen(true);
-            }}
-          >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-layers" />
-            </svg>
-            <span className="sb-label">UI Kit &amp; Tokens</span>
-          </a>
-          <p className="mode-chip sb-label">
-            <i className="mode-chip__dot" />
-            Sidebar Mode <b>{isCollapsed ? 'Collapsed' : 'Expanded'}</b>
-          </p>
-        </div>
-      </aside>
-
-      {/* UI Kit Modal */}
-      <InfoModal
-        isOpen={isUiKitOpen}
-        onClose={() => setIsUiKitOpen(false)}
-        title="ORVIA Design Tokens &amp; System"
-        subtitle="Typography, color palettes, and component library specs."
-        icon="#i-layers"
-        iconColor="purple"
-      >
-        <div className="uikit-stack">
-          <p className="uikit-copy">
-            Built with modern design tokens adhering to strict accessibility and dark mode
-            specifications:
-          </p>
-          <div className="uikit-grid">
-            <div className="uikit-swatch uikit-swatch--orange">Orange (Primary)</div>
-            <div className="uikit-swatch uikit-swatch--purple">Purple (Creative)</div>
-            <div className="uikit-swatch uikit-swatch--green">Green (Success)</div>
-            <div className="uikit-swatch uikit-swatch--amber">Amber (Warning)</div>
+          <div className="sb-user">
+            <span className="sb-user__avatar" aria-hidden="true">
+              {initials}
+            </span>
+            <span className="sb-user__meta sb-label">
+              <strong>{displayName}</strong>
+              <span className="sb-user__role">{roleLabel}</span>
+            </span>
+            <span className="sb-user__actions">
+              <button
+                type="button"
+                className="sb-user__icon"
+                onClick={() => selectTab('settings')}
+                aria-label="Settings"
+                title="Settings"
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-settings" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="sb-user__icon"
+                onClick={handleSignOut}
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-logout" />
+                </svg>
+              </button>
+            </span>
           </div>
         </div>
-      </InfoModal>
+      </aside>
     </>
   );
 }
