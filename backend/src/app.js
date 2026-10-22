@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import { notFound, errorHandler } from './middlewares/error.js';
+import { teamsRouter } from './modules/teams/teams.routes.js';
 import { brandsRouter } from './modules/brands/brands.routes.js';
 const app = express();
 
@@ -33,6 +34,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/teams', teamsRouter);
 app.use('/api/brands', brandsRouter);
 app.use(notFound);
 app.use(errorHandler);

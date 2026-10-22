@@ -38,7 +38,7 @@ export const createUserSchema = z
 
 export const updateUserSchema = z
   .object({
-    fullName: z.string().trim().min(2).max(150),
+    fullName: z.string().trim().min(2).max(150).optional(),
 
     email: z
       .string()

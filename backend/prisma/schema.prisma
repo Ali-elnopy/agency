@@ -7,13 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// enum Role {
-//   ADMIN
-//   ACCOUNT_MANAGER
-//   EMPLOYEE
-//   CLIENT
-// }
-
 model Role {
   id          Int      @id @default(autoincrement())
   name        String   @unique @db.VarChar(50)
@@ -57,7 +50,6 @@ model User {
   creator      User?     @relation("UserCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   createdUsers User[]    @relation("UserCreator")
 
-  ledTeams     Team[]           @relation("TeamLeader")
   createdTeams Team[]           @relation("TeamCreator")
   memberships  TeamMembership[] @relation("MembershipUser")
 
@@ -68,29 +60,26 @@ model User {
   failedLoginWindowStart DateTime? @map("failed_login_window_start") @db.Timestamptz(6)
   loginLockedUntil       DateTime? @map("login_locked_until") @db.Timestamptz(6)
 
+  sessions AuthSession[]
+
   @@index([roleId])
   @@index([jobTitleId])
   @@map("users")
-
-  sessions AuthSession[]
 }
 
 model Team {
   id          Int      @id @default(autoincrement())
   name        String   @unique @db.VarChar(100)
   description String?
-  teamLeadId  Int?     @map("team_lead_id")
   isActive    Boolean  @default(true) @map("is_active")
   createdBy   Int?     @map("created_by")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  teamLead    User?            @relation("TeamLeader", fields: [teamLeadId], references: [id], onDelete: SetNull)
   creator     User?            @relation("TeamCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   memberships TeamMembership[]
   brands      Brand[]
 
-  @@index([teamLeadId])
   @@map("teams")
 }
 
@@ -150,16 +139,15 @@ model RolePermission {
   @@map("role_permissions")
 }
 
-
 model AuthSession {
-  id              String    @id @default(uuid()) @db.Uuid
-  userId          Int       @map("user_id")
-  refreshTokenHash String   @unique @map("refresh_token_hash") @db.VarChar(64)
-  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(6)
-  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(6)
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  userAgent       String?   @map("user_agent") @db.VarChar(500)
-  ipAddress       String?   @map("ip_address") @db.VarChar(45)
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           Int       @map("user_id")
+  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(64)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  userAgent        String?   @map("user_agent") @db.VarChar(500)
+  ipAddress        String?   @map("ip_address") @db.VarChar(45)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

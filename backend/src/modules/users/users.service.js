@@ -9,9 +9,13 @@ const MANAGEABLE_ROLES = new Set([
 ]);
 
 const EMPLOYEE_JOB_TITLES = new Set([
-  'Designer',
-  'Content Creator',
+  'Media Buyer',
+  'Photographer',
   'Video Editor',
+  'Social Media Specialist',
+  'Marketing Manager',
+  'Content Creator',
+  'Graphic Designer',
 ]);
 
 const VALID_STATUSES = new Set([
@@ -106,7 +110,7 @@ function assertEmployeeJobTitle(jobTitle) {
   if (!EMPLOYEE_JOB_TITLES.has(jobTitle.name)) {
     throw new ApiError(
       400,
-      'Employees must have the job title Designer, Content Creator, or Video Editor',
+      'Employees must have one of the following job titles: Media Buyer, Photographer, Video Editor, Social Media Specialist, Marketing Manager, Content Creator, or Graphic Designer',
     );
   }
 }
