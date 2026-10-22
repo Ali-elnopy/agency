@@ -4,6 +4,7 @@ import Topbar from '../components/layout/Topbar';
 import OverviewSection from '../components/sections/OverviewSection';
 import RolesSection from '../components/sections/RolesSection';
 import ActivitySection from '../components/sections/ActivitySection';
+import ProfilePage from './ProfilePage';
 import SettingsPage from './SettingsPage';
 import RolesPermissionsPage from './RolesPermissionsPage';
 import UserAccessPage from './UserAccessPage';
@@ -38,6 +39,8 @@ const SECTION_LABELS = {
 };
 
 // The section each screen highlights in the sidebar.
+// Settings is opened from the user-card gear and is not a nav destination, so
+// it intentionally highlights nothing (it must not light up Profile).
 const SECTION_TO_TAB = {
   clientProfile: 'clients',
   editClient: 'clients',
@@ -45,7 +48,6 @@ const SECTION_TO_TAB = {
   addUser: 'users',
   editUser: 'users',
   roles: 'users',
-  settings: 'profile',
 };
 
 const SEARCH_PLACEHOLDERS = {
@@ -191,6 +193,7 @@ export default function DashboardPage({
   const renderSection = () => {
     switch (section) {
       case 'profile':
+        return <ProfilePage />;
       case 'settings':
         return <SettingsPage onSignOut={onSignOut} />;
       case 'roles':

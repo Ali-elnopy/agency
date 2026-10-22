@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
+import useAvatar from '../hooks/useAvatar';
 import useToast from '../hooks/useToast';
 import { changePassword } from '../services/users';
+import { clearAvatar, cropAvatar, fileToAvatar, saveAvatar } from '../services/avatarStore';
 import { validatePasswordChange, validateProfile } from '../utils/validation';
 import managerPhoto from '../assets/managerPhoto';
 
@@ -37,7 +39,9 @@ export default function SettingsPage({ onSignOut }) {
   const [profile, setProfile] = useState(currentProfile);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [photo, setPhoto] = useState(managerPhoto);
+
+  const storedAvatar = useAvatar(user?.email);
+  const photo = storedAvatar === undefined ? managerPhoto : storedAvatar;
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -138,17 +142,33 @@ export default function SettingsPage({ onSignOut }) {
     }
   };
 
-  const handlePhotoPick = (event) => {
+  const handlePhotoPick = async (event) => {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhoto(String(reader.result));
+    try {
+      const dataUrl = await fileToAvatar(file);
+      saveAvatar(user?.email, dataUrl);
       notify('Profile photo updated.');
-    };
-    reader.readAsDataURL(file);
-    event.target.value = '';
+    } catch (error) {
+      notify(error.message || 'Could not read that image.', 'danger');
+    }
+  };
+
+  const handleCrop = async () => {
+    if (!storedAvatar) {
+      notify('Upload a photo before cropping.', 'info');
+      return;
+    }
+
+    try {
+      const dataUrl = await cropAvatar(storedAvatar);
+      saveAvatar(user?.email, dataUrl);
+      notify('Photo cropped to a 1:1 square.');
+    } catch (error) {
+      notify(error.message || 'Could not crop that photo.', 'danger');
+    }
   };
 
   const roleName =
@@ -231,7 +251,7 @@ export default function SettingsPage({ onSignOut }) {
                 <button
                   type="button"
                   className="pf-mini"
-                  onClick={() => notify('Crop tool opened.', 'info')}
+                  onClick={handleCrop}
                 >
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-crop" />
@@ -242,7 +262,7 @@ export default function SettingsPage({ onSignOut }) {
                   type="button"
                   className="pf-mini pf-mini--danger"
                   onClick={() => {
-                    setPhoto('');
+                    clearAvatar(user?.email);
                     notify('Profile photo removed.', 'info');
                   }}
                 >
