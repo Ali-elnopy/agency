@@ -124,7 +124,7 @@ export default function Sidebar({
               </button>
               <button
                 type="button"
-                className="sb-user__icon sb-user__out"
+                className="sb-user__icon"
                 onClick={handleSignOut}
                 aria-label="Sign out"
                 title="Sign out"
