@@ -32,6 +32,7 @@ const SECTION_LABELS = {
   addUser: 'Add User',
   editUser: 'Edit User',
   roles: 'Roles & Permissions',
+  profile: 'Profile',
   settings: 'Settings',
 };
 
@@ -43,6 +44,7 @@ const SECTION_TO_TAB = {
   addUser: 'users',
   editUser: 'users',
   roles: 'users',
+  settings: 'profile',
 };
 
 const SEARCH_PLACEHOLDERS = {
@@ -56,6 +58,7 @@ const SEARCH_PLACEHOLDERS = {
   addUser: 'Search or jump to...',
   editUser: 'Search or jump to...',
   roles: 'Search roles, permissions...',
+  profile: 'Search profile, security...',
   settings: 'Search settings...',
 };
 
@@ -165,6 +168,7 @@ export default function DashboardPage({
 
   const renderSection = () => {
     switch (section) {
+      case 'profile':
       case 'settings':
         return <SettingsPage />;
       case 'roles':
