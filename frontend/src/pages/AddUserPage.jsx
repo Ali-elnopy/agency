@@ -1,10 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import Switch from '../components/ui/Switch';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { createUser, getJobTitles } from '../services/users';
 import { addTeamMember, getTeams } from '../services/teams';
-import { fileToAvatar, saveAvatar } from '../services/avatarStore';
 
 const ROLES = [
   {
@@ -71,31 +70,15 @@ export default function AddUserPage({ onBack, onSaved }) {
   const [invite, setInvite] = useState(true);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [photo, setPhoto] = useState('');
-  const photoRef = useRef(null);
 
   const role = ROLES.find((item) => item.id === form.roleId) ?? ROLES[0];
   const isDirty =
-    Boolean(form.fullName || form.phone || form.email || photo) ||
+    Boolean(form.fullName || form.phone || form.email) ||
     form.roleId !== EMPTY_FORM.roleId ||
     form.pod !== EMPTY_FORM.pod ||
     invite !== true;
 
   const update = (key) => (event) => setForm((prev) => ({ ...prev, [key]: event.target.value }));
-
-  const handlePhotoPick = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    try {
-      const dataUrl = await fileToAvatar(file);
-      setPhoto(dataUrl);
-      showToast('Photo ready — it will be saved with the new account.', 'info');
-    } catch (error) {
-      showToast(error.message || 'Could not read that image.', 'danger');
-    }
-  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -157,14 +140,6 @@ export default function AddUserPage({ onBack, onSaved }) {
         await addTeamMember(team.id, created.id).catch(() => {});
       }
 
-      if (photo) {
-        try {
-          saveAvatar(created?.email || form.email, photo);
-        } catch {
-          // The account exists either way; a browser storage failure must not fail creation.
-        }
-      }
-
       showToast(`User created. Temporary password: ${password}`, 'success');
       if (onSaved) onSaved(`User created. Temporary password: ${password}`);
     } catch (error) {
@@ -215,61 +190,20 @@ export default function AddUserPage({ onBack, onSaved }) {
             </div>
 
             <div className="au-upload">
-              <button
-                type="button"
-                className="au-upload__avatar is-clickable"
-                onClick={() => photoRef.current?.click()}
-                aria-label="Upload profile photo"
-              >
-                {photo ? (
-                  <img src={photo} alt="" />
-                ) : (
-                  <svg aria-hidden="true" className="icon">
-                    <use href="#i-user" />
-                  </svg>
-                )}
+              <span className="au-upload__avatar">
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-user" />
+                </svg>
                 <span className="au-upload__cam">
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-camera" />
                   </svg>
                 </span>
-              </button>
+              </span>
               <div className="au-upload__copy">
                 <strong>Upload Photo</strong>
                 <p>PNG, JPG, or WEBP up to 5MB. Circular display across Kanban &amp; avatars.</p>
-                <div className="upload__actions">
-                  <button
-                    type="button"
-                    className="button button--ghost button--xs"
-                    onClick={() => photoRef.current?.click()}
-                  >
-                    <svg aria-hidden="true" className="icon">
-                      <use href="#i-upload" />
-                    </svg>
-                    {photo ? 'Change photo' : 'Choose photo'}
-                  </button>
-                  {photo ? (
-                    <button
-                      type="button"
-                      className="button button--ghost button--xs button--danger-ghost"
-                      onClick={() => setPhoto('')}
-                    >
-                      <svg aria-hidden="true" className="icon">
-                        <use href="#i-trash" />
-                      </svg>
-                      Remove
-                    </button>
-                  ) : null}
-                </div>
               </div>
-              <input
-                ref={photoRef}
-                type="file"
-                accept="image/*"
-                className="pf-file"
-                onChange={handlePhotoPick}
-                aria-label="Upload profile photo"
-              />
             </div>
 
             <div className="au-grid">

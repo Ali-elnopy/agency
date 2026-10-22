@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import Logo from '../Logo';
-import useAvatar from '../../hooks/useAvatar';
 
 // "ADMIN CORE" navigation from the ORVIA design.
 // Roles & Permissions is not a top-level destination — it is reached from the Users page.
@@ -26,7 +25,6 @@ export default function Sidebar({
   const activeTab = activeTabProp ?? localTab;
 
   const displayName = user?.fullName || 'Elena Vance';
-  const avatar = useAvatar(user?.email) || null;
   const roleLabel =
     user?.role === 'ADMIN'
       ? 'Admin'
@@ -106,7 +104,7 @@ export default function Sidebar({
         <div className="sidebar__foot">
           <div className="sb-user">
             <span className="sb-user__avatar" aria-hidden="true">
-              {avatar ? <img src={avatar} alt="" /> : initials}
+              {initials}
             </span>
             <span className="sb-user__meta sb-label">
               <strong>{displayName}</strong>

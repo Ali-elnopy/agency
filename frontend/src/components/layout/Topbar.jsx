@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import useAuth from '../../hooks/useAuth';
-import useAvatar from '../../hooks/useAvatar';
 
 export default function Topbar({
   theme,
@@ -16,7 +15,6 @@ export default function Topbar({
   const [search, setSearch] = useState('');
 
   const displayName = user?.fullName || 'Studio Lead';
-  const avatar = useAvatar(user?.email) || null;
   const roleDisplay = user?.role === 'ADMIN' ? 'Admin | Studio Lead' : 'Admin | Creative Dir.';
   const initials = displayName
     .split(' ')
@@ -82,7 +80,7 @@ export default function Topbar({
             <strong>{displayName}</strong>
             <small>{roleDisplay}</small>
           </span>
-          <span className="avatar">{avatar ? <img src={avatar} alt="" /> : initials}</span>
+          <span className="avatar">{initials}</span>
         </a>
 
         {actionLabel ? (

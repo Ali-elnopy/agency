@@ -1,10 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import Toast from '../components/ui/Toast';
-import useAvatar from '../hooks/useAvatar';
 import useToast from '../hooks/useToast';
 import { getJobTitles, updateUser } from '../services/users';
 import { addTeamMember, getTeams } from '../services/teams';
-import { clearAvatar, fileToAvatar, saveAvatar } from '../services/avatarStore';
 
 const PODS = [
   'Growth & Performance Team (14 members)',
@@ -35,29 +33,6 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
     jobTitle: record?.jobTitleName || 'Senior Account Manager',
     pod: PODS[0],
   });
-
-  const photoRef = useRef(null);
-  const [memberKey] = useState(record?.email || form.email);
-  const avatar = useAvatar(memberKey) || null;
-
-  const handlePhotoPick = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    try {
-      const dataUrl = await fileToAvatar(file);
-      saveAvatar(memberKey, dataUrl);
-      showToast('Profile photo updated.');
-    } catch (error) {
-      showToast(error.message || 'Could not read that image.', 'danger');
-    }
-  };
-
-  const handleRemovePhoto = () => {
-    clearAvatar(memberKey);
-    showToast('Profile photo removed.', 'info');
-  };
 
   const update = (key) => (event) => {
     setForm((prev) => ({ ...prev, [key]: event.target.value }));
@@ -120,9 +95,7 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
 
       <section className="page-head page-head--actions">
         <div className="head-title-group">
-          <span className="avatar avatar--lg is-a">
-            {avatar ? <img src={avatar} alt="" /> : initialsOf(member)}
-          </span>
+          <span className="avatar avatar--lg is-a">{initialsOf(member)}</span>
           <div>
             <div className="page-head__title-row">
               <h1 className="page-head__title">{member}</h1>
@@ -198,36 +171,18 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
               <div className="form-field form-field--full">
                 <span className="form-label">Profile Photo</span>
                 <div className="upload">
-                  <span className="upload__mark">
-                    {avatar ? <img src={avatar} alt="" /> : initialsOf(member)}
-                  </span>
+                  <span className="upload__mark">{initialsOf(member)}</span>
                   <div className="upload__body">
                     <strong>{member.toLowerCase().replace(/\s+/g, '-')}.jpg</strong>
                     <p>JPG, PNG or WebP under 5MB. Recommended resolution: 400x400px.</p>
                     <div className="upload__actions">
-                      <button
-                        type="button"
-                        className="button button--ghost button--xs"
-                        onClick={() => photoRef.current?.click()}
-                      >
+                      <button type="button" className="button button--ghost button--xs">
                         Change photo
                       </button>
-                      <button
-                        type="button"
-                        className="button button--ghost button--xs button--danger-ghost"
-                        onClick={handleRemovePhoto}
-                      >
+                      <button type="button" className="button button--ghost button--xs">
                         Remove
                       </button>
                     </div>
-                    <input
-                      ref={photoRef}
-                      type="file"
-                      accept="image/*"
-                      className="pf-file"
-                      onChange={handlePhotoPick}
-                      aria-label="Change profile photo"
-                    />
                   </div>
                 </div>
               </div>
@@ -387,9 +342,7 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
             </div>
 
             <div className="person">
-              <span className="avatar avatar--lg is-a">
-                {avatar ? <img src={avatar} alt="" /> : initialsOf(member)}
-              </span>
+              <span className="avatar avatar--lg is-a">{initialsOf(member)}</span>
               <div className="person__body">
                 <strong>{member}</strong>
                 <small>{form.email}</small>

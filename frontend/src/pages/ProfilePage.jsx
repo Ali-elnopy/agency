@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
-import useAvatar from '../hooks/useAvatar';
 import useToast from '../hooks/useToast';
-import { clearAvatar, cropAvatar, fileToAvatar, saveAvatar } from '../services/avatarStore';
 import { validateProfile } from '../utils/validation';
 import managerPhoto from '../assets/managerPhoto';
 
@@ -26,9 +24,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState(currentProfile);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-
-  const storedAvatar = useAvatar(user?.email);
-  const photo = storedAvatar === undefined ? managerPhoto : storedAvatar;
+  const [photo, setPhoto] = useState(managerPhoto);
 
   useEffect(() => {
     setProfile(currentProfile);
@@ -57,37 +53,25 @@ export default function ProfilePage() {
     });
   };
 
-  const handlePhotoPick = async (event) => {
+  const handlePhotoPick = (event) => {
     const file = event.target.files?.[0];
-    event.target.value = '';
     if (!file) return;
 
-    try {
-      const dataUrl = await fileToAvatar(file);
-      saveAvatar(user?.email, dataUrl);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhoto(String(reader.result));
       notify('Profile photo updated.');
-    } catch (error) {
-      notify(error.message || 'Could not read that image.', 'danger');
-    }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
   };
 
-  const handleCrop = async () => {
-    if (!storedAvatar) {
-      notify('Upload a photo before cropping.', 'info');
-      return;
-    }
-
-    try {
-      const dataUrl = await cropAvatar(storedAvatar);
-      saveAvatar(user?.email, dataUrl);
-      notify('Photo cropped to a 1:1 square.');
-    } catch (error) {
-      notify(error.message || 'Could not crop that photo.', 'danger');
-    }
+  const handleCrop = () => {
+    notify('Crop tool opened.', 'info');
   };
 
   const handleRemovePhoto = () => {
-    clearAvatar(user?.email);
+    setPhoto('');
     notify('Profile photo removed.', 'info');
   };
 
