@@ -22,12 +22,30 @@ function readHashView() {
   return VIEWS.includes(hash) ? hash : 'login';
 }
 
+// Replacing (rather than pushing) keeps auth screens out of the Back stack.
+function replaceHashView(nextView) {
+  const nextHash = `#${nextView}`;
+  if (window.location.hash === nextHash) return;
+
+  try {
+    window.history.replaceState(null, '', nextHash);
+  } catch {
+    // Some embedded/file:// contexts restrict History API access.
+    window.location.replace(nextHash);
+  }
+}
+
 export default function App() {
   const { user, logout } = useAuth();
 
   const [view, setView] = useState(() => {
     const initial = readHashView();
-    return initial === 'dashboard' && !hasStoredSession() ? 'login' : initial;
+    const authenticated = hasStoredSession();
+
+    // A signed-in user belongs on the dashboard. Auth screens stay reachable
+    // only after an explicit sign-out.
+    if (authenticated) return 'dashboard';
+    return initial === 'dashboard' ? 'login' : initial;
   });
 
   // Light is the product default. Only an explicit toggle is remembered, so a
@@ -64,40 +82,55 @@ export default function App() {
   // A dashboard URL without a session must never render the dashboard.
   useEffect(() => {
     if (view === 'dashboard' && !user) {
+      replaceHashView('login');
       setView('login');
-      window.location.hash = '#login';
+    }
+  }, [view, user]);
+
+  // An authenticated user should never remain on an auth screen, even for the
+  // brief render between setUser() and the login redirect.
+  useEffect(() => {
+    if (user && view !== 'dashboard') {
+      replaceHashView('dashboard');
+      setView('dashboard');
     }
   }, [view, user]);
 
   // Storage is the source of truth here: reading it avoids a stale closure
-  // racing the hash change that follows a successful sign-in.
+  // racing the hash change that follows a successful sign-in. While a session
+  // exists, any attempt to open an auth screen (including browser Back) is
+  // replaced with the dashboard, so sign-in only appears after sign-out.
   useEffect(() => {
-    const redirectGuardedView = () => {
-      setView('login');
-      window.location.hash = '#login';
-    };
-
-    if (readHashView() === 'dashboard' && !hasStoredSession()) {
-      redirectGuardedView();
-    }
-
-    const handleHashChange = () => {
+    const resolveView = () => {
       const next = readHashView();
+      const authenticated = hasStoredSession();
 
-      if (next === 'dashboard' && !hasStoredSession()) {
-        redirectGuardedView();
+      if (authenticated) {
+        if (next !== 'dashboard') replaceHashView('dashboard');
+        setView('dashboard');
+        return;
+      }
+
+      if (next === 'dashboard') {
+        replaceHashView('login');
+        setView('login');
         return;
       }
 
       setView(next);
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    resolveView();
+    window.addEventListener('hashchange', resolveView);
+    return () => window.removeEventListener('hashchange', resolveView);
   }, []);
 
-  const navigateTo = (nextView) => {
-    window.location.hash = `#${nextView}`;
+  const navigateTo = (nextView, { replace = false } = {}) => {
+    if (replace) {
+      replaceHashView(nextView);
+    } else {
+      window.location.hash = `#${nextView}`;
+    }
     setView(nextView);
   };
 
@@ -111,7 +144,9 @@ export default function App() {
 
   const handleSignOut = () => {
     logout();
-    navigateTo('login');
+    // Replace the dashboard entry so Back cannot reopen the workspace after
+    // the session has been cleared.
+    navigateTo('login', { replace: true });
   };
 
   const showDashboard = view === 'dashboard' && Boolean(user);

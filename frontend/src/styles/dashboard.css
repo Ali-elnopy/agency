@@ -120,13 +120,13 @@
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .nav__divider {
   display: block;
   height: 1px;
-  margin: 10px 8px;
+  margin: 14px 8px;
   background: rgba(255, 255, 255, 0.12);
 }
 
@@ -1444,7 +1444,7 @@
    2. Shell + sidebar
    -------------------------------------------------------------------------- */
 .app .sidebar {
-  gap: 22px;
+  gap: 28px;
   background: linear-gradient(180deg, #1d2237 0%, #141828 100%);
 }
 
@@ -1464,7 +1464,7 @@
 }
 
 .app .nav__item {
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-size: 12.5px;
   color: var(--sidebar-ink);
 }

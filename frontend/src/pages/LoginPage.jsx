@@ -25,7 +25,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
     if (import.meta.env.DEV && DEV_BYPASS && !email.trim() && !password.trim()) {
       try {
         auth.devLogin();
-        onNavigate('dashboard');
+        onNavigate('dashboard', { replace: true });
       } catch {
         setError('Development login bypass is disabled.');
       }
@@ -38,7 +38,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
       const result = await login({ email, password });
 
       if (result.success) {
-        onNavigate('dashboard');
+        onNavigate('dashboard', { replace: true });
       } else {
         setError(result.message || 'Login failed. Please check your credentials.');
       }

@@ -70,7 +70,7 @@ describe('LoginPage', () => {
       password: 'password1234',
     });
     expect(await screen.findByRole('button', { name: /log in to orvia/i })).toBeEnabled();
-    expect(onNavigate).toHaveBeenCalledWith('dashboard');
+    expect(onNavigate).toHaveBeenCalledWith('dashboard', { replace: true });
   });
 
   it('shows the backend rejection message for invalid credentials', async () => {
@@ -124,7 +124,7 @@ describe('LoginPage', () => {
 
     await userEvent.setup().click(screen.getByRole('button', { name: /log in to orvia/i }));
 
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('dashboard'));
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('dashboard', { replace: true }));
     expect(loginApi).not.toHaveBeenCalled();
     expect(window.localStorage.getItem('agency_access_token')).toBe('dev-bypass-token');
     expect(JSON.parse(window.localStorage.getItem('agency_user'))).toEqual(
