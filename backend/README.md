@@ -6,23 +6,44 @@ Node.js + Express + PostgreSQL + Prisma (the P-E-N of PERN; React lives in the f
 
 ```bash
 # 1) Install dependencies
-npm install express @prisma/client@6 zod bcryptjs jsonwebtoken cors helmet morgan \
-  express-rate-limit dotenv multer
-npm install -D prisma@6 nodemon vitest supertest eslint @eslint/js globals prettier
+npm install
 
 # 2) Environment file
-cp .env.example .env        # then change JWT_SECRET (openssl rand -hex 48)
+cp .env.example .env        # Windows: copy .env.example .env
+# then change JWT_SECRET (openssl rand -hex 48)
 
-# 3) Database (Docker)
+# 3) Database (Docker; matches .env.example)
 docker compose up -d
 
-# 4) Migration + seed for the first Admin
-npx prisma migrate dev --name init
+# 4) Apply migrations + seed the first Admin
+npx prisma migrate deploy
 npm run db:seed
 
 # 5) Run
 npm run dev                 # http://localhost:5001/api/health
 ```
+
+### Hosted database (Supabase, Neon, Render…)
+
+Set `DATABASE_URL` in `.env` to your provider's connection string. For
+**Supabase**, use the Session Pooler URL and append the Prisma pooler flags:
+
+```env
+DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres?pgbouncer=true&connection_limit=1"
+```
+
+Without `pgbouncer=true&connection_limit=1`, Prisma can fail with `P1001` or
+prepared-statement errors. If a migration fails through the pooler, run the
+migration with the direct connection string, then switch back to the pooler URL.
+
+The seed reads `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, and the other values
+from `.env`. For a fresh database it creates the first administrator; see the
+root `README.md` for the default local credentials.
+
+### Frontend
+
+The React app lives in `../frontend`. Start it separately with `npm install` and
+`npm run dev`, and open <http://localhost:5173>.
 
 ## Structure
 

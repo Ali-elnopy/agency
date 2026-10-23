@@ -26,8 +26,12 @@ cp .env.example .env.local   # Windows: copy .env.example .env.local
 npm run dev
 ```
 
-Open <http://127.0.0.1:5173>. In local demo mode the login screen offers demo
+Open <http://localhost:5173>. In local demo mode the login screen offers demo
 accounts (Studio Lead / Admin) that fill the credentials configured in `.env.local`.
+
+For the full authentication flow, start the API from `../backend` and keep
+`VITE_API_BASE_URL=/api` so Vite proxies requests to `http://localhost:5001`.
+See the root `README.md` for the complete setup.
 
 ## Preview as a single file
 
@@ -43,14 +47,14 @@ npm run build:dev-static   # → dist-dev/index.html (local demo build: demo log
 - `dist-dev/index.html` is for local preview only: it keeps the demo/mock auth so every
   screen can be opened without a backend. **Do not deploy it publicly.**
 
-A ready-to-open copy of the demo build is included as `ORVIA-Agency-OS.html` in the
-parent folder.
+The demo build is generated locally at `dist-dev/index.html` and is not committed.
+`ORVIA-Agency-OS.html` is a local preview artifact and is ignored by git.
 
 ### Environment variables
 
 | Variable                   | Purpose                                                                             |
 | -------------------------- | ----------------------------------------------------------------------------------- |
-| `VITE_API_BASE_URL`        | Backend base URL (default `/api/v1`, proxied by Vite in dev)                        |
+| `VITE_API_BASE_URL`        | Backend base URL (default `/api`, proxied by Vite in dev)                           |
 | `VITE_USE_MOCK_API`        | `true` enables the offline mock **in development only**                             |
 | `VITE_MOCK_NAME`           | Display name for the demo Studio Lead account                                       |
 | `VITE_MOCK_EMAIL`          | Demo Studio Lead email                                                              |
@@ -172,8 +176,10 @@ search/selection, and the permission-matrix logic.
 
 ## Notes / current limitations
 
-- No real backend is connected yet; the users directory and profile saves use
-  the local mock in development.
+- Real sign-in requires the Express API from `../backend`. The mock and dev
+  bypass modes are for local previews only.
+- New Brands, Teams, Users, and Workflow records are local-first in
+  `localStorage`; they are not shared across browsers or devices yet.
 - Audit activity, avatar upload, and the brand-assignment picker are still
   placeholders (they show informational toasts).
 - The copy in the UI intentionally mixes English and a few Arabic labels from
