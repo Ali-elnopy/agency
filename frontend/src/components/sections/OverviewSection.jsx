@@ -2,14 +2,14 @@ import React from 'react';
 
 const KPIS = [
   {
-    label: 'Active Clients',
+    label: 'Active Brands',
     value: '12',
-    unit: 'Clients',
+    unit: 'Brands',
     icon: 'i-briefcase',
     tone: 'is-orange',
     chip: '+4 this week',
     chipTone: 'is-green',
-    foot: '2 archived client brands',
+    foot: '2 archived brand workspaces',
   },
   {
     label: 'Total Employees',
@@ -57,7 +57,7 @@ const MATRIX = [
 
 const ALERTS = [
   {
-    group: 'Clients without an account manager',
+    group: 'Brands without an account manager',
     count: 2,
     tone: 'High Priority',
     rows: [
@@ -66,7 +66,7 @@ const ALERTS = [
     ],
   },
   {
-    group: 'Clients without a team',
+    group: 'Brands without a team',
     count: 1,
     tone: 'Needs Squad',
     rows: [
@@ -84,19 +84,13 @@ function initials(name) {
     .toUpperCase();
 }
 
-export default function OverviewSection({
-  stats,
-  onAddClient,
-  onAddUser,
-  onCreateTeam,
-  onViewWorkload,
-}) {
+export default function OverviewSection({ stats, onViewWorkload }) {
   const kpis = [
     {
       ...KPIS[0],
       value: stats ? String(stats.totalClients) : KPIS[0].value,
       foot: stats
-        ? `${stats.accountManagerAssignment?.unassignedClients ?? 0} clients without an account manager`
+        ? `${stats.accountManagerAssignment?.unassignedClients ?? 0} brands without an account manager`
         : KPIS[0].foot,
     },
     {
@@ -116,35 +110,6 @@ export default function OverviewSection({
 
   return (
     <>
-      <section className="ov-quick">
-        <span className="ov-quick__icon">
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-zap" />
-          </svg>
-        </span>
-        <div className="ov-quick__body">
-          <h2>Quick Actions</h2>
-          <p>Accelerate onboarding across clients, team rosters, and studio seats.</p>
-        </div>
-        <div className="ov-quick__actions">
-          <button type="button" className="button button--primary button--sm" onClick={onAddClient}>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            Add Client
-          </button>
-          <button type="button" className="button button--dark button--sm" onClick={onAddUser}>
-            Add User
-          </button>
-          <button type="button" className="button button--ghost button--sm" onClick={onCreateTeam}>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            Create Team
-          </button>
-        </div>
-      </section>
-
       <div className="ov-kpis">
         {kpis.map((kpi) => (
           <article key={kpi.label} className="ov-kpi">
@@ -171,14 +136,14 @@ export default function OverviewSection({
           <section className="cl-card">
             <header className="cl-card__head">
               <div>
-                <h2 className="cl-card__title">Clients per Account Manager</h2>
+                <h2 className="cl-card__title">Brands per Account Manager</h2>
                 <p className="cl-card__sub">
                   Real-time distribution of active brand retainers across the studio&rsquo;s account
                   managers.
                 </p>
               </div>
               <button type="button" className="ec-link" onClick={onViewWorkload}>
-                View workload in Clients →
+                View workload in Brands →
               </button>
             </header>
 
@@ -193,7 +158,7 @@ export default function OverviewSection({
                   <span className="ov-bar__track">
                     <i style={{ width: `${manager.pct}%` }} />
                   </span>
-                  <span className="ov-bar__value">{manager.clients} clients</span>
+                  <span className="ov-bar__value">{manager.clients} brands</span>
                   <span className="ov-bar__pct">{manager.pct}%</span>
                 </div>
               ))}
@@ -211,7 +176,7 @@ export default function OverviewSection({
                   <tr>
                     <th>Account Manager</th>
                     <th>Assigned Team</th>
-                    <th>Active Clients</th>
+                    <th>Active Brands</th>
                     <th>Capacity State</th>
                   </tr>
                 </thead>
@@ -285,7 +250,7 @@ export default function OverviewSection({
               <svg aria-hidden="true" className="icon">
                 <use href="#i-alert" />
               </svg>
-              Unassigned clients cannot proceed with AI briefs until both a manager and team are
+              Unassigned brands cannot proceed with AI briefs until both a manager and team are
               confirmed.
             </div>
           </section>

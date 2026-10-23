@@ -120,26 +120,13 @@ function initialsOf(name) {
     .toUpperCase();
 }
 
-export default function ClientProfilePage({ client = 'Lumina Health', onBack, onEditClient }) {
+export default function ClientProfilePage({ client = 'Lumina Health', onEditClient }) {
   const [tab, setTab] = useState('overview');
   const { toast, showToast } = useToast(3000);
   const data = META[client] ?? FALLBACK;
 
   return (
     <div className="page-screen">
-      <div className="crumbs">
-        <nav aria-label="Breadcrumb">
-          <button type="button" className="link-action" onClick={onBack}>
-            Clients
-          </button>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-          <strong>{client}</strong>
-        </nav>
-        <span className="pill is-gray">UID: {data.uid}</span>
-      </div>
-
       <section className="cl-profile-card">
         <div className="cl-profile-head">
           <div className="cl-profile-id">

@@ -3,98 +3,72 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import UserAccessPage from '../UserAccessPage';
-import { getUsers } from '../../services/users';
+import { WorkspaceProvider } from '../../context/WorkspaceContext';
 
-vi.mock('../../services/users', () => ({
-  getUsers: vi.fn(),
-  updateUser: vi.fn(),
-  deactivateUser: vi.fn(),
-  changePassword: vi.fn(),
-}));
-
-const USERS = [
-  {
-    id: 'u-001',
-    initials: 'SL',
-    avatarTone: 'orange',
-    name: 'Sarah Lin',
-    email: 's.lin@orvia-creative.com',
-    type: 'Internal',
-    typeTone: 'orange',
-    role: 'Creator & Copywriter',
-    roleId: 'creator',
-    roleHint: 'Edit & Draft',
-    brands: ['Aura Mobility'],
-    status: 'active',
-  },
-  {
-    id: 'u-002',
-    initials: 'NF',
-    avatarTone: 'blue',
-    name: 'Nadia Fahmy',
-    email: 'n.fahmy@solace-skincare.com',
-    type: 'External',
-    typeTone: 'amber',
-    role: 'Client Reviewer',
-    roleId: 'client',
-    roleHint: 'External Sign-Off',
-    brands: ['Solace Skincare'],
-    status: 'active',
-  },
-  {
-    id: 'u-003',
-    initials: 'KN',
-    avatarTone: 'muted',
-    name: 'Karim Nabil',
-    email: 'k.nabil@orvia-creative.com',
-    type: 'Former',
-    typeTone: 'muted',
-    role: 'Creator & Copywriter (Revoked)',
-    roleId: 'creator',
-    roleHint: 'Access reclaimed',
-    brands: [],
-    status: 'deactivated',
-  },
-];
-
-const STATS = { total: 148, active: 130, suspended: 3 };
+function renderPage(props = {}) {
+  return render(
+    <WorkspaceProvider>
+      <UserAccessPage onAddMemberViaTeam={vi.fn()} {...props} />
+    </WorkspaceProvider>,
+  );
+}
 
 describe('UserAccessPage directory', () => {
   beforeEach(() => {
-    getUsers.mockReset();
-    getUsers.mockResolvedValue({ users: USERS, stats: STATS });
+    window.localStorage.clear();
   });
 
-  it('filters the directory by name or email', async () => {
-    const user = userEvent.setup();
-    render(<UserAccessPage />);
+  it('renders the KPI summary and the seeded workspace users', () => {
+    const { container } = renderPage();
 
-    await screen.findAllByText('Sarah Lin');
-    const table = screen.getByRole('table');
+    expect(screen.getByRole('heading', { name: 'Users' })).toBeInTheDocument();
+    expect(screen.getByText('Elena Vance')).toBeInTheDocument();
+    expect(screen.getByText('Hana Sato')).toBeInTheDocument();
 
-    await user.type(screen.getByPlaceholderText(/filter by name or email/i), 'nadia');
-
-    expect(within(table).getByText('Nadia Fahmy')).toBeInTheDocument();
-    expect(within(table).queryByText('Sarah Lin')).not.toBeInTheDocument();
-    expect(within(table).queryByText('Karim Nabil')).not.toBeInTheDocument();
-
-    await user.clear(screen.getByPlaceholderText(/filter by name or email/i));
-    await user.type(screen.getByPlaceholderText(/filter by name or email/i), 'k.nabil@');
-
-    expect(within(table).getByText('Karim Nabil')).toBeInTheDocument();
-    expect(within(table).queryByText('Nadia Fahmy')).not.toBeInTheDocument();
+    const values = [...container.querySelectorAll('.ws-kpi__value')].map(
+      (node) => node.textContent,
+    );
+    expect(values).toEqual(['15', '14', '1']);
   });
 
-  it('loads the selected row into the edit form', async () => {
+  it('expands a user inline, saves the changes, and persists them locally', async () => {
     const user = userEvent.setup();
-    render(<UserAccessPage />);
+    renderPage();
 
-    await screen.findAllByText('Sarah Lin');
+    const row = screen.getByText('Elena Vance').closest('article');
+    await user.click(within(row).getByRole('button', { name: 'Edit User' }));
 
-    const nadiaRow = screen.getByText('Nadia Fahmy').closest('tr');
-    await user.click(within(nadiaRow).getByRole('button', { name: /edit user/i }));
+    const nameInput = screen.getByLabelText('Full Name');
+    const jobInput = screen.getByLabelText('Job Title');
 
-    expect(screen.getByLabelText(/full name/i)).toHaveValue('Nadia Fahmy');
-    expect(screen.getByLabelText(/work email/i)).toHaveValue('n.fahmy@solace-skincare.com');
+    expect(nameInput).toHaveValue('Elena Vance');
+    expect(jobInput).toHaveValue('Studio Lead');
+
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Elena V. Vance');
+    await user.clear(jobInput);
+    await user.type(jobInput, 'Managing Partner');
+    await user.click(screen.getByRole('button', { name: 'Save User' }));
+
+    expect(screen.getByText('Elena V. Vance')).toBeInTheDocument();
+    expect(screen.getByText(/Managing Partner/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Full Name')).not.toBeInTheDocument();
+
+    const stored = JSON.parse(
+      window.localStorage.getItem('orvia_workspace_users_v1'),
+    );
+    const elena = stored.find((member) => member.id === 'user-1');
+
+    expect(elena.fullName).toBe('Elena V. Vance');
+    expect(elena.jobTitle).toBe('Managing Partner');
+  });
+
+  it('offers Delete instead of Reset Password and filters from global search', () => {
+    renderPage({ initialQuery: { query: 'hana', nonce: 1 } });
+
+    expect(screen.getByText('Hana Sato')).toBeInTheDocument();
+    expect(screen.queryByText('Elena Vance')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Delete' }).length).toBeGreaterThan(0);
   });
 });

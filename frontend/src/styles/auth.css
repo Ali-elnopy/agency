@@ -471,51 +471,6 @@ svg.input__lead {
   stroke-linejoin: round;
 }
 
-/* "Or continue with SSO" divider + secondary action */
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 18px 0 0;
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--auth-line);
-}
-
-.btn--ghost {
-  margin-top: 14px;
-  font-weight: 600;
-  color: var(--auth-ink);
-  background: var(--auth-input-bg);
-  border: 1px solid var(--auth-input-line);
-  box-shadow: none;
-}
-
-.btn--ghost:hover {
-  border-color: #e7d7c8;
-  box-shadow: none;
-  transform: none;
-}
-
-[data-theme='dark'] .btn--ghost:hover {
-  border-color: var(--faint);
-}
-
-.btn--ghost svg {
-  width: 13px;
-  height: 13px;
-}
-
 /* Inline feedback and demo shortcuts */
 .form__error {
   margin-bottom: 16px;

@@ -8,13 +8,17 @@ import ProfilePage from './ProfilePage';
 import SettingsPage from './SettingsPage';
 import RolesPermissionsPage from './RolesPermissionsPage';
 import UserAccessPage from './UserAccessPage';
-import ClientsPage from './ClientsPage';
-import ClientProfilePage from './ClientProfilePage';
-import EditClientPage from './EditClientPage';
+import BrandsPage from './BrandsPage';
+import BrandDetailPage from './BrandDetailPage';
+import AddBrandPage from './AddBrandPage';
+import AddContentPage from './AddContentPage';
+import { BrandsProvider } from '../context/BrandsContext';
+import { WorkspaceProvider } from '../context/WorkspaceContext';
+import { monthKey } from '../data/brands';
 import TeamsPage from './TeamsPage';
 import TeamDetailsPage from './TeamDetailsPage';
-import AddUserPage from './AddUserPage';
-import EditUserPage from './EditUserPage';
+import AddTeamMemberPage from './AddTeamMemberPage';
+import ManageBrandsPage from './ManageBrandsPage';
 import NewBriefModal from '../components/modals/NewBriefModal';
 import InfoModal from '../components/modals/InfoModal';
 import Toast from '../components/ui/Toast';
@@ -25,14 +29,15 @@ import { getDashboardStats } from '../services/dashboard';
 // Every screen that can be reached from the sidebar or from a list row.
 const SECTION_LABELS = {
   dashboard: 'Dashboard',
-  clients: 'Clients',
-  clientProfile: 'Client Profile',
-  editClient: 'Edit Client',
+  clients: 'Brands',
+  brandDetail: 'Brand Detail',
+  addBrand: 'Add Brand',
+  addContent: 'Add Content',
   teams: 'Teams',
   teamDetails: 'Team Details',
+  addTeamMember: 'Add Team Member',
+  manageBrands: 'Manage Brands',
   users: 'Users',
-  addUser: 'Add User',
-  editUser: 'Edit User',
   roles: 'Roles & Permissions',
   profile: 'Profile',
   settings: 'Settings',
@@ -42,27 +47,13 @@ const SECTION_LABELS = {
 // Settings is opened from the user-card gear and is not a nav destination, so
 // it intentionally highlights nothing (it must not light up Profile).
 const SECTION_TO_TAB = {
-  clientProfile: 'clients',
-  editClient: 'clients',
+  brandDetail: 'clients',
+  addBrand: 'clients',
+  addContent: 'clients',
   teamDetails: 'teams',
-  addUser: 'users',
-  editUser: 'users',
+  addTeamMember: 'teams',
+  manageBrands: 'teams',
   roles: 'users',
-};
-
-const SEARCH_PLACEHOLDERS = {
-  dashboard: 'Search briefs, campaigns, assets, clients...',
-  clients: 'Search clients, managers, teams...',
-  clientProfile: 'Search clients, assets, contacts...',
-  editClient: 'Search clients, assets, contacts...',
-  teams: 'Search teams, people, clients...',
-  teamDetails: 'Search squad members...',
-  users: 'Search or jump to...',
-  addUser: 'Search or jump to...',
-  editUser: 'Search or jump to...',
-  roles: 'Search roles, permissions...',
-  profile: 'Search profile, security...',
-  settings: 'Search settings...',
 };
 
 export default function DashboardPage({
@@ -76,17 +67,16 @@ export default function DashboardPage({
   const { user } = useAuth();
   const { toast, showToast, clearToast } = useToast(8000);
 
-  const [section, setSection] = useState('profile');
-  const [activeClient, setActiveClient] = useState('Lumina Health');
+  const [section, setSection] = useState('dashboard');
+  const [activeBrandId, setActiveBrandId] = useState('brand-1');
+  const [activePlanMonth, setActivePlanMonth] = useState(() => monthKey());
   const [activeTeam, setActiveTeam] = useState('Brand Strategy & Growth');
-  const [activeUser, setActiveUser] = useState('Marcus Vance');
-  const [activeUserRecord, setActiveUserRecord] = useState(null);
   const [stats, setStats] = useState(null);
   const [isNewBriefOpen, setIsNewBriefOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [newActivity, setNewActivity] = useState(null);
-  const [addClientRequest, setAddClientRequest] = useState(0);
+  const [usersSearch, setUsersSearch] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -114,6 +104,7 @@ export default function DashboardPage({
 
   const handleSelect = (id) => {
     if (SECTION_LABELS[id]) {
+      if (id === 'users') setUsersSearch({ query: '', nonce: Date.now() });
       go(id);
       return;
     }
@@ -173,9 +164,15 @@ export default function DashboardPage({
     });
   };
 
-  const openClient = (name) => {
-    setActiveClient(name || 'Lumina Health');
-    go('clientProfile');
+  const openBrand = (brandId) => {
+    setActiveBrandId(brandId || 'brand-1');
+    setActivePlanMonth(monthKey());
+    go('brandDetail');
+  };
+
+  const openAddContent = (month) => {
+    setActivePlanMonth(month || monthKey());
+    go('addContent');
   };
 
   const openTeam = (name) => {
@@ -183,11 +180,20 @@ export default function DashboardPage({
     go('teamDetails');
   };
 
-  const openUser = (user) => {
-    const record = typeof user === 'string' ? { fullName: user } : user;
-    setActiveUser(record?.fullName || record?.name || 'Marcus Vance');
-    setActiveUserRecord(record ?? null);
-    go('editUser');
+  // Global search opens the directory filtered to the chosen teammate instead
+  // of the edit screen, so admins can review anyone without hitting the
+  // "administrators cannot be edited" guard.
+  const searchUser = (record) => {
+    const name = record?.fullName || record?.name || '';
+    setUsersSearch({ query: name, nonce: Date.now() });
+    go('users');
+  };
+
+  // Page results from the global search open a clean directory; only picking a
+  // person applies a directory filter.
+  const navigateFromSearch = (id) => {
+    if (id === 'users') setUsersSearch({ query: '', nonce: Date.now() });
+    go(id);
   };
 
   const renderSection = () => {
@@ -201,75 +207,80 @@ export default function DashboardPage({
       case 'users':
         return (
           <UserAccessPage
-            onOpenRoles={() => go('roles')}
-            onAddUser={() => go('addUser')}
-            onEditUser={openUser}
-          />
-        );
-      case 'addUser':
-        return <AddUserPage onBack={() => go('users')} onSaved={(message) => go('users', message)} />;
-      case 'editUser':
-        return (
-          <EditUserPage
-            member={activeUser}
-            record={activeUserRecord}
-            onBack={() => go('users')}
-            onSaved={(message) => go('users', message)}
+            onAddMemberViaTeam={() => go('teams')}
+            initialQuery={usersSearch}
           />
         );
       case 'clients':
-        return <ClientsPage onOpenClient={openClient} addClientRequest={addClientRequest} />;
-      case 'clientProfile':
+        return <BrandsPage onOpenBrand={openBrand} onAddBrand={() => go('addBrand')} />;
+      case 'brandDetail':
         return (
-          <ClientProfilePage
-            client={activeClient}
+          <BrandDetailPage
+            key={activeBrandId}
+            brandId={activeBrandId}
+            initialMonth={activePlanMonth}
             onBack={() => go('clients')}
-            onEditClient={() => go('editClient')}
+            onAddContent={openAddContent}
+            onDeleted={() => go('clients', 'Brand deleted.')}
           />
         );
-      case 'editClient':
-        return <EditClientPage onBack={() => go('clientProfile')} onSaved={() => go('clients')} />;
+      case 'addBrand':
+        return (
+          <AddBrandPage
+            onBack={() => go('clients')}
+            onSaved={(brand) => {
+              setActiveBrandId(brand.id);
+              go('brandDetail', 'Brand created successfully.');
+            }}
+          />
+        );
+      case 'addContent':
+        return (
+          <AddContentPage
+            key={`${activeBrandId}-${activePlanMonth}`}
+            brandId={activeBrandId}
+            initialMonth={activePlanMonth}
+            onBack={() => go('brandDetail')}
+            onSaved={() => go('brandDetail', 'Content added successfully.')}
+          />
+        );
       case 'teams':
-        return <TeamsPage onOpenTeam={openTeam} clientCount={stats?.totalClients} />;
+        return <TeamsPage onOpenTeam={openTeam} />;
       case 'teamDetails':
-        return <TeamDetailsPage team={activeTeam} onBack={() => go('teams')} />;
+        return (
+          <TeamDetailsPage
+            team={activeTeam}
+            onBack={() => go('teams')}
+            onAddMember={() => go('addTeamMember')}
+            onManageBrands={() => go('manageBrands')}
+            onOpenBrand={openBrand}
+            onDeleted={() => go('teams', 'Team deleted.')}
+          />
+        );
+      case 'addTeamMember':
+        return (
+          <AddTeamMemberPage
+            team={activeTeam}
+            onBack={() => go('teamDetails')}
+            onSaved={(message) => go('teamDetails', message)}
+          />
+        );
+      case 'manageBrands':
+        return (
+          <ManageBrandsPage
+            team={activeTeam}
+            onBack={() => go('teamDetails')}
+            onSaved={(message) => go('teamDetails', message)}
+          />
+        );
       default:
         return (
           <>
-            <div className="crumbs">
-              <nav aria-label="Breadcrumb">
-                <a
-                  href="#home"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onNavigate('dashboard');
-                  }}
-                >
-                  Admin
-                </a>
-                <svg aria-hidden="true" className="icon">
-                  <use href="#i-chevron" />
-                </svg>
-                <strong>Executive Dashboard</strong>
-              </nav>
-
-              <span className="pill is-green live-chip">Live Studio Ops</span>
-            </div>
-
             <section className="page-head">
-              <h1 className="page-head__title">Organization Overview</h1>
-              <p className="page-head__text">
-                Studio health, brand retainers and squad capacity across every active workspace.
-              </p>
+              <h1 className="page-head__title">Dashboard</h1>
             </section>
 
-            <OverviewSection
-              stats={stats}
-              onAddClient={() => go('clients')}
-              onAddUser={() => go('addUser')}
-              onCreateTeam={() => go('teams')}
-              onViewWorkload={() => go('clients')}
-            />
+            <OverviewSection stats={stats} onViewWorkload={() => go('clients')} />
 
             <section className="row row--admin">
               <RolesSection onRoleCreated={handleRoleCreated} onOpenMatrix={() => go('roles')} />
@@ -283,24 +294,27 @@ export default function DashboardPage({
   const actionLabel =
     section === 'roles'
       ? 'New Custom Role'
-      : section === 'clients' || section === 'clientProfile' || section === 'editClient'
-        ? 'Add Client'
-        : section === 'teams' || section === 'teamDetails'
-          ? 'New'
-          : section === 'users' || section === 'addUser' || section === 'editUser'
-            ? 'Add User'
-            : section === 'profile' || section === 'settings'
-              ? null
-              : 'New Brief';
+      : section === 'clients'
+        ? 'Add Brand'
+        : section === 'brandDetail'
+          ? 'Add Content'
+          : section === 'profile' ||
+              section === 'settings' ||
+              section === 'addBrand' ||
+              section === 'addContent' ||
+              section === 'users' ||
+              section === 'teams' ||
+              section === 'teamDetails' ||
+              section === 'addTeamMember' ||
+              section === 'manageBrands'
+            ? null
+            : 'New Brief';
 
   const handleAction = () => {
-    if (section === 'clients' || section === 'clientProfile' || section === 'editClient') {
-      setAddClientRequest((value) => value + 1);
-      go('clients');
-    } else if (section === 'teams' || section === 'teamDetails') {
-      showToast('Create Team drawer is coming soon.', 'info');
-    } else if (section === 'users' || section === 'addUser' || section === 'editUser') {
-      go('addUser');
+    if (section === 'clients') {
+      go('addBrand');
+    } else if (section === 'brandDetail') {
+      openAddContent();
     } else if (section === 'roles') {
       showToast('Opening the custom role builder…', 'info');
     } else {
@@ -309,31 +323,36 @@ export default function DashboardPage({
   };
 
   return (
-    <div className="app" data-collapsed={isCollapsed ? 'true' : 'false'}>
-      <Sidebar
-        isCollapsed={isCollapsed}
-        onToggleCollapse={onToggleCollapse}
-        onNavigate={onNavigate}
-        activeTab={SECTION_TO_TAB[section] ?? section}
-        onSelect={handleSelect}
-        user={user}
-        onSignOut={onSignOut}
-      />
-
-      <div className="workspace">
-        <Topbar
-          theme={theme}
-          onToggleTheme={onToggleTheme}
-          onSignOut={() => setIsSignOutOpen(true)}
-          onNewBrief={() => setIsNewBriefOpen(true)}
-          onOpenHelp={() => setIsHelpOpen(true)}
-          searchPlaceholder={SEARCH_PLACEHOLDERS[section]}
-          actionLabel={actionLabel}
-          onAction={handleAction}
+    <WorkspaceProvider>
+      <BrandsProvider>
+        <div className="app" data-collapsed={isCollapsed ? 'true' : 'false'}>
+        <Sidebar
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggleCollapse}
+          onNavigate={onNavigate}
+          activeTab={SECTION_TO_TAB[section] ?? section}
+          onSelect={handleSelect}
+          user={user}
+          onSignOut={onSignOut}
         />
 
-        <main className="content">{renderSection()}</main>
-      </div>
+        <div className="workspace">
+          <Topbar
+            theme={theme}
+            onToggleTheme={onToggleTheme}
+            onSignOut={() => setIsSignOutOpen(true)}
+            onNewBrief={() => setIsNewBriefOpen(true)}
+            onOpenHelp={() => setIsHelpOpen(true)}
+            onSearchNavigate={navigateFromSearch}
+            onSearchBrand={openBrand}
+            onSearchTeam={openTeam}
+            onSearchUser={searchUser}
+            actionLabel={actionLabel}
+            onAction={handleAction}
+          />
+
+          <main className="content">{renderSection()}</main>
+        </div>
 
       {/* New Creative Brief Creation Modal */}
       <NewBriefModal
@@ -359,7 +378,7 @@ export default function DashboardPage({
         <ul className="modal-list">
           <li>
             <strong>Role Management:</strong> Use the <code>+ New Role</code> modal to configure
-            RBAC permissions for creative teams and client portals.
+            RBAC permissions for creative teams and brand portals.
           </li>
           <li>
             <strong>Briefs &amp; Campaigns:</strong> Launch new creative briefs from the top
@@ -389,8 +408,10 @@ export default function DashboardPage({
         </p>
       </InfoModal>
 
-      {/* Floating Toast Notification */}
-      <Toast message={toast?.message} tone={toast?.tone} />
-    </div>
+          {/* Floating Toast Notification */}
+          <Toast message={toast?.message} tone={toast?.tone} />
+        </div>
+      </BrandsProvider>
+    </WorkspaceProvider>
   );
 }

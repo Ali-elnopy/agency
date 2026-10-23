@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import AuthContext from './AuthContext';
 import { isDevBypassEnabled, loginApi, logout as clearServerSession } from '../services/api';
-import { SESSION_EXPIRED_EVENT } from '../services/http';
 import { updateUser } from '../services/users';
 import {
   getStoredUser,
@@ -39,12 +38,6 @@ function createDevSession(setUser) {
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(() => (hasStoredSession() ? getStoredUser() : null));
-
-  useEffect(() => {
-    const handleExpired = () => setUser(null);
-    window.addEventListener(SESSION_EXPIRED_EVENT, handleExpired);
-    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpired);
-  }, []);
 
   const login = useCallback(async (credentials) => {
     const result = await loginApi(credentials);

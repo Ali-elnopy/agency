@@ -80,43 +80,12 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
 
   return (
     <div className="page-screen">
-      <div className="crumbs">
-        <nav aria-label="Breadcrumb">
-          <button type="button" className="link-action" onClick={onBack}>
-            Users
-          </button>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-          <strong>Edit User</strong>
-        </nav>
-        <span className="pill is-green live-chip">Active Account</span>
-      </div>
-
       <section className="page-head page-head--actions">
         <div className="head-title-group">
           <span className="avatar avatar--lg is-a">{initialsOf(member)}</span>
           <div>
             <div className="page-head__title-row">
               <h1 className="page-head__title">{member}</h1>
-              <span className="pill is-green">
-                <i className="status-dot" />
-                Active Account
-              </span>
-              <span className="pill is-orange">{record?.role || 'Account Manager'}</span>
-            </div>
-            <div className="head-meta">
-              <span>Created {record?.addedAt || 'Oct 14, 2025'}</span>
-              <span>
-                {record?.lastLoginAt
-                  ? `Last active ${new Date(record.lastLoginAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}`
-                  : 'Never signed in'}
-              </span>
-              <span>ID: {record?.id ? `USR-${String(record.id).padStart(5, '0')}` : 'USR-84923'}</span>
             </div>
           </div>
         </div>

@@ -30,11 +30,12 @@ export default function App() {
     return initial === 'dashboard' && !hasStoredSession() ? 'login' : initial;
   });
 
+  // Light is the product default. Only an explicit toggle is remembered, so a
+  // device-level dark preference never forces the workspace into dark mode.
   const [theme, setTheme] = useState(() => {
     try {
-      const saved = localStorage.getItem('theme');
-      if (saved) return saved;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      const saved = localStorage.getItem('orvia_theme_preference');
+      return saved === 'dark' || saved === 'light' ? saved : 'light';
     } catch {
       return 'light';
     }
@@ -48,7 +49,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try {
-      localStorage.setItem('theme', theme);
+      localStorage.setItem('orvia_theme_preference', theme);
     } catch {
       // Theme persistence is optional.
     }

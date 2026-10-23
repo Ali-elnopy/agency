@@ -6,8 +6,11 @@
 @import './styles/dashboard.css';
 @import './styles/settings.css';
 @import './styles/shared.css';
+@import './styles/settings-admin.css';
 @import './styles/rbac.css';
 @import './styles/users.css';
 @import './styles/pages.css';
 @import './styles/clients.css';
+@import './styles/brands.css';
+@import './styles/workspace.css';
 @import './styles/responsive.css';

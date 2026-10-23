@@ -9,9 +9,9 @@ const ROLES = [
   {
     id: 'am',
     name: 'Account Manager',
-    scope: 'Client & Content Operations',
+    scope: 'Brand & Content Operations',
     blurb:
-      'Manage assigned clients, intake client briefs, run AI classifications, review creative deliverables and approve publishing calendars.',
+      'Manage assigned brands, intake brand briefs, run AI classifications, review creative deliverables and approve publishing calendars.',
   },
   {
     id: 'admin',
@@ -152,24 +152,10 @@ export default function AddUserPage({ onBack, onSaved }) {
   return (
     <form className="page-screen au-page" onSubmit={handleSubmit}>
       <div className="au-wrap">
-        <div className="crumbs au-crumbs">
-          <nav aria-label="Breadcrumb">
-            <button type="button" className="link-action" onClick={onBack}>
-              Users
-            </button>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-chevron" />
-            </svg>
-            <strong>Add User</strong>
-          </nav>
-        </div>
-
         <header className="au-head">
           <div className="au-head__copy">
             <h1>Add User</h1>
-            <p>Provision an account and assign workspace privileges to a team member.</p>
           </div>
-          <span className="pill is-green live-chip">Live Workspace Sync</span>
         </header>
 
         <div className="au-card">

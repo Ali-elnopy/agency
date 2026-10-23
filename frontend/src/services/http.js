@@ -1,4 +1,4 @@
-import { clearSession, getAccessToken, getRefreshToken, setSession } from './tokenStorage';
+import { getAccessToken, getRefreshToken, setSession } from './tokenStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -24,11 +24,6 @@ async function readJson(response) {
   } catch {
     return null;
   }
-}
-
-function expireSession() {
-  clearSession();
-  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
 
 let refreshRequest = null;
@@ -119,8 +114,9 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
       return apiRequest(path, { method, body, auth, retry: false });
     }
 
-    expireSession();
-    throw new ApiError('Your session has expired. Please sign in again.', 401);
+    // The workspace keeps the local session alive until the user explicitly
+    // signs out. A rejected request must not force them back to the login page.
+    throw new ApiError('This request was not authorized. You are still signed in.', 401);
   }
 
   const payload = await readJson(response);

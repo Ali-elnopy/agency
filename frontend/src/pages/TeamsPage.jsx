@@ -1,237 +1,144 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
+import Modal from '../components/common/Modal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
-import { getTeams } from '../services/teams';
+import { useWorkspace } from '../context/workspaceStore';
 
-const FILTERS = ['All Squads', 'Creative', 'Strategy', 'Performance'];
+const TONES = ['tone-orange', 'tone-purple', 'tone-blue', 'tone-green', 'tone-amber'];
 
-export default function TeamsPage({ onOpenTeam, clientCount }) {
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState(FILTERS[0]);
-  const [sort, setSort] = useState('Recently Active');
-  const [teams, setTeams] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { toast, showToast } = useToast(3000);
+export default function TeamsPage({ onOpenTeam }) {
+  const { teams, addTeam } = useWorkspace();
+  const { toast, showToast } = useToast(3500);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [form, setForm] = useState({ name: '', description: '' });
+  const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    let alive = true;
+  const openCreate = () => {
+    setForm({ name: '', description: '' });
+    setErrors({});
+    setIsCreateOpen(true);
+  };
 
-    getTeams()
-      .then((items) => {
-        if (alive) setTeams(items);
-      })
-      .catch(() => {
-        if (alive) setTeams([]);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
+  const closeCreate = () => {
+    setIsCreateOpen(false);
+    setErrors({});
+  };
 
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const updateField = (field) => (event) => {
+    setForm((prev) => ({ ...prev, [field]: event.target.value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
 
-  const visibleTeams = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+  const createTeam = () => {
+    const name = form.name.trim();
 
-    return teams.filter((team) => {
-      if (filter !== FILTERS[0] && team.category !== filter) return false;
-      if (
-        needle &&
-        !`${team.name} ${team.blurb} ${team.lead} ${team.ecosystem.join(' ')}`
-          .toLowerCase()
-          .includes(needle)
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [teams, query, filter]);
+    if (!name) {
+      setErrors({ name: 'Team name is required.' });
+      return;
+    }
 
-  const totalTalent = teams.reduce((total, team) => total + (team.members || 0), 0);
-  const accountCount = Number.isFinite(clientCount) ? clientCount : 27;
+    if (teams.some((team) => team.name.toLowerCase() === name.toLowerCase())) {
+      setErrors({ name: 'A team with this name already exists.' });
+      return;
+    }
+
+    addTeam({ name, description: form.description });
+    closeCreate();
+    showToast('Team created successfully.');
+  };
 
   return (
-    <div className="page-screen">
-      <div className="crumbs">
-        <nav aria-label="Breadcrumb">
-          <span>Admin</span>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-          <strong>Teams</strong>
-        </nav>
-        <span className="pill is-green live-chip">Production Mode</span>
-      </div>
-
-      <section className="page-head page-head--actions">
+    <div className="ws-page">
+      <section className="ws-page-head">
         <div>
-          <div className="page-head__title-row">
-            <h1 className="page-head__title">Teams</h1>
-            <span className="pill is-orange">{teams.length} Teams Active</span>
-          </div>
-          <p className="page-head__text">
-            Organize creative personnel, squad capacities, and assigned brand client ecosystems.
-          </p>
+          <span className="ws-eyebrow">Team Management</span>
+          <h1 className="ws-page-title">Teams</h1>
+          <p className="ws-page-sub">Organize members and assign brands to each team.</p>
         </div>
-        <div className="head-badges">
-          <span className="head-badge">
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-users" />
-            </svg>
-            <span>
-              Total Talent
-              <br />
-              <strong>{totalTalent} Specialists</strong>
-            </span>
-          </span>
-          <span className="head-badge">
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-briefcase" />
-            </svg>
-            <span>
-              Active Brands
-              <br />
-              <strong>{accountCount} Accounts</strong>
-            </span>
-          </span>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => showToast('Opening the create team flow…', 'info')}
-          >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            Create Team
-          </button>
-        </div>
+
+        <button type="button" className="ws-btn ws-btn--primary" onClick={openCreate}>
+          <svg aria-hidden="true" className="icon">
+            <use href="#i-plus" />
+          </svg>
+          Add Team
+        </button>
       </section>
 
-      <div className="filters">
-        <label className="search">
-          <input
-            type="search"
-            placeholder="Search teams by name, member or client…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-search" />
-          </svg>
-        </label>
+      {teams.length ? (
+        <div className="ws-team-grid">
+          {teams.map((team, index) => (
+            <article className="ws-team-card" key={team.id}>
+              <div className="ws-team-card__top">
+                <span className={`ws-team-mark ${TONES[index % TONES.length]}`}>
+                  {team.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="ws-badge ws-badge--active">Active</span>
+              </div>
 
-        <span className="filter-select">
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            {FILTERS.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-        </span>
+              <h2 className="ws-team-card__name">{team.name}</h2>
+              <p className="ws-team-card__text">
+                {team.description?.trim() || 'No description added.'}
+              </p>
 
-        <span className="filter-select">
-          <select value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option>Recently Active</option>
-            <option>Capacity (High → Low)</option>
-            <option>Members (High → Low)</option>
-            <option>Name (A → Z)</option>
-          </select>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-        </span>
-
-        <button
-          type="button"
-          className="button button--ghost button--sm"
-          onClick={() => showToast('Exporting team roster…', 'info')}
-        >
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-download" />
-          </svg>
-          Export
-        </button>
-      </div>
-
-      {visibleTeams.length > 0 ? (
-        <div className="team-grid">
-          {visibleTeams.map((team) => (
-            <article key={team.id} className={`team-card ${team.tone}`}>
-              <div className="team-card__top">
-                <div className="team-card__chips">
-                  <span className="pill is-green">
-                    <i className="status-dot" />
-                    Active
-                  </span>
-                  <span className="pill is-gray">{team.members} Members</span>
-                  <span className="pill is-gray">{team.clients} Clients</span>
-                </div>
-                <span className={`tile ${team.tone}`}>
+              <div className="ws-team-card__foot">
+                <button type="button" className="ws-open-team" onClick={() => onOpenTeam(team.name)}>
+                  Open Team
                   <svg aria-hidden="true" className="icon">
-                    <use href="#i-layers" />
+                    <use href="#i-arrow" />
                   </svg>
-                </span>
-              </div>
-
-              <h2 className="team-card__title">{team.name}</h2>
-              <p className="team-card__text">{team.blurb}</p>
-
-              <div className="team-card__lead">
-                <span className="cl-avatars">
-                  {[team.lead, ...team.ecosystem].slice(0, 3).map((person) => (
-                    <span key={person} className="cl-avatar cl-avatar--gray">
-                      {person
-                        .split(' ')
-                        .map((part) => part[0])
-                        .join('')
-                        .padEnd(2, person[1] || '')
-                        .substring(0, 2)
-                        .toUpperCase()}
-                    </span>
-                  ))}
-                  {team.extra > 0 && (
-                    <span className="cl-avatar cl-avatar--orange">+{team.extra}</span>
-                  )}
-                </span>
-                <div>
-                  <small>Squad Lead</small>
-                  <strong>{team.lead}</strong>
-                </div>
-                <span className="pill is-orange">{team.leadRole}</span>
-              </div>
-
-              <div>
-                <span className="eco-label">Client Ecosystem</span>
-                <div className="eco-tags">
-                  {team.ecosystem.map((brand) => (
-                    <span key={brand} className="eco-tag">
-                      <i /> {brand}
-                    </span>
-                  ))}
-                  {team.extra > 0 && <span className="eco-tag">+{team.extra} more</span>}
-                </div>
-              </div>
-
-              <div className="team-card__foot">
-                <span className={`capacity ${team.capacityState}`}>{team.capacityLabel}</span>
-                <button type="button" className="link-action" onClick={() => onOpenTeam(team.name)}>
-                  View Team →
                 </button>
               </div>
             </article>
           ))}
         </div>
       ) : (
-        <section className="panel">
-          <p className="sub" style={{ padding: '8px 0' }}>
-            {loading ? 'Loading teams…' : 'No teams match the current filters.'}
-          </p>
-        </section>
+        <div className="ws-empty ws-empty--panel">
+          <strong>No teams yet.</strong>
+          <p>Create a team to start assigning members and brands.</p>
+        </div>
       )}
+
+      <Modal
+        isOpen={isCreateOpen}
+        onClose={closeCreate}
+        title="Add Team"
+        subtitle="Create a new team for your workspace."
+        icon="#i-layers"
+        maxWidth="520px"
+        footer={
+          <>
+            <button type="button" className="ws-btn ws-btn--ghost" onClick={closeCreate}>
+              Cancel
+            </button>
+            <button type="button" className="ws-btn ws-btn--primary" onClick={createTeam}>
+              Create Team
+            </button>
+          </>
+        }
+      >
+        <label className={`ws-field${errors.name ? ' is-invalid' : ''}`}>
+          <span>Team Name</span>
+          <input
+            className="ws-input"
+            value={form.name}
+            onChange={updateField('name')}
+            placeholder="Example: Brand Strategy & Growth"
+            autoFocus
+          />
+          {errors.name && <small className="ws-error">{errors.name}</small>}
+        </label>
+
+        <label className="ws-field">
+          <span>Description</span>
+          <textarea
+            className="ws-textarea"
+            rows={4}
+            value={form.description}
+            onChange={updateField('description')}
+            placeholder="What does this team own?"
+          />
+        </label>
+      </Modal>
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </div>

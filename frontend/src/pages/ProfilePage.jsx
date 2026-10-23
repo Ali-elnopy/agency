@@ -104,24 +104,12 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="page-screen au-page">
-      <div className="au-wrap">
-        <div className="crumbs au-crumbs">
-          <nav aria-label="Breadcrumb">
-            <span>Account</span>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-chevron" />
-            </svg>
-            <strong>My Profile</strong>
-          </nav>
-        </div>
-
+    <div className="page-screen au-page au-page--profile">
+      <div className="au-wrap au-wrap--profile">
         <header className="au-head">
           <div className="au-head__copy">
-            <h1>My Profile</h1>
-            <p>Manage your personal details and workspace identity.</p>
+            <h1>Profile</h1>
           </div>
-          <span className="pill is-green live-chip">Active Member</span>
         </header>
 
         <div className="au-card">

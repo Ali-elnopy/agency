@@ -217,16 +217,6 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                 ))}
               </div>
             )}
-
-            <div className="divider">Or continue with SSO</div>
-
-            <button type="button" className="btn btn--ghost">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="3.5" y="10.5" width="17" height="10" rx="2.5" />
-                <path d="M7.5 10.5V7.5a4.5 4.5 0 0 1 9 0v3M12 15v2" />
-              </svg>
-              Sign in with SAML / OIDC / SSO
-            </button>
           </form>
         </div>
 

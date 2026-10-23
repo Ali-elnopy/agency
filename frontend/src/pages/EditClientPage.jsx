@@ -56,24 +56,6 @@ export default function EditClientPage({ onBack, onSaved }) {
 
   return (
     <div className="page-screen ec-page">
-      <div className="crumbs ec-crumbs">
-        <nav aria-label="Breadcrumb">
-          <button type="button" className="link-action" onClick={onBack}>
-            Clients
-          </button>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-          <button type="button" className="link-action" onClick={onBack}>
-            {form.brandName}
-          </button>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-          <span className="pill is-orange">Edit</span>
-        </nav>
-      </div>
-
       <header className="ec-hero">
         <div className="ec-hero__id">
           <span className="ec-hero__logo">

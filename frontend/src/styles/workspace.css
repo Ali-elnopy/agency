@@ -1,0 +1,1290 @@
+/* ==========================================================================
+   Workspace — Users, Teams, team membership and brand assignment.
+   Built on the ORVIA tokens so light / dark mode stay consistent.
+   ========================================================================== */
+
+.ws-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Page headers + shared controls
+   -------------------------------------------------------------------------- */
+.ws-page-head,
+.ws-team-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ws-page-head > div,
+.ws-team-head > div {
+  min-width: 0;
+}
+
+.ws-eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ws-page-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.ws-page-sub,
+.ws-team-desc {
+  max-width: 760px;
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.ws-team-desc {
+  margin-top: 10px;
+}
+
+.ws-back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  padding: 0;
+  font: 600 12px var(--font-sans);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.ws-back:hover {
+  color: var(--accent-text);
+}
+
+.ws-back span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ws-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  font: 600 12px var(--font-sans);
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+  transition:
+    transform 0.18s,
+    border-color 0.18s,
+    background 0.18s,
+    color 0.18s;
+}
+
+.ws-btn .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.ws-btn:hover {
+  transform: translateY(-1px);
+}
+
+.ws-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ws-btn--primary {
+  color: #ffffff;
+  background: linear-gradient(90deg, #f7743f, var(--orange-dark));
+  border-color: transparent;
+  box-shadow: 0 8px 18px -9px rgba(217, 83, 31, 0.7);
+}
+
+.ws-btn--primary:hover {
+  box-shadow: 0 10px 22px -9px rgba(217, 83, 31, 0.8);
+}
+
+.ws-btn--ghost {
+  background: var(--card);
+  border-color: var(--line);
+}
+
+.ws-btn--ghost:hover {
+  border-color: color-mix(in srgb, var(--orange) 42%, var(--line));
+  color: var(--accent-text);
+}
+
+.ws-btn--danger {
+  color: #ffffff;
+  background: var(--red);
+  border-color: transparent;
+  box-shadow: 0 8px 18px -9px rgba(229, 72, 77, 0.7);
+}
+
+.ws-btn--danger-ghost {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 7%, var(--card));
+  border-color: color-mix(in srgb, var(--red) 26%, var(--line));
+}
+
+.ws-btn--danger-ghost:hover {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--red) 50%, var(--line));
+}
+
+.ws-btn:focus-visible,
+.ws-back:focus-visible,
+.ws-link:focus-visible,
+.ws-open-team:focus-visible,
+.ws-remove:focus-visible,
+.ws-brand-row:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--orange) 62%, transparent);
+  outline-offset: 2px;
+}
+
+.ws-link {
+  padding: 0;
+  font: 600 12px var(--font-sans);
+  color: var(--accent-text);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.ws-link:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   KPI cards
+   -------------------------------------------------------------------------- */
+.ws-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.ws-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 24px 24px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.ws-kpi__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ws-kpi__value {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Users directory + inline editor
+   -------------------------------------------------------------------------- */
+.ws-filter-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.ws-filter-note strong {
+  color: var(--ink);
+}
+
+.ws-user-list {
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.ws-user-row {
+  padding: 26px 30px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ws-user-row:last-child {
+  border-bottom: 0;
+}
+
+.ws-user-row__main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ws-name-line,
+.ws-member-name-line,
+.ws-team-title-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.ws-user-name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.ws-user-meta {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.ws-user-team {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.ws-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 21px;
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.065em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.ws-badge--active {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  border-color: color-mix(in srgb, var(--green) 20%, transparent);
+}
+
+.ws-badge--inactive {
+  color: var(--muted);
+  background: var(--soft);
+  border-color: var(--line);
+}
+
+.ws-badge--role {
+  color: var(--label);
+  background: var(--soft);
+  border-color: var(--line);
+}
+
+.ws-row-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 9px;
+  padding-top: 2px;
+}
+
+.ws-editor {
+  margin-top: 22px;
+  padding: 24px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.ws-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.ws-access-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 20px;
+  margin-top: 18px;
+}
+
+.ws-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.ws-field > span:first-child {
+  line-height: 1.35;
+}
+
+.ws-field em {
+  font-style: normal;
+  color: var(--red);
+}
+
+.ws-input,
+.ws-select,
+.ws-textarea {
+  width: 100%;
+  padding: 0 14px;
+  font: 500 13px var(--font-sans);
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  outline: 0;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+
+.ws-input,
+.ws-select {
+  height: 43px;
+}
+
+.ws-textarea {
+  min-height: 104px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.ws-input::placeholder,
+.ws-textarea::placeholder {
+  color: var(--faint);
+}
+
+.ws-input:focus,
+.ws-select:focus,
+.ws-textarea:focus {
+  border-color: color-mix(in srgb, var(--orange) 58%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--orange) 12%, transparent);
+}
+
+.ws-select-wrap {
+  position: relative;
+  display: block;
+}
+
+.ws-select-wrap .ws-select {
+  padding-right: 38px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.ws-select-wrap .icon {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 11px;
+  height: 11px;
+  color: var(--muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: transform 0.18s;
+}
+
+.ws-select-wrap:focus-within .icon {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.ws-field.is-invalid .ws-input,
+.ws-field.is-invalid .ws-select,
+.ws-field.is-invalid .ws-textarea {
+  border-color: color-mix(in srgb, var(--red) 65%, var(--line));
+}
+
+.ws-error {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--red);
+}
+
+.ws-hint {
+  margin-top: -2px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+.ws-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 43px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--label);
+  cursor: pointer;
+}
+
+.ws-inline-check input,
+.ws-permission input,
+.ws-brand-choice input,
+.ws-permission-card input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--orange);
+  cursor: pointer;
+}
+
+.ws-permissions {
+  margin-top: 20px;
+  padding: 0;
+  border: 0;
+}
+
+.ws-permissions legend {
+  padding: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.ws-permission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 28px;
+  margin-top: 11px;
+  padding: 16px 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.ws-permission {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ws-permission.is-locked {
+  color: var(--muted);
+  cursor: default;
+}
+
+.ws-permission input:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.ws-permission-note {
+  margin-top: 11px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--faint);
+}
+
+.ws-editor__foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* --------------------------------------------------------------------------
+   Teams directory
+   -------------------------------------------------------------------------- */
+.ws-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(292px, 1fr));
+  gap: 22px;
+}
+
+.ws-team-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 258px;
+  padding: 25px 27px 24px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.18s,
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+
+.ws-team-card:hover {
+  border-color: color-mix(in srgb, var(--orange) 30%, var(--line));
+  box-shadow: 0 14px 30px -20px rgba(29, 27, 46, 0.45);
+  transform: translateY(-2px);
+}
+
+.ws-team-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ws-team-mark {
+  display: grid;
+  place-items: center;
+  width: 49px;
+  height: 49px;
+  font-size: 21px;
+  font-weight: 800;
+  color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px -10px rgba(29, 27, 46, 0.7);
+}
+
+.tone-orange {
+  background: linear-gradient(135deg, #f98a5d, var(--orange-dark));
+}
+
+.tone-purple {
+  background: linear-gradient(135deg, #8b7cf6, #5341c6);
+}
+
+.tone-blue {
+  background: linear-gradient(135deg, #57b2e8, #2974bd);
+}
+
+.tone-green {
+  background: linear-gradient(135deg, #49c895, #25835f);
+}
+
+.tone-amber {
+  background: linear-gradient(135deg, #f2be56, #c7810a);
+}
+
+.ws-team-card__name {
+  margin-top: 20px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.ws-team-card__text {
+  flex: 1;
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.ws-team-card__foot {
+  margin-top: 22px;
+  padding-top: 19px;
+  border-top: 1px solid var(--line);
+}
+
+.ws-open-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  font: 600 13px var(--font-sans);
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition:
+    color 0.18s,
+    gap 0.18s;
+}
+
+.ws-open-team .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-text);
+}
+
+.ws-open-team:hover {
+  gap: 14px;
+  color: var(--accent-text);
+}
+
+/* --------------------------------------------------------------------------
+   Team detail
+   -------------------------------------------------------------------------- */
+.ws-team-title-line h1 {
+  margin: 0;
+}
+
+.ws-team-head > .ws-btn {
+  margin-top: 4px;
+}
+
+.ws-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.ws-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 21px 24px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.ws-stat-card__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ws-stat-card__value {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.ws-team-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 22px;
+}
+
+.ws-panel {
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.ws-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ws-panel__head h2 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.ws-panel__head p {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.ws-panel__head .ws-btn {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 11.5px;
+}
+
+.ws-member-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 19px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ws-member-row:last-child {
+  border-bottom: 0;
+}
+
+.ws-member-avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--orange) 13%, var(--soft));
+  border: 1px solid color-mix(in srgb, var(--orange) 20%, var(--line));
+  border-radius: 50%;
+}
+
+.ws-member-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ws-member-name-line strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ws-member-job {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.ws-member-email {
+  font-size: 10.5px;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
+
+.ws-remove {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0;
+  font: 600 11px var(--font-sans);
+  color: var(--red);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.ws-remove:hover {
+  text-decoration: underline;
+}
+
+.ws-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 19px 24px;
+  font-family: var(--font-sans);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.ws-brand-row:last-child {
+  border-bottom: 0;
+}
+
+.ws-brand-row:hover {
+  background: var(--soft);
+}
+
+.ws-brand-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ws-brand-row__body strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ws-brand-row__body small {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.ws-brand-row__arrow {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+  transition:
+    color 0.18s,
+    transform 0.18s;
+}
+
+.ws-brand-row:hover .ws-brand-row__arrow {
+  color: var(--accent-text);
+  transform: translateX(2px);
+}
+
+/* --------------------------------------------------------------------------
+   Add member form
+   -------------------------------------------------------------------------- */
+.ws-form-page {
+  width: 100%;
+  max-width: 1040px;
+}
+
+.ws-form-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ws-form-card {
+  padding: 30px 32px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.ws-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 21px;
+}
+
+.ws-permissions--form {
+  margin-top: 2px;
+}
+
+.ws-permission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 11px;
+}
+
+.ws-permission-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 14px 17px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s;
+}
+
+.ws-permission-card:has(input:checked) {
+  border-color: color-mix(in srgb, var(--orange) 38%, var(--line));
+  background: color-mix(in srgb, var(--orange) 5%, var(--soft));
+}
+
+.ws-permission-card.is-locked {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.ws-permission-card input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.ws-permission-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ws-permission-card__body strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ws-permission-card__body small {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ws-callout {
+  padding: 17px 19px;
+  background: color-mix(in srgb, var(--orange) 6%, var(--soft));
+  border: 1px solid color-mix(in srgb, var(--orange) 18%, var(--line));
+  border-radius: 10px;
+}
+
+.ws-callout strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.ws-callout p {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.ws-form-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 11px;
+  margin-top: 4px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+/* --------------------------------------------------------------------------
+   Manage brands
+   -------------------------------------------------------------------------- */
+.ws-manage-card {
+  padding: 23px 25px 25px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.ws-manage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ws-brand-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ws-brand-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s;
+}
+
+.ws-brand-choice:hover {
+  border-color: color-mix(in srgb, var(--orange) 30%, var(--line));
+}
+
+.ws-brand-choice.is-checked {
+  background: color-mix(in srgb, var(--orange) 5%, var(--soft));
+  border-color: color-mix(in srgb, var(--orange) 56%, var(--line));
+}
+
+.ws-brand-choice input {
+  flex-shrink: 0;
+}
+
+.ws-brand-choice__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ws-brand-choice__body strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ws-brand-choice__body small {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.ws-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 20px;
+  padding: 3px 8px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.ws-status--active {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  border-color: color-mix(in srgb, var(--green) 20%, transparent);
+}
+
+.ws-status--onboarding {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 13%, transparent);
+  border-color: color-mix(in srgb, var(--amber) 22%, transparent);
+}
+
+.ws-status--archived {
+  color: var(--muted);
+  background: var(--soft);
+  border-color: var(--line);
+}
+
+/* --------------------------------------------------------------------------
+   Empty states + modal copy
+   -------------------------------------------------------------------------- */
+.ws-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 38px 24px;
+  text-align: center;
+}
+
+.ws-empty strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ws-empty p {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.ws-empty--panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.ws-modal-copy {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.ws-modal-copy strong {
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Dark theme adjustments
+   -------------------------------------------------------------------------- */
+[data-theme='dark'] .ws-btn--primary {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .ws-member-avatar {
+  color: #ffb397;
+}
+
+[data-theme='dark'] .ws-team-card:hover {
+  box-shadow: 0 16px 32px -22px rgba(0, 0, 0, 0.75);
+}
+
+[data-theme='dark'] .ws-badge--role,
+[data-theme='dark'] .ws-badge--inactive {
+  color: var(--label);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 1100px) {
+  .ws-team-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .ws-page-head,
+  .ws-team-head {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ws-page-head > .ws-btn,
+  .ws-team-head > .ws-btn {
+    align-self: flex-start;
+  }
+
+  .ws-form-grid,
+  .ws-access-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-access-row {
+    align-items: start;
+    gap: 12px;
+  }
+
+  .ws-inline-check {
+    height: auto;
+  }
+
+  .ws-permission-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-form-card {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 720px) {
+  .ws-kpis,
+  .ws-stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .ws-user-row {
+    padding: 21px 20px;
+  }
+
+  .ws-user-row__main {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ws-row-actions {
+    flex-wrap: wrap;
+    padding-top: 0;
+  }
+
+  .ws-editor {
+    padding: 18px;
+  }
+
+  .ws-panel__head {
+    flex-wrap: wrap;
+  }
+
+  .ws-member-row {
+    flex-wrap: wrap;
+  }
+
+  .ws-remove {
+    width: 100%;
+    margin-left: 52px;
+    text-align: left;
+  }
+
+  .ws-brand-choice {
+    flex-wrap: wrap;
+  }
+
+  .ws-status {
+    margin-left: 30px;
+  }
+
+  .ws-form-page {
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .ws-page {
+    gap: 17px;
+  }
+
+  .ws-page-title {
+    font-size: 25px;
+  }
+
+  .ws-page-head > .ws-btn,
+  .ws-form-foot .ws-btn {
+    width: 100%;
+  }
+
+  .ws-form-foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .ws-team-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-team-card {
+    min-height: 0;
+  }
+
+  .ws-brand-choice__body {
+    flex-basis: calc(100% - 32px);
+  }
+
+  .ws-status {
+    margin-left: 30px;
+  }
+}

@@ -1125,6 +1125,16 @@
   margin: 0 auto;
 }
 
+/* Profile owns the personal-details form, so it can use the full workspace
+   width instead of the narrow provisioning sheet used by Add User. */
+.au-wrap--profile {
+  max-width: 1080px;
+}
+
+.au-page--profile .au-head__copy p {
+  max-width: 640px;
+}
+
 .au-page .au-crumbs {
   padding-bottom: 0;
 }

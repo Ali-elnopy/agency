@@ -6,7 +6,7 @@ import Logo from '../Logo';
 // Settings is not a nav item either: it lives behind the gear icon in the user card.
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '#i-dashboard' },
-  { id: 'clients', label: 'Clients', icon: '#i-briefcase' },
+  { id: 'clients', label: 'Brands', icon: '#i-briefcase' },
   { id: 'teams', label: 'Teams', icon: '#i-layers' },
   { id: 'users', label: 'Users', icon: '#i-users' },
   { id: 'profile', label: 'Profile', icon: '#i-user' },
@@ -82,22 +82,24 @@ export default function Sidebar({
 
         <nav className="nav">
           {NAV_ITEMS.map((item) => (
-            <a
-              key={item.id}
-              href={`#${item.id}`}
-              className={`nav__item ${activeTab === item.id ? 'is-active' : ''}`}
-              onClick={(e) => {
-                e.preventDefault();
-                selectTab(item.id);
-              }}
-              title={item.soon ? `${item.label} — coming soon` : item.label}
-              aria-disabled={item.soon || undefined}
-            >
-              <svg aria-hidden="true" className="icon">
-                <use href={item.icon} />
-              </svg>
-              <span className="sb-label">{item.label}</span>
-            </a>
+            <React.Fragment key={item.id}>
+              {item.id === 'profile' ? <span className="nav__divider" aria-hidden="true" /> : null}
+              <a
+                href={`#${item.id}`}
+                className={`nav__item ${activeTab === item.id ? 'is-active' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  selectTab(item.id);
+                }}
+                title={item.soon ? `${item.label} — coming soon` : item.label}
+                aria-disabled={item.soon || undefined}
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href={item.icon} />
+                </svg>
+                <span className="sb-label">{item.label}</span>
+              </a>
+            </React.Fragment>
           ))}
         </nav>
 

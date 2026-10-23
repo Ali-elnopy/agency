@@ -2,120 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import ClientDrawer from '../components/ClientDrawer';
 import useToast from '../hooks/useToast';
-
-const CLIENTS = [
-  {
-    id: 1,
-    name: 'Lumina Health',
-    initials: 'LH',
-    tone: 'is-orange',
-    verified: true,
-    industry: 'HealthTech & Telehealth',
-    manager: 'Marcus Vance',
-    managerInitials: 'MV',
-    managerClients: 6,
-    team: 'Brand Strategy Squad',
-    teamAvatars: ['LK', 'AB', 'JR'],
-    status: 'active',
-    created: 'Oct 14, 2024',
-  },
-  {
-    id: 2,
-    name: 'Kinetic Motors',
-    initials: 'KM',
-    tone: 'is-blue',
-    industry: 'EV Automotive & Fleet',
-    manager: 'Sarah Jenkins',
-    managerInitials: 'SJ',
-    managerClients: 5,
-    team: 'Performance Ops',
-    teamAvatars: ['DR', 'TM', 'KP'],
-    status: 'active',
-    created: 'Nov 02, 2024',
-  },
-  {
-    id: 3,
-    name: 'Aura Skincare',
-    initials: 'AS',
-    tone: 'is-pink',
-    industry: 'Organic Cosmetics',
-    manager: 'Maya Lin',
-    managerInitials: 'ML',
-    managerClients: 4,
-    team: 'Creative Direction & Motion',
-    teamAvatars: ['AC', 'NB', 'SD'],
-    status: 'active',
-    created: 'Dec 12, 2024',
-  },
-  {
-    id: 4,
-    name: 'Vertex AI',
-    initials: 'VX',
-    tone: 'is-purple',
-    industry: 'Enterprise AI SaaS',
-    manager: 'David Chen',
-    managerInitials: 'DC',
-    managerClients: 3,
-    team: 'Brand Strategy Squad',
-    teamAvatars: ['LM', 'RS'],
-    status: 'active',
-    created: 'Jan 09, 2025',
-  },
-  {
-    id: 5,
-    name: 'Nova Robotics',
-    initials: 'NR',
-    tone: 'is-orange',
-    attention: true,
-    industry: 'Industrial Automation',
-    manager: '',
-    team: '',
-    status: 'onboarding',
-    created: 'Feb 14, 2025',
-  },
-  {
-    id: 6,
-    name: 'Bloom Care Group',
-    initials: 'BC',
-    tone: 'is-gray',
-    industry: 'Hospitality Franchise',
-    manager: 'Sarah Jenkins',
-    managerInitials: 'SJ',
-    managerClients: 5,
-    team: 'Brand Strategy',
-    teamAvatars: ['SJ'],
-    status: 'archived',
-    created: 'Jul 19, 2024',
-  },
-  {
-    id: 7,
-    name: 'Solaris Energy',
-    initials: 'SE',
-    tone: 'is-amber',
-    industry: 'Renewable Energy',
-    manager: 'Liam Chen',
-    managerInitials: 'LC',
-    managerClients: 2,
-    team: 'Editorial & Brand Voice',
-    teamAvatars: ['LC', 'EP'],
-    status: 'active',
-    created: 'May 15, 2024',
-  },
-  {
-    id: 8,
-    name: 'Apex Dynamics',
-    initials: 'AD',
-    tone: 'is-purple',
-    industry: 'Aerospace Engineering',
-    manager: 'Elana Vance',
-    managerInitials: 'EV',
-    managerClients: 4,
-    team: 'Digital Product Design',
-    teamAvatars: ['EV', 'MK'],
-    status: 'active',
-    created: 'Apr 30, 2024',
-  },
-];
+import { CLIENTS } from '../data/clients';
 
 const MANAGERS = [
   'All Managers (18 Clients)',
@@ -260,40 +147,11 @@ export default function ClientsPage({ onOpenClient, addClientRequest = 0 }) {
 
   return (
     <div className="page-screen">
-      <section className="cl-hero">
-        <span className="cl-hero__icon">
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-file" />
-          </svg>
-        </span>
-        <div className="cl-hero__body">
-          <p className="cl-hero__line">
-            <span className="cl-hero__tag">Core Rule</span>
-            <strong>One Client = One Brand</strong>
-          </p>
-          <p className="cl-hero__text">
-            Each client workspace encapsulates unified brand guidelines, isolated assets, bespoke
-            approval stages, and dedicated content cycles.
-          </p>
-        </div>
-        <span className="cl-hero__pill">
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-alert" />
-          </svg>
-          Inspect Capacity
-        </span>
-      </section>
-
       <header className="cl-head">
         <div>
           <div className="cl-head__title">
-            <h1>Clients Directory</h1>
-            <span className="pill is-orange">18 Active Brands • 2 Archived</span>
+            <h1>Clients</h1>
           </div>
-          <p className="cl-head__sub">
-            Govern multi-brand agency workspaces, assign account directors, and balance creative
-            sprint squads.
-          </p>
         </div>
       </header>
 

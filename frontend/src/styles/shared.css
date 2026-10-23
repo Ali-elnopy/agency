@@ -7,6 +7,12 @@
   gap: 18px;
 }
 
+.workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .page-head--actions {
   display: flex;
   align-items: flex-start;

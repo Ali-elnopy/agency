@@ -55,20 +55,8 @@ export default function RolesPermissionsPage({ onOpenUsers }) {
 
   return (
     <div className="page-screen" id="view-panel" role="tabpanel" aria-labelledby="view-tab-roles">
-      <div className="crumbs">
-        <nav aria-label="Breadcrumb">
-          <span>Workspace</span>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-          <span>Admin Governance</span>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-chevron" />
-          </svg>
-          <strong>Roles &amp; Permissions</strong>
-        </nav>
-
-        {onOpenUsers && (
+      {onOpenUsers && (
+        <div className="workspace-tabs">
           <ViewTabs
             label="Users workspace"
             tabs={VIEW_TABS}
@@ -77,23 +65,14 @@ export default function RolesPermissionsPage({ onOpenUsers }) {
               if (id === 'users') onOpenUsers();
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       <section className="page-head page-head--actions">
         <div>
           <div className="page-head__title-row">
             <h1 className="page-head__title">Roles &amp; Permissions</h1>
-            <span className="pill is-orange">RBAC Engine v3.4</span>
-            <span className="pill is-green">
-              <i className="status-dot" />
-              SCIM Sync Active
-            </span>
           </div>
-          <p className="page-head__text">
-            Configure and enforce granular module permissions according to each user&apos;s job
-            function across all 24 brands.
-          </p>
         </div>
 
         <div className="page-head__actions">
