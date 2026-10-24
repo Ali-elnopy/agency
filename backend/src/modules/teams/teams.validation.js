@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 const positiveId = z.number().int().positive();
@@ -14,6 +13,7 @@ export const createTeamSchema = z
     name: z.string().trim().min(2).max(100),
     description: z.string().trim().max(2000).nullable().optional(),
     memberIds: memberIdsSchema.optional(),
+    teamLeadId: positiveId.nullable().optional(),
   })
   .strict();
 
@@ -22,6 +22,7 @@ export const updateTeamSchema = z
     name: z.string().trim().min(2).max(100).optional(),
     description: z.string().trim().max(2000).nullable().optional(),
     isActive: z.boolean().optional(),
+    teamLeadId: positiveId.nullable().optional(),
   })
   .strict()
   .refine((data) => Object.keys(data).length > 0, {

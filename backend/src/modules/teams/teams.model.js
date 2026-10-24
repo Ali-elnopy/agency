@@ -26,14 +26,25 @@ const teamSelect = {
   description: true,
   isActive: true,
   createdBy: true,
+  teamLeadId: true,
   createdAt: true,
   updatedAt: true,
+
   creator: {
     select: {
       id: true,
       fullName: true,
     },
   },
+
+  teamLead: {
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+    },
+  },
+
   memberships: {
     orderBy: { joinedAt: 'asc' },
     select: {
@@ -43,6 +54,7 @@ const teamSelect = {
       },
     },
   },
+
   _count: {
     select: { memberships: true },
   },
@@ -141,13 +153,44 @@ export const TeamsModel = {
     });
   },
 
-  async update(id, data) {
-    await prisma.team.update({
-      where: { id },
-      data,
-    });
+  async update(id, data, teamLeadId) {
+    return prisma.$transaction(async (tx) => {
+      const updateData = { ...data };
 
-    return this.findById(id);
+      if (teamLeadId !== undefined) {
+        updateData.teamLeadId = teamLeadId;
+      }
+
+      await tx.team.update({
+        where: { id },
+        data: updateData,
+      });
+
+      // If a leader is assigned, ensure they are a member of this team.
+      if (teamLeadId !== undefined && teamLeadId !== null) {
+        await tx.teamMembership.upsert({
+          where: {
+            teamId_userId: {
+              teamId: id,
+              userId: teamLeadId,
+            },
+          },
+          create: {
+            teamId: id,
+            userId: teamLeadId,
+          },
+          update: {},
+        });
+      }
+
+      // Setting teamLeadId to null removes the leadership role only.
+      // It does not remove the user from team membership.
+
+      return tx.team.findUnique({
+        where: { id },
+        select: teamSelect,
+      });
+    });
   },
 
   async addMember(teamId, userId) {

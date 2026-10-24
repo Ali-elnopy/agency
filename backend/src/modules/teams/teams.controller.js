@@ -76,6 +76,7 @@ export const TeamsController = {
       data: team,
     });
   }),
+<<<<<<< HEAD
 
   removeTeam: asyncHandler(async (req, res) => {
     const team = await TeamsService.deleteTeam(req.params.id);
@@ -87,3 +88,6 @@ export const TeamsController = {
     });
   }),
 };
+=======
+};
+>>>>>>> 13b0478 (feat: improve team management API)

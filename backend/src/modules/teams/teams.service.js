@@ -96,7 +96,22 @@ export const TeamsService = {
   },
 
   async createTeam(input, adminId) {
-    const memberIds = [...(input.memberIds ?? [])];
+    const teamLeadId =
+      input.teamLeadId == null
+        ? null
+        : parseId(input.teamLeadId, 'Team Leader ID');
+
+    const memberIds = [...new Set(input.memberIds ?? [])];
+
+    // A team leader must be eligible to join a team.
+    if (teamLeadId !== null) {
+      await assertEligibleUsers([teamLeadId]);
+
+      // Automatically make the team leader a team member.
+      if (!memberIds.includes(teamLeadId)) {
+        memberIds.push(teamLeadId);
+      }
+    }
 
     await assertEligibleUsers(memberIds);
 
@@ -105,6 +120,7 @@ export const TeamsService = {
         {
           name: input.name,
           description: input.description ?? null,
+          teamLeadId,
           createdBy: adminId,
         },
         memberIds,
@@ -131,6 +147,25 @@ export const TeamsService = {
     }
 
     try {
+      if (input.teamLeadId !== undefined) {
+        const teamLeadId =
+          input.teamLeadId === null
+            ? null
+            : parseId(input.teamLeadId, 'Team Leader ID');
+
+        // Validate the new leader before updating the team.
+        if (teamLeadId !== null) {
+          await assertEligibleUsers([teamLeadId]);
+        }
+
+        // The model updates the leader and membership transactionally.
+        return await TeamsModel.update(
+          team.id,
+          data,
+          teamLeadId,
+        );
+      }
+
       return await TeamsModel.update(team.id, data);
     } catch (error) {
       mapPrismaError(error);
@@ -169,6 +204,14 @@ export const TeamsService = {
       throw new ApiError(404, 'User is not a member of this team');
     }
 
+    // Prevent removing the current team leader from the team.
+    if (team.teamLeadId === userId) {
+      throw new ApiError(
+        400,
+        'Cannot remove the team leader without assigning another leader or removing the team leadership first',
+      );
+    }
+
     try {
       return await TeamsModel.removeMember(team.id, userId);
     } catch (error) {
@@ -197,6 +240,14 @@ export const TeamsService = {
 
     if (!isMember) {
       throw new ApiError(404, 'User is not a member of the source team');
+    }
+
+    // A leader cannot be moved out while still leading the source team.
+    if (sourceTeam.teamLeadId === userId) {
+      throw new ApiError(
+        400,
+        'Cannot move the team leader before removing or changing the team leadership',
+      );
     }
 
     const user = await TeamsModel.findEligibleUserById(userId);

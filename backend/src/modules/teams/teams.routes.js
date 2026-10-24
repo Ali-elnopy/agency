@@ -45,6 +45,10 @@ teamsRouter.post(
   '/:id/members/:userId/move',
   validate(moveTeamMemberSchema),
   TeamsController.moveMember,
+<<<<<<< HEAD
 );
 
 teamsRouter.delete('/:id', TeamsController.removeTeam);
+=======
+);
+>>>>>>> 13b0478 (feat: improve team management API)
