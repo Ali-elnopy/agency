@@ -10,6 +10,8 @@ import { teamsRouter } from './modules/teams/teams.routes.js';
 import { brandsRouter } from './modules/brands/brands.routes.js';
 import { metaRouter } from './modules/meta/meta.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
+import { platformAccountsRouter } from './modules/platform-accounts/platform-accounts.routes.js';
+import { contentPlansRouter } from './modules/content-plans/content-plans.routes.js';
 const app = express();
 
 app.disable('x-powered-by');
@@ -66,6 +68,8 @@ app.use('/api/teams', teamsRouter);
 app.use('/api/brands', brandsRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/platform-accounts', platformAccountsRouter);
+app.use('/api/content-plans', contentPlansRouter);
 app.use(notFound);
 app.use(errorHandler);
 
