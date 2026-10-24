@@ -135,6 +135,7 @@ export function mapUser(user) {
 
   const roleName = user.role?.name ?? 'EMPLOYEE';
   const jobTitleName = user.jobTitle?.name ?? '';
+  const membership = Array.isArray(user.memberships) ? user.memberships[0] : null;
 
   return {
     id: user.id,
@@ -148,6 +149,8 @@ export function mapUser(user) {
     backendRole: roleName,
     jobTitleId: user.jobTitle?.id ?? null,
     jobTitleName,
+    teamId: membership?.teamId ?? null,
+    teamName: membership?.team?.name ?? '',
     type: 'Internal',
     typeTone: ROLE_TONES[roleName] ?? 'muted',
     avatarTone: toneFor(user.fullName),

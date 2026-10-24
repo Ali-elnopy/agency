@@ -66,7 +66,7 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     const nextErrors = {};
@@ -88,22 +88,32 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
       return;
     }
 
-    createMember({
-      fullName,
-      email,
-      jobTitle,
-      systemAccess: form.systemAccess,
-      permissions: permissionsForAccess(form.systemAccess, form.permissions),
-      teamId: team.id,
-    });
+    setErrors({});
 
-    if (onSaved) {
-      onSaved('Team member added successfully.');
-      return;
+    try {
+      const member = await createMember({
+        fullName,
+        email,
+        jobTitle,
+        systemAccess: form.systemAccess,
+        permissions: permissionsForAccess(form.systemAccess, form.permissions),
+        teamId: team.id,
+      });
+
+      const message = member?.tempPassword
+        ? `Team member added. Temporary password: ${member.tempPassword}`
+        : 'Team member added successfully.';
+
+      if (onSaved) {
+        onSaved(message);
+        return;
+      }
+
+      setForm(EMPTY_FORM);
+      showToast(message);
+    } catch (error) {
+      setErrors({ email: error?.message ?? 'Could not create the team member.' });
     }
-
-    setForm(EMPTY_FORM);
-    showToast('Team member added successfully.');
   };
 
   return (

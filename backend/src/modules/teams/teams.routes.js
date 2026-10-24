@@ -46,3 +46,5 @@ teamsRouter.post(
   validate(moveTeamMemberSchema),
   TeamsController.moveMember,
 );
+
+teamsRouter.delete('/:id', TeamsController.removeTeam);

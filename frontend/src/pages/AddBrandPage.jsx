@@ -23,6 +23,8 @@ export default function AddBrandPage({ onBack, onSaved }) {
   const { brands, addBrand } = useBrands();
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const selectedTimezone = useMemo(
     () => TIMEZONES.find((timezone) => timezone.value === form.timezone),
@@ -46,7 +48,7 @@ export default function AddBrandPage({ onBack, onSaved }) {
     setErrors((prev) => ({ ...prev, country: '', timezone: '' }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const nextErrors = {};
     const name = form.name.trim();
@@ -73,16 +75,25 @@ export default function AddBrandPage({ onBack, onSaved }) {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const brand = addBrand({
-      name,
-      industry,
-      country: form.country,
-      timezone: form.timezone,
-      timezoneLabel: timezoneLabelFor(form.timezone),
-      driveFolderUrl: form.driveFolderUrl.trim(),
-    });
+    setSubmitting(true);
+    setSubmitError('');
 
-    onSaved?.(brand);
+    try {
+      const brand = await addBrand({
+        name,
+        industry,
+        country: form.country,
+        timezone: form.timezone,
+        timezoneLabel: timezoneLabelFor(form.timezone),
+        driveFolderUrl: form.driveFolderUrl.trim(),
+      });
+
+      onSaved?.(brand);
+    } catch (error) {
+      setSubmitError(error?.message ?? 'Could not create the brand.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -231,14 +242,15 @@ export default function AddBrandPage({ onBack, onSaved }) {
         </div>
 
         <div className="brand-form__actions">
+          {submitError ? <span className="set-error">{submitError}</span> : null}
           <button type="button" className="button button--ghost" onClick={onBack}>
             Cancel
           </button>
-          <button type="submit" className="button button--primary">
+          <button type="submit" className="button button--primary" disabled={submitting}>
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
             </svg>
-            Create Brand
+            {submitting ? 'Creating…' : 'Create Brand'}
           </button>
         </div>
       </form>

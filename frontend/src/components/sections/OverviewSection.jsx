@@ -85,6 +85,17 @@ function initials(name) {
 }
 
 export default function OverviewSection({ stats, onViewWorkload }) {
+  const hasWorkload = Array.isArray(stats?.workload) && stats.workload.length > 0;
+
+  const managers = hasWorkload ? stats.workload : MANAGERS;
+  const matrix = hasWorkload ? stats.workload : MATRIX;
+
+  const alerts = Array.isArray(stats?.alerts)
+    ? stats.alerts.filter((alert) => alert.rows.length > 0)
+    : ALERTS;
+
+  const alertCount = alerts.reduce((total, alert) => total + alert.count, 0);
+
   const kpis = [
     {
       ...KPIS[0],
@@ -148,7 +159,7 @@ export default function OverviewSection({ stats, onViewWorkload }) {
             </header>
 
             <div className="ov-bars">
-              {MANAGERS.map((manager) => (
+              {managers.map((manager) => (
                 <div key={manager.name} className="ov-bar">
                   <span className="cl-avatar cl-avatar--orange">{initials(manager.name)}</span>
                   <span className="ov-bar__name">
@@ -181,7 +192,7 @@ export default function OverviewSection({ stats, onViewWorkload }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {MATRIX.map((row) => (
+                  {matrix.map((row) => (
                     <tr key={row.name}>
                       <td>
                         <div className="ov-person">
@@ -215,10 +226,16 @@ export default function OverviewSection({ stats, onViewWorkload }) {
                 </span>
                 Attention Required
               </h2>
-              <span className="pill is-orange">5 Alerts</span>
+              <span className="pill is-orange">{alertCount} Alerts</span>
             </header>
 
-            {ALERTS.map((alert) => (
+            {alerts.length === 0 ? (
+              <p className="cl-card__sub">
+                Every brand has an account manager and a team.
+              </p>
+            ) : null}
+
+            {alerts.map((alert) => (
               <div key={alert.group} className="ov-alert">
                 <div className="ov-alert__head">
                   <span className="cl-label">

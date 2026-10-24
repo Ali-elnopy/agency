@@ -21,6 +21,17 @@ const publicUserSelect = {
       name: true,
     },
   },
+  memberships: {
+    select: {
+      teamId: true,
+      team: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
 };
 
 export const UsersModel = {

@@ -77,6 +77,24 @@ export const TeamsService = {
     return getExistingTeam(idValue);
   },
 
+  async deleteTeam(idValue) {
+    const team = await getExistingTeam(idValue);
+    const assignedBrands = await TeamsModel.countBrands(team.id);
+
+    if (assignedBrands > 0) {
+      throw new ApiError(
+        409,
+        'Reassign this team’s brands before deleting it',
+      );
+    }
+
+    try {
+      return await TeamsModel.remove(team.id);
+    } catch (error) {
+      mapPrismaError(error);
+    }
+  },
+
   async createTeam(input, adminId) {
     const memberIds = [...(input.memberIds ?? [])];
 
