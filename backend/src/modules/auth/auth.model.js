@@ -154,4 +154,83 @@ export const AuthModel = {
       });
     });
   },
+
+  createPasswordResetToken({ userId, tokenHash, expiresAt }) {
+    return prisma.$transaction(async (tx) => {
+      // A new link always invalidates the previous unused ones.
+      await tx.passwordResetToken.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+
+      return tx.passwordResetToken.create({
+        data: { userId, tokenHash, expiresAt },
+      });
+    });
+  },
+
+  findPasswordResetToken(tokenHash) {
+    return prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            passwordHash: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+  },
+
+  consumePasswordResetToken({ tokenId, userId, passwordHash, ipAddress, userAgent }) {
+    return prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      // Claim the token atomically: a concurrent request cannot reuse it.
+      const claimed = await tx.passwordResetToken.updateMany({
+        where: { id: tokenId, usedAt: null, expiresAt: { gt: now } },
+        data: { usedAt: now },
+      });
+
+      if (claimed.count === 0) return { applied: false };
+
+      await tx.passwordResetToken.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: now },
+      });
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          passwordHash,
+          failedLoginAttempts: 0,
+          failedLoginWindowStart: null,
+          loginLockedUntil: null,
+        },
+      });
+
+      // A password reset signs the account out everywhere.
+      await tx.authSession.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'AUTH_PASSWORD_RESET',
+          targetType: 'User',
+          targetId: String(userId),
+          ipAddress: ipAddress?.slice(0, 45),
+          userAgent: userAgent?.slice(0, 500),
+        },
+      });
+
+      return { applied: true };
+    });
+  },
 };

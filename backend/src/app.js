@@ -14,6 +14,10 @@ const app = express();
 
 app.disable('x-powered-by');
 
+// Vercel terminates TLS in front of the function; without this the rate
+// limiter would see every visitor as the same proxy address.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 
 app.use(

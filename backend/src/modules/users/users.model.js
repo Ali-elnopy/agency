@@ -130,4 +130,15 @@ export const UsersModel = {
 
     return { total, active, suspended };
   },
+
+  /** Active administrators, optionally excluding the account being changed. */
+  countActiveAdmins({ excludeId } = {}) {
+    return prisma.user.count({
+      where: {
+        isActive: true,
+        role: { is: { name: 'ADMIN' } },
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+    });
+  },
 };

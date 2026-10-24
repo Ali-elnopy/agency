@@ -153,6 +153,36 @@ export async function forgotPasswordApi(email) {
   }
 }
 
+export async function resetPasswordApi({ token, newPassword }) {
+  try {
+    const body = await apiRequest('/auth/reset-password', {
+      method: 'POST',
+      body: { token, newPassword },
+      auth: false,
+    });
+
+    return {
+      success: true,
+      message: body?.message || 'Password updated. Sign in with your new password.',
+    };
+  } catch (error) {
+    if (MOCK_ENABLED && isUnavailable(error)) {
+      return {
+        success: true,
+        message: 'Mock mode: the password update was simulated. No account was changed.',
+      };
+    }
+
+    return {
+      success: false,
+      message:
+        error instanceof ApiError
+          ? error.message
+          : 'Cannot reach the account service. Check your connection and try again.',
+    };
+  }
+}
+
 export function logout() {
   const token = getAccessToken();
   const isLocalSession =

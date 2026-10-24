@@ -322,6 +322,13 @@ function buildUpdateBody(patch, current) {
   const nextRoleId = patch.roleId;
 
   if (nextRoleId && nextRoleId !== current?.roleId) {
+    if (current?.backendRole === 'ADMIN') {
+      throw new ApiError(
+        'The workspace must keep at least one active admin, so an administrator’s role cannot be changed here.',
+        409,
+      );
+    }
+
     if (nextRoleId === 'admin') {
       throw new ApiError(
         'Workspace Admin accounts are provisioned by the platform and cannot be reassigned here.',
@@ -355,7 +362,9 @@ function buildUpdateBody(patch, current) {
     }
   }
 
-  if (patch.jobTitleId && !body.jobTitleId) body.jobTitleId = patch.jobTitleId;
+  if (patch.jobTitleId && !body.jobTitleId && current?.backendRole !== 'ADMIN') {
+    body.jobTitleId = patch.jobTitleId;
+  }
 
   return body;
 }
@@ -398,13 +407,6 @@ export async function updateUser(id, patch) {
 
     if (Object.keys(body).length === 0) {
       return current ?? { id };
-    }
-
-    if (current?.backendRole === 'ADMIN') {
-      throw new ApiError(
-        'Administrator accounts cannot be edited through the user directory.',
-        403,
-      );
     }
 
     const data = unwrap(
