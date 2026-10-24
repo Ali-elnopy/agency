@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Modal from '../components/common/Modal';
+import TeamMembersModal from '../components/teams/TeamMembersModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
@@ -10,6 +11,7 @@ export default function TeamsPage({ onOpenTeam }) {
   const { teams, addTeam } = useWorkspace();
   const { toast, showToast } = useToast(3500);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(null);
   const [form, setForm] = useState({ name: '', description: '' });
   const [errors, setErrors] = useState({});
 
@@ -80,12 +82,35 @@ export default function TeamsPage({ onOpenTeam }) {
                 {team.description?.trim() || 'No description added.'}
               </p>
 
+              <div className="ws-team-card__leader">
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-user" />
+                </svg>
+                {team.teamLead ? (
+                  <span>
+                    <strong>Team leader:</strong> {team.teamLead.fullName}
+                  </span>
+                ) : (
+                  <span className="is-muted">No team leader assigned</span>
+                )}
+              </div>
+
               <div className="ws-team-card__foot">
                 <button type="button" className="ws-open-team" onClick={() => onOpenTeam(team.name)}>
                   Open Team
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-arrow" />
                   </svg>
+                </button>
+                <button
+                  type="button"
+                  className="ws-btn ws-btn--ghost ws-btn--sm"
+                  onClick={() => setEditingTeam(team)}
+                >
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-users" />
+                  </svg>
+                  Edit Team
                 </button>
               </div>
             </article>
@@ -139,6 +164,14 @@ export default function TeamsPage({ onOpenTeam }) {
           />
         </label>
       </Modal>
+
+      {editingTeam ? (
+        <TeamMembersModal
+          team={editingTeam}
+          onClose={() => setEditingTeam(null)}
+          onSaved={(message) => showToast(`Team updated. ${message}.`)}
+        />
+      ) : null}
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </div>

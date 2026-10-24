@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import Modal from '../components/common/Modal';
 import PlanModal from '../components/brands/PlanModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
@@ -48,11 +49,12 @@ function defaultDateFor(month) {
   return today.startsWith(month) ? today : `${month}-01`;
 }
 
-export default function AddContentPage({ brandId, initialMonth, onBack }) {
-  const { getBrand, plans, content, addContent, savePlan } = useBrands();
+export default function AddContentPage({ brandId, initialMonth, initialPlatformId, onBack }) {
+  const { getBrand, plans, content, addContent, savePlan, getPlatforms } = useBrands();
   const { toast, showToast } = useToast(5000);
 
   const brand = getBrand(brandId);
+  const platforms = useMemo(() => (brand ? getPlatforms(brand.id) : []), [brand, getPlatforms]);
   const brandPlans = useMemo(
     () =>
       plans
@@ -64,6 +66,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
   const [planMonth, setPlanMonth] = useState(
     () => initialMonth || brandPlans[brandPlans.length - 1]?.month || monthKey(),
   );
+  const [platformId, setPlatformId] = useState(initialPlatformId ?? 'all');
   const [editorOpen, setEditorOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [type, setType] = useState(CONTENT_TYPES[0].id);
@@ -86,11 +89,16 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
   const monthItems = useMemo(
     () =>
       content
-        .filter((item) => item.brandId === brandId && item.month === planMonth)
+        .filter(
+          (item) =>
+            item.brandId === brandId &&
+            item.month === planMonth &&
+            (platformId === 'all' || String(item.platformId) === String(platformId)),
+        )
         .sort((a, b) =>
           `${a.publishDate}T${a.publishTime}`.localeCompare(`${b.publishDate}T${b.publishTime}`),
         ),
-    [content, brandId, planMonth],
+    [content, brandId, planMonth, platformId],
   );
 
   const posts = monthItems.filter((item) => item.type === 'post').length;
@@ -147,6 +155,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
     addContent({
       brandId: brand.id,
       month: planMonth,
+      platformId: platformId === 'all' ? null : platformId,
       type,
       title: idea,
       publishDate,
@@ -245,6 +254,30 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
         </div>
 
         <div className="content-plan__controls">
+          {platforms.length ? (
+            <label className="content-plan__month">
+              <span>Platform</span>
+              <span className="form-select-wrap">
+                <select
+                  className="form-select"
+                  value={platformId}
+                  onChange={(event) => setPlatformId(event.target.value)}
+                  aria-label="Filter content plan by platform"
+                >
+                  <option value="all">All platforms</option>
+                  {platforms.map((platform) => (
+                    <option key={platform.id} value={platform.id}>
+                      {platform.name}
+                    </option>
+                  ))}
+                </select>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-chevron" />
+                </svg>
+              </span>
+            </label>
+          ) : null}
+
           <label className="content-plan__month">
             <span>Month</span>
             <input
@@ -326,24 +359,42 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
       ) : null}
 
       {editorOpen ? (
-        <form className="content-plan__editor" onSubmit={handleSubmit} noValidate>
-          <header className="content-plan__editor-head">
-            <div>
-              <strong>New plan row</strong>
-              <span>
-                Row {monthItems.length + 1} · {monthLabel(planMonth)}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="content-plan__editor-close"
-              onClick={() => setEditorOpen(false)}
-              aria-label="Close row editor"
-            >
-              ×
-            </button>
-          </header>
-
+        <Modal
+          isOpen
+          onClose={() => setEditorOpen(false)}
+          title="Add content row"
+          subtitle={`Row ${monthItems.length + 1} · ${monthLabel(planMonth)}`}
+          icon="#i-plus"
+          iconColor="orange"
+          maxWidth="760px"
+          footer={
+            <>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setEditorOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="content-row-form"
+                className="button button--primary"
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-plus" />
+                </svg>
+                Add row to sheet
+              </button>
+            </>
+          }
+        >
+        <form
+          id="content-row-form"
+          className="content-plan__editor is-in-modal"
+          onSubmit={handleSubmit}
+          noValidate
+        >
           <div className="content-plan__editor-grid">
             <div className="brand-field">
               <label htmlFor="cp-date">
@@ -534,23 +585,8 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
               )}
             </div>
           </div>
-
-          <div className="content-plan__editor-actions">
-            <button
-              type="button"
-              className="button button--ghost"
-              onClick={() => setEditorOpen(false)}
-            >
-              Cancel
-            </button>
-            <button type="submit" className="button button--primary">
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-plus" />
-              </svg>
-              Add row to sheet
-            </button>
-          </div>
         </form>
+        </Modal>
       ) : null}
 
       <section className="content-plan__sheet">

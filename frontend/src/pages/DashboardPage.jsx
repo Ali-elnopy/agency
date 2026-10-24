@@ -69,6 +69,7 @@ export default function DashboardPage({
   const [section, setSection] = useState('dashboard');
   const [activeBrandId, setActiveBrandId] = useState('brand-1');
   const [activePlanMonth, setActivePlanMonth] = useState(() => monthKey());
+  const [activePlatformId, setActivePlatformId] = useState(null);
   const [activeTeam, setActiveTeam] = useState('Brand Strategy & Growth');
   const [stats, setStats] = useState(null);
   const [assignTarget, setAssignTarget] = useState(null);
@@ -128,8 +129,9 @@ export default function DashboardPage({
     go('brandDetail');
   };
 
-  const openAddContent = (month) => {
+  const openAddContent = (month, platformId) => {
     setActivePlanMonth(month || monthKey());
+    setActivePlatformId(platformId ?? null);
     go('addContent');
   };
 
@@ -195,9 +197,10 @@ export default function DashboardPage({
       case 'addContent':
         return (
           <AddContentPage
-            key={`${activeBrandId}-${activePlanMonth}`}
+            key={`${activeBrandId}-${activePlanMonth}-${activePlatformId ?? 'all'}`}
             brandId={activeBrandId}
             initialMonth={activePlanMonth}
+            initialPlatformId={activePlatformId}
             onBack={() => go('brandDetail')}
           />
         );
