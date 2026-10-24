@@ -51,7 +51,32 @@ function runTransaction(db, mode, work) {
   });
 }
 
+export async function uploadFileToBackend(file) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('orvia_access_token') : null;
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch('/api/files/upload', {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (res.ok) {
+      const json = await res.json();
+      return json.data || json;
+    }
+  } catch (err) {
+    console.warn('Backend file upload fallback:', err);
+  }
+  return null;
+}
+
 export async function saveFileBlob(id, file) {
+  uploadFileToBackend(file).catch(() => {});
+
   const db = await openDb();
 
   if (!db) {

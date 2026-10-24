@@ -2,7 +2,9 @@
 import { z } from 'zod';
 
 const manageableRoleName = z.enum([
+  'ADMIN',
   'ACCOUNT_MANAGER',
+  'TEAM_LEADER',
   'EMPLOYEE',
 ]);
 
@@ -33,6 +35,8 @@ export const createUserSchema = z
     roleName: manageableRoleName,
 
     jobTitleId: z.number().int().positive().nullable().optional(),
+    customJobTitle: z.string().trim().min(1).max(100).nullable().optional(),
+    teamId: z.number().int().positive().nullable().optional(),
   })
   .strict();
 
@@ -53,6 +57,8 @@ export const updateUserSchema = z
     roleName: manageableRoleName.optional(),
 
     jobTitleId: z.number().int().positive().nullable().optional(),
+    customJobTitle: z.string().trim().min(1).max(100).nullable().optional(),
+    teamId: z.number().int().positive().nullable().optional(),
   })
   .strict()
   .refine((data) => Object.keys(data).length > 0, {

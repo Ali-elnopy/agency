@@ -7,14 +7,14 @@ import { validate } from '../../middlewares/validate.js';
 
 export const brandsRouter = Router();
 
-brandsRouter.use(authenticate, requireAdmin);
+brandsRouter.use(authenticate);
 
 brandsRouter.get('/', BrandsController.list);
 
-brandsRouter.post('/', validate(createBrandSchema), BrandsController.create);
+brandsRouter.post('/', requireAdmin, validate(createBrandSchema), BrandsController.create);
 
 brandsRouter.get('/:id', BrandsController.getById);
 
 brandsRouter.patch('/:id', validate(updateBrandSchema), BrandsController.update);
 
-brandsRouter.delete('/:id', BrandsController.remove);
+brandsRouter.delete('/:id', requireAdmin, BrandsController.remove);

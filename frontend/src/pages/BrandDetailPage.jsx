@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import PlanModal from '../components/brands/PlanModal';
+import EditBrandModal from '../components/brands/EditBrandModal';
 import AddPlatformModal from '../components/brands/AddPlatformModal';
 import BrandBriefSection from '../components/brands/BrandBriefSection';
 import ContentStrategySection from '../components/brands/ContentStrategySection';
@@ -51,6 +52,7 @@ export default function BrandDetailPage({
     plans,
     content,
     savePlan,
+    updateBrand,
     deleteBrand,
     updateContentStatus,
     addPlatform,
@@ -78,6 +80,7 @@ export default function BrandDetailPage({
 
   const [month, setMonth] = useState(defaultMonth);
   const [planOpen, setPlanOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tab, setTab] = useState('hub');
   const [platformModal, setPlatformModal] = useState(null);
@@ -195,6 +198,11 @@ export default function BrandDetailPage({
     onDeleted?.();
   };
 
+  const handleEditSave = async (patch) => {
+    await updateBrand(brand.id, patch);
+    showToast('Brand details updated successfully.');
+  };
+
   return (
     <div className="page-screen brand-detail-page">
       <section className="brand-hero">
@@ -278,6 +286,16 @@ export default function BrandDetailPage({
         </div>
 
         <div className="brand-hero__actions">
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => setEditOpen(true)}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-edit" />
+            </svg>
+            Edit Brand
+          </button>
           <button
             type="button"
             className="button button--dark"
@@ -916,6 +934,14 @@ export default function BrandDetailPage({
           </p>
         </div>
       </Modal>
+
+      {editOpen && brand ? (
+        <EditBrandModal
+          brand={brand}
+          onClose={() => setEditOpen(false)}
+          onSave={handleEditSave}
+        />
+      ) : null}
 
       {platformModal !== null ? (
         <AddPlatformModal

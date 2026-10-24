@@ -1,53 +1,52 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import CredentialsModal from '../components/common/CredentialsModal';
 import Switch from '../components/ui/Switch';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { createUser, getJobTitles } from '../services/users';
-import { addTeamMember, getTeams } from '../services/teams';
+import { getTeams } from '../services/teams';
 import { generateTemporaryPassword } from '../utils/credentials';
 
 const ROLES = [
   {
-    id: 'am',
-    name: 'Account Manager',
-    scope: 'Brand & Content Operations',
-    blurb:
-      'Manage assigned brands, intake brand briefs, run AI classifications, review creative deliverables and approve publishing calendars.',
-  },
-  {
     id: 'admin',
     name: 'Workspace Admin',
+    backendRole: 'ADMIN',
     scope: 'Full Governance',
-    blurb: 'Full control over users, roles, billing and workspace-wide settings.',
+    blurb: 'Full control over users, roles, billing, teams and workspace-wide settings.',
+  },
+  {
+    id: 'team_leader',
+    name: 'Team Leader',
+    backendRole: 'TEAM_LEADER',
+    scope: 'Team Supervision & Workflows',
+    blurb: 'Supervise assigned team members, track deadlines, review work and manage team content.',
+  },
+  {
+    id: 'am',
+    name: 'Account Manager',
+    backendRole: 'ACCOUNT_MANAGER',
+    scope: 'Brand & Content Operations',
+    blurb: 'Manage assigned brands, intake briefs, review deliverables and approve publishing calendars.',
   },
   {
     id: 'creator',
-    name: 'Content Creator',
+    name: 'Team Member / Creator',
+    backendRole: 'EMPLOYEE',
     scope: 'Production Studio',
-    blurb:
-      'Produce and upload creative assets, respond to review notes and ship approved deliverables.',
+    blurb: 'Produce and upload creative assets, draft posts, respond to review notes and ship deliverables.',
   },
-];
-
-const PODS = [
-  'Social Media Copy (12 members)',
-  'Brand Strategy & Growth (8 members)',
-  'Creative & Motion Studio (12 members)',
-  'Performance Content Squad (8 members)',
 ];
 
 const EMPTY_FORM = {
   fullName: '',
   phone: '',
   email: '',
-  roleId: 'am',
-  pod: PODS[0],
+  roleId: 'team_leader',
+  jobTitle: '',
+  customJobTitle: '',
+  teamId: '',
 };
-
-function podToTeamName(pod) {
-  return String(pod).replace(/\s*\(\d+\s*members?\)$/i, '').trim();
-}
 
 export default function AddUserPage({ onBack, onSaved }) {
   const { toast, showToast } = useToast(6000);
@@ -57,14 +56,33 @@ export default function AddUserPage({ onBack, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [credentials, setCredentials] = useState(null);
 
+  const [availableTeams, setAvailableTeams] = useState([]);
+  const [availableJobTitles, setAvailableJobTitles] = useState([]);
+
+  useEffect(() => {
+    getTeams()
+      .then((teams) => setAvailableTeams(Array.isArray(teams) ? teams : []))
+      .catch(() => {});
+
+    getJobTitles()
+      .then((titles) => setAvailableJobTitles(Array.isArray(titles) ? titles : []))
+      .catch(() => {});
+  }, []);
+
   const role = ROLES.find((item) => item.id === form.roleId) ?? ROLES[0];
+  const isAdmin = role.backendRole === 'ADMIN';
+
   const isDirty =
     Boolean(form.fullName || form.phone || form.email) ||
     form.roleId !== EMPTY_FORM.roleId ||
-    form.pod !== EMPTY_FORM.pod ||
-    invite !== true;
+    Boolean(form.teamId) ||
+    Boolean(form.jobTitle);
 
-  const update = (key) => (event) => setForm((prev) => ({ ...prev, [key]: event.target.value }));
+  const update = (key) => (event) => {
+    const val = event.target.value;
+    setForm((prev) => ({ ...prev, [key]: val }));
+    setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -75,6 +93,14 @@ export default function AddUserPage({ onBack, onSaved }) {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       nextErrors.email = 'Enter a valid email address.';
 
+    if (!isAdmin) {
+      if (!form.jobTitle) {
+        nextErrors.jobTitle = 'Job title is required.';
+      } else if (form.jobTitle === 'other' && !form.customJobTitle.trim()) {
+        nextErrors.customJobTitle = 'Please specify the custom job title.';
+      }
+    }
+
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -82,30 +108,25 @@ export default function AddUserPage({ onBack, onSaved }) {
   };
 
   const createAccount = async () => {
-    const roleMap = { am: 'ACCOUNT_MANAGER', creator: 'EMPLOYEE' };
-    const roleName = roleMap[form.roleId];
-
-    if (!roleName) {
-      showToast(
-        'Workspace Admin accounts are provisioned by the platform and cannot be created here.',
-        'danger',
-      );
-      return;
-    }
+    const password = generateTemporaryPassword();
 
     let jobTitleId = null;
+    let customJobTitle = null;
 
-    if (roleName === 'EMPLOYEE') {
-      const titles = await getJobTitles().catch(() => []);
-      jobTitleId = titles.find((title) => title.name === 'Content Creator')?.id ?? null;
-
-      if (!jobTitleId) {
-        showToast('The Content Creator job title is not configured in the database.', 'danger');
-        return;
+    if (!isAdmin) {
+      if (form.jobTitle === 'other') {
+        customJobTitle = form.customJobTitle.trim();
+      } else {
+        const match = availableJobTitles.find(
+          (t) => t.name.toLowerCase() === form.jobTitle.trim().toLowerCase(),
+        );
+        if (match) {
+          jobTitleId = match.id;
+        } else {
+          customJobTitle = form.jobTitle.trim();
+        }
       }
     }
-
-    const password = generateTemporaryPassword();
 
     setSaving(true);
 
@@ -115,25 +136,19 @@ export default function AddUserPage({ onBack, onSaved }) {
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
         password,
-        roleName,
+        roleName: role.backendRole,
         jobTitleId,
+        customJobTitle,
+        teamId: form.teamId ? Number(form.teamId) : null,
       });
-
-      const teams = await getTeams().catch(() => []);
-      const team = teams.find((item) => item.name === podToTeamName(form.pod));
-
-      if (team && created?.id) {
-        await addTeamMember(team.id, created.id).catch(() => {});
-      }
 
       setCredentials({
         fullName: created?.fullName || form.fullName.trim(),
         email: created?.email || form.email.trim().toLowerCase(),
-        // A mock account only exists in this browser; never show a password
-        // for an account the API did not really create.
         password: created?.isMock ? '' : password,
         isDemo: Boolean(created?.isMock),
       });
+
       setForm(EMPTY_FORM);
     } catch (error) {
       showToast(error.message || 'Could not create this user. Please try again.', 'danger');
@@ -144,7 +159,6 @@ export default function AddUserPage({ onBack, onSaved }) {
 
   const closeCredentials = () => {
     const saved = credentials;
-
     setCredentials(null);
 
     if (!saved?.isDemo) showToast('User created successfully.');
@@ -157,6 +171,7 @@ export default function AddUserPage({ onBack, onSaved }) {
         <header className="au-head">
           <div className="au-head__copy">
             <h1>Add User</h1>
+            <p>Create a new user account with role permissions and team assignments.</p>
           </div>
         </header>
 
@@ -171,27 +186,10 @@ export default function AddUserPage({ onBack, onSaved }) {
                 </span>
                 <div>
                   <h2>Personal Details</h2>
-                  <p>Basic contact identity, reachability and public profile visual.</p>
+                  <p>Basic contact identity, reachability and public profile info.</p>
                 </div>
               </div>
               <span className="au-step">Step 01</span>
-            </div>
-
-            <div className="au-upload">
-              <span className="au-upload__avatar">
-                <svg aria-hidden="true" className="icon">
-                  <use href="#i-user" />
-                </svg>
-                <span className="au-upload__cam">
-                  <svg aria-hidden="true" className="icon">
-                    <use href="#i-camera" />
-                  </svg>
-                </span>
-              </span>
-              <div className="au-upload__copy">
-                <strong>Upload Photo</strong>
-                <p>PNG, JPG, or WEBP up to 5MB. Circular display across Kanban &amp; avatars.</p>
-              </div>
             </div>
 
             <div className="au-grid">
@@ -225,7 +223,7 @@ export default function AddUserPage({ onBack, onSaved }) {
                   value={form.phone}
                   onChange={update('phone')}
                 />
-                <span className="au-hint">Used strictly for two-factor security alerts.</span>
+                <span className="au-hint">Used for SMS alerts and account security.</span>
               </div>
 
               <div className="au-field au-field--full">
@@ -239,6 +237,7 @@ export default function AddUserPage({ onBack, onSaved }) {
                   </svg>
                   <input
                     id="au-email"
+                    type="email"
                     className="form-input"
                     placeholder="maya@agency.orvia.com"
                     value={form.email}
@@ -262,8 +261,8 @@ export default function AddUserPage({ onBack, onSaved }) {
                   </svg>
                 </span>
                 <div>
-                  <h2>Access &amp; Team Assignment</h2>
-                  <p>Designate administrative boundaries, operational scope and production pod.</p>
+                  <h2>Access &amp; Role Assignment</h2>
+                  <p>Designate user permissions, role, job title and team affiliation.</p>
                 </div>
               </div>
               <span className="au-step">Step 02</span>
@@ -296,20 +295,23 @@ export default function AddUserPage({ onBack, onSaved }) {
 
               <div className="au-field">
                 <div className="au-label-row">
-                  <label className="au-label" htmlFor="au-pod">
-                    Functional Team Pod
+                  <label className="au-label" htmlFor="au-team">
+                    {role.backendRole === 'TEAM_LEADER' ? 'Team to Lead' : 'Functional Team'}
                   </label>
                   <small className="au-optional">Optional</small>
                 </div>
                 <span className="form-select-wrap">
                   <select
-                    id="au-pod"
+                    id="au-team"
                     className="form-select"
-                    value={form.pod}
-                    onChange={update('pod')}
+                    value={form.teamId}
+                    onChange={update('teamId')}
                   >
-                    {PODS.map((pod) => (
-                      <option key={pod}>{pod}</option>
+                    <option value="">No Team Assigned</option>
+                    {availableTeams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name}
+                      </option>
                     ))}
                   </select>
                   <svg aria-hidden="true" className="icon">
@@ -317,6 +319,54 @@ export default function AddUserPage({ onBack, onSaved }) {
                   </svg>
                 </span>
               </div>
+
+              {!isAdmin && (
+                <div className="au-field">
+                  <label className="au-label" htmlFor="au-jobtitle">
+                    Job Title
+                    <span className="req">*</span>
+                  </label>
+                  <span className="form-select-wrap">
+                    <select
+                      id="au-jobtitle"
+                      className="form-select"
+                      value={form.jobTitle}
+                      onChange={update('jobTitle')}
+                    >
+                      <option value="">Select a Job Title</option>
+                      {availableJobTitles.map((title) => (
+                        <option key={title.id} value={title.name}>
+                          {title.name}
+                        </option>
+                      ))}
+                      <option value="other">Other</option>
+                    </select>
+                    <svg aria-hidden="true" className="icon">
+                      <use href="#i-chevron" />
+                    </svg>
+                  </span>
+                  {errors.jobTitle && <span className="set-error">{errors.jobTitle}</span>}
+                </div>
+              )}
+
+              {!isAdmin && form.jobTitle === 'other' && (
+                <div className="au-field">
+                  <label className="au-label" htmlFor="au-custom-jobtitle">
+                    Custom Job Title
+                    <span className="req">*</span>
+                  </label>
+                  <input
+                    id="au-custom-jobtitle"
+                    className="form-input"
+                    placeholder="e.g. Creative Strategist"
+                    value={form.customJobTitle}
+                    onChange={update('customJobTitle')}
+                  />
+                  {errors.customJobTitle && (
+                    <span className="set-error">{errors.customJobTitle}</span>
+                  )}
+                </div>
+              )}
 
               <div className="au-role-note">
                 <div className="au-role-note__head">
@@ -342,8 +392,8 @@ export default function AddUserPage({ onBack, onSaved }) {
                   <Switch checked={invite} onChange={setInvite} label="Send invitation email" />
                 </div>
                 <p>
-                  The user will receive an authenticated onboarding security magic link valid for 48
-                  hours to establish credentials and complete two-factor registration.
+                  The user will receive an authenticated onboarding security link valid for 48 hours
+                  to establish credentials and sign in.
                 </p>
               </div>
             </div>
@@ -353,7 +403,7 @@ export default function AddUserPage({ onBack, onSaved }) {
         <div className={`au-savebar${isDirty ? ' is-dirty' : ''}`}>
           <p className="au-savebar__note">
             <i className="au-savebar__dot" aria-hidden="true" />
-            {isDirty ? 'Unsaved notifications' : 'All changes saved'}
+            {isDirty ? 'Unsaved changes' : 'All changes saved'}
           </p>
           <div className="au-savebar__actions">
             <button type="button" className="button button--ghost button--sm" onClick={onBack}>

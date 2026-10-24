@@ -26,16 +26,58 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
   const { toast, showToast } = useToast(3000);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [availableJobTitles, setAvailableJobTitles] = useState([]);
+  const [availableTeams, setAvailableTeams] = useState([]);
+
+  const isAdmin =
+    record?.backendRole === 'ADMIN' ||
+    record?.roleId === 'admin' ||
+    record?.systemAccess === 'admin';
+
   const [form, setForm] = useState({
     fullName: record?.fullName || member,
     email: record?.email || `${member.split(' ')[0].toLowerCase()}.vance@orvia-agency.com`,
-    phone: record?.phone || 'US: +1 (555) 340-1188',
-    jobTitle: record?.jobTitleName || 'Senior Account Manager',
-    pod: PODS[0],
+    phone: record?.phone || '+1 (555) 340-1188',
+    jobTitle: record?.jobTitleName || record?.jobTitle || '',
+    customJobTitle: '',
+    isCustomJobTitle: false,
+    teamId: record?.teamId || '',
   });
 
+  React.useEffect(() => {
+    Promise.all([getJobTitles().catch(() => []), getTeams().catch(() => [])]).then(
+      ([titles, teams]) => {
+        setAvailableJobTitles(Array.isArray(titles) ? titles : []);
+        setAvailableTeams(Array.isArray(teams) ? teams : []);
+
+        const currentTitle = record?.jobTitleName || record?.jobTitle || '';
+        if (currentTitle && Array.isArray(titles)) {
+          const match = titles.some((t) => t.name.toLowerCase() === currentTitle.toLowerCase());
+          if (!match) {
+            setForm((prev) => ({
+              ...prev,
+              jobTitle: 'other',
+              customJobTitle: currentTitle,
+              isCustomJobTitle: true,
+            }));
+          }
+        }
+      },
+    );
+  }, [record]);
+
   const update = (key) => (event) => {
-    setForm((prev) => ({ ...prev, [key]: event.target.value }));
+    const val = event.target.value;
+    setForm((prev) => ({
+      ...prev,
+      [key]: val,
+      ...(key === 'jobTitle'
+        ? {
+            isCustomJobTitle: val === 'other',
+            customJobTitle: val === 'other' ? prev.customJobTitle : '',
+          }
+        : {}),
+    }));
     setDirty(true);
   };
 
@@ -50,23 +92,33 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
     setSaving(true);
 
     try {
-      const titles = await getJobTitles().catch(() => []);
-      const match = titles.find(
-        (title) => title.name.toLowerCase() === form.jobTitle.trim().toLowerCase(),
-      );
+      let jobTitleId = undefined;
+      let customJobTitle = undefined;
+
+      if (!isAdmin) {
+        if (form.jobTitle === 'other') {
+          customJobTitle = form.customJobTitle.trim();
+        } else if (form.jobTitle) {
+          const match = availableJobTitles.find(
+            (t) => t.name.toLowerCase() === form.jobTitle.trim().toLowerCase(),
+          );
+          if (match) {
+            jobTitleId = match.id;
+          } else {
+            customJobTitle = form.jobTitle.trim();
+          }
+        }
+      }
 
       await updateUser(record.id, {
-        name: form.fullName.trim(),
+        fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
-        ...(match ? { jobTitleId: match.id } : {}),
+        ...(isAdmin ? { jobTitleId: null } : {}),
+        ...(jobTitleId !== undefined ? { jobTitleId } : {}),
+        ...(customJobTitle !== undefined ? { customJobTitle } : {}),
+        teamId: form.teamId ? Number(form.teamId) : null,
       });
-
-      const teamName = form.pod.replace(/\s*\(\d+\s*members?\)$/i, '').trim();
-      const teams = await getTeams().catch(() => []);
-      const team = teams.find((item) => item.name === teamName);
-
-      if (team) await addTeamMember(team.id, record.id).catch(() => {});
 
       setDirty(false);
       showToast('Member profile updated successfully.');
@@ -200,17 +252,47 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
                 />
               </div>
 
-              <div className="form-field">
-                <label className="form-label" htmlFor="eu-title">
-                  Job Title &amp; Specialization
-                </label>
-                <input
-                  id="eu-title"
-                  className="form-input"
-                  value={form.jobTitle}
-                  onChange={update('jobTitle')}
-                />
-              </div>
+              {!isAdmin && (
+                <div className="form-field">
+                  <label className="form-label" htmlFor="eu-title">
+                    Job Title &amp; Specialization
+                  </label>
+                  <span className="form-select-wrap">
+                    <select
+                      id="eu-title"
+                      className="form-select"
+                      value={form.jobTitle}
+                      onChange={update('jobTitle')}
+                    >
+                      <option value="">Select a Job Title</option>
+                      {availableJobTitles.map((title) => (
+                        <option key={title.id} value={title.name}>
+                          {title.name}
+                        </option>
+                      ))}
+                      <option value="other">Other</option>
+                    </select>
+                    <svg aria-hidden="true" className="icon">
+                      <use href="#i-chevron" />
+                    </svg>
+                  </span>
+                </div>
+              )}
+
+              {!isAdmin && form.jobTitle === 'other' && (
+                <div className="form-field form-field--full">
+                  <label className="form-label" htmlFor="eu-custom-title">
+                    Custom Job Title
+                  </label>
+                  <input
+                    id="eu-custom-title"
+                    className="form-input"
+                    placeholder="e.g. Creative Strategist"
+                    value={form.customJobTitle}
+                    onChange={update('customJobTitle')}
+                  />
+                </div>
+              )}
             </div>
           </section>
 
@@ -219,34 +301,30 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
               <div>
                 <h2>Team Assignment</h2>
                 <p>
-                  Assign this team member to an operational pod to allocate briefs and client review
+                  Assign this team member to an operational team to allocate briefs and client review
                   boards.
                 </p>
               </div>
             </div>
 
             <div className="pod">
-              <div className="pod__head">
-                <strong>Growth &amp; Performance Team</strong>
-                <span className="pill is-gray">14 Members</span>
-              </div>
-              <p className="sub" style={{ marginTop: 6 }}>
-                Team Lead: Julian Vance • Pod #04
-              </p>
-              <div className="form-fields" style={{ marginTop: 12 }}>
+              <div className="form-fields">
                 <div className="form-field form-field--full">
-                  <label className="form-label" htmlFor="eu-pod">
+                  <label className="form-label" htmlFor="eu-team">
                     Change Assigned Team
                   </label>
                   <span className="form-select-wrap">
                     <select
-                      id="eu-pod"
+                      id="eu-team"
                       className="form-select"
-                      value={form.pod}
-                      onChange={update('pod')}
+                      value={form.teamId}
+                      onChange={update('teamId')}
                     >
-                      {PODS.map((pod) => (
-                        <option key={pod}>{pod}</option>
+                      <option value="">No Team Assigned</option>
+                      {availableTeams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
                       ))}
                     </select>
                     <svg aria-hidden="true" className="icon">

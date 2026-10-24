@@ -83,29 +83,32 @@ export const BrandsService = {
     await validateTeam(input.teamId);
     await validateAccountManager(input.accountManagerId);
 
-    const temporaryPassword = crypto.randomBytes(32).toString('base64url');
-    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
-
     const brandData = {
       name: input.name,
       industry: input.industry ?? null,
       websiteUrl: input.websiteUrl ?? null,
       description: input.description ?? null,
+      status: input.status ? String(input.status).toLowerCase() : 'active',
       teamId: input.teamId ?? null,
       accountManagerId: input.accountManagerId ?? null,
       createdBy: adminId,
     };
 
-    const clientData = {
-      fullName: input.client.fullName,
-      email: input.client.email,
-      phone: input.client.phone ?? null,
-      passwordHash,
-      createdBy: adminId,
-    };
-
     try {
-      return await BrandsModel.createWithClient({ brandData, clientData });
+      if (input.client) {
+        const temporaryPassword = crypto.randomBytes(32).toString('base64url');
+        const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+        const clientData = {
+          fullName: input.client.fullName,
+          email: input.client.email,
+          phone: input.client.phone ?? null,
+          passwordHash,
+          createdBy: adminId,
+        };
+        return await BrandsModel.createWithClient({ brandData, clientData });
+      }
+
+      return await BrandsModel.create(brandData);
     } catch (error) {
       mapPrismaError(error);
     }
@@ -122,7 +125,8 @@ export const BrandsService = {
   async updateBrand(idValue, input) {
     const brand = await getBrandOrThrow(idValue);
 
-    if (input.status !== undefined && !BRAND_STATUSES.has(input.status)) {
+    const lowerStatus = input.status !== undefined ? String(input.status).toLowerCase() : undefined;
+    if (lowerStatus !== undefined && !BRAND_STATUSES.has(lowerStatus)) {
       throw new ApiError(400, 'Invalid brand status');
     }
 
@@ -138,12 +142,13 @@ export const BrandsService = {
       'industry',
       'websiteUrl',
       'description',
-      'status',
       'teamId',
       'accountManagerId',
     ]) {
       if (input[key] !== undefined) data[key] = input[key];
     }
+
+    if (lowerStatus !== undefined) data.status = lowerStatus;
 
     try {
       return await BrandsModel.update(brand.id, data);

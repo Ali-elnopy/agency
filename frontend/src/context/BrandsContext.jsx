@@ -14,6 +14,7 @@ import {
   listBrands,
   updateBrand as updateBrandApi,
 } from '../services/brands';
+import { apiRequest } from '../services/http';
 
 /* Brand records live in the API. Plans and content are still workspace-local
    until their endpoints land, so they stay in localStorage for now. */
@@ -224,7 +225,9 @@ export function BrandsProvider({ children }) {
     async (brandId, patch) => {
       if (!demo) {
         const brand = await updateBrandApi(brandId, patch);
-        setBrands((prev) => prev.map((item) => (item.id === brand.id ? brand : item)));
+        setBrands((prev) =>
+          prev.map((item) => (item.id === brand.id ? { ...item, ...brand, ...patch } : item)),
+        );
         return brand;
       }
 
@@ -237,30 +240,60 @@ export function BrandsProvider({ children }) {
     [brands, demo],
   );
 
-  const savePlan = useCallback((input) => {
-    const brandId = input.brandId;
-    const month = input.month || monthKey();
-    const plan = {
-      id: `plan-${brandId}-${month}`,
-      brandId,
-      month,
-      postsTarget: Math.max(0, Number(input.postsTarget) || 0),
-      reelsTarget: Math.max(0, Number(input.reelsTarget) || 0),
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
+  const savePlan = useCallback(
+    async (input) => {
+      const brandId = input.brandId;
+      const month = input.month || monthKey();
+      const numericBrandId = Number(brandId);
 
-    setPlans((prev) => {
-      const index = prev.findIndex((item) => item.brandId === brandId && item.month === month);
+      if (!demo && Number.isSafeInteger(numericBrandId) && numericBrandId > 0) {
+        try {
+          const [yearStr, monthStr] = (month || '').split('-');
+          const parsedYear = Number(yearStr) || new Date().getFullYear();
+          const parsedMonth = Number(monthStr) || new Date().getMonth() + 1;
 
-      if (index === -1) return [...prev, plan];
+          const plansRes = await apiRequest(
+            `/content-plans?brandId=${numericBrandId}&year=${parsedYear}&month=${parsedMonth}`,
+          ).catch(() => null);
+          const existingPlans = plansRes?.data ?? plansRes;
+          if (Array.isArray(existingPlans) && existingPlans.length > 0) {
+            const planId = existingPlans[0].id;
+            await apiRequest(`/content-plans/${planId}`, {
+              method: 'PATCH',
+              body: {
+                title: `${month} Content Plan`,
+                notes: `Posts target: ${input.postsTarget || 0}, Reels target: ${input.reelsTarget || 0}`,
+              },
+            }).catch(() => {});
+          }
+        } catch (err) {
+          console.warn('Backend plan sync note:', err);
+        }
+      }
 
-      const next = [...prev];
-      next[index] = { ...next[index], ...plan, createdAt: next[index].createdAt };
-      return next;
-    });
+      const plan = {
+        id: `plan-${brandId}-${month}`,
+        brandId,
+        month,
+        postsTarget: Math.max(0, Number(input.postsTarget) || 0),
+        reelsTarget: Math.max(0, Number(input.reelsTarget) || 0),
+        createdAt: new Date().toISOString().slice(0, 10),
+      };
 
-    return plan;
-  }, []);
+      setPlans((prev) => {
+        const index = prev.findIndex((item) => item.brandId === brandId && item.month === month);
+
+        if (index === -1) return [...prev, plan];
+
+        const next = [...prev];
+        next[index] = { ...next[index], ...plan, createdAt: next[index].createdAt };
+        return next;
+      });
+
+      return plan;
+    },
+    [demo],
+  );
 
   const addContent = useCallback((input) => {
     const item = {
@@ -345,42 +378,93 @@ export function BrandsProvider({ children }) {
     [workspace.teams],
   );
 
-  const addPlatform = useCallback((brandId, input) => {
-    const platform = {
-      id: makeId('platform'),
-      brandId,
-      name: String(input.name ?? '').trim(),
-      short: String(input.short ?? '').trim().toUpperCase(),
-      tone: input.tone ?? 'is-orange',
-      handle: String(input.handle ?? '').trim(),
-      url: String(input.url ?? '').trim(),
-      goal: String(input.goal ?? '').trim(),
-      monthlyTarget: Math.max(0, Number(input.monthlyTarget) || 0),
-      contentTypes: Array.isArray(input.contentTypes) ? input.contentTypes : [],
-      notes: String(input.notes ?? '').trim(),
-      createdAt: new Date().toISOString(),
-    };
+  const addPlatform = useCallback(
+    async (brandId, input) => {
+      let serverPlatform = null;
+      const numericBrandId = Number(brandId);
+      if (!demo && Number.isSafeInteger(numericBrandId) && numericBrandId > 0) {
+        try {
+          const res = await apiRequest('/platform-accounts', {
+            method: 'POST',
+            body: {
+              brandId: numericBrandId,
+              platformName: String(input.name ?? '').trim(),
+              accountHandle:
+                String(input.handle ?? '').trim() ||
+                `@${String(input.name ?? '').trim().toLowerCase()}`,
+              profileUrl: input.url ? String(input.url).trim() : null,
+              brandTone: input.tone ?? 'is-orange',
+            },
+          });
+          serverPlatform = res?.data ?? res;
+        } catch (e) {
+          console.warn('Backend platform sync note:', e);
+        }
+      }
 
-    setWorkspace((prev) => ({ ...prev, platforms: [...prev.platforms, platform] }));
-    return platform;
-  }, []);
+      const platform = {
+        id: serverPlatform?.id ? String(serverPlatform.id) : makeId('platform'),
+        brandId,
+        name: String(input.name ?? '').trim(),
+        short: String(input.short ?? '').trim().toUpperCase(),
+        tone: input.tone ?? 'is-orange',
+        handle: String(input.handle ?? '').trim(),
+        url: String(input.url ?? '').trim(),
+        goal: String(input.goal ?? '').trim(),
+        monthlyTarget: Math.max(0, Number(input.monthlyTarget) || 0),
+        contentTypes: Array.isArray(input.contentTypes) ? input.contentTypes : [],
+        notes: String(input.notes ?? '').trim(),
+        createdAt: new Date().toISOString(),
+      };
 
-  const updatePlatform = useCallback((platformId, patch) => {
-    setWorkspace((prev) => ({
-      ...prev,
-      platforms: prev.platforms.map((item) =>
-        item.id === platformId ? { ...item, ...patch } : item,
-      ),
-    }));
-  }, []);
+      setWorkspace((prev) => ({ ...prev, platforms: [...prev.platforms, platform] }));
+      return platform;
+    },
+    [demo],
+  );
 
-  const deletePlatform = useCallback((platformId) => {
-    setWorkspace((prev) => ({
-      ...prev,
-      platforms: prev.platforms.filter((item) => item.id !== platformId),
-      planDirections: prev.planDirections.filter((item) => item.platformId !== platformId),
-    }));
-  }, []);
+  const updatePlatform = useCallback(
+    async (platformId, patch) => {
+      const numericId = Number(platformId);
+      if (!demo && Number.isSafeInteger(numericId) && numericId > 0) {
+        const body = {};
+        if (patch.name) body.platformName = String(patch.name).trim();
+        if (patch.handle) body.accountHandle = String(patch.handle).trim();
+        if (patch.url !== undefined) body.profileUrl = patch.url || null;
+        if (patch.tone) body.brandTone = patch.tone;
+        if (Object.keys(body).length) {
+          await apiRequest(`/platform-accounts/${numericId}`, {
+            method: 'PATCH',
+            body,
+          }).catch(() => {});
+        }
+      }
+
+      setWorkspace((prev) => ({
+        ...prev,
+        platforms: prev.platforms.map((item) =>
+          item.id === platformId ? { ...item, ...patch } : item,
+        ),
+      }));
+    },
+    [demo],
+  );
+
+  const deletePlatform = useCallback(
+    async (platformId) => {
+      const numericId = Number(platformId);
+      if (!demo && Number.isSafeInteger(numericId) && numericId > 0) {
+        await apiRequest(`/platform-accounts/${numericId}`, { method: 'DELETE' }).catch(() => {});
+      }
+
+      setWorkspace((prev) => ({
+        ...prev,
+        platforms: prev.platforms.filter((item) => item.id !== platformId),
+        planDirections: prev.planDirections.filter((item) => item.platformId !== platformId),
+      }));
+    },
+    [demo],
+  );
 
   const addBrief = useCallback((brandId, meta) => {
     const brief = {

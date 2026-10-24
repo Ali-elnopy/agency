@@ -28,9 +28,11 @@ export default function Sidebar({
   const roleLabel =
     user?.role === 'ADMIN'
       ? 'Admin'
-      : user?.role === 'ACCOUNT_MANAGER'
-        ? 'Account Manager'
-        : 'Studio Lead';
+      : user?.role === 'TEAM_LEADER'
+        ? 'Team Leader'
+        : user?.role === 'ACCOUNT_MANAGER'
+          ? 'Account Manager'
+          : 'Team Member';
   const initials = displayName
     .split(' ')
     .filter(Boolean)

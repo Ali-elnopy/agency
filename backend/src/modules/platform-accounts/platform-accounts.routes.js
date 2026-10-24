@@ -14,7 +14,7 @@ import { validate } from '../../middlewares/validate.js';
 
 export const platformAccountsRouter = Router();
 
-platformAccountsRouter.use(authenticate, requireAdmin);
+platformAccountsRouter.use(authenticate);
 
 platformAccountsRouter.get('/', PlatformAccountsController.list);
 

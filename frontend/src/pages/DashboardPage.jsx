@@ -10,6 +10,7 @@ import BrandsPage from './BrandsPage';
 import BrandDetailPage from './BrandDetailPage';
 import AddBrandPage from './AddBrandPage';
 import AddContentPage from './AddContentPage';
+import AddUserPage from './AddUserPage';
 import { BrandsProvider } from '../context/BrandsContext';
 import { WorkspaceProvider } from '../context/WorkspaceContext';
 import { monthKey } from '../data/brands';
@@ -37,6 +38,7 @@ const SECTION_LABELS = {
   addTeamMember: 'Add Team Member',
   manageBrands: 'Manage Brands',
   users: 'Users',
+  addUser: 'Add User',
   roles: 'Roles & Permissions',
   profile: 'Profile',
   settings: 'Settings',
@@ -52,6 +54,7 @@ const SECTION_TO_TAB = {
   teamDetails: 'teams',
   addTeamMember: 'teams',
   manageBrands: 'teams',
+  addUser: 'users',
   roles: 'users',
 };
 
@@ -167,8 +170,16 @@ export default function DashboardPage({
       case 'users':
         return (
           <UserAccessPage
-            onAddMemberViaTeam={() => go('teams')}
+            onAddUser={() => go('addUser')}
+            onAddMemberViaTeam={() => go('addUser')}
             initialQuery={usersSearch}
+          />
+        );
+      case 'addUser':
+        return (
+          <AddUserPage
+            onBack={() => go('users')}
+            onSaved={(message) => go('users', message)}
           />
         );
       case 'clients':
@@ -253,21 +264,21 @@ export default function DashboardPage({
   const actionLabel =
     section === 'roles'
       ? 'New Custom Role'
-      : section === 'clients'
-        ? 'Add Brand'
-        : section === 'brandDetail'
-          ? 'Add Content'
-          : section === 'profile' ||
-              section === 'settings' ||
-              section === 'addBrand' ||
-              section === 'addContent' ||
-              section === 'users' ||
-              section === 'teams' ||
-              section === 'teamDetails' ||
-              section === 'addTeamMember' ||
-              section === 'manageBrands'
-            ? null
-            : 'New Brief';
+      : section === 'brandDetail'
+        ? 'Add Content'
+        : section === 'profile' ||
+            section === 'settings' ||
+            section === 'clients' ||
+            section === 'addBrand' ||
+            section === 'addContent' ||
+            section === 'users' ||
+            section === 'addUser' ||
+            section === 'teams' ||
+            section === 'teamDetails' ||
+            section === 'addTeamMember' ||
+            section === 'manageBrands'
+          ? null
+          : 'New Brief';
 
   const handleAction = () => {
     if (section === 'clients') {

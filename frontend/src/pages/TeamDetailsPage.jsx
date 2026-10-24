@@ -21,7 +21,16 @@ export default function TeamDetailsPage({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
 
-  const team = teams.find((item) => item.name === teamName) ?? null;
+  const [currentTeamId, setCurrentTeamId] = useState(() => {
+    const found = teams.find(
+      (item) => item.name === teamName || String(item.id) === String(teamName),
+    );
+    return found ? found.id : null;
+  });
+
+  const team =
+    teams.find((item) => (currentTeamId && item.id === currentTeamId) || item.name === teamName) ??
+    null;
 
   if (!team) {
     return (

@@ -3,8 +3,12 @@ import bcrypt from 'bcryptjs';
 import { UsersModel } from './users.model.js';
 import { ApiError } from '../../utils/ApiError.js';
 
+import { prisma } from '../../config/prisma.js';
+
 const MANAGEABLE_ROLES = new Set([
+  'ADMIN',
   'ACCOUNT_MANAGER',
+  'TEAM_LEADER',
   'EMPLOYEE',
 ]);
 
@@ -45,7 +49,7 @@ function assertManageableRole(roleName) {
   if (!MANAGEABLE_ROLES.has(roleName)) {
     throw new ApiError(
       400,
-      'Users can only be assigned EMPLOYEE or ACCOUNT_MANAGER roles',
+      'Users can only be assigned ADMIN, TEAM_LEADER, ACCOUNT_MANAGER or EMPLOYEE roles',
     );
   }
 }
@@ -191,29 +195,71 @@ export const UsersService = {
   async createUser(input, adminId) {
     const roleId = await resolveRoleId(input.roleName);
 
-    let jobTitle;
+    let jobTitle = null;
 
-    if (input.roleName === 'ACCOUNT_MANAGER') {
-      // Account Manager gets its matching job title automatically.
-      jobTitle = await resolveAccountManagerJobTitle();
-    } else {
-      // Every Employee must have one of the three supported titles.
+    if (input.roleName === 'ADMIN') {
+      // Admins do not have or require a job title.
+      jobTitle = null;
+    } else if (input.customJobTitle?.trim()) {
+      jobTitle = await UsersModel.findJobTitleByName(input.customJobTitle.trim());
+      if (!jobTitle) {
+        jobTitle = await prisma.jobTitle.create({
+          data: { name: input.customJobTitle.trim(), isActive: true },
+        });
+      }
+    } else if (input.jobTitleId != null) {
       jobTitle = await resolveJobTitleById(input.jobTitleId);
-      assertEmployeeJobTitle(jobTitle);
+    } else if (input.roleName === 'ACCOUNT_MANAGER') {
+      jobTitle = await resolveAccountManagerJobTitle();
+    } else if (input.roleName === 'TEAM_LEADER') {
+      let tlTitle = await UsersModel.findJobTitleByName('Team Leader');
+      if (!tlTitle) {
+        tlTitle = await prisma.jobTitle.create({
+          data: { name: 'Team Leader', isActive: true },
+        });
+      }
+      jobTitle = tlTitle;
+    } else {
+      throw new ApiError(400, 'A job title is required for this role');
     }
 
     const passwordHash = await bcrypt.hash(input.password, 12);
 
     try {
-      return await UsersModel.create({
+      const created = await UsersModel.create({
         fullName: input.fullName,
         email: input.email,
         passwordHash,
         phone: input.phone ?? null,
         roleId,
-        jobTitleId: jobTitle.id,
+        jobTitleId: jobTitle ? jobTitle.id : null,
         createdBy: adminId,
       });
+
+      if (input.teamId) {
+        await prisma.teamMembership.upsert({
+          where: {
+            teamId_userId: {
+              teamId: input.teamId,
+              userId: created.id,
+            },
+          },
+          create: {
+            teamId: input.teamId,
+            userId: created.id,
+          },
+          update: {},
+        });
+
+        if (input.roleName === 'TEAM_LEADER') {
+          await prisma.team.update({
+            where: { id: input.teamId },
+            data: { teamLeadId: created.id },
+          });
+        }
+      }
+
+      return await UsersModel.findById(created.id);
     } catch (error) {
       mapPrismaError(error);
     }
@@ -226,8 +272,15 @@ export const UsersService = {
     // is fixed: changing it would be the fastest way to leave the workspace
     // without an admin.
     if (isAdminRole(user.role?.name)) {
-      if (input.roleName !== undefined) {
+      if (input.roleName !== undefined && input.roleName !== 'ADMIN') {
         throw new ApiError(409, LAST_ADMIN_MESSAGE);
+      }
+
+      if ((input.jobTitleId !== undefined && input.jobTitleId !== null) || input.customJobTitle?.trim()) {
+        throw new ApiError(
+          400,
+          'Administrator accounts do not have a job title',
+        );
       }
 
       const profile = {};
@@ -273,29 +326,76 @@ export const UsersService = {
 
     let jobTitle;
 
-    if (resultingRoleName === 'ACCOUNT_MANAGER') {
-      // Also replaces an Employee title when changing to Account Manager.
-      jobTitle = await resolveAccountManagerJobTitle();
-    } else if (input.jobTitleId !== undefined) {
-      // A supplied Employee title must exist, be active, and be allowed.
-      jobTitle = await resolveJobTitleById(input.jobTitleId);
-      assertEmployeeJobTitle(jobTitle);
-    } else {
-      // Keep the current title only if it is already a valid Employee title.
-      jobTitle = user.jobTitle;
-
-      if (!jobTitle || !EMPLOYEE_JOB_TITLES.has(jobTitle.name)) {
-        throw new ApiError(
-          400,
-          'A valid Employee job title is required when assigning the Employee role',
-        );
+    if (resultingRoleName === 'ADMIN') {
+      data.jobTitleId = null;
+    } else if (input.customJobTitle?.trim()) {
+      jobTitle = await UsersModel.findJobTitleByName(input.customJobTitle.trim());
+      if (!jobTitle) {
+        jobTitle = await prisma.jobTitle.create({
+          data: { name: input.customJobTitle.trim(), isActive: true },
+        });
       }
+      data.jobTitleId = jobTitle.id;
+    } else if (input.jobTitleId !== undefined) {
+      if (input.jobTitleId === null) {
+        data.jobTitleId = null;
+      } else {
+        jobTitle = await resolveJobTitleById(input.jobTitleId);
+        data.jobTitleId = jobTitle.id;
+      }
+    } else if (resultingRoleName === 'ACCOUNT_MANAGER') {
+      jobTitle = await resolveAccountManagerJobTitle();
+      data.jobTitleId = jobTitle.id;
+    } else if (resultingRoleName === 'TEAM_LEADER' && !user.jobTitleId) {
+      let tlTitle = await UsersModel.findJobTitleByName('Team Leader');
+      if (!tlTitle) {
+        tlTitle = await prisma.jobTitle.create({
+          data: { name: 'Team Leader', isActive: true },
+        });
+      }
+      data.jobTitleId = tlTitle.id;
     }
 
-    data.jobTitleId = jobTitle.id;
-
     try {
-      return await UsersModel.update(user.id, data);
+      await UsersModel.update(user.id, data);
+
+      if (input.teamId !== undefined) {
+        if (input.teamId === null) {
+          await prisma.teamMembership.deleteMany({
+            where: { userId: user.id },
+          });
+          await prisma.team.updateMany({
+            where: { teamLeadId: user.id },
+            data: { teamLeadId: null },
+          });
+        } else {
+          await prisma.teamMembership.deleteMany({
+            where: { userId: user.id, teamId: { not: input.teamId } },
+          });
+          await prisma.teamMembership.upsert({
+            where: {
+              teamId_userId: {
+                teamId: input.teamId,
+                userId: user.id,
+              },
+            },
+            create: {
+              teamId: input.teamId,
+              userId: user.id,
+            },
+            update: {},
+          });
+
+          if (resultingRoleName === 'TEAM_LEADER') {
+            await prisma.team.update({
+              where: { id: input.teamId },
+              data: { teamLeadId: user.id },
+            });
+          }
+        }
+      }
+
+      return await UsersModel.findById(user.id);
     } catch (error) {
       mapPrismaError(error);
     }

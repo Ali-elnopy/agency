@@ -8,15 +8,29 @@ import { useWorkspace } from '../context/workspaceStore';
 const TONES = ['tone-orange', 'tone-purple', 'tone-blue', 'tone-green', 'tone-amber'];
 
 export default function TeamsPage({ onOpenTeam }) {
-  const { teams, addTeam } = useWorkspace();
+  const { users, teams, addTeam } = useWorkspace();
   const { toast, showToast } = useToast(3500);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState({ name: '', description: '', teamLeadId: '' });
   const [errors, setErrors] = useState({});
 
+  const leaderCandidates = React.useMemo(
+    () =>
+      users
+        .filter(
+          (u) =>
+            u.active !== false &&
+            (u.systemAccess === 'team_leader' ||
+              u.systemAccess === 'employee' ||
+              u.systemAccess === 'account_manager'),
+        )
+        .sort((a, b) => String(a.fullName).localeCompare(String(b.fullName))),
+    [users],
+  );
+
   const openCreate = () => {
-    setForm({ name: '', description: '' });
+    setForm({ name: '', description: '', teamLeadId: '' });
     setErrors({});
     setIsCreateOpen(true);
   };
@@ -31,7 +45,7 @@ export default function TeamsPage({ onOpenTeam }) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  const createTeam = () => {
+  const createTeam = async () => {
     const name = form.name.trim();
 
     if (!name) {
@@ -44,9 +58,17 @@ export default function TeamsPage({ onOpenTeam }) {
       return;
     }
 
-    addTeam({ name, description: form.description });
-    closeCreate();
-    showToast('Team created successfully.');
+    try {
+      await addTeam({
+        name,
+        description: form.description,
+        teamLeadId: form.teamLeadId ? Number(form.teamLeadId) : null,
+      });
+      closeCreate();
+      showToast('Team created successfully.');
+    } catch (err) {
+      setErrors({ name: err?.message || 'Could not create team.' });
+    }
   };
 
   return (
@@ -157,11 +179,32 @@ export default function TeamsPage({ onOpenTeam }) {
           <span>Description</span>
           <textarea
             className="ws-textarea"
-            rows={4}
+            rows={3}
             value={form.description}
             onChange={updateField('description')}
             placeholder="What does this team own?"
           />
+        </label>
+
+        <label className="ws-field">
+          <span>Team Leader (Optional)</span>
+          <span className="ws-select-wrap">
+            <select
+              className="ws-select"
+              value={form.teamLeadId}
+              onChange={updateField('teamLeadId')}
+            >
+              <option value="">No leader assigned</option>
+              {leaderCandidates.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName} {user.systemAccess === 'team_leader' ? '⭐ (Team Leader)' : ''} — {user.jobTitle || user.systemAccess}
+                </option>
+              ))}
+            </select>
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-chevron" />
+            </svg>
+          </span>
         </label>
       </Modal>
 

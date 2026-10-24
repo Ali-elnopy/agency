@@ -9,6 +9,7 @@ async function main() {
   const roleNames = [
     'ADMIN',
     'ACCOUNT_MANAGER',
+    'TEAM_LEADER',
     'EMPLOYEE',
     'CLIENT',
   ];

@@ -12,6 +12,7 @@ import { metaRouter } from './modules/meta/meta.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { platformAccountsRouter } from './modules/platform-accounts/platform-accounts.routes.js';
 import { contentPlansRouter } from './modules/content-plans/content-plans.routes.js';
+import { filesRouter } from './modules/files/files.routes.js';
 const app = express();
 
 app.disable('x-powered-by');
@@ -70,6 +71,17 @@ app.use('/api/meta', metaRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/platform-accounts', platformAccountsRouter);
 app.use('/api/content-plans', contentPlansRouter);
+app.use('/api/files', filesRouter);
+
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/teams', teamsRouter);
+app.use('/api/v1/brands', brandsRouter);
+app.use('/api/v1/meta', metaRouter);
+app.use('/api/v1/dashboard', dashboardRouter);
+app.use('/api/v1/platform-accounts', platformAccountsRouter);
+app.use('/api/v1/content-plans', contentPlansRouter);
+app.use('/api/v1/files', filesRouter);
 app.use(notFound);
 app.use(errorHandler);
 

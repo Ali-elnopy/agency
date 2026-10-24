@@ -106,7 +106,7 @@ export const TeamsModel = {
         isActive: true,
         role: {
           is: {
-            name: { in: ['EMPLOYEE', 'ACCOUNT_MANAGER'] },
+            name: { in: ['EMPLOYEE', 'ACCOUNT_MANAGER', 'TEAM_LEADER'] },
           },
         },
       },
@@ -121,7 +121,7 @@ export const TeamsModel = {
         isActive: true,
         role: {
           is: {
-            name: { in: ['EMPLOYEE', 'ACCOUNT_MANAGER'] },
+            name: { in: ['EMPLOYEE', 'ACCOUNT_MANAGER', 'TEAM_LEADER'] },
           },
         },
       },

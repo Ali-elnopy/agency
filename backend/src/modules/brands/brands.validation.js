@@ -42,6 +42,11 @@ const clientSchema = z
   })
   .strict();
 
+const country = z.string().trim().max(100).nullable().optional();
+const timezone = z.string().trim().max(100).nullable().optional();
+const driveFolderUrl = z.string().trim().nullable().optional();
+const statusSchema = z.string().trim().toLowerCase().optional();
+
 export const createBrandSchema = z
   .object({
     name,
@@ -50,7 +55,11 @@ export const createBrandSchema = z
     description,
     teamId,
     accountManagerId,
-    client: clientSchema,
+    status: statusSchema,
+    country,
+    timezone,
+    driveFolderUrl,
+    client: clientSchema.optional(),
   })
   .strict();
 
@@ -62,6 +71,9 @@ export const updateBrandSchema = z
     description,
     teamId,
     accountManagerId,
-    status: z.enum(['active', 'paused', 'archived']).optional(),
+    status: statusSchema,
+    country,
+    timezone,
+    driveFolderUrl,
   })
   .strict();

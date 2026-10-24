@@ -14,7 +14,7 @@ import { validate } from '../../middlewares/validate.js';
 
 export const contentPlansRouter = Router();
 
-contentPlansRouter.use(authenticate, requireAdmin);
+contentPlansRouter.use(authenticate);
 
 contentPlansRouter.get('/', ContentPlansController.list);
 

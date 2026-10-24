@@ -6,6 +6,7 @@
 
 export const ACCESS_LEVELS = [
   { id: 'admin', label: 'Admin', short: 'ADMIN' },
+  { id: 'team_leader', label: 'Team Leader', short: 'TEAM LEADER' },
   { id: 'account_manager', label: 'Account Manager', short: 'ACCOUNT MANAGER' },
   { id: 'employee', label: 'Employee', short: 'EMPLOYEE' },
 ];
@@ -42,10 +43,12 @@ export const PERMISSION_OPTIONS = [
 export const PERMISSION_IDS = PERMISSION_OPTIONS.map((permission) => permission.id);
 
 const ADMIN_PERMISSIONS = [...PERMISSION_IDS];
+const LEADER_PERMISSIONS = ['createContent', 'managePlans', 'reviewContent'];
 const MANAGER_PERMISSIONS = ['reviewContent', 'publishContent'];
 
 export function permissionsForAccess(systemAccess, current = []) {
   if (systemAccess === 'admin') return [...ADMIN_PERMISSIONS];
+  if (systemAccess === 'team_leader') return [...LEADER_PERMISSIONS];
   if (systemAccess === 'account_manager') return [...MANAGER_PERMISSIONS];
   return PERMISSION_IDS.filter((permission) => current.includes(permission));
 }
