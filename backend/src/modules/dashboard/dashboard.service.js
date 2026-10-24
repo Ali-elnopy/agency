@@ -65,7 +65,10 @@ export const DashboardService = {
 
     const teamWorkload = teamRows
       .sort(
-        (a, b) => b.clients - a.clients || a.name.localeCompare(b.name),
+        (a, b) =>
+          b.clients - a.clients ||
+          b.members - a.members ||
+          a.name.localeCompare(b.name),
       )
       .map((team) => ({
         ...team,
