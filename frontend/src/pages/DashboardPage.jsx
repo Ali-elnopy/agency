@@ -18,6 +18,7 @@ import TeamDetailsPage from './TeamDetailsPage';
 import AddTeamMemberPage from './AddTeamMemberPage';
 import ManageBrandsPage from './ManageBrandsPage';
 import NewBriefModal from '../components/modals/NewBriefModal';
+import AssignTeamModal from '../components/modals/AssignTeamModal';
 import InfoModal from '../components/modals/InfoModal';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
@@ -70,6 +71,7 @@ export default function DashboardPage({
   const [activePlanMonth, setActivePlanMonth] = useState(() => monthKey());
   const [activeTeam, setActiveTeam] = useState('Brand Strategy & Growth');
   const [stats, setStats] = useState(null);
+  const [assignTarget, setAssignTarget] = useState(null);
   const [isNewBriefOpen, setIsNewBriefOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
@@ -111,6 +113,19 @@ export default function DashboardPage({
 
   const handleAddBrief = (brief) => {
     showToast(`Creative Brief "${brief.title}" launched successfully!`);
+  };
+
+  // Re-read the dashboard aggregates so the KPI cards, team distribution and
+  // alert list reflect the assignment that was just persisted.
+  const refreshStats = () => {
+    getDashboardStats()
+      .then(setStats)
+      .catch(() => {});
+  };
+
+  const handleTeamAssigned = (teamName, brandName) => {
+    refreshStats();
+    showToast(`${brandName} was assigned to ${teamName}.`);
   };
 
   const openBrand = (brandId) => {
@@ -228,7 +243,11 @@ export default function DashboardPage({
               <h1 className="page-head__title">Dashboard</h1>
             </section>
 
-            <OverviewSection stats={stats} onViewWorkload={() => go('clients')} />
+            <OverviewSection
+              stats={stats}
+              onViewWorkload={() => go('clients')}
+              onAssignTeam={setAssignTarget}
+            />
           </>
         );
     }
@@ -302,6 +321,14 @@ export default function DashboardPage({
         isOpen={isNewBriefOpen}
         onClose={() => setIsNewBriefOpen(false)}
         onAddBrief={handleAddBrief}
+      />
+
+      {/* Assign an unassigned brand to a team from the dashboard alert */}
+      <AssignTeamModal
+        isOpen={Boolean(assignTarget)}
+        brand={assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onAssigned={handleTeamAssigned}
       />
 
       {/* Help & Support Info Modal */}
