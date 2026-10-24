@@ -35,6 +35,7 @@ model JobTitle {
 model User {
   id           Int       @id @default(autoincrement())
   fullName     String    @map("full_name") @db.VarChar(150)
+  username     String?   @unique @db.VarChar(50)
   email        String    @unique @db.VarChar(255)
   passwordHash String    @map("password_hash") @db.VarChar(255)
   phone        String?   @db.VarChar(30)
@@ -52,15 +53,18 @@ model User {
   createdUsers User[]    @relation("UserCreator")
 
   createdTeams Team[]           @relation("TeamCreator")
+  ledTeams     Team[]           @relation("TeamLead")
   memberships  TeamMembership[] @relation("MembershipUser")
 
   managedBrands Brand[] @relation("AccountManager")
   createdBrands Brand[] @relation("BrandCreator")
+  clientBrand   Brand?  @relation("ClientBrand")
 
   failedLoginAttempts    Int       @default(0) @map("failed_login_attempts")
   failedLoginWindowStart DateTime? @map("failed_login_window_start") @db.Timestamptz(6)
   loginLockedUntil       DateTime? @map("login_locked_until") @db.Timestamptz(6)
 
+  sessions  AuthSession[]
   sessions AuthSession[]
 
   passwordResetTokens PasswordResetToken[]
@@ -96,13 +100,16 @@ model Team {
   description String?
   isActive    Boolean  @default(true) @map("is_active")
   createdBy   Int?     @map("created_by")
+  teamLeadId  Int?     @map("team_lead_id")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   creator     User?            @relation("TeamCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  teamLead    User?            @relation("TeamLead", fields: [teamLeadId], references: [id], onDelete: SetNull)
   memberships TeamMembership[]
   brands      Brand[]
 
+  @@index([teamLeadId])
   @@map("teams")
 }
 
@@ -126,12 +133,14 @@ model Brand {
   websiteUrl       String?  @map("website_url")
   description      String?
   status           String   @default("active") @db.VarChar(20)
+  clientId         Int?     @unique @map("client_id")
   accountManagerId Int?     @map("account_manager_id")
   teamId           Int?     @map("team_id")
   createdBy        Int?     @map("created_by")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  client         User? @relation("ClientBrand", fields: [clientId], references: [id], onDelete: Restrict)
   accountManager User? @relation("AccountManager", fields: [accountManagerId], references: [id], onDelete: Restrict)
   team           Team? @relation(fields: [teamId], references: [id], onDelete: Restrict)
   creator        User? @relation("BrandCreator", fields: [createdBy], references: [id], onDelete: SetNull)

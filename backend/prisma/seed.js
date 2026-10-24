@@ -10,6 +10,7 @@ async function main() {
     'ADMIN',
     'ACCOUNT_MANAGER',
     'EMPLOYEE',
+    'CLIENT',
   ];
 
   const roles = {};
