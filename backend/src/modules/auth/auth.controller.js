@@ -41,4 +41,25 @@ export const AuthController = {
       message: result.message,
     });
   }),
+
+  forgotPassword: asyncHandler(async (req, res) => {
+    const result = await AuthService.requestPasswordReset(req.body);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  }),
+
+  resetPassword: asyncHandler(async (req, res) => {
+    const result = await AuthService.resetPassword(req.body, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  }),
 };

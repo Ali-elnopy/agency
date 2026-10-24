@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import Logo from '../components/Logo';
+import { resetPasswordApi } from '../services/api';
 
 const REQUIREMENTS = [
-  { id: 'length', label: 'At least 10 characters long', test: (value) => value.length >= 10 },
+  { id: 'length', label: 'At least 12 characters long', test: (value) => value.length >= 12 },
   {
     id: 'upper',
     label: 'Contains at least one uppercase letter (A-Z)',
@@ -28,12 +29,15 @@ export default function ResetPasswordPage({
   onToggleTheme,
   email = '',
   accountEmail,
+  token = '',
 }) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const passed = useMemo(
     () => REQUIREMENTS.filter((rule) => rule.test(password)).length,
@@ -41,13 +45,26 @@ export default function ResetPasswordPage({
   );
   const strengthLabel = STRENGTH_LABELS[passed];
   const matches = confirm.length > 0 && confirm === password;
-  const canSubmit = passed === REQUIREMENTS.length && matches;
+  const hasToken = Boolean(token);
+  const canSubmit = hasToken && passed === REQUIREMENTS.length && matches && !submitting;
   const target = email || accountEmail || 'your ORVIA workspace account';
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!canSubmit) return;
-    setDone(true);
+
+    setSubmitting(true);
+    setError('');
+
+    const result = await resetPasswordApi({ token, newPassword: password });
+
+    if (result.success) {
+      setDone(true);
+    } else {
+      setError(result.message);
+    }
+
+    setSubmitting(false);
   };
 
   return (
@@ -120,8 +137,45 @@ export default function ResetPasswordPage({
               </svg>
             </button>
           </div>
+        ) : !hasToken ? (
+          <div className="auth-notice" role="alert">
+            <strong>This reset link is incomplete</strong>
+            <p className="auth-notice__text">
+              Reset links are single-use and expire after 30 minutes. Request a fresh one and open
+              it from your inbox.
+            </p>
+            <button
+              type="button"
+              className="btn auth-notice__btn"
+              onClick={() => onNavigate('forgot')}
+            >
+              Request a new link
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </button>
+            <a
+              href="#login"
+              className="back-link"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate('login');
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19 12H5M11 6l-6 6 6 6" />
+              </svg>
+              Return to Login
+            </a>
+          </div>
         ) : (
           <form className="form" onSubmit={handleSubmit}>
+            {error && (
+              <div className="form__error" role="alert">
+                {error}
+              </div>
+            )}
+
             <div className="field">
               <label htmlFor="rp-password">New Password</label>
               <div className="input">
@@ -226,7 +280,7 @@ export default function ResetPasswordPage({
             </div>
 
             <button type="submit" className="btn" disabled={!canSubmit}>
-              Update password &amp; sign in
+              {submitting ? 'Updating…' : 'Update password & sign in'}
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>

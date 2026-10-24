@@ -1,110 +1,84 @@
 import React from 'react';
 
-const KPIS = [
-  {
-    label: 'Active Brands',
-    value: '12',
-    unit: 'Brands',
-    icon: 'i-briefcase',
-    tone: 'is-orange',
-    chip: '+4 this week',
-    chipTone: 'is-green',
-    foot: '2 archived brand workspaces',
-  },
-  {
-    label: 'Total Employees',
-    value: '24',
-    unit: 'Studio Seats',
-    icon: 'i-users',
-    tone: 'is-purple',
-    chip: '2 Admin',
-    chipTone: 'is-purple',
-    foot: '1 Manager · 2 Pending invites',
-  },
-  {
-    label: 'Active Teams',
-    value: '5',
-    unit: 'Operational Units',
-    icon: 'i-layers',
-    tone: 'is-green',
-    chip: 'Optimized',
-    chipTone: 'is-green',
-    foot: 'Average team size 4.8 members',
-  },
-];
-
-const MANAGERS = [
-  { name: 'Elana Vance', role: 'Lead', clients: 4, pct: 33 },
-  { name: 'Marcus Vance', role: 'AM', clients: 3, pct: 25 },
-  { name: 'Sarah Jenkins', role: 'AM', clients: 2, pct: 17 },
-  { name: 'David K.', role: 'AM', clients: 1, pct: 8 },
-  { name: 'Jessica Wong', role: 'Available', clients: 0, pct: 0 },
-];
-
-const MATRIX = [
-  { name: 'Elana Vance', team: 'Brand Strategy', clients: 4, state: 'At Capacity', tone: 'is-red' },
-  { name: 'Marcus Vance', team: 'Social Content', clients: 3, state: 'Optimal', tone: 'is-green' },
-  {
-    name: 'Sarah Jenkins',
-    team: 'Performance Ops',
-    clients: 2,
-    state: 'Has Space',
-    tone: 'is-amber',
-  },
-  { name: 'David K.', team: 'Creative Direction', clients: 1, state: 'Ready', tone: 'is-purple' },
-  { name: 'Jessica Wong', team: 'Unassigned', clients: 0, state: 'Ready', tone: 'is-gray' },
-];
-
-const ALERTS = [
-  {
-    group: 'Brands without an account manager',
-    count: 2,
-    tone: 'High Priority',
-    rows: [
-      { name: 'Lumina Health', sub: 'HealthTech & Telehealth', action: 'Assign Manager' },
-      { name: 'Solaris Energy', sub: 'Renewables', action: 'Assign Manager' },
-    ],
-  },
-  {
-    group: 'Brands without a team',
-    count: 1,
-    tone: 'Needs Squad',
-    rows: [
-      { name: 'Apex Dynamics', sub: 'Aerospace Engineering · No Squad', action: 'Assign Team' },
-    ],
-  },
+const KPI_META = [
+  { label: 'Total Brands', unit: 'Brands', icon: 'i-briefcase', tone: 'is-orange' },
+  { label: 'Total Employees', unit: 'Studio Seats', icon: 'i-users', tone: 'is-purple' },
+  { label: 'Active Teams', unit: 'Operational Units', icon: 'i-layers', tone: 'is-green' },
 ];
 
 function initials(name) {
-  return name
+  return String(name || '')
     .split(' ')
+    .filter(Boolean)
     .map((part) => part[0])
     .join('')
     .substring(0, 2)
     .toUpperCase();
 }
 
-export default function OverviewSection({ stats, onViewWorkload }) {
+export default function OverviewSection({ stats, onViewWorkload, onAssignTeam }) {
+  const hasStats = Boolean(stats);
+
+  const workload = Array.isArray(stats?.workload) ? stats.workload : [];
+  const teams = Array.isArray(stats?.teamWorkload) ? stats.teamWorkload : [];
+
+  const alerts = Array.isArray(stats?.alerts)
+    ? stats.alerts.filter(
+        (alert) => (alert.count ?? alert.rows?.length ?? 0) > 0 && alert.rows?.length > 0,
+      )
+    : [];
+
+  const visibleTeams = teams.slice(0, 6);
+  const hiddenTeams = teams.length - visibleTeams.length;
+
+  const totalClients = stats?.totalClients ?? 0;
+  const totalEmployees = stats?.totalEmployees ?? 0;
+  const activeEmployees = stats?.activeEmployees ?? 0;
+  const activeTeams = stats?.activeTeams ?? 0;
+  const totalTeams = stats?.totalTeams ?? 0;
+
+  const assignedBrands = stats?.teamAssignment?.assignedClients ?? 0;
+  const unassignedTeamBrands = stats?.teamAssignment?.unassignedClients ?? 0;
+  const deactivatedEmployees = Math.max(0, totalEmployees - activeEmployees);
+
+  const emptyTeams = teams.filter((team) => (team.clients ?? 0) === 0).length;
+  const teamsWithBrands = teams.length - emptyTeams;
+
+  const alertCount = alerts.reduce((total, alert) => total + (alert.count ?? 0), 0);
+
   const kpis = [
     {
-      ...KPIS[0],
-      value: stats ? String(stats.totalClients) : KPIS[0].value,
-      foot: stats
-        ? `${stats.accountManagerAssignment?.unassignedClients ?? 0} brands without an account manager`
-        : KPIS[0].foot,
+      ...KPI_META[0],
+      value: hasStats ? String(totalClients) : '—',
+      chip: hasStats ? `${assignedBrands} assigned` : 'No data',
+      chipTone: hasStats && assignedBrands > 0 ? 'is-green' : 'is-amber',
+      foot: hasStats
+        ? `${unassignedTeamBrands} ${
+            unassignedTeamBrands === 1 ? 'brand' : 'brands'
+          } without a team`
+        : 'Studio metrics are unavailable for this account.',
     },
     {
-      ...KPIS[1],
-      value: stats ? String(stats.totalEmployees) : KPIS[1].value,
-      chip: stats ? `${stats.activeEmployees} Active` : KPIS[1].chip,
-      foot: stats
-        ? `${stats.totalEmployees - stats.activeEmployees} deactivated accounts`
-        : KPIS[1].foot,
+      ...KPI_META[1],
+      value: hasStats ? String(totalEmployees) : '—',
+      chip: hasStats ? `${activeEmployees} active` : 'No data',
+      chipTone: hasStats ? 'is-purple' : 'is-amber',
+      foot: hasStats
+        ? deactivatedEmployees > 0
+          ? `${deactivatedEmployees} deactivated ${
+              deactivatedEmployees === 1 ? 'account' : 'accounts'
+            }`
+          : 'Every account is active'
+        : 'Studio metrics are unavailable for this account.',
     },
     {
-      ...KPIS[2],
-      value: stats ? String(stats.activeTeams) : KPIS[2].value,
-      foot: stats ? `${stats.totalTeams} operational units in the workspace` : KPIS[2].foot,
+      ...KPI_META[2],
+      value: hasStats ? String(activeTeams) : '—',
+      chip: hasStats ? (emptyTeams > 0 ? `${emptyTeams} empty` : 'All covered') : 'No data',
+      chipTone: hasStats ? (emptyTeams > 0 ? 'is-amber' : 'is-green') : 'is-amber',
+      foot: hasStats
+        ? `${teamsWithBrands} of ${totalTeams} teams have assigned brands`
+        : 'Studio metrics are unavailable for this account.',
     },
   ];
 
@@ -136,38 +110,65 @@ export default function OverviewSection({ stats, onViewWorkload }) {
           <section className="cl-card">
             <header className="cl-card__head">
               <div>
-                <h2 className="cl-card__title">Brands per Account Manager</h2>
+                <h2 className="cl-card__title">Brands per Teams</h2>
                 <p className="cl-card__sub">
-                  Real-time distribution of active brand retainers across the studio&rsquo;s account
-                  managers.
+                  Brands currently assigned to each team in the workspace.
                 </p>
               </div>
               <button type="button" className="ec-link" onClick={onViewWorkload}>
-                View workload in Brands →
+                Review assignments in Brands →
               </button>
             </header>
 
-            <div className="ov-bars">
-              {MANAGERS.map((manager) => (
-                <div key={manager.name} className="ov-bar">
-                  <span className="cl-avatar cl-avatar--orange">{initials(manager.name)}</span>
-                  <span className="ov-bar__name">
-                    {manager.name}
-                    <em className={manager.role === 'Lead' ? 'is-lead' : ''}>{manager.role}</em>
-                  </span>
-                  <span className="ov-bar__track">
-                    <i style={{ width: `${manager.pct}%` }} />
-                  </span>
-                  <span className="ov-bar__value">{manager.clients} brands</span>
-                  <span className="ov-bar__pct">{manager.pct}%</span>
-                </div>
-              ))}
-            </div>
+            {visibleTeams.length > 0 ? (
+              <div className="ov-bars">
+                {visibleTeams.map((team) => (
+                  <div key={team.id ?? team.name} className="ov-bar">
+                    <span className="cl-avatar cl-avatar--orange">{initials(team.name)}</span>
+                    <span className="ov-bar__name">
+                      <span className="ov-bar__label" title={team.name}>
+                        {team.name}
+                      </span>
+                      <em>
+                        {team.members} {team.members === 1 ? 'member' : 'members'}
+                      </em>
+                    </span>
+                    <span className="ov-bar__track">
+                      <i style={{ width: `${team.pct}%` }} />
+                    </span>
+                    <span className="ov-bar__value">
+                      {team.clients} {team.clients === 1 ? 'brand' : 'brands'}
+                    </span>
+                    <span className="ov-bar__pct">{team.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="ws-empty">
+                <strong>{hasStats ? 'No teams yet.' : 'Team data is unavailable.'}</strong>
+                <p>
+                  {hasStats
+                    ? 'Create a team to start distributing brands across the studio.'
+                    : 'Sign in with an administrator account to see team distribution.'}
+                </p>
+              </div>
+            )}
+
+            {hiddenTeams > 0 ? (
+              <p className="ov-bars__more">
+                +{hiddenTeams} more {hiddenTeams === 1 ? 'team' : 'teams'} in the workspace.
+              </p>
+            ) : null}
           </section>
 
           <section className="cl-card">
             <header className="cl-card__head">
-              <h2 className="cl-card__title">Workload Allocation Matrix</h2>
+              <div>
+                <h2 className="cl-card__title">Workload Allocation Matrix</h2>
+                <p className="cl-card__sub">
+                  Account managers and the brands currently assigned to them.
+                </p>
+              </div>
             </header>
 
             <div className="table-wrap">
@@ -176,28 +177,45 @@ export default function OverviewSection({ stats, onViewWorkload }) {
                   <tr>
                     <th>Account Manager</th>
                     <th>Assigned Team</th>
-                    <th>Active Brands</th>
+                    <th>Brands</th>
                     <th>Capacity State</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {MATRIX.map((row) => (
-                    <tr key={row.name}>
-                      <td>
-                        <div className="ov-person">
-                          <span className="cl-avatar cl-avatar--gray">{initials(row.name)}</span>
-                          {row.name}
+                  {workload.length > 0 ? (
+                    workload.map((row) => (
+                      <tr key={row.id ?? row.name}>
+                        <td>
+                          <div className="ov-person">
+                            <span className="cl-avatar cl-avatar--gray">{initials(row.name)}</span>
+                            {row.name}
+                          </div>
+                        </td>
+                        <td>{row.team}</td>
+                        <td>
+                          <strong>{row.clients}</strong>
+                        </td>
+                        <td>
+                          <span className={`pill ${row.tone}`}>{row.state}</span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4}>
+                        <div className="ws-empty">
+                          <strong>
+                            {hasStats ? 'No account managers yet.' : 'Workload data is unavailable.'}
+                          </strong>
+                          <p>
+                            {hasStats
+                              ? 'Add an account manager to start tracking brand capacity.'
+                              : 'Sign in with an administrator account to see workload.'}
+                          </p>
                         </div>
                       </td>
-                      <td>{row.team}</td>
-                      <td>
-                        <strong>{row.clients}</strong>
-                      </td>
-                      <td>
-                        <span className={`pill ${row.tone}`}>{row.state}</span>
-                      </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -215,10 +233,20 @@ export default function OverviewSection({ stats, onViewWorkload }) {
                 </span>
                 Attention Required
               </h2>
-              <span className="pill is-orange">5 Alerts</span>
+              <span className={`pill ${alertCount > 0 ? 'is-orange' : 'is-green'}`}>
+                {alertCount} {alertCount === 1 ? 'Alert' : 'Alerts'}
+              </span>
             </header>
 
-            {ALERTS.map((alert) => (
+            {alerts.length === 0 ? (
+              <p className="cl-card__sub">
+                {hasStats
+                  ? 'Every brand has a team assigned.'
+                  : 'Alerts are unavailable for this account.'}
+              </p>
+            ) : null}
+
+            {alerts.map((alert) => (
               <div key={alert.group} className="ov-alert">
                 <div className="ov-alert__head">
                   <span className="cl-label">
@@ -232,13 +260,17 @@ export default function OverviewSection({ stats, onViewWorkload }) {
                 </div>
 
                 {alert.rows.map((row) => (
-                  <div key={row.name} className="ov-alert__row">
+                  <div key={row.id ?? row.name} className="ov-alert__row">
                     <span className="ov-alert__mark">{initials(row.name)}</span>
                     <span>
                       <strong>{row.name}</strong>
                       <small>{row.sub}</small>
                     </span>
-                    <button type="button" className="cl-profile-btn">
+                    <button
+                      type="button"
+                      className="cl-profile-btn"
+                      onClick={() => onAssignTeam?.(row)}
+                    >
                       {row.action}
                     </button>
                   </div>
@@ -246,25 +278,14 @@ export default function OverviewSection({ stats, onViewWorkload }) {
               </div>
             ))}
 
-            <div className="ov-alert__warn">
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-alert" />
-              </svg>
-              Unassigned brands cannot proceed with AI briefs until both a manager and team are
-              confirmed.
-            </div>
-          </section>
-
-          <section className="ov-system">
-            <div className="ov-system__head">
-              <span>System Integrity</span>
-              <span className="pill is-green">Operational</span>
-            </div>
-            <strong>All studio systems operational</strong>
-            <p>
-              API uptime 99.98% in the last 30 days. No impacts detected across your active
-              workspaces.
-            </p>
+            {hasStats ? (
+              <div className="ov-alert__warn">
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-alert" />
+                </svg>
+                Brands without a team are excluded from team workload until a team is assigned.
+              </div>
+            ) : null}
           </section>
         </aside>
       </div>

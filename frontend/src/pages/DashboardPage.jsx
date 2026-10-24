@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
 import OverviewSection from '../components/sections/OverviewSection';
-import RolesSection from '../components/sections/RolesSection';
-import ActivitySection from '../components/sections/ActivitySection';
 import ProfilePage from './ProfilePage';
 import SettingsPage from './SettingsPage';
 import RolesPermissionsPage from './RolesPermissionsPage';
@@ -20,6 +18,7 @@ import TeamDetailsPage from './TeamDetailsPage';
 import AddTeamMemberPage from './AddTeamMemberPage';
 import ManageBrandsPage from './ManageBrandsPage';
 import NewBriefModal from '../components/modals/NewBriefModal';
+import AssignTeamModal from '../components/modals/AssignTeamModal';
 import InfoModal from '../components/modals/InfoModal';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
@@ -72,10 +71,10 @@ export default function DashboardPage({
   const [activePlanMonth, setActivePlanMonth] = useState(() => monthKey());
   const [activeTeam, setActiveTeam] = useState('Brand Strategy & Growth');
   const [stats, setStats] = useState(null);
+  const [assignTarget, setAssignTarget] = useState(null);
   const [isNewBriefOpen, setIsNewBriefOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
-  const [newActivity, setNewActivity] = useState(null);
   const [usersSearch, setUsersSearch] = useState(null);
 
   useEffect(() => {
@@ -113,55 +112,20 @@ export default function DashboardPage({
   };
 
   const handleAddBrief = (brief) => {
-    setNewActivity({
-      id: Date.now(),
-      avatarClass: 'is-a',
-      initials: user?.fullName
-        ? user.fullName
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .substring(0, 2)
-        : 'EV',
-      name: user?.fullName || 'Elena Vance',
-      time: 'Just now',
-      role: 'Creative Lead',
-      action: (
-        <>
-          <span className="pill is-orange">
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-send" />
-            </svg>
-            Launched
-          </span>{' '}
-          Brief &quot;{brief.title}&quot; for {brief.brand}
-        </>
-      ),
-    });
-
     showToast(`Creative Brief "${brief.title}" launched successfully!`);
   };
 
-  const handleRoleCreated = (role) => {
-    setNewActivity({
-      id: Date.now(),
-      avatarClass: `is-${role.color === 'purple' ? 'b' : role.color === 'green' ? 'c' : 'a'}`,
-      initials: 'AD',
-      name: 'System Governance',
-      time: 'Just now',
-      role: 'Admin Ops',
-      action: (
-        <>
-          <span className={`pill is-${role.color}`}>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-users" />
-            </svg>
-            Configured
-          </span>{' '}
-          New Role &quot;{role.title}&quot; with {role.badge} permissions.
-        </>
-      ),
-    });
+  // Re-read the dashboard aggregates so the KPI cards, team distribution and
+  // alert list reflect the assignment that was just persisted.
+  const refreshStats = () => {
+    getDashboardStats()
+      .then(setStats)
+      .catch(() => {});
+  };
+
+  const handleTeamAssigned = (teamName, brandName) => {
+    refreshStats();
+    showToast(`${brandName} was assigned to ${teamName}.`);
   };
 
   const openBrand = (brandId) => {
@@ -241,7 +205,6 @@ export default function DashboardPage({
             brandId={activeBrandId}
             initialMonth={activePlanMonth}
             onBack={() => go('brandDetail')}
-            onSaved={() => go('brandDetail', 'Content added successfully.')}
           />
         );
       case 'teams':
@@ -280,12 +243,11 @@ export default function DashboardPage({
               <h1 className="page-head__title">Dashboard</h1>
             </section>
 
-            <OverviewSection stats={stats} onViewWorkload={() => go('clients')} />
-
-            <section className="row row--admin">
-              <RolesSection onRoleCreated={handleRoleCreated} onOpenMatrix={() => go('roles')} />
-              <ActivitySection incomingActivity={newActivity} />
-            </section>
+            <OverviewSection
+              stats={stats}
+              onViewWorkload={() => go('clients')}
+              onAssignTeam={setAssignTarget}
+            />
           </>
         );
     }
@@ -359,6 +321,14 @@ export default function DashboardPage({
         isOpen={isNewBriefOpen}
         onClose={() => setIsNewBriefOpen(false)}
         onAddBrief={handleAddBrief}
+      />
+
+      {/* Assign an unassigned brand to a team from the dashboard alert */}
+      <AssignTeamModal
+        isOpen={Boolean(assignTarget)}
+        brand={assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onAssigned={handleTeamAssigned}
       />
 
       {/* Help & Support Info Modal */}

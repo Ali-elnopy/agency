@@ -76,6 +76,17 @@ export const TeamsModel = {
     });
   },
 
+  countBrands(teamId) {
+    return prisma.brand.count({ where: { teamId } });
+  },
+
+  remove(id) {
+    return prisma.team.delete({
+      where: { id },
+      select: teamSelect,
+    });
+  },
+
   findEligibleUsersByIds(ids) {
     return prisma.user.findMany({
       where: {

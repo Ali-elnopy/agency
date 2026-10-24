@@ -45,6 +45,28 @@ root `README.md` for the default local credentials.
 The React app lives in `../frontend`. Start it separately with `npm install` and
 `npm run dev`, and open <http://localhost:5173>.
 
+### Demo workspace data
+
+`npm run seed:demo` fills an empty workspace with a realistic agency setup:
+7 teams, 3 brands and 8 users (2 account managers + 6 employees), each user with
+its own temporary password. It calls the public API instead of the database, so
+every record goes through the same validation the screens use.
+
+The script is safe to re-run: teams, users and brands are looked up by
+name/email and reused, memberships are not duplicated, and existing passwords
+are never changed.
+
+```powershell
+$env:API_BASE_URL='https://orvia-agency-api.vercel.app/api'
+$env:SEED_ADMIN_EMAIL='admin@agency.local'
+$env:SEED_ADMIN_PASSWORD='<admin password>'
+npm run seed:demo
+```
+
+The command prints the email and password of every account it created. Copy
+them before closing the terminal: passwords are stored hashed and cannot be
+read back.
+
 ## Structure
 
 ```

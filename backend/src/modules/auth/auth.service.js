@@ -1,11 +1,17 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import { AuthModel } from './auth.model.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { generateAccessToken } from '../../utils/tokens.js';
 import { generateRefreshToken, hashRefreshToken } from '../../utils/refreshTokens.js';
+import { isMailerConfigured, sendPasswordResetEmail } from '../../utils/mailer.js';
+
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
+const RESET_TOKEN_TTL_MINUTES = 30;
+
+const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 const getPublicUser = (user) => ({
   id: user.id,
@@ -146,5 +152,97 @@ export const AuthService = {
     });
 
     return { message: 'Password changed successfully' };
+  },
+
+  /**
+   * Starts the "forgot password" flow.
+   *
+   * The response is identical for known and unknown addresses so the endpoint
+   * cannot be used to enumerate workspace accounts.
+   */
+  async requestPasswordReset({ email: rawEmail }) {
+    if (!isMailerConfigured()) {
+      throw new ApiError(
+        503,
+        'Password reset email is not configured yet. Ask your workspace admin for help.',
+      );
+    }
+
+    const genericMessage =
+      'If an account exists for that address, a reset link is on its way. Check your inbox and spam folder.';
+
+    const email = String(rawEmail ?? '')
+      .trim()
+      .toLowerCase();
+
+    const user = await AuthModel.findUserByEmail(email);
+
+    if (!user || !user.isActive) return { message: genericMessage };
+
+    const token = crypto.randomBytes(32).toString('hex');
+
+    await AuthModel.createPasswordResetToken({
+      userId: user.id,
+      tokenHash: hashResetToken(token),
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000),
+    });
+
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        fullName: user.fullName,
+        token,
+        expiresInMinutes: RESET_TOKEN_TTL_MINUTES,
+      });
+    } catch (error) {
+      // Never surface delivery failures to the caller: that would reveal
+      // whether the address belongs to an account.
+      console.error('[auth] password reset email failed:', error?.message || error);
+    }
+
+    return { message: genericMessage };
+  },
+
+  async resetPassword({ token, newPassword }, requestMeta = {}) {
+    const tokenIsMissing = !token || typeof token !== 'string';
+
+    if (tokenIsMissing) {
+      throw new ApiError(400, 'This reset link is invalid. Request a new one.');
+    }
+
+    const record = await AuthModel.findPasswordResetToken(hashResetToken(token));
+
+    const expired =
+      !record || Boolean(record.usedAt) || record.expiresAt.getTime() <= Date.now();
+
+    if (expired) {
+      throw new ApiError(400, 'This reset link is invalid or has expired. Request a new one.');
+    }
+
+    if (!record.user?.isActive) {
+      throw new ApiError(400, 'This account is no longer active.');
+    }
+
+    const reusesCurrentPassword = await bcrypt.compare(newPassword, record.user.passwordHash);
+
+    if (reusesCurrentPassword) {
+      throw new ApiError(400, 'Choose a password you have not used before.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    const result = await AuthModel.consumePasswordResetToken({
+      tokenId: record.id,
+      userId: record.user.id,
+      passwordHash,
+      ipAddress: requestMeta.ipAddress,
+      userAgent: requestMeta.userAgent,
+    });
+
+    if (!result.applied) {
+      throw new ApiError(400, 'This reset link is invalid or has expired. Request a new one.');
+    }
+
+    return { message: 'Password updated. Sign in with your new password.' };
   },
 };

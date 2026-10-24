@@ -57,4 +57,50 @@ export const DashboardModel = {
       }),
     ]);
   },
+
+  listAccountManagers() {
+    return prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: { is: { name: 'ACCOUNT_MANAGER' } },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        memberships: {
+          select: { team: { select: { name: true } } },
+          take: 1,
+        },
+      },
+      orderBy: { fullName: 'asc' },
+    });
+  },
+
+  listBrandAssignments() {
+    return prisma.brand.findMany({
+      select: {
+        id: true,
+        name: true,
+        industry: true,
+        accountManagerId: true,
+        teamId: true,
+        team: { select: { name: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+  },
+
+  // Teams drive the "Brands per Teams" card, so the dashboard needs every
+  // active team even when no brand is assigned to it yet.
+  listTeams() {
+    return prisma.team.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { memberships: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+  },
 };

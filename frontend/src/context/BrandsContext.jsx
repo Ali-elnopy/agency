@@ -8,10 +8,15 @@ import {
   monthKey,
   timezoneLabelFor,
 } from '../data/brands';
+import {
+  createBrand as createBrandApi,
+  deleteBrand as deleteBrandApi,
+  listBrands,
+  updateBrand as updateBrandApi,
+} from '../services/brands';
 
-/* Local-first workspace store. The brand API is create-only today, so the
-   workspace keeps its plans and content in the browser until the backend
-   endpoints land. Every list screen reads from this single provider. */
+/* Brand records live in the API. Plans and content are still workspace-local
+   until their endpoints land, so they stay in localStorage for now. */
 
 const STORAGE_KEYS = {
   brands: 'orvia_brands_v1',
@@ -51,13 +56,20 @@ function makeId(prefix) {
 }
 
 export function BrandsProvider({ children }) {
-  const [brands, setBrands] = useState(() => readStore(STORAGE_KEYS.brands, seedBrands));
+  const demo = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true';
+
+  const [brands, setBrands] = useState(() =>
+    demo ? readStore(STORAGE_KEYS.brands, seedBrands) : [],
+  );
   const [plans, setPlans] = useState(() => readStore(STORAGE_KEYS.plans, seedPlans));
   const [content, setContent] = useState(() => readStore(STORAGE_KEYS.content, seedContent));
+  const [loadingBrands, setLoadingBrands] = useState(!demo);
+  const [brandsError, setBrandsError] = useState(null);
 
   useEffect(() => {
+    if (!demo) return;
     writeStore(STORAGE_KEYS.brands, brands);
-  }, [brands]);
+  }, [brands, demo]);
 
   useEffect(() => {
     writeStore(STORAGE_KEYS.plans, plans);
@@ -67,47 +79,101 @@ export function BrandsProvider({ children }) {
     writeStore(STORAGE_KEYS.content, content);
   }, [content]);
 
+  useEffect(() => {
+    if (demo) return;
+
+    let alive = true;
+
+    setLoadingBrands(true);
+    listBrands()
+      .then((records) => {
+        if (alive) setBrands(records);
+      })
+      .catch((error) => {
+        if (alive) setBrandsError(error?.message ?? 'Could not load brands.');
+      })
+      .finally(() => {
+        if (alive) setLoadingBrands(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [demo]);
+
   const addBrand = useCallback(
-    (input) => {
+    async (input) => {
       const name = String(input.name ?? '').trim();
-      const brand = {
-        id: makeId('brand'),
-        name,
-        initials: initialsOf(name),
-        tone: TONES[brands.length % TONES.length],
-        verified: false,
-        industry: String(input.industry ?? '').trim(),
-        description: String(input.description ?? '').trim(),
-        country: input.country ?? '',
-        timezone: input.timezone ?? '',
-        timezoneLabel: input.timezoneLabel || timezoneLabelFor(input.timezone),
-        website: String(input.website ?? '').trim(),
-        driveFolderUrl: String(input.driveFolderUrl ?? '').trim(),
-        manager: '',
-        managerInitials: '',
-        managerEmail: '',
-        managerRole: '',
-        team: '',
-        teamMembers: '',
-        status: 'active',
-        createdAt: new Date().toISOString().slice(0, 10),
-        contactName: '',
-        contactRole: '',
-        contactEmail: '',
-        contactPhone: '',
-      };
+
+      if (demo) {
+        const brand = {
+          id: makeId('brand'),
+          name,
+          initials: initialsOf(name),
+          tone: TONES[brands.length % TONES.length],
+          verified: false,
+          industry: String(input.industry ?? '').trim(),
+          description: String(input.description ?? '').trim(),
+          country: input.country ?? '',
+          timezone: input.timezone ?? '',
+          timezoneLabel: input.timezoneLabel || timezoneLabelFor(input.timezone),
+          website: String(input.website ?? '').trim(),
+          driveFolderUrl: String(input.driveFolderUrl ?? '').trim(),
+          manager: '',
+          managerInitials: '',
+          managerEmail: '',
+          managerRole: '',
+          team: '',
+          teamMembers: '',
+          status: 'active',
+          createdAt: new Date().toISOString().slice(0, 10),
+          contactName: '',
+          contactRole: '',
+          contactEmail: '',
+          contactPhone: '',
+        };
+
+        setBrands((prev) => [brand, ...prev]);
+        return brand;
+      }
+
+      const brand = await createBrandApi(input);
 
       setBrands((prev) => [brand, ...prev]);
       return brand;
     },
-    [brands.length],
+    [brands.length, demo],
   );
 
-  const deleteBrand = useCallback((brandId) => {
-    setBrands((prev) => prev.filter((brand) => brand.id !== brandId));
-    setPlans((prev) => prev.filter((plan) => plan.brandId !== brandId));
-    setContent((prev) => prev.filter((item) => item.brandId !== brandId));
-  }, []);
+  const deleteBrand = useCallback(
+    async (brandId) => {
+      if (!demo) {
+        await deleteBrandApi(brandId);
+      }
+
+      setBrands((prev) => prev.filter((brand) => brand.id !== brandId));
+      setPlans((prev) => prev.filter((plan) => plan.brandId !== brandId));
+      setContent((prev) => prev.filter((item) => item.brandId !== brandId));
+    },
+    [demo],
+  );
+
+  const updateBrand = useCallback(
+    async (brandId, patch) => {
+      if (!demo) {
+        const brand = await updateBrandApi(brandId, patch);
+        setBrands((prev) => prev.map((item) => (item.id === brand.id ? brand : item)));
+        return brand;
+      }
+
+      setBrands((prev) =>
+        prev.map((item) => (item.id === brandId ? { ...item, ...patch } : item)),
+      );
+
+      return { ...(brands.find((item) => item.id === brandId) ?? {}), ...patch };
+    },
+    [brands, demo],
+  );
 
   const savePlan = useCallback((input) => {
     const brandId = input.brandId;
@@ -146,6 +212,7 @@ export function BrandsProvider({ children }) {
       tov: input.tov,
       caption: String(input.caption ?? '').trim(),
       notes: String(input.notes ?? '').trim(),
+      designDirection: String(input.designDirection ?? '').trim(),
       referenceUrl: String(input.referenceUrl ?? '').trim(),
       materialUrl: String(input.materialUrl ?? '').trim(),
       status: 'planned',
@@ -178,8 +245,11 @@ export function BrandsProvider({ children }) {
       brands,
       plans,
       content,
+      loading: loadingBrands,
+      error: brandsError,
       addBrand,
       deleteBrand,
+      updateBrand,
       savePlan,
       addContent,
       updateContentStatus,
@@ -190,8 +260,11 @@ export function BrandsProvider({ children }) {
       brands,
       plans,
       content,
+      loadingBrands,
+      brandsError,
       addBrand,
       deleteBrand,
+      updateBrand,
       savePlan,
       addContent,
       updateContentStatus,

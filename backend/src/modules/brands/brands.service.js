@@ -1,6 +1,7 @@
-
 import { BrandsModel } from './brands.model.js';
 import { ApiError } from '../../utils/ApiError.js';
+
+const BRAND_STATUSES = new Set(['active', 'paused', 'archived']);
 
 async function validateTeam(teamId) {
   if (teamId == null) return;
@@ -38,6 +39,27 @@ async function validateAccountManager(accountManagerId) {
   }
 }
 
+function parseBrandId(value) {
+  const id = Number(value);
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new ApiError(400, 'Brand id must be a positive integer');
+  }
+
+  return id;
+}
+
+async function getBrandOrThrow(idValue) {
+  const id = parseBrandId(idValue);
+  const brand = await BrandsModel.findById(id);
+
+  if (!brand) {
+    throw new ApiError(404, 'Brand not found');
+  }
+
+  return brand;
+}
+
 function mapPrismaError(error) {
   if (error?.code === 'P2003' || error?.code === 'P2014') {
     throw new ApiError(
@@ -69,5 +91,55 @@ export const BrandsService = {
     } catch (error) {
       mapPrismaError(error);
     }
+  },
+
+  async listBrands(filters = {}) {
+    return BrandsModel.list(filters);
+  },
+
+  async getBrand(id) {
+    return getBrandOrThrow(id);
+  },
+
+  async updateBrand(idValue, input) {
+    const brand = await getBrandOrThrow(idValue);
+
+    if (input.status !== undefined && !BRAND_STATUSES.has(input.status)) {
+      throw new ApiError(400, 'Invalid brand status');
+    }
+
+    if (input.teamId !== undefined) {
+      await validateTeam(input.teamId);
+    }
+
+    if (input.accountManagerId !== undefined) {
+      await validateAccountManager(input.accountManagerId);
+    }
+
+    const data = {};
+
+    for (const key of [
+      'name',
+      'industry',
+      'websiteUrl',
+      'description',
+      'status',
+      'teamId',
+      'accountManagerId',
+    ]) {
+      if (input[key] !== undefined) data[key] = input[key];
+    }
+
+    try {
+      return await BrandsModel.update(brand.id, data);
+    } catch (error) {
+      mapPrismaError(error);
+    }
+  },
+
+  async deleteBrand(idValue) {
+    const brand = await getBrandOrThrow(idValue);
+
+    return BrandsModel.remove(brand.id);
   },
 };

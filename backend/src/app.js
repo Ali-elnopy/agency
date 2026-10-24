@@ -8,10 +8,15 @@ import { usersRouter } from './modules/users/users.routes.js';
 import { notFound, errorHandler } from './middlewares/error.js';
 import { teamsRouter } from './modules/teams/teams.routes.js';
 import { brandsRouter } from './modules/brands/brands.routes.js';
+import { metaRouter } from './modules/meta/meta.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 const app = express();
 
 app.disable('x-powered-by');
+
+// Vercel terminates TLS in front of the function; without this the rate
+// limiter would see every visitor as the same proxy address.
+app.set('trust proxy', 1);
 
 app.use(helmet());
 
@@ -33,10 +38,33 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+const apiIndex = (_req, res) => {
+  res.status(200).json({
+    success: true,
+    name: 'ORVIA Agency OS API',
+    status: 'operational',
+    docs: {
+      health: 'GET /api/health',
+      login: 'POST /api/auth/login',
+      me: 'GET /api/auth/me',
+      users: 'GET /api/users',
+      teams: 'GET /api/teams',
+      brands: 'GET /api/brands',
+      dashboard: 'GET /api/dashboard',
+      roles: 'GET /api/meta/roles',
+      jobTitles: 'GET /api/meta/job-titles',
+    },
+  });
+};
+
+app.get('/', apiIndex);
+app.get('/api', apiIndex);
+
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/teams', teamsRouter);
 app.use('/api/brands', brandsRouter);
+app.use('/api/meta', metaRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use(notFound);
 app.use(errorHandler);

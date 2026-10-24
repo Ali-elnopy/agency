@@ -76,4 +76,14 @@ export const TeamsController = {
       data: team,
     });
   }),
+
+  removeTeam: asyncHandler(async (req, res) => {
+    const team = await TeamsService.deleteTeam(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Team deleted successfully',
+      data: team,
+    });
+  }),
 };

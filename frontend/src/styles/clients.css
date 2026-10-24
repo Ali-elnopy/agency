@@ -2762,13 +2762,22 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  width: 118px;
+  width: 152px;
+  min-width: 0;
   flex-shrink: 0;
   font-weight: 600;
   color: var(--ink);
 }
 
+.ov-bar__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ov-bar__name em {
+  flex-shrink: 0;
   padding: 1px 4px;
   font-size: 7px;
   font-style: normal;
@@ -2777,6 +2786,12 @@
   color: var(--faint);
   background: var(--soft);
   border-radius: 3px;
+}
+
+.ov-bars__more {
+  margin-top: 10px;
+  font-size: 9.5px;
+  color: var(--faint);
 }
 
 .ov-bar__name em.is-lead {

@@ -19,6 +19,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
+    "seed:demo": "node scripts/seed-demo.mjs",
     "db:studio": "prisma studio"
   },
   "dependencies": {
@@ -32,6 +33,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
     "multer": "^2.4.0",
+    "nodemailer": "^10.2.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

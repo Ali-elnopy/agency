@@ -17,9 +17,16 @@ const TITLES = {
 
 const VIEWS = ['login', 'forgot', 'reset', 'dashboard'];
 
-function readHashView() {
-  const hash = window.location.hash.replace('#', '');
-  return VIEWS.includes(hash) ? hash : 'login';
+// Auth screens live in the hash (`#reset?token=…`) so the reset link email can
+// carry the token without a server-side route.
+function readHashRoute() {
+  const raw = window.location.hash.replace(/^#/, '');
+  const [rawView, query = ''] = raw.split('?');
+
+  return {
+    view: VIEWS.includes(rawView) ? rawView : 'login',
+    params: new URLSearchParams(query),
+  };
 }
 
 // Replacing (rather than pushing) keeps auth screens out of the Back stack.
@@ -39,14 +46,23 @@ export default function App() {
   const { user, logout } = useAuth();
 
   const [view, setView] = useState(() => {
-    const initial = readHashView();
+    const route = readHashRoute();
     const authenticated = hasStoredSession();
+
+    // A valid reset link wins over an existing session: the whole point is to
+    // recover an account, possibly on a shared device.
+    if (route.view === 'reset' && route.params.get('token')) return 'reset';
 
     // A signed-in user belongs on the dashboard. Auth screens stay reachable
     // only after an explicit sign-out.
     if (authenticated) return 'dashboard';
-    return initial === 'dashboard' ? 'login' : initial;
+    return route.view === 'dashboard' ? 'login' : route.view;
   });
+
+  // Token from the emailed `#reset?token=…` link.
+  const [resetToken, setResetToken] = useState(
+    () => readHashRoute().params.get('token') || '',
+  );
 
   // Light is the product default. Only an explicit toggle is remembered, so a
   // device-level dark preference never forces the workspace into dark mode.
@@ -90,11 +106,11 @@ export default function App() {
   // An authenticated user should never remain on an auth screen, even for the
   // brief render between setUser() and the login redirect.
   useEffect(() => {
-    if (user && view !== 'dashboard') {
+    if (user && view !== 'dashboard' && !resetToken) {
       replaceHashView('dashboard');
       setView('dashboard');
     }
-  }, [view, user]);
+  }, [view, user, resetToken]);
 
   // Storage is the source of truth here: reading it avoids a stale closure
   // racing the hash change that follows a successful sign-in. While a session
@@ -102,8 +118,17 @@ export default function App() {
   // replaced with the dashboard, so sign-in only appears after sign-out.
   useEffect(() => {
     const resolveView = () => {
-      const next = readHashView();
+      const route = readHashRoute();
+      const next = route.view;
       const authenticated = hasStoredSession();
+
+      setResetToken(route.params.get('token') || '');
+
+      // Always honour an emailed reset link, even if a stale session exists.
+      if (route.view === 'reset' && route.params.get('token')) {
+        setView('reset');
+        return;
+      }
 
       if (authenticated) {
         if (next !== 'dashboard') replaceHashView('dashboard');
@@ -179,6 +204,7 @@ export default function App() {
               theme={theme}
               onToggleTheme={toggleTheme}
               email={resetEmail}
+              token={resetToken}
             />
           ) : (
             <LoginPage onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />

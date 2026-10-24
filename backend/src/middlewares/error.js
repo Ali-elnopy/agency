@@ -12,7 +12,8 @@ export const errorHandler = (err, req, res, next) => {
     return next(err);
   }
 
-  const statusCode = err instanceof ApiError ? err.statusCode : 500;
+  const isOperational = err instanceof ApiError;
+  const statusCode = isOperational ? err.statusCode : 500;
 
   if (statusCode >= 500) {
     console.error(err);
@@ -20,6 +21,9 @@ export const errorHandler = (err, req, res, next) => {
 
   res.status(statusCode).json({
     success: false,
-    message: statusCode >= 500 ? 'Internal server error' : err.message,
+    // Operational errors carry a message meant for the client (for example a
+    // 503 explaining that email delivery is not configured). Unexpected
+    // failures stay opaque.
+    message: statusCode >= 500 && !isOperational ? 'Internal server error' : err.message,
   });
 };

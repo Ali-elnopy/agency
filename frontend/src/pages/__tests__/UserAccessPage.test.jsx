@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import UserAccessPage from '../UserAccessPage';
 import { WorkspaceProvider } from '../../context/WorkspaceContext';
 
@@ -15,7 +15,14 @@ function renderPage(props = {}) {
 
 describe('UserAccessPage directory', () => {
   beforeEach(() => {
+    // These assertions exercise the local demo workspace, which is seeded from
+    // fixtures instead of the API.
+    vi.stubEnv('VITE_DEV_BYPASS_LOGIN', 'true');
     window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('renders the KPI summary and the seeded workspace users', () => {

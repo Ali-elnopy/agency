@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import CredentialsModal from '../components/common/CredentialsModal';
 import Switch from '../components/ui/Switch';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { createUser, getJobTitles } from '../services/users';
 import { addTeamMember, getTeams } from '../services/teams';
+import { generateTemporaryPassword } from '../utils/credentials';
 
 const ROLES = [
   {
@@ -43,33 +45,17 @@ const EMPTY_FORM = {
   pod: PODS[0],
 };
 
-// The API provisions accounts with a password. The screen has no password
-// field, so a strong temporary one is generated and shown once on creation.
-function generateTemporaryPassword() {
-  const lower = 'abcdefghjkmnpqrstuvwxyz';
-  const upper = 'ABCDEFGHJKMNPQRSTUVWXYZ';
-  const digits = '23456789';
-  const symbols = '!@#$%&*';
-  const pool = lower + upper + digits + symbols;
-
-  const pick = (source) => source[Math.floor(Math.random() * source.length)];
-  const chars = [pick(lower), pick(upper), pick(digits), pick(symbols)];
-
-  while (chars.length < 16) chars.push(pick(pool));
-
-  return chars.sort(() => Math.random() - 0.5).join('');
-}
-
 function podToTeamName(pod) {
   return String(pod).replace(/\s*\(\d+\s*members?\)$/i, '').trim();
 }
 
 export default function AddUserPage({ onBack, onSaved }) {
-  const { toast, showToast } = useToast(12000);
+  const { toast, showToast } = useToast(6000);
   const [form, setForm] = useState(EMPTY_FORM);
   const [invite, setInvite] = useState(true);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [credentials, setCredentials] = useState(null);
 
   const role = ROLES.find((item) => item.id === form.roleId) ?? ROLES[0];
   const isDirty =
@@ -140,13 +126,29 @@ export default function AddUserPage({ onBack, onSaved }) {
         await addTeamMember(team.id, created.id).catch(() => {});
       }
 
-      showToast(`User created. Temporary password: ${password}`, 'success');
-      if (onSaved) onSaved(`User created. Temporary password: ${password}`);
+      setCredentials({
+        fullName: created?.fullName || form.fullName.trim(),
+        email: created?.email || form.email.trim().toLowerCase(),
+        // A mock account only exists in this browser; never show a password
+        // for an account the API did not really create.
+        password: created?.isMock ? '' : password,
+        isDemo: Boolean(created?.isMock),
+      });
+      setForm(EMPTY_FORM);
     } catch (error) {
       showToast(error.message || 'Could not create this user. Please try again.', 'danger');
     } finally {
       setSaving(false);
     }
+  };
+
+  const closeCredentials = () => {
+    const saved = credentials;
+
+    setCredentials(null);
+
+    if (!saved?.isDemo) showToast('User created successfully.');
+    if (onSaved) onSaved('User created successfully.');
   };
 
   return (
@@ -361,11 +363,20 @@ export default function AddUserPage({ onBack, onSaved }) {
               <svg aria-hidden="true" className="icon">
                 <use href="#i-user-plus" />
               </svg>
-              Add User
+              {saving ? 'Adding…' : 'Add User'}
             </button>
           </div>
         </div>
       </div>
+
+      <CredentialsModal
+        isOpen={Boolean(credentials)}
+        fullName={credentials?.fullName}
+        email={credentials?.email}
+        password={credentials?.password}
+        isDemo={credentials?.isDemo}
+        onClose={closeCredentials}
+      />
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </form>

@@ -89,7 +89,7 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
     });
   };
 
-  const saveUser = () => {
+  const saveUser = async () => {
     const nextErrors = {};
 
     if (!form.fullName.trim()) nextErrors.fullName = 'Full name is required.';
@@ -100,25 +100,35 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
       return;
     }
 
-    updateUser(editingId, {
-      fullName: form.fullName,
-      jobTitle: form.jobTitle,
-      systemAccess: form.systemAccess,
-      permissions: permissionsForAccess(form.systemAccess, form.permissions),
-      active: form.active,
-    });
+    try {
+      await updateUser(editingId, {
+        fullName: form.fullName,
+        jobTitle: form.jobTitle,
+        systemAccess: form.systemAccess,
+        permissions: permissionsForAccess(form.systemAccess, form.permissions),
+        active: form.active,
+      });
 
-    setEditingId(null);
-    showToast('User updated successfully.');
+      setEditingId(null);
+      showToast('User updated successfully.');
+    } catch (error) {
+      showToast(error.message || 'Could not update this user.', 'danger');
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
 
-    deleteUser(deleteTarget.id);
-    if (editingId === deleteTarget.id) setEditingId(null);
-    setDeleteTarget(null);
-    showToast('User deleted.');
+    try {
+      await deleteUser(deleteTarget.id);
+
+      if (editingId === deleteTarget.id) setEditingId(null);
+      showToast('User deleted.');
+    } catch (error) {
+      showToast(error.message || 'Could not delete this user.', 'danger');
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   return (

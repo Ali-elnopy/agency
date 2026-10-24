@@ -24,6 +24,13 @@ const VALID_STATUSES = new Set([
   'inactive',
 ]);
 
+const LAST_ADMIN_MESSAGE =
+  'The workspace must keep at least one active administrator. Create or promote another admin before changing this account.';
+
+function isAdminRole(roleName) {
+  return roleName === 'ADMIN';
+}
+
 function parseUserId(value) {
   const id = Number(value);
 
@@ -51,14 +58,22 @@ async function getManageableUser(idValue) {
     throw new ApiError(404, 'User not found');
   }
 
-  if (!MANAGEABLE_ROLES.has(user.role?.name)) {
-    throw new ApiError(
-      403,
-      'Administrator accounts cannot be managed through this endpoint',
-    );
-  }
-
   return user;
+}
+
+/**
+ * The workspace must never be left without an active administrator: the last
+ * one cannot be demoted, deactivated or deleted. The check excludes the
+ * account being changed, so an already-inactive admin does not count.
+ */
+async function assertAnotherActiveAdmin(user) {
+  if (!user.isActive || !isAdminRole(user.role?.name)) return;
+
+  const remaining = await UsersModel.countActiveAdmins({ excludeId: user.id });
+
+  if (remaining === 0) {
+    throw new ApiError(409, LAST_ADMIN_MESSAGE);
+  }
 }
 
 async function resolveRoleId(roleName) {
@@ -207,6 +222,34 @@ export const UsersService = {
   async updateUser(idValue, input) {
     const user = await getManageableUser(idValue);
 
+    // Administrator accounts can keep their profile up to date, but their role
+    // is fixed: changing it would be the fastest way to leave the workspace
+    // without an admin.
+    if (isAdminRole(user.role?.name)) {
+      if (input.roleName !== undefined) {
+        throw new ApiError(409, LAST_ADMIN_MESSAGE);
+      }
+
+      const profile = {};
+
+      if (input.fullName !== undefined) profile.fullName = input.fullName;
+      if (input.email !== undefined) profile.email = input.email;
+      if (input.phone !== undefined) profile.phone = input.phone;
+
+      if (Object.keys(profile).length === 0) {
+        throw new ApiError(
+          400,
+          'Administrator accounts only accept name, email and phone changes',
+        );
+      }
+
+      try {
+        return await UsersModel.update(user.id, profile);
+      } catch (error) {
+        mapPrismaError(error);
+      }
+    }
+
     const resultingRoleName = input.roleName ?? user.role.name;
     assertManageableRole(resultingRoleName);
 
@@ -261,6 +304,8 @@ export const UsersService = {
   async deactivateUser(idValue) {
     const user = await getManageableUser(idValue);
 
+    await assertAnotherActiveAdmin(user);
+
     try {
       return await UsersModel.deactivate(user.id);
     } catch (error) {
@@ -280,6 +325,8 @@ export const UsersService = {
 
   async deleteUser(idValue) {
     const user = await getManageableUser(idValue);
+
+    await assertAnotherActiveAdmin(user);
 
     try {
       await UsersModel.delete(user.id);
