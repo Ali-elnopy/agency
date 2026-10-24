@@ -36,31 +36,17 @@ const SECTIONS = [
     icon: '#i-globe',
     tone: 'is-pink',
   },
-  {
-    id: 'team',
-    label: 'Edit Team',
-    description: 'The people working on this brand and their roles.',
-    icon: '#i-users',
-    tone: 'is-amber',
-  },
 ];
 
-export default function BrandWorkspaceHub({ brand, counts, onOpen, onEditTeam }) {
+export default function BrandWorkspaceHub({ brand, counts, onOpen }) {
   return (
     <div className="bw-hub">
       <div className="bw-hub-intro">
-        <div>
-          <span className="bw-hub-hero__eyebrow">Brand Workspace</span>
-          <p className="bw-hub-intro__sub">
-            Everything about {brand.name} in one place — brief, strategy, monthly plans, assets,
-            platforms and the team.
-          </p>
-        </div>
-        <button type="button" className="bw-hub-settings" onClick={onEditTeam} title="Edit team">
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-settings" />
-          </svg>
-        </button>
+        <span className="bw-hub-hero__eyebrow">Brand Workspace</span>
+        <p className="bw-hub-intro__sub">
+          Everything about {brand.name} in one place — brief, strategy, monthly plans, assets and
+          platforms. Team membership is managed from the Teams screen.
+        </p>
       </div>
 
       <div className="bw-hub-grid">
@@ -69,7 +55,7 @@ export default function BrandWorkspaceHub({ brand, counts, onOpen, onEditTeam })
             key={section.id}
             type="button"
             className="bw-hub-card"
-            onClick={() => (section.id === 'team' ? onEditTeam() : onOpen(section.id))}
+            onClick={() => onOpen(section.id)}
           >
             <span className={`bw-hub-card__icon ${section.tone}`}>
               <svg aria-hidden="true" className="icon">

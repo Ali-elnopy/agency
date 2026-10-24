@@ -876,6 +876,35 @@
   margin-bottom: 12px;
 }
 
+/* Team editor actions on the Teams screen ------------------------------- */
+.ws-team-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ws-team-actions .ws-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ws-team-actions .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.ws-team-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-team-card__foot .ws-open-team {
+  margin-right: auto;
+}
+
 /* Workspace hub ----------------------------------------------------------- */
 .bw-section-shell {
   display: flex;

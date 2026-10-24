@@ -337,7 +337,7 @@ export async function moveTeamMember(id, userId, teamId) {
   const data = unwrap(
     await request(
       `/teams/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}/move`,
-      { method: 'POST', body: { teamId: Number(teamId) } },
+      { method: 'POST', body: { targetTeamId: Number(teamId) } },
     ),
   );
 
