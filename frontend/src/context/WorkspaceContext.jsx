@@ -114,6 +114,8 @@ export function mapApiTeam(team) {
     status: team.isActive === false ? 'inactive' : 'active',
     brandIds: [],
     memberIds,
+    teamLeadId: team.teamLeadId ?? null,
+    teamLead: team.teamLead ?? null,
     createdAt: team.createdAt ? String(team.createdAt).slice(0, 10) : '',
   };
 }
@@ -357,6 +359,41 @@ export function WorkspaceProvider({ children }) {
     [demo],
   );
 
+  const setTeamLead = useCallback(
+    async (teamId, userId) => {
+      const nextLeadId = userId == null || userId === '' ? null : demo ? userId : Number(userId);
+
+      if (!demo) {
+        await apiRequest(`/teams/${encodeURIComponent(teamId)}`, {
+          method: 'PATCH',
+          body: { teamLeadId: nextLeadId },
+        });
+      }
+
+      setTeams((prev) =>
+        prev.map((team) => {
+          if (String(team.id) !== String(teamId)) return team;
+
+          const leadUser = users.find((user) => String(user.id) === String(nextLeadId));
+          const memberIds =
+            nextLeadId != null && !(team.memberIds ?? []).some((id) => String(id) === String(nextLeadId))
+              ? [...(team.memberIds ?? []), nextLeadId]
+              : team.memberIds;
+
+          return {
+            ...team,
+            teamLeadId: nextLeadId,
+            memberIds,
+            teamLead: leadUser
+              ? { id: leadUser.id, fullName: leadUser.fullName, email: leadUser.email }
+              : null,
+          };
+        }),
+      );
+    },
+    [demo, users],
+  );
+
   const createMember = useCallback(
     async (input) => {
       const fullName = String(input.fullName ?? '').trim();
@@ -536,6 +573,7 @@ export function WorkspaceProvider({ children }) {
       setTeamBrands,
       removeTeamMember,
       addTeamMember,
+      setTeamLead,
       createMember,
       updateUser,
       deleteUser,
@@ -552,6 +590,7 @@ export function WorkspaceProvider({ children }) {
       setTeamBrands,
       removeTeamMember,
       addTeamMember,
+      setTeamLead,
       createMember,
       updateUser,
       deleteUser,

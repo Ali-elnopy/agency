@@ -9,7 +9,7 @@ import { initialsOf } from '../../data/workspace';
 const ELIGIBLE_ACCESS = new Set(['employee', 'account_manager']);
 
 export default function TeamMembersModal({ team, onClose, onSaved }) {
-  const { users, addTeamMember, removeTeamMember } = useWorkspace();
+  const { users, addTeamMember, removeTeamMember, setTeamLead } = useWorkspace();
 
   const eligible = useMemo(
     () =>
@@ -26,6 +26,9 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
 
     return new Set(current.map((id) => String(id)));
   });
+  const [leaderId, setLeaderId] = useState(
+    team.teamLeadId != null ? String(team.teamLeadId) : '',
+  );
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -54,6 +57,8 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
       else next.add(String(id));
       return next;
     });
+
+    if (String(id) === leaderId) setLeaderId('');
     setError('');
   };
 
@@ -66,11 +71,19 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
     const removed = eligible.filter(
       (user) => !selected.has(String(user.id)) && currentIds.includes(String(user.id)),
     );
+    const currentLeaderId = team.teamLeadId != null ? String(team.teamLeadId) : '';
+    const nextLeaderId = selected.has(leaderId) ? leaderId : '';
 
     setBusy(true);
     setError('');
 
     try {
+      // The API refuses to remove a team leader, so clear the role first when
+      // the current leader is being taken out of the team.
+      if (currentLeaderId && !selected.has(currentLeaderId)) {
+        await setTeamLead(team.id, null);
+      }
+
       for (const user of added) {
         await addTeamMember(team.id, user.id);
       }
@@ -79,7 +92,15 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
         await removeTeamMember(team.id, user.id);
       }
 
-      onSaved?.(`${added.length} added, ${removed.length} removed`);
+      if (nextLeaderId !== currentLeaderId) {
+        await setTeamLead(team.id, nextLeaderId || null);
+      }
+
+      onSaved?.(
+        `${added.length} added, ${removed.length} removed${
+          nextLeaderId !== currentLeaderId ? ', leader updated' : ''
+        }`,
+      );
       onClose();
     } catch (err) {
       setError(err?.message || 'Could not update this team. Refresh and try again.');
@@ -115,6 +136,36 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
       }
     >
       <div className="bw-team-picker">
+        <div className="bw-leader-field">
+          <label htmlFor="team-leader">
+            Team leader <span>optional</span>
+          </label>
+          <span className="form-select-wrap">
+            <select
+              id="team-leader"
+              className="form-select"
+              value={leaderId}
+              onChange={(event) => setLeaderId(event.target.value)}
+              disabled={busy}
+            >
+              <option value="">No leader</option>
+              {eligible
+                .filter((user) => selected.has(String(user.id)))
+                .map((user) => (
+                  <option key={user.id} value={String(user.id)}>
+                    {user.fullName} — {user.jobTitle || user.systemAccess}
+                  </option>
+                ))}
+            </select>
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-chevron" />
+            </svg>
+          </span>
+          <small className="bw-hint">
+            The leader is responsible for this team only. A team can work without a leader.
+          </small>
+        </div>
+
         <label className="search bw-team-search">
           <input
             type="search"

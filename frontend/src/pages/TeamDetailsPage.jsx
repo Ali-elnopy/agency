@@ -72,6 +72,13 @@ export default function TeamDetailsPage({
           <div className="ws-team-title-line">
             <h1 className="ws-page-title">{team.name}</h1>
             <span className="ws-badge ws-badge--active">Active</span>
+            {team.teamLead ? (
+              <span className="ws-badge ws-badge--role">
+                Team leader: {team.teamLead.fullName}
+              </span>
+            ) : (
+              <span className="ws-badge ws-badge--muted">No team leader</span>
+            )}
           </div>
           <p className="ws-team-desc">{team.description?.trim() || 'No description added.'}</p>
         </div>

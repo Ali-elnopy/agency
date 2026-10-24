@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import Modal from '../components/common/Modal';
 import PlanModal from '../components/brands/PlanModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
@@ -358,24 +359,42 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
       ) : null}
 
       {editorOpen ? (
-        <form className="content-plan__editor" onSubmit={handleSubmit} noValidate>
-          <header className="content-plan__editor-head">
-            <div>
-              <strong>New plan row</strong>
-              <span>
-                Row {monthItems.length + 1} · {monthLabel(planMonth)}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="content-plan__editor-close"
-              onClick={() => setEditorOpen(false)}
-              aria-label="Close row editor"
-            >
-              ×
-            </button>
-          </header>
-
+        <Modal
+          isOpen
+          onClose={() => setEditorOpen(false)}
+          title="Add content row"
+          subtitle={`Row ${monthItems.length + 1} · ${monthLabel(planMonth)}`}
+          icon="#i-plus"
+          iconColor="orange"
+          maxWidth="760px"
+          footer={
+            <>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setEditorOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="content-row-form"
+                className="button button--primary"
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-plus" />
+                </svg>
+                Add row to sheet
+              </button>
+            </>
+          }
+        >
+        <form
+          id="content-row-form"
+          className="content-plan__editor is-in-modal"
+          onSubmit={handleSubmit}
+          noValidate
+        >
           <div className="content-plan__editor-grid">
             <div className="brand-field">
               <label htmlFor="cp-date">
@@ -566,23 +585,8 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
               )}
             </div>
           </div>
-
-          <div className="content-plan__editor-actions">
-            <button
-              type="button"
-              className="button button--ghost"
-              onClick={() => setEditorOpen(false)}
-            >
-              Cancel
-            </button>
-            <button type="submit" className="button button--primary">
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-plus" />
-              </svg>
-              Add row to sheet
-            </button>
-          </div>
         </form>
+        </Modal>
       ) : null}
 
       <section className="content-plan__sheet">
