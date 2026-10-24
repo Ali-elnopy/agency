@@ -7,7 +7,7 @@ import { generateRefreshToken, hashRefreshToken } from '../../utils/refreshToken
 import { isMailerConfigured, sendPasswordResetEmail } from '../../utils/mailer.js';
 
 const MAX_LOGIN_ATTEMPTS = 5;
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 const RESET_TOKEN_TTL_MINUTES = 30;
 
@@ -27,7 +27,8 @@ const getPublicUser = (user) => ({
 
 export const AuthService = {
   async login({ email, password }) {
-    const user = await AuthModel.findUserByEmail(email.toLowerCase());
+    const normalizedEmail = email.toLowerCase();
+    const user = await AuthModel.findUserByEmail(normalizedEmail);
 
     if (!user) {
       throw new ApiError(401, 'Invalid email or password');
@@ -46,19 +47,14 @@ export const AuthService = {
     const passwordIsValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!passwordIsValid) {
-      const currentWindowStart = user.failedLoginWindowStart?.getTime();
+      const result = await AuthModel.recordFailedLoginAttempt(user.id, {
+        maxAttempts: MAX_LOGIN_ATTEMPTS,
+        windowMs: LOGIN_WINDOW_MS,
+        lockDurationMs: LOCK_DURATION_MS,
+        now,
+      });
 
-      const windowExpired = !currentWindowStart || now - currentWindowStart >= LOGIN_WINDOW_MS;
-
-      const attempts = windowExpired ? 1 : user.failedLoginAttempts + 1;
-
-      const windowStart = windowExpired ? new Date(now) : user.failedLoginWindowStart;
-
-      const lockedUntil = attempts >= MAX_LOGIN_ATTEMPTS ? new Date(now + LOCK_DURATION_MS) : null;
-
-      await AuthModel.recordFailedLogin(user.id, attempts, windowStart, lockedUntil);
-
-      if (lockedUntil) {
+      if (result.locked) {
         throw new ApiError(423, 'Too many failed attempts. Please try again later.');
       }
 
