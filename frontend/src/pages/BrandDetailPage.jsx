@@ -211,8 +211,6 @@ export default function BrandDetailPage({
             type="button"
             className="button button--primary"
             onClick={() => onAddContent?.(month)}
-            disabled={!plan}
-            title={!plan ? 'Create a monthly plan before adding content' : undefined}
           >
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />

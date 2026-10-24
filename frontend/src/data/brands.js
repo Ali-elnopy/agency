@@ -434,6 +434,7 @@ function buildContent() {
         notes,
         referenceUrl: '',
         materialUrl: `https://drive.google.com/drive/folders/${brandId}-materials`,
+        designDirection: '',
         status,
         createdAt: '2026-10-01',
       });

@@ -6,7 +6,9 @@ import { getAccessToken } from './tokenStorage';
  *
  *   GET /dashboard -> {
  *     totalClients, totalEmployees, activeEmployees, totalTeams, activeTeams,
- *     accountManagerAssignment: { totalAccountManagers, assignedClients, unassignedClients }
+ *     accountManagerAssignment: { totalAccountManagers, assignedClients, unassignedClients },
+ *     teamAssignment: { assignedClients, unassignedClients },
+ *     workload, teamWorkload, alerts
  *   }
  */
 

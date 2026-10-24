@@ -212,6 +212,7 @@ export function BrandsProvider({ children }) {
       tov: input.tov,
       caption: String(input.caption ?? '').trim(),
       notes: String(input.notes ?? '').trim(),
+      designDirection: String(input.designDirection ?? '').trim(),
       referenceUrl: String(input.referenceUrl ?? '').trim(),
       materialUrl: String(input.materialUrl ?? '').trim(),
       status: 'planned',

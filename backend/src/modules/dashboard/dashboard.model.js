@@ -89,4 +89,18 @@ export const DashboardModel = {
       orderBy: { name: 'asc' },
     });
   },
+
+  // Teams drive the "Brands per Teams" card, so the dashboard needs every
+  // active team even when no brand is assigned to it yet.
+  listTeams() {
+    return prisma.team.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { memberships: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+  },
 };

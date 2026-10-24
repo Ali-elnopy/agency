@@ -23,7 +23,13 @@ export const DashboardService = {
       ],
       managers,
       brands,
-    ] = await Promise.all([DashboardModel.getStats(), DashboardModel.listAccountManagers(), DashboardModel.listBrandAssignments()]);
+      teams,
+    ] = await Promise.all([
+      DashboardModel.getStats(),
+      DashboardModel.listAccountManagers(),
+      DashboardModel.listBrandAssignments(),
+      DashboardModel.listTeams(),
+    ]);
 
     const counts = managers.map(
       (manager) => brands.filter((brand) => brand.accountManagerId === manager.id).length,
@@ -47,14 +53,23 @@ export const DashboardService = {
       };
     });
 
-    const withoutManager = brands
-      .filter((brand) => brand.accountManagerId == null)
-      .slice(0, 5)
-      .map((brand) => ({
-        id: brand.id,
-        name: brand.name,
-        sub: brand.industry || 'No account manager',
-        action: 'Assign Manager',
+    // Brands per team: every active team gets a row so empty teams are visible.
+    const teamRows = teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      members: team._count?.memberships ?? 0,
+      clients: brands.filter((brand) => brand.teamId === team.id).length,
+    }));
+
+    const maxTeam = Math.max(1, ...teamRows.map((team) => team.clients));
+
+    const teamWorkload = teamRows
+      .sort(
+        (a, b) => b.clients - a.clients || a.name.localeCompare(b.name),
+      )
+      .map((team) => ({
+        ...team,
+        pct: Math.round((team.clients / maxTeam) * 100),
       }));
 
     const withoutTeam = brands
@@ -63,9 +78,11 @@ export const DashboardService = {
       .map((brand) => ({
         id: brand.id,
         name: brand.name,
-        sub: `${brand.industry || 'Brand'} · No Squad`,
+        sub: `${brand.industry || 'Brand'} · No team`,
         action: 'Assign Team',
       }));
+
+    const unassignedTeamClients = brands.filter((brand) => brand.teamId == null).length;
 
     return {
       totalClients,
@@ -78,18 +95,17 @@ export const DashboardService = {
         assignedClients,
         unassignedClients,
       },
+      teamAssignment: {
+        assignedClients: totalClients - unassignedTeamClients,
+        unassignedClients: unassignedTeamClients,
+      },
       workload,
+      teamWorkload,
       alerts: [
         {
-          group: 'Brands without an account manager',
-          count: unassignedClients,
-          tone: 'High Priority',
-          rows: withoutManager,
-        },
-        {
-          group: 'Brands without a team',
-          count: brands.filter((brand) => brand.teamId == null).length,
-          tone: 'Needs Squad',
+          group: 'Brands without teams',
+          count: unassignedTeamClients,
+          tone: 'Needs Team',
           rows: withoutTeam,
         },
       ],

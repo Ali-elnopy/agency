@@ -33,12 +33,12 @@ const KPIS = [
   },
 ];
 
-const MANAGERS = [
-  { name: 'Elana Vance', role: 'Lead', clients: 4, pct: 33 },
-  { name: 'Marcus Vance', role: 'AM', clients: 3, pct: 25 },
-  { name: 'Sarah Jenkins', role: 'AM', clients: 2, pct: 17 },
-  { name: 'David K.', role: 'AM', clients: 1, pct: 8 },
-  { name: 'Jessica Wong', role: 'Available', clients: 0, pct: 0 },
+const TEAMS = [
+  { name: 'Brand Strategy', members: 5, clients: 4, pct: 100 },
+  { name: 'Social Content', members: 4, clients: 3, pct: 75 },
+  { name: 'Performance Ops', members: 4, clients: 2, pct: 50 },
+  { name: 'Creative Direction', members: 3, clients: 1, pct: 25 },
+  { name: 'Editorial & Brand Voice', members: 3, clients: 0, pct: 0 },
 ];
 
 const MATRIX = [
@@ -57,20 +57,11 @@ const MATRIX = [
 
 const ALERTS = [
   {
-    group: 'Brands without an account manager',
-    count: 2,
-    tone: 'High Priority',
-    rows: [
-      { name: 'Lumina Health', sub: 'HealthTech & Telehealth', action: 'Assign Manager' },
-      { name: 'Solaris Energy', sub: 'Renewables', action: 'Assign Manager' },
-    ],
-  },
-  {
-    group: 'Brands without a team',
+    group: 'Brands without teams',
     count: 1,
-    tone: 'Needs Squad',
+    tone: 'Needs Team',
     rows: [
-      { name: 'Apex Dynamics', sub: 'Aerospace Engineering · No Squad', action: 'Assign Team' },
+      { name: 'Apex Dynamics', sub: 'Aerospace Engineering · No team', action: 'Assign Team' },
     ],
   },
 ];
@@ -87,21 +78,30 @@ function initials(name) {
 export default function OverviewSection({ stats, onViewWorkload }) {
   const hasWorkload = Array.isArray(stats?.workload) && stats.workload.length > 0;
 
-  const managers = hasWorkload ? stats.workload : MANAGERS;
   const matrix = hasWorkload ? stats.workload : MATRIX;
+  const teams =
+    Array.isArray(stats?.teamWorkload) && stats.teamWorkload.length > 0
+      ? stats.teamWorkload
+      : TEAMS;
 
   const alerts = Array.isArray(stats?.alerts)
     ? stats.alerts.filter((alert) => alert.rows.length > 0)
     : ALERTS;
 
+  const visibleTeams = teams.slice(0, 6);
+  const hiddenTeams = teams.length - visibleTeams.length;
+
   const alertCount = alerts.reduce((total, alert) => total + alert.count, 0);
+  const unassignedTeamBrands = stats?.teamAssignment?.unassignedClients ?? 0;
 
   const kpis = [
     {
       ...KPIS[0],
       value: stats ? String(stats.totalClients) : KPIS[0].value,
       foot: stats
-        ? `${stats.accountManagerAssignment?.unassignedClients ?? 0} brands without an account manager`
+        ? `${unassignedTeamBrands} ${
+            unassignedTeamBrands === 1 ? 'brand' : 'brands'
+          } without a team`
         : KPIS[0].foot,
     },
     {
@@ -147,33 +147,45 @@ export default function OverviewSection({ stats, onViewWorkload }) {
           <section className="cl-card">
             <header className="cl-card__head">
               <div>
-                <h2 className="cl-card__title">Brands per Account Manager</h2>
+                <h2 className="cl-card__title">Brands per Teams</h2>
                 <p className="cl-card__sub">
-                  Real-time distribution of active brand retainers across the studio&rsquo;s account
-                  managers.
+                  Real-time distribution of active brand retainers across the studio&rsquo;s teams.
                 </p>
               </div>
               <button type="button" className="ec-link" onClick={onViewWorkload}>
-                View workload in Brands →
+                Review assignments in Brands →
               </button>
             </header>
 
             <div className="ov-bars">
-              {managers.map((manager) => (
-                <div key={manager.name} className="ov-bar">
-                  <span className="cl-avatar cl-avatar--orange">{initials(manager.name)}</span>
+              {visibleTeams.map((team) => (
+                <div key={team.name} className="ov-bar">
+                  <span className="cl-avatar cl-avatar--orange">{initials(team.name)}</span>
                   <span className="ov-bar__name">
-                    {manager.name}
-                    <em className={manager.role === 'Lead' ? 'is-lead' : ''}>{manager.role}</em>
+                    <span className="ov-bar__label" title={team.name}>
+                      {team.name}
+                    </span>
+                    <em>
+                      {team.members} {team.members === 1 ? 'member' : 'members'}
+                    </em>
                   </span>
                   <span className="ov-bar__track">
-                    <i style={{ width: `${manager.pct}%` }} />
+                    <i style={{ width: `${team.pct}%` }} />
                   </span>
-                  <span className="ov-bar__value">{manager.clients} brands</span>
-                  <span className="ov-bar__pct">{manager.pct}%</span>
+                  <span className="ov-bar__value">
+                    {team.clients} {team.clients === 1 ? 'brand' : 'brands'}
+                  </span>
+                  <span className="ov-bar__pct">{team.pct}%</span>
                 </div>
               ))}
             </div>
+
+            {hiddenTeams > 0 ? (
+              <p className="ov-bars__more">
+                +{hiddenTeams} more {hiddenTeams === 1 ? 'team' : 'teams'} with no assigned
+                brands.
+              </p>
+            ) : null}
           </section>
 
           <section className="cl-card">
@@ -230,9 +242,7 @@ export default function OverviewSection({ stats, onViewWorkload }) {
             </header>
 
             {alerts.length === 0 ? (
-              <p className="cl-card__sub">
-                Every brand has an account manager and a team.
-              </p>
+              <p className="cl-card__sub">Every brand has a team assigned.</p>
             ) : null}
 
             {alerts.map((alert) => (
@@ -267,8 +277,7 @@ export default function OverviewSection({ stats, onViewWorkload }) {
               <svg aria-hidden="true" className="icon">
                 <use href="#i-alert" />
               </svg>
-              Unassigned brands cannot proceed with AI briefs until both a manager and team are
-              confirmed.
+              Unassigned brands cannot proceed with AI briefs until a team is confirmed.
             </div>
           </section>
 

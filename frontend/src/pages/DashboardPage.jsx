@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
 import OverviewSection from '../components/sections/OverviewSection';
-import RolesSection from '../components/sections/RolesSection';
-import ActivitySection from '../components/sections/ActivitySection';
 import ProfilePage from './ProfilePage';
 import SettingsPage from './SettingsPage';
 import RolesPermissionsPage from './RolesPermissionsPage';
@@ -75,7 +73,6 @@ export default function DashboardPage({
   const [isNewBriefOpen, setIsNewBriefOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
-  const [newActivity, setNewActivity] = useState(null);
   const [usersSearch, setUsersSearch] = useState(null);
 
   useEffect(() => {
@@ -113,55 +110,7 @@ export default function DashboardPage({
   };
 
   const handleAddBrief = (brief) => {
-    setNewActivity({
-      id: Date.now(),
-      avatarClass: 'is-a',
-      initials: user?.fullName
-        ? user.fullName
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .substring(0, 2)
-        : 'EV',
-      name: user?.fullName || 'Elena Vance',
-      time: 'Just now',
-      role: 'Creative Lead',
-      action: (
-        <>
-          <span className="pill is-orange">
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-send" />
-            </svg>
-            Launched
-          </span>{' '}
-          Brief &quot;{brief.title}&quot; for {brief.brand}
-        </>
-      ),
-    });
-
     showToast(`Creative Brief "${brief.title}" launched successfully!`);
-  };
-
-  const handleRoleCreated = (role) => {
-    setNewActivity({
-      id: Date.now(),
-      avatarClass: `is-${role.color === 'purple' ? 'b' : role.color === 'green' ? 'c' : 'a'}`,
-      initials: 'AD',
-      name: 'System Governance',
-      time: 'Just now',
-      role: 'Admin Ops',
-      action: (
-        <>
-          <span className={`pill is-${role.color}`}>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-users" />
-            </svg>
-            Configured
-          </span>{' '}
-          New Role &quot;{role.title}&quot; with {role.badge} permissions.
-        </>
-      ),
-    });
   };
 
   const openBrand = (brandId) => {
@@ -241,7 +190,6 @@ export default function DashboardPage({
             brandId={activeBrandId}
             initialMonth={activePlanMonth}
             onBack={() => go('brandDetail')}
-            onSaved={() => go('brandDetail', 'Content added successfully.')}
           />
         );
       case 'teams':
@@ -281,11 +229,6 @@ export default function DashboardPage({
             </section>
 
             <OverviewSection stats={stats} onViewWorkload={() => go('clients')} />
-
-            <section className="row row--admin">
-              <RolesSection onRoleCreated={handleRoleCreated} onOpenMatrix={() => go('roles')} />
-              <ActivitySection incomingActivity={newActivity} />
-            </section>
           </>
         );
     }
