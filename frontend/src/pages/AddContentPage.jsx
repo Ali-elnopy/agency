@@ -48,11 +48,12 @@ function defaultDateFor(month) {
   return today.startsWith(month) ? today : `${month}-01`;
 }
 
-export default function AddContentPage({ brandId, initialMonth, onBack }) {
-  const { getBrand, plans, content, addContent, savePlan } = useBrands();
+export default function AddContentPage({ brandId, initialMonth, initialPlatformId, onBack }) {
+  const { getBrand, plans, content, addContent, savePlan, getPlatforms } = useBrands();
   const { toast, showToast } = useToast(5000);
 
   const brand = getBrand(brandId);
+  const platforms = useMemo(() => (brand ? getPlatforms(brand.id) : []), [brand, getPlatforms]);
   const brandPlans = useMemo(
     () =>
       plans
@@ -64,6 +65,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
   const [planMonth, setPlanMonth] = useState(
     () => initialMonth || brandPlans[brandPlans.length - 1]?.month || monthKey(),
   );
+  const [platformId, setPlatformId] = useState(initialPlatformId ?? 'all');
   const [editorOpen, setEditorOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [type, setType] = useState(CONTENT_TYPES[0].id);
@@ -86,11 +88,16 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
   const monthItems = useMemo(
     () =>
       content
-        .filter((item) => item.brandId === brandId && item.month === planMonth)
+        .filter(
+          (item) =>
+            item.brandId === brandId &&
+            item.month === planMonth &&
+            (platformId === 'all' || String(item.platformId) === String(platformId)),
+        )
         .sort((a, b) =>
           `${a.publishDate}T${a.publishTime}`.localeCompare(`${b.publishDate}T${b.publishTime}`),
         ),
-    [content, brandId, planMonth],
+    [content, brandId, planMonth, platformId],
   );
 
   const posts = monthItems.filter((item) => item.type === 'post').length;
@@ -147,6 +154,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
     addContent({
       brandId: brand.id,
       month: planMonth,
+      platformId: platformId === 'all' ? null : platformId,
       type,
       title: idea,
       publishDate,
@@ -245,6 +253,30 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
         </div>
 
         <div className="content-plan__controls">
+          {platforms.length ? (
+            <label className="content-plan__month">
+              <span>Platform</span>
+              <span className="form-select-wrap">
+                <select
+                  className="form-select"
+                  value={platformId}
+                  onChange={(event) => setPlatformId(event.target.value)}
+                  aria-label="Filter content plan by platform"
+                >
+                  <option value="all">All platforms</option>
+                  {platforms.map((platform) => (
+                    <option key={platform.id} value={platform.id}>
+                      {platform.name}
+                    </option>
+                  ))}
+                </select>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-chevron" />
+                </svg>
+              </span>
+            </label>
+          ) : null}
+
           <label className="content-plan__month">
             <span>Month</span>
             <input

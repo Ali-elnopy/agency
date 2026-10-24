@@ -22,7 +22,47 @@ const STORAGE_KEYS = {
   brands: 'orvia_brands_v1',
   plans: 'orvia_brand_plans_v1',
   content: 'orvia_brand_content_v1',
+  workspace: 'orvia_brand_workspace_v1',
 };
+
+function emptyWorkspace() {
+  return {
+    platforms: [],
+    briefs: [],
+    assets: [],
+    strategies: [],
+    planDirections: [],
+    briefInfo: {},
+    teams: {},
+  };
+}
+
+function readWorkspace() {
+  const fallback = emptyWorkspace();
+
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEYS.workspace);
+    if (!raw) return fallback;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return fallback;
+
+    return {
+      platforms: Array.isArray(parsed.platforms) ? parsed.platforms : [],
+      briefs: Array.isArray(parsed.briefs) ? parsed.briefs : [],
+      assets: Array.isArray(parsed.assets) ? parsed.assets : [],
+      strategies: Array.isArray(parsed.strategies) ? parsed.strategies : [],
+      planDirections: Array.isArray(parsed.planDirections) ? parsed.planDirections : [],
+      briefInfo:
+        parsed.briefInfo && typeof parsed.briefInfo === 'object' ? parsed.briefInfo : {},
+      teams: parsed.teams && typeof parsed.teams === 'object' ? parsed.teams : {},
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 const TONES = ['is-purple', 'is-blue', 'is-pink', 'is-amber', 'is-gray', 'is-orange'];
 
@@ -63,6 +103,7 @@ export function BrandsProvider({ children }) {
   );
   const [plans, setPlans] = useState(() => readStore(STORAGE_KEYS.plans, seedPlans));
   const [content, setContent] = useState(() => readStore(STORAGE_KEYS.content, seedContent));
+  const [workspace, setWorkspace] = useState(readWorkspace);
   const [loadingBrands, setLoadingBrands] = useState(!demo);
   const [brandsError, setBrandsError] = useState(null);
 
@@ -78,6 +119,10 @@ export function BrandsProvider({ children }) {
   useEffect(() => {
     writeStore(STORAGE_KEYS.content, content);
   }, [content]);
+
+  useEffect(() => {
+    writeStore(STORAGE_KEYS.workspace, workspace);
+  }, [workspace]);
 
   useEffect(() => {
     if (demo) return;
@@ -154,6 +199,23 @@ export function BrandsProvider({ children }) {
       setBrands((prev) => prev.filter((brand) => brand.id !== brandId));
       setPlans((prev) => prev.filter((plan) => plan.brandId !== brandId));
       setContent((prev) => prev.filter((item) => item.brandId !== brandId));
+      setWorkspace((prev) => {
+        const briefInfo = { ...prev.briefInfo };
+        const teams = { ...prev.teams };
+        delete briefInfo[brandId];
+        delete teams[brandId];
+
+        return {
+          ...prev,
+          briefInfo,
+          teams,
+          platforms: prev.platforms.filter((item) => item.brandId !== brandId),
+          briefs: prev.briefs.filter((item) => item.brandId !== brandId),
+          assets: prev.assets.filter((item) => item.brandId !== brandId),
+          strategies: prev.strategies.filter((item) => item.brandId !== brandId),
+          planDirections: prev.planDirections.filter((item) => item.brandId !== brandId),
+        };
+      });
     },
     [demo],
   );
@@ -205,6 +267,8 @@ export function BrandsProvider({ children }) {
       id: makeId('content'),
       brandId: input.brandId,
       month: input.month,
+      platformId: input.platformId ?? null,
+      planDirectionId: input.planDirectionId ?? null,
       type: input.type,
       title: String(input.title ?? '').trim(),
       publishDate: input.publishDate,
@@ -240,6 +304,234 @@ export function BrandsProvider({ children }) {
     [plans],
   );
 
+  /* ------------------------------------------------------------------ *
+   * Brand workspace: platforms, briefs, assets, strategy, plan
+   * directions and brand-level team membership. Kept in localStorage so
+   * every screen of the brand page reads the same records.
+   * ------------------------------------------------------------------ */
+
+  const getPlatforms = useCallback(
+    (brandId) => workspace.platforms.filter((item) => item.brandId === brandId),
+    [workspace.platforms],
+  );
+
+  const getBriefs = useCallback(
+    (brandId) => workspace.briefs.filter((item) => item.brandId === brandId),
+    [workspace.briefs],
+  );
+
+  const getAssets = useCallback(
+    (brandId) => workspace.assets.filter((item) => item.brandId === brandId),
+    [workspace.assets],
+  );
+
+  const getStrategies = useCallback(
+    (brandId) => workspace.strategies.filter((item) => item.brandId === brandId),
+    [workspace.strategies],
+  );
+
+  const getPlanDirections = useCallback(
+    (brandId) => workspace.planDirections.filter((item) => item.brandId === brandId),
+    [workspace.planDirections],
+  );
+
+  const getBriefInfo = useCallback(
+    (brandId) => workspace.briefInfo[brandId] ?? {},
+    [workspace.briefInfo],
+  );
+
+  const getBrandTeam = useCallback(
+    (brandId) => workspace.teams[brandId] ?? [],
+    [workspace.teams],
+  );
+
+  const addPlatform = useCallback((brandId, input) => {
+    const platform = {
+      id: makeId('platform'),
+      brandId,
+      name: String(input.name ?? '').trim(),
+      short: String(input.short ?? '').trim().toUpperCase(),
+      tone: input.tone ?? 'is-orange',
+      handle: String(input.handle ?? '').trim(),
+      url: String(input.url ?? '').trim(),
+      goal: String(input.goal ?? '').trim(),
+      monthlyTarget: Math.max(0, Number(input.monthlyTarget) || 0),
+      contentTypes: Array.isArray(input.contentTypes) ? input.contentTypes : [],
+      notes: String(input.notes ?? '').trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setWorkspace((prev) => ({ ...prev, platforms: [...prev.platforms, platform] }));
+    return platform;
+  }, []);
+
+  const updatePlatform = useCallback((platformId, patch) => {
+    setWorkspace((prev) => ({
+      ...prev,
+      platforms: prev.platforms.map((item) =>
+        item.id === platformId ? { ...item, ...patch } : item,
+      ),
+    }));
+  }, []);
+
+  const deletePlatform = useCallback((platformId) => {
+    setWorkspace((prev) => ({
+      ...prev,
+      platforms: prev.platforms.filter((item) => item.id !== platformId),
+      planDirections: prev.planDirections.filter((item) => item.platformId !== platformId),
+    }));
+  }, []);
+
+  const addBrief = useCallback((brandId, meta) => {
+    const brief = {
+      id: makeId('brief'),
+      brandId,
+      ...meta,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    setWorkspace((prev) => ({ ...prev, briefs: [...prev.briefs, brief] }));
+    return brief;
+  }, []);
+
+  const deleteBrief = useCallback((briefId) => {
+    setWorkspace((prev) => ({
+      ...prev,
+      briefs: prev.briefs.filter((item) => item.id !== briefId),
+    }));
+  }, []);
+
+  const addAsset = useCallback((brandId, meta) => {
+    const asset = {
+      id: makeId('asset'),
+      brandId,
+      category: meta.category ?? 'other',
+      ...meta,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    setWorkspace((prev) => ({ ...prev, assets: [...prev.assets, asset] }));
+    return asset;
+  }, []);
+
+  const deleteAsset = useCallback((assetId) => {
+    setWorkspace((prev) => ({
+      ...prev,
+      assets: prev.assets.filter((item) => item.id !== assetId),
+    }));
+  }, []);
+
+  const saveBriefInfo = useCallback((brandId, patch) => {
+    setWorkspace((prev) => ({
+      ...prev,
+      briefInfo: {
+        ...prev.briefInfo,
+        [brandId]: { ...(prev.briefInfo[brandId] ?? {}), ...patch },
+      },
+    }));
+  }, []);
+
+  const saveStrategy = useCallback((input) => {
+    const now = new Date().toISOString();
+
+    setWorkspace((prev) => {
+      if (input.id) {
+        const patch = Object.fromEntries(
+          Object.entries(input).filter(([, value]) => value !== undefined),
+        );
+
+        return {
+          ...prev,
+          strategies: prev.strategies.map((item) =>
+            item.id === input.id ? { ...item, ...patch, updatedAt: now } : item,
+          ),
+        };
+      }
+
+      const strategy = {
+        id: makeId('strategy'),
+        brandId: input.brandId,
+        title: String(input.title ?? '').trim(),
+        body: String(input.body ?? '').trim(),
+        status: input.status ?? 'draft',
+        authorName: String(input.authorName ?? '').trim(),
+        reviewerName: '',
+        reviewerNote: '',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      return { ...prev, strategies: [...prev.strategies, strategy] };
+    });
+  }, []);
+
+  const deleteStrategy = useCallback((strategyId) => {
+    setWorkspace((prev) => ({
+      ...prev,
+      strategies: prev.strategies.filter((item) => item.id !== strategyId),
+    }));
+  }, []);
+
+  const setStrategyStatus = useCallback((strategyId, status, note = '', reviewerName = '') => {
+    setWorkspace((prev) => ({
+      ...prev,
+      strategies: prev.strategies.map((item) =>
+        item.id === strategyId
+          ? {
+              ...item,
+              status,
+              reviewerNote: note,
+              reviewerName: reviewerName || item.reviewerName,
+              updatedAt: new Date().toISOString(),
+            }
+          : item,
+      ),
+    }));
+  }, []);
+
+  const savePlanDirection = useCallback((input) => {
+    const now = new Date().toISOString();
+
+    setWorkspace((prev) => {
+      if (input.id) {
+        return {
+          ...prev,
+          planDirections: prev.planDirections.map((item) =>
+            item.id === input.id ? { ...item, ...input, updatedAt: now } : item,
+          ),
+        };
+      }
+
+      const direction = {
+        id: makeId('direction'),
+        brandId: input.brandId,
+        platformId: input.platformId ?? null,
+        month: input.month,
+        title: String(input.title ?? '').trim(),
+        body: String(input.body ?? '').trim(),
+        status: input.status ?? 'draft',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      return { ...prev, planDirections: [...prev.planDirections, direction] };
+    });
+  }, []);
+
+  const deletePlanDirection = useCallback((directionId) => {
+    setWorkspace((prev) => ({
+      ...prev,
+      planDirections: prev.planDirections.filter((item) => item.id !== directionId),
+    }));
+  }, []);
+
+  const setBrandTeam = useCallback((brandId, userIds) => {
+    setWorkspace((prev) => ({
+      ...prev,
+      teams: { ...prev.teams, [brandId]: Array.from(new Set(userIds ?? [])) },
+    }));
+  }, []);
+
   const value = useMemo(
     () => ({
       brands,
@@ -255,6 +547,27 @@ export function BrandsProvider({ children }) {
       updateContentStatus,
       getBrand,
       getPlan,
+      getPlatforms,
+      getBriefs,
+      getAssets,
+      getStrategies,
+      getPlanDirections,
+      getBriefInfo,
+      getBrandTeam,
+      addPlatform,
+      updatePlatform,
+      deletePlatform,
+      addBrief,
+      deleteBrief,
+      addAsset,
+      deleteAsset,
+      saveBriefInfo,
+      saveStrategy,
+      deleteStrategy,
+      setStrategyStatus,
+      savePlanDirection,
+      deletePlanDirection,
+      setBrandTeam,
     }),
     [
       brands,
@@ -270,6 +583,27 @@ export function BrandsProvider({ children }) {
       updateContentStatus,
       getBrand,
       getPlan,
+      getPlatforms,
+      getBriefs,
+      getAssets,
+      getStrategies,
+      getPlanDirections,
+      getBriefInfo,
+      getBrandTeam,
+      addPlatform,
+      updatePlatform,
+      deletePlatform,
+      addBrief,
+      deleteBrief,
+      addAsset,
+      deleteAsset,
+      saveBriefInfo,
+      saveStrategy,
+      deleteStrategy,
+      setStrategyStatus,
+      savePlanDirection,
+      deletePlanDirection,
+      setBrandTeam,
     ],
   );
 
