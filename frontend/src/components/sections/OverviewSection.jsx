@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useBrands } from '../../context/brandsStore';
+import { useWorkspace } from '../../context/workspaceStore';
 
 const KPI_META = [
   { label: 'Total Brands', unit: 'Brands', icon: 'i-briefcase', tone: 'is-orange' },
@@ -16,43 +18,191 @@ function initials(name) {
     .toUpperCase();
 }
 
+function isUnassignedBrand(brand) {
+  return brand?.teamId == null && !String(brand?.team ?? '').trim();
+}
+
+// Brands reference their team by id once the API owns the record; the local
+// fixtures only carry the team name, so both are accepted.
+function brandBelongsToTeam(brand, team) {
+  if (brand?.teamId != null) return String(brand.teamId) === String(team.id);
+
+  return Boolean(brand?.team) && brand.team === team.name;
+}
+
+function workloadState(clients, max) {
+  if (clients === 0) return { state: 'Ready', tone: 'is-gray' };
+  if (clients === max && max > 1) return { state: 'At Capacity', tone: 'is-red' };
+  if (clients >= Math.ceil(max * 0.66)) return { state: 'Optimal', tone: 'is-green' };
+
+  return { state: 'Has Space', tone: 'is-amber' };
+}
+
 export default function OverviewSection({ stats, onViewWorkload, onAssignTeam }) {
+  const { brands } = useBrands();
+  const { users, teams: workspaceTeams } = useWorkspace();
+
   const hasStats = Boolean(stats);
+  const hasBrands = brands.length > 0;
+  const hasPeople = users.length > 0;
+  const hasTeams = workspaceTeams.length > 0;
 
-  const workload = Array.isArray(stats?.workload) ? stats.workload : [];
-  const teams = Array.isArray(stats?.teamWorkload) ? stats.teamWorkload : [];
+  // Attention Required is driven by workspace brands so Assign Team always
+  // opens against a real record, not a stale dashboard snapshot.
+  const unassignedBrands = useMemo(() => brands.filter(isUnassignedBrand), [brands]);
 
-  const alerts = Array.isArray(stats?.alerts)
-    ? stats.alerts.filter(
-        (alert) => (alert.count ?? alert.rows?.length ?? 0) > 0 && alert.rows?.length > 0,
-      )
-    : [];
+  const alerts = useMemo(() => {
+    if (hasBrands) {
+      if (unassignedBrands.length === 0) return [];
 
-  const visibleTeams = teams.slice(0, 6);
-  const hiddenTeams = teams.length - visibleTeams.length;
+      return [
+        {
+          group: 'Brands without teams',
+          count: unassignedBrands.length,
+          tone: 'Needs Team',
+          rows: unassignedBrands.slice(0, 8).map((brand) => ({
+            ...brand,
+            sub: `${brand.industry || 'Brand'} · No team`,
+            action: 'Assign Team',
+          })),
+        },
+      ];
+    }
 
-  const totalClients = stats?.totalClients ?? 0;
-  const totalEmployees = stats?.totalEmployees ?? 0;
-  const activeEmployees = stats?.activeEmployees ?? 0;
-  const activeTeams = stats?.activeTeams ?? 0;
-  const totalTeams = stats?.totalTeams ?? 0;
+    return Array.isArray(stats?.alerts)
+      ? stats.alerts.filter(
+          (alert) => (alert.count ?? alert.rows?.length ?? 0) > 0 && alert.rows?.length > 0,
+        )
+      : [];
+  }, [hasBrands, stats?.alerts, unassignedBrands]);
 
-  const assignedBrands = stats?.teamAssignment?.assignedClients ?? 0;
-  const unassignedTeamBrands = stats?.teamAssignment?.unassignedClients ?? 0;
+  // Brands per team: computed from the project records (brands + teams) so the
+  // card agrees with the Brands screen. API stats are only a fallback for
+  // accounts where the project lists could not be loaded.
+  const teamRows = useMemo(() => {
+    if (!hasTeams) {
+      return Array.isArray(stats?.teamWorkload) ? stats.teamWorkload : [];
+    }
+
+    const activeTeams = workspaceTeams.filter((team) => team.status !== 'inactive');
+    const statsTeams = new Map(
+      (Array.isArray(stats?.teamWorkload) ? stats.teamWorkload : []).map((team) => [
+        String(team.id),
+        team,
+      ]),
+    );
+
+    const rows = activeTeams.map((team) => {
+      const linked = brands.filter((brand) => brandBelongsToTeam(brand, team)).length;
+      const clients = linked > 0 ? linked : (team.brandIds?.length ?? 0);
+      const members =
+        statsTeams.get(String(team.id))?.members ??
+        Math.max(
+          users.filter((user) => String(user.teamId) === String(team.id)).length,
+          team.memberIds?.length ?? 0,
+        );
+
+      return { id: team.id, name: team.name, members, clients, pct: 0 };
+    });
+
+    const max = Math.max(1, ...rows.map((row) => row.clients));
+
+    return rows
+      .map((row) => ({ ...row, pct: Math.round((row.clients / max) * 100) }))
+      .sort(
+        (a, b) =>
+          b.clients - a.clients ||
+          b.members - a.members ||
+          String(a.name).localeCompare(String(b.name)),
+      );
+  }, [brands, hasTeams, stats?.teamWorkload, users, workspaceTeams]);
+
+  // Workload: the API already ranks account managers; when it is unavailable,
+  // derive the same view from the project's people and brands.
+  const workload = useMemo(() => {
+    if (Array.isArray(stats?.workload) && stats.workload.length > 0) return stats.workload;
+    if (!hasPeople) return [];
+
+    const managers = users.filter((user) => user.systemAccess === 'account_manager');
+    if (managers.length === 0) return [];
+
+    const counts = managers.map(
+      (manager) =>
+        brands.filter(
+          (brand) =>
+            (brand.accountManagerId != null &&
+              String(brand.accountManagerId) === String(manager.id)) ||
+            (brand.manager &&
+              manager.fullName &&
+              String(brand.manager).toLowerCase() === String(manager.fullName).toLowerCase()),
+        ).length,
+    );
+
+    const max = Math.max(1, ...counts);
+    const teamNameById = new Map(
+      workspaceTeams.map((team) => [String(team.id), team.name]),
+    );
+
+    return managers.map((manager, index) => {
+      const clients = counts[index];
+      const { state, tone } = workloadState(clients, max);
+
+      return {
+        id: manager.id,
+        name: manager.fullName,
+        role: clients === max && max > 1 ? 'Lead' : clients === 0 ? 'Available' : 'AM',
+        team:
+          manager.teamName ||
+          teamNameById.get(String(manager.teamId)) ||
+          'Unassigned',
+        clients,
+        pct: Math.round((clients / max) * 100),
+        state,
+        tone,
+      };
+    });
+  }, [brands, hasPeople, stats?.workload, users, workspaceTeams]);
+
+  const totalClients = hasBrands ? brands.length : (stats?.totalClients ?? 0);
+  // "Employees" means studio staff, not every directory account (admins and
+  // account managers are excluded by the API stat), so keep that definition
+  // when the aggregate is available and mirror it when it is not.
+  const employeeUsers = users.filter((user) => user.systemAccess === 'employee');
+  const totalEmployees = hasStats
+    ? (stats.totalEmployees ?? 0)
+    : employeeUsers.length;
+  const activeEmployees = hasStats
+    ? (stats.activeEmployees ?? 0)
+    : employeeUsers.filter((user) => user.active !== false).length;
+  const activeTeams = hasTeams
+    ? workspaceTeams.filter((team) => team.status !== 'inactive').length
+    : (stats?.activeTeams ?? 0);
+  const totalTeams = hasTeams ? workspaceTeams.length : (stats?.totalTeams ?? 0);
+
+  const unassignedTeamBrands = hasBrands
+    ? unassignedBrands.length
+    : (stats?.teamAssignment?.unassignedClients ?? 0);
+  const assignedBrands = hasBrands
+    ? Math.max(0, brands.length - unassignedBrands.length)
+    : (stats?.teamAssignment?.assignedClients ?? 0);
   const deactivatedEmployees = Math.max(0, totalEmployees - activeEmployees);
 
-  const emptyTeams = teams.filter((team) => (team.clients ?? 0) === 0).length;
-  const teamsWithBrands = teams.length - emptyTeams;
+  const emptyTeams = teamRows.filter((team) => (team.clients ?? 0) === 0).length;
+  const teamsWithBrands = teamRows.length - emptyTeams;
 
   const alertCount = alerts.reduce((total, alert) => total + (alert.count ?? 0), 0);
+
+  const hasBrandData = hasBrands || hasStats;
+  const hasPeopleData = hasPeople || hasStats;
+  const hasTeamData = hasTeams || hasStats;
 
   const kpis = [
     {
       ...KPI_META[0],
-      value: hasStats ? String(totalClients) : '—',
-      chip: hasStats ? `${assignedBrands} assigned` : 'No data',
-      chipTone: hasStats && assignedBrands > 0 ? 'is-green' : 'is-amber',
-      foot: hasStats
+      value: hasBrandData ? String(totalClients) : '—',
+      chip: hasBrandData ? `${assignedBrands} assigned` : 'No data',
+      chipTone: hasBrandData && assignedBrands > 0 ? 'is-green' : 'is-amber',
+      foot: hasBrandData
         ? `${unassignedTeamBrands} ${
             unassignedTeamBrands === 1 ? 'brand' : 'brands'
           } without a team`
@@ -60,10 +210,10 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
     },
     {
       ...KPI_META[1],
-      value: hasStats ? String(totalEmployees) : '—',
-      chip: hasStats ? `${activeEmployees} active` : 'No data',
-      chipTone: hasStats ? 'is-purple' : 'is-amber',
-      foot: hasStats
+      value: hasPeopleData ? String(totalEmployees) : '—',
+      chip: hasPeopleData ? `${activeEmployees} active` : 'No data',
+      chipTone: hasPeopleData ? 'is-purple' : 'is-amber',
+      foot: hasPeopleData
         ? deactivatedEmployees > 0
           ? `${deactivatedEmployees} deactivated ${
               deactivatedEmployees === 1 ? 'account' : 'accounts'
@@ -73,10 +223,10 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
     },
     {
       ...KPI_META[2],
-      value: hasStats ? String(activeTeams) : '—',
-      chip: hasStats ? (emptyTeams > 0 ? `${emptyTeams} empty` : 'All covered') : 'No data',
-      chipTone: hasStats ? (emptyTeams > 0 ? 'is-amber' : 'is-green') : 'is-amber',
-      foot: hasStats
+      value: hasTeamData ? String(activeTeams) : '—',
+      chip: hasTeamData ? (emptyTeams > 0 ? `${emptyTeams} empty` : 'All covered') : 'No data',
+      chipTone: hasTeamData ? (emptyTeams > 0 ? 'is-amber' : 'is-green') : 'is-amber',
+      foot: hasTeamData
         ? `${teamsWithBrands} of ${totalTeams} teams have assigned brands`
         : 'Studio metrics are unavailable for this account.',
     },
@@ -120,9 +270,9 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
               </button>
             </header>
 
-            {visibleTeams.length > 0 ? (
+            {teamRows.length > 0 ? (
               <div className="ov-bars">
-                {visibleTeams.map((team) => (
+                {teamRows.map((team) => (
                   <div key={team.id ?? team.name} className="ov-bar">
                     <span className="cl-avatar cl-avatar--orange">{initials(team.name)}</span>
                     <span className="ov-bar__name">
@@ -145,20 +295,14 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
               </div>
             ) : (
               <div className="ws-empty">
-                <strong>{hasStats ? 'No teams yet.' : 'Team data is unavailable.'}</strong>
+                <strong>{hasTeamData ? 'No teams yet.' : 'Team data is unavailable.'}</strong>
                 <p>
-                  {hasStats
+                  {hasTeamData
                     ? 'Create a team to start distributing brands across the studio.'
                     : 'Sign in with an administrator account to see team distribution.'}
                 </p>
               </div>
             )}
-
-            {hiddenTeams > 0 ? (
-              <p className="ov-bars__more">
-                +{hiddenTeams} more {hiddenTeams === 1 ? 'team' : 'teams'} in the workspace.
-              </p>
-            ) : null}
           </section>
 
           <section className="cl-card">
@@ -205,10 +349,12 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                       <td colSpan={4}>
                         <div className="ws-empty">
                           <strong>
-                            {hasStats ? 'No account managers yet.' : 'Workload data is unavailable.'}
+                            {hasPeopleData
+                              ? 'No account managers yet.'
+                              : 'Workload data is unavailable.'}
                           </strong>
                           <p>
-                            {hasStats
+                            {hasPeopleData
                               ? 'Add an account manager to start tracking brand capacity.'
                               : 'Sign in with an administrator account to see workload.'}
                           </p>
@@ -240,7 +386,7 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
 
             {alerts.length === 0 ? (
               <p className="cl-card__sub">
-                {hasStats
+                {hasBrandData
                   ? 'Every brand has a team assigned.'
                   : 'Alerts are unavailable for this account.'}
               </p>
@@ -269,9 +415,15 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                     <button
                       type="button"
                       className="cl-profile-btn"
-                      onClick={() => onAssignTeam?.(row)}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const brand =
+                          brands.find((item) => String(item.id) === String(row.id)) ?? row;
+                        onAssignTeam?.(brand);
+                      }}
                     >
-                      {row.action}
+                      {row.action || 'Assign Team'}
                     </button>
                   </div>
                 ))}
