@@ -280,18 +280,6 @@ export default function OverviewSection({ stats, onViewWorkload }) {
               Unassigned brands cannot proceed with AI briefs until a team is confirmed.
             </div>
           </section>
-
-          <section className="ov-system">
-            <div className="ov-system__head">
-              <span>System Integrity</span>
-              <span className="pill is-green">Operational</span>
-            </div>
-            <strong>All studio systems operational</strong>
-            <p>
-              API uptime 99.98% in the last 30 days. No impacts detected across your active
-              workspaces.
-            </p>
-          </section>
         </aside>
       </div>
     </>
