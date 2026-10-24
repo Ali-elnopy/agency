@@ -82,6 +82,19 @@ export default function TeamsPage({ onOpenTeam }) {
                 {team.description?.trim() || 'No description added.'}
               </p>
 
+              <div className="ws-team-card__leader">
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-user" />
+                </svg>
+                {team.teamLead ? (
+                  <span>
+                    <strong>Team leader:</strong> {team.teamLead.fullName}
+                  </span>
+                ) : (
+                  <span className="is-muted">No team leader assigned</span>
+                )}
+              </div>
+
               <div className="ws-team-card__foot">
                 <button type="button" className="ws-open-team" onClick={() => onOpenTeam(team.name)}>
                   Open Team
