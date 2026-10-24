@@ -34,6 +34,28 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+const apiIndex = (_req, res) => {
+  res.status(200).json({
+    success: true,
+    name: 'ORVIA Agency OS API',
+    status: 'operational',
+    docs: {
+      health: 'GET /api/health',
+      login: 'POST /api/auth/login',
+      me: 'GET /api/auth/me',
+      users: 'GET /api/users',
+      teams: 'GET /api/teams',
+      brands: 'GET /api/brands',
+      dashboard: 'GET /api/dashboard',
+      roles: 'GET /api/meta/roles',
+      jobTitles: 'GET /api/meta/job-titles',
+    },
+  });
+};
+
+app.get('/', apiIndex);
+app.get('/api', apiIndex);
+
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/teams', teamsRouter);
