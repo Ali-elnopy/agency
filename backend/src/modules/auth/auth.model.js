@@ -106,6 +106,57 @@ export const AuthModel = {
     });
   },
 
+  async recordFailedLoginAttempt(
+    userId,
+    { maxAttempts, windowMs, lockDurationMs, now = Date.now() },
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          failedLoginAttempts: true,
+          failedLoginWindowStart: true,
+          loginLockedUntil: true,
+        },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const currentNow = now;
+      const lockUntil = user.loginLockedUntil ? user.loginLockedUntil.getTime() : null;
+
+      if (lockUntil && lockUntil > currentNow) {
+        return { locked: true, attempts: user.failedLoginAttempts };
+      }
+
+      const windowStart = user.failedLoginWindowStart
+        ? user.failedLoginWindowStart.getTime()
+        : null;
+
+      const windowExpired = !windowStart || currentNow - windowStart >= windowMs;
+
+      const attempts = windowExpired ? 1 : user.failedLoginAttempts + 1;
+      const nextWindowStart = windowExpired ? new Date(currentNow) : user.failedLoginWindowStart;
+
+      const shouldLock = attempts >= maxAttempts;
+      const nextLockUntil = shouldLock ? new Date(currentNow + lockDurationMs) : null;
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          failedLoginAttempts: attempts,
+          failedLoginWindowStart: nextWindowStart,
+          loginLockedUntil: nextLockUntil,
+        },
+      });
+
+      return { locked: shouldLock, attempts };
+    });
+  },
+
   updatePassword(userId, passwordHash) {
     return prisma.user.update({
       where: { id: userId },
