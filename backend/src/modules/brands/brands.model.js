@@ -1,3 +1,4 @@
+
 import { prisma } from '../../config/prisma.js';
 
 const brandSelect = {
@@ -7,11 +8,21 @@ const brandSelect = {
   websiteUrl: true,
   description: true,
   status: true,
+  clientId: true,
   accountManagerId: true,
   teamId: true,
   createdBy: true,
   createdAt: true,
   updatedAt: true,
+  client: {
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      isActive: true,
+    },
+  },
   team: {
     select: {
       id: true,
@@ -28,6 +39,43 @@ const brandSelect = {
 };
 
 export const BrandsModel = {
+  async createWithClient({ brandData, clientData }) {
+    return prisma.$transaction(async (tx) => {
+      const clientRole = await tx.role.findUnique({
+        where: { name: 'CLIENT' },
+        select: { id: true },
+      });
+
+      if (!clientRole) {
+        const error = new Error('CLIENT role is not configured');
+        error.code = 'CLIENT_ROLE_MISSING';
+        throw error;
+      }
+
+      const client = await tx.user.create({
+        data: {
+          ...clientData,
+          roleId: clientRole.id,
+        },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          isActive: true,
+        },
+      });
+
+      return tx.brand.create({
+        data: {
+          ...brandData,
+          clientId: client.id,
+        },
+        select: brandSelect,
+      });
+    });
+  },
+
   create(data) {
     return prisma.brand.create({
       data,
@@ -97,9 +145,7 @@ export const BrandsModel = {
         fullName: true,
         isActive: true,
         role: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
         },
       },
     });

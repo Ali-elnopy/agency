@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 const name = z
@@ -21,10 +22,25 @@ const websiteUrl = z
   .optional();
 
 const description = z.string().trim().nullable().optional();
-
 const teamId = z.number().int().positive().nullable().optional();
-
 const accountManagerId = z.number().int().positive().nullable().optional();
+
+const clientSchema = z
+  .object({
+    fullName: z
+      .string()
+      .trim()
+      .min(1, 'Client name is required')
+      .max(150, 'Client name must not exceed 150 characters'),
+    email: z
+      .string()
+      .trim()
+      .email('Client email must be valid')
+      .max(255)
+      .transform((value) => value.toLowerCase()),
+    phone: z.string().trim().max(30).nullable().optional(),
+  })
+  .strict();
 
 export const createBrandSchema = z
   .object({
@@ -34,6 +50,7 @@ export const createBrandSchema = z
     description,
     teamId,
     accountManagerId,
+    client: clientSchema,
   })
   .strict();
 
