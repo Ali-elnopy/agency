@@ -115,16 +115,10 @@ export default function DashboardPage({
     showToast(`Creative Brief "${brief.title}" launched successfully!`);
   };
 
-  // Re-read the dashboard aggregates so the KPI cards, team distribution and
-  // alert list reflect the assignment that was just persisted.
-  const refreshStats = () => {
-    getDashboardStats()
-      .then(setStats)
-      .catch(() => {});
-  };
-
+  // The overview derives its counters from the brands/teams/users lists, so an
+  // assignment is already reflected when the toast fires. Re-reading the whole
+  // dashboard here would only add another slow round-trip.
   const handleTeamAssigned = (teamName, brandName) => {
-    refreshStats();
     showToast(`${brandName} was assigned to ${teamName}.`);
   };
 

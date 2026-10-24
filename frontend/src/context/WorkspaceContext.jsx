@@ -101,12 +101,19 @@ export function mapApiUser(user) {
 export function mapApiTeam(team) {
   if (!team) return null;
 
+  const memberIds = Array.isArray(team.memberships)
+    ? team.memberships
+        .map((membership) => membership.user?.id ?? membership.userId ?? null)
+        .filter((id) => id != null)
+    : [];
+
   return {
     id: team.id,
     name: team.name,
     description: team.description ?? '',
     status: team.isActive === false ? 'inactive' : 'active',
     brandIds: [],
+    memberIds,
     createdAt: team.createdAt ? String(team.createdAt).slice(0, 10) : '',
   };
 }
