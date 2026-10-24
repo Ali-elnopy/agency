@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import TeamMembersModal from '../components/teams/TeamMembersModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
@@ -18,6 +19,7 @@ export default function TeamDetailsPage({
   const { brands } = useBrands();
   const { toast, showToast } = useToast(3500);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
 
   const team = teams.find((item) => item.name === teamName) ?? null;
 
@@ -35,9 +37,17 @@ export default function TeamDetailsPage({
     );
   }
 
-  const members = users.filter((user) => user.teamId === team.id);
+  const memberIds =
+    Array.isArray(team.memberIds) && team.memberIds.length
+      ? team.memberIds
+      : users.filter((user) => String(user.teamId) === String(team.id)).map((user) => user.id);
+
+  const members = memberIds
+    .map((id) => users.find((user) => String(user.id) === String(id)))
+    .filter(Boolean);
+
   const assignedBrands = (team.brandIds ?? [])
-    .map((brandId) => brands.find((brand) => brand.id === brandId))
+    .map((brandId) => brands.find((brand) => String(brand.id) === String(brandId)))
     .filter(Boolean);
 
   const removeMember = (member) => {
@@ -66,13 +76,25 @@ export default function TeamDetailsPage({
           <p className="ws-team-desc">{team.description?.trim() || 'No description added.'}</p>
         </div>
 
-        <button
-          type="button"
-          className="ws-btn ws-btn--danger-ghost"
-          onClick={() => setIsDeleteOpen(true)}
-        >
-          Delete Team
-        </button>
+        <div className="ws-team-actions">
+          <button
+            type="button"
+            className="ws-btn ws-btn--ghost"
+            onClick={() => setIsMembersOpen(true)}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-users" />
+            </svg>
+            Edit Team
+          </button>
+          <button
+            type="button"
+            className="ws-btn ws-btn--danger-ghost"
+            onClick={() => setIsDeleteOpen(true)}
+          >
+            Delete Team
+          </button>
+        </div>
       </section>
 
       <div className="ws-stat-grid">
@@ -192,6 +214,14 @@ export default function TeamDetailsPage({
           no longer be assigned to this team.
         </p>
       </ConfirmModal>
+
+      {isMembersOpen ? (
+        <TeamMembersModal
+          team={team}
+          onClose={() => setIsMembersOpen(false)}
+          onSaved={(message) => showToast(`Team updated. ${message}.`)}
+        />
+      ) : null}
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </div>

@@ -304,9 +304,53 @@ export function WorkspaceProvider({ children }) {
         );
       }
 
+      setTeams((prev) =>
+        prev.map((team) =>
+          String(team.id) === String(teamId)
+            ? {
+                ...team,
+                memberIds: (team.memberIds ?? []).filter(
+                  (id) => String(id) !== String(userId),
+                ),
+              }
+            : team,
+        ),
+      );
       setUsers((prev) =>
         prev.map((user) =>
-          user.id === userId && user.teamId === teamId ? { ...user, teamId: null } : user,
+          String(user.id) === String(userId) && String(user.teamId) === String(teamId)
+            ? { ...user, teamId: null }
+            : user,
+        ),
+      );
+    },
+    [demo],
+  );
+
+  const addTeamMember = useCallback(
+    async (teamId, userId) => {
+      if (!demo) {
+        await apiRequest(`/teams/${encodeURIComponent(teamId)}/members`, {
+          method: 'POST',
+          body: { userId: Number(userId) },
+        });
+      }
+
+      setTeams((prev) =>
+        prev.map((team) =>
+          String(team.id) === String(teamId)
+            ? {
+                ...team,
+                memberIds: Array.from(new Set([...(team.memberIds ?? []), userId])),
+              }
+            : team,
+        ),
+      );
+      setUsers((prev) =>
+        prev.map((user) =>
+          String(user.id) === String(userId) && !user.teamId
+            ? { ...user, teamId, teamName: '' }
+            : user,
         ),
       );
     },
@@ -491,6 +535,7 @@ export function WorkspaceProvider({ children }) {
       deleteTeam,
       setTeamBrands,
       removeTeamMember,
+      addTeamMember,
       createMember,
       updateUser,
       deleteUser,
@@ -506,6 +551,7 @@ export function WorkspaceProvider({ children }) {
       deleteTeam,
       setTeamBrands,
       removeTeamMember,
+      addTeamMember,
       createMember,
       updateUser,
       deleteUser,

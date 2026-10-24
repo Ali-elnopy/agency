@@ -3,7 +3,6 @@ import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import PlanModal from '../components/brands/PlanModal';
 import AddPlatformModal from '../components/brands/AddPlatformModal';
-import EditTeamModal from '../components/brands/EditTeamModal';
 import BrandBriefSection from '../components/brands/BrandBriefSection';
 import ContentStrategySection from '../components/brands/ContentStrategySection';
 import PlanDirectionSection from '../components/brands/PlanDirectionSection';
@@ -13,7 +12,6 @@ import BrandWorkspaceHub from '../components/brands/BrandWorkspaceHub';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useBrands } from '../context/brandsStore';
-import { useWorkspace } from '../context/workspaceStore';
 import {
   BRAND_STATUS_LABEL,
   CONTENT_STATUS_LABEL,
@@ -55,8 +53,6 @@ export default function BrandDetailPage({
     savePlan,
     deleteBrand,
     updateContentStatus,
-    getBrandTeam,
-    setBrandTeam,
     addPlatform,
     updatePlatform,
     deletePlatform,
@@ -66,7 +62,6 @@ export default function BrandDetailPage({
     getPlanDirections,
     getAssets,
   } = useBrands();
-  const { users } = useWorkspace();
   const { toast, showToast } = useToast(4000);
 
   const defaultMonth = useMemo(() => {
@@ -87,7 +82,6 @@ export default function BrandDetailPage({
   const [tab, setTab] = useState('hub');
   const [platformModal, setPlatformModal] = useState(null);
   const [platformToDelete, setPlatformToDelete] = useState(null);
-  const [teamOpen, setTeamOpen] = useState(false);
   const [directionsFocus, setDirectionsFocus] = useState(null);
 
   const brand = getBrand(brandId);
@@ -150,10 +144,6 @@ export default function BrandDetailPage({
 
   const statusLabel = BRAND_STATUS_LABEL[brand.status] ?? 'Active';
 
-  const brandTeamIds = getBrandTeam(brand.id);
-  const teamMembers = brandTeamIds
-    .map((id) => users.find((user) => String(user.id) === String(id)))
-    .filter(Boolean);
   const platforms = getPlatforms(brand.id);
   const briefs = getBriefs(brand.id);
   const strategies = getStrategies(brand.id);
@@ -180,12 +170,6 @@ export default function BrandDetailPage({
     deletePlatform(platformToDelete.id);
     setPlatformToDelete(null);
     showToast('Platform deleted.');
-  };
-
-  const handleSaveTeam = (ids) => {
-    setBrandTeam(brand.id, ids);
-    setTeamOpen(false);
-    showToast('Brand team updated.');
   };
 
   const openDirections = (platformId, focusMonth) => {
@@ -316,16 +300,6 @@ export default function BrandDetailPage({
           </button>
           <button
             type="button"
-            className="button button--ghost"
-            onClick={() => setTeamOpen(true)}
-          >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-users" />
-            </svg>
-            Edit Team
-          </button>
-          <button
-            type="button"
             className="button button--danger-ghost"
             onClick={() => setDeleteOpen(true)}
           >
@@ -348,10 +322,8 @@ export default function BrandDetailPage({
             }`,
             assets: `${assets.length} ${assets.length === 1 ? 'file' : 'files'}`,
             social: `${platforms.length} ${platforms.length === 1 ? 'platform' : 'platforms'}`,
-            team: `${teamMembers.length} ${teamMembers.length === 1 ? 'member' : 'members'}`,
           }}
           onOpen={(next) => setTab(next)}
-          onEditTeam={() => setTeamOpen(true)}
         />
       ) : (
         <div className="bw-section-shell">
@@ -809,47 +781,6 @@ export default function BrandDetailPage({
             </div>
           </section>
 
-          <section className="cl-card brand-team-card">
-            <div className="brand-section-head">
-              <div>
-                <h2 className="brand-section-title">
-                  <span className="brand-section-icon">
-                    <svg aria-hidden="true" className="icon">
-                      <use href="#i-users" />
-                    </svg>
-                  </span>
-                  Brand Team
-                </h2>
-                <p className="brand-section-sub">People responsible for this brand.</p>
-              </div>
-              <button
-                type="button"
-                className="button button--ghost button--sm"
-                onClick={() => setTeamOpen(true)}
-              >
-                Edit Team
-              </button>
-            </div>
-
-            {teamMembers.length ? (
-              <ul className="bw-team-mini">
-                {teamMembers.map((member) => (
-                  <li key={member.id}>
-                    <span className="bw-team-avatar">{initialsOf(member.fullName)}</span>
-                    <span>
-                      <strong>{member.fullName}</strong>
-                      <small>{member.jobTitle || 'Team member'}</small>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="brand-info-muted">
-                No team assigned yet. Use Edit Team to add the people working on this brand.
-              </p>
-            )}
-          </section>
-
           <section className="cl-card brand-contact-card">
             <div className="brand-section-head">
               <div>
@@ -1010,15 +941,6 @@ export default function BrandDetailPage({
           monthly calendar.
         </p>
       </ConfirmModal>
-
-      {teamOpen ? (
-        <EditTeamModal
-          brand={brand}
-          selectedIds={brandTeamIds}
-          onClose={() => setTeamOpen(false)}
-          onSave={handleSaveTeam}
-        />
-      ) : null}
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </div>
