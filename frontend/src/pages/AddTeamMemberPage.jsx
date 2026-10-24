@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CredentialsModal from '../components/common/CredentialsModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
@@ -21,6 +22,8 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
   const { toast, showToast } = useToast(3500);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [credentials, setCredentials] = useState(null);
 
   const team = teams.find((item) => item.name === teamName) ?? null;
 
@@ -69,6 +72,8 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    if (saving) return;
+
     const nextErrors = {};
     const fullName = form.fullName.trim();
     const email = form.email.trim().toLowerCase();
@@ -89,6 +94,7 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
     }
 
     setErrors({});
+    setSaving(true);
 
     try {
       const member = await createMember({
@@ -100,20 +106,40 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
         teamId: team.id,
       });
 
-      const message = member?.tempPassword
-        ? `Team member added. Temporary password: ${member.tempPassword}`
-        : 'Team member added successfully.';
-
-      if (onSaved) {
-        onSaved(message);
-        return;
-      }
-
       setForm(EMPTY_FORM);
-      showToast(message);
+
+      // Keep the credentials on screen until the administrator dismisses them.
+      // They used to live in a toast that disappeared after a few seconds,
+      // which made the password easy to lose or copy with the label attached.
+      setCredentials({
+        fullName: member?.fullName || fullName,
+        email: member?.email || email,
+        password: member?.tempPassword ?? '',
+        isDemo: Boolean(member?.isDemo),
+        warning: member?.teamWarning ?? '',
+      });
     } catch (error) {
       setErrors({ email: error?.message ?? 'Could not create the team member.' });
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const closeCredentials = () => {
+    const saved = credentials;
+
+    setCredentials(null);
+
+    if (onSaved) {
+      onSaved(
+        saved?.isDemo
+          ? 'Demo member added to this browser only.'
+          : 'Team member added successfully.',
+      );
+      return;
+    }
+
+    if (!saved?.isDemo) showToast('Team member added successfully.');
   };
 
   return (
@@ -228,15 +254,25 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
           </div>
 
           <footer className="ws-form-foot">
-            <button type="button" className="ws-btn ws-btn--ghost" onClick={onBack}>
+            <button type="button" className="ws-btn ws-btn--ghost" onClick={onBack} disabled={saving}>
               Cancel
             </button>
-            <button type="submit" className="ws-btn ws-btn--primary">
-              Create Member
+            <button type="submit" className="ws-btn ws-btn--primary" disabled={saving}>
+              {saving ? 'Creating…' : 'Create Member'}
             </button>
           </footer>
         </div>
       </div>
+
+      <CredentialsModal
+        isOpen={Boolean(credentials)}
+        fullName={credentials?.fullName}
+        email={credentials?.email}
+        password={credentials?.password}
+        isDemo={credentials?.isDemo}
+        warning={credentials?.warning}
+        onClose={closeCredentials}
+      />
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </form>

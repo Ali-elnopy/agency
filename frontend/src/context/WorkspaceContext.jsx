@@ -9,6 +9,7 @@ import {
 } from '../data/workspace';
 import { apiRequest } from '../services/http';
 import { getJobTitleOptions } from '../services/meta';
+import { generateTemporaryPassword } from '../utils/credentials';
 
 /* The workspace is backed by the Express API. The single-file demo build
    (dev bypass) keeps its fixtures so it can still run without a server. */
@@ -24,8 +25,6 @@ const ROLE_BY_ACCESS = {
   account_manager: 'ACCOUNT_MANAGER',
   employee: 'EMPLOYEE',
 };
-
-const TEMP_PASSWORD = 'OrviaTemp#2026';
 
 const STORAGE_KEYS = {
   users: 'orvia_workspace_users_v1',
@@ -328,7 +327,10 @@ export function WorkspaceProvider({ children }) {
         };
 
         setUsers((prev) => [member, ...prev]);
-        return member;
+
+        // Demo members live in localStorage only: no server account exists, so
+        // there is no password to hand out.
+        return { ...member, isDemo: true };
       }
 
       const jobTitles = await getJobTitleOptions();
@@ -344,6 +346,10 @@ export function WorkspaceProvider({ children }) {
         );
       }
 
+      // Every account gets its own temporary password. The value sent to the
+      // API is exactly the one the dialog shows, so it is guaranteed to work.
+      const password = String(input.password || '').trim() || generateTemporaryPassword();
+
       const created = mapApiUser(
         unwrap(
           await apiRequest('/users', {
@@ -351,7 +357,7 @@ export function WorkspaceProvider({ children }) {
             body: {
               fullName,
               email: String(input.email ?? '').trim().toLowerCase(),
-              password: input.password || TEMP_PASSWORD,
+              password,
               roleName: ROLE_BY_ACCESS[systemAccess] ?? 'EMPLOYEE',
               jobTitleId: jobTitle.id,
             },
@@ -359,16 +365,25 @@ export function WorkspaceProvider({ children }) {
         ),
       );
 
+      // The account already exists at this point. Linking it to a team is a
+      // separate step, so a failure there must not hide the new credentials.
+      let teamWarning = '';
+
       if (input.teamId) {
-        await apiRequest(`/teams/${encodeURIComponent(input.teamId)}/members`, {
-          method: 'POST',
-          body: { userId: created.id },
-        });
+        try {
+          await apiRequest(`/teams/${encodeURIComponent(input.teamId)}/members`, {
+            method: 'POST',
+            body: { userId: created.id },
+          });
+        } catch (error) {
+          teamWarning =
+            error?.message || 'The account was created but could not be added to this team.';
+        }
       }
 
-      await refresh();
+      await refresh().catch(() => {});
 
-      return { ...created, tempPassword: input.password || TEMP_PASSWORD };
+      return { ...created, tempPassword: password, isDemo: false, teamWarning };
     },
     [demo, refresh],
   );

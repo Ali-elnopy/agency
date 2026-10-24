@@ -12,6 +12,7 @@ export default function Modal({
   icon = '#i-plus',
   iconColor = 'orange',
   maxWidth = '540px',
+  dismissible = true,
   children,
   footer,
 }) {
@@ -42,7 +43,7 @@ export default function Modal({
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        onCloseRef.current();
+        if (dismissible) onCloseRef.current();
         return;
       }
 
@@ -70,7 +71,7 @@ export default function Modal({
       document.removeEventListener('keydown', handleKeyDown);
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
-  }, [isOpen]);
+  }, [isOpen, dismissible]);
 
   // Lock background scroll when modal is open.
   useEffect(() => {
@@ -87,6 +88,8 @@ export default function Modal({
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
+    if (!dismissible) return;
+
     if (containerRef.current && !containerRef.current.contains(e.target)) {
       onCloseRef.current();
     }
@@ -121,27 +124,29 @@ export default function Modal({
             </div>
           </div>
 
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={onClose}
-            aria-label="Close dialog"
-            title="Close"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              stroke="currentColor"
-              strokeWidth="2"
-              fill="none"
-              strokeLinecap="round"
+          {dismissible && (
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={onClose}
+              aria-label="Close dialog"
+              title="Close"
             >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
         </header>
 
         <div className="modal-body">{children}</div>

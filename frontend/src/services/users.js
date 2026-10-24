@@ -288,7 +288,7 @@ export async function createUser({ fullName, email, phone, password, roleName, j
       }),
     );
 
-    return remember(mapUser(data));
+    return { ...remember(mapUser(data)), isMock: false };
   } catch (error) {
     if (!canUseMock(error)) throw error;
 
@@ -307,7 +307,8 @@ export async function createUser({ fullName, email, phone, password, roleName, j
 
     mockUsers.unshift(created);
 
-    return created;
+    // Nothing was written to the API: the account cannot sign in.
+    return { ...created, isMock: true };
   }
 }
 
