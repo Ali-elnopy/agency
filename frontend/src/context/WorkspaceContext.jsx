@@ -366,6 +366,8 @@ export function WorkspaceProvider({ children }) {
                 memberIds: (team.memberIds ?? []).filter(
                   (id) => String(id) !== String(userId),
                 ),
+                teamLeadId: String(team.teamLeadId) === String(userId) ? null : team.teamLeadId,
+                teamLead: String(team.teamLead?.id) === String(userId) ? null : team.teamLead,
               }
             : team,
         ),
@@ -373,12 +375,16 @@ export function WorkspaceProvider({ children }) {
       setUsers((prev) =>
         prev.map((user) =>
           String(user.id) === String(userId) && String(user.teamId) === String(teamId)
-            ? { ...user, teamId: null }
+            ? { ...user, teamId: null, teamName: '' }
             : user,
         ),
       );
+
+      if (!demo) {
+        await refresh().catch(() => {});
+      }
     },
-    [demo],
+    [demo, refresh],
   );
 
   const addTeamMember = useCallback(
@@ -407,8 +413,12 @@ export function WorkspaceProvider({ children }) {
             : user,
         ),
       );
+
+      if (!demo) {
+        await refresh().catch(() => {});
+      }
     },
-    [demo],
+    [demo, refresh],
   );
 
   const setTeamLead = useCallback(
@@ -586,6 +596,10 @@ export function WorkspaceProvider({ children }) {
         }
       }
 
+      if (patch.teamId !== undefined) {
+        body.teamId = patch.teamId ? Number(patch.teamId) : null;
+      }
+
       if (patch.active === false && current?.active !== false) {
         await apiRequest(`/users/${encodeURIComponent(userId)}/deactivate`, { method: 'POST' });
       } else if (patch.active === true && current?.active === false) {
@@ -594,21 +608,6 @@ export function WorkspaceProvider({ children }) {
 
       if (Object.keys(body).length) {
         await apiRequest(`/users/${encodeURIComponent(userId)}`, { method: 'PATCH', body });
-      }
-
-      if (patch.teamId !== undefined && String(patch.teamId) !== String(current?.teamId)) {
-        if (current?.teamId) {
-          await apiRequest(
-            `/teams/${encodeURIComponent(current.teamId)}/members/${encodeURIComponent(userId)}`,
-            { method: 'DELETE' },
-          ).catch(() => {});
-        }
-        if (patch.teamId) {
-          await apiRequest(`/teams/${encodeURIComponent(patch.teamId)}/members`, {
-            method: 'POST',
-            body: { userId: Number(userId) },
-          }).catch(() => {});
-        }
       }
 
       await refresh();

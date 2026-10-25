@@ -206,8 +206,14 @@ export const TeamsModel = {
   },
 
   async removeMember(teamId, userId) {
-    await prisma.teamMembership.deleteMany({
-      where: { teamId, userId },
+    await prisma.$transaction(async (tx) => {
+      await tx.team.updateMany({
+        where: { id: teamId, teamLeadId: userId },
+        data: { teamLeadId: null },
+      });
+      await tx.teamMembership.deleteMany({
+        where: { teamId, userId },
+      });
     });
 
     return this.findById(teamId);

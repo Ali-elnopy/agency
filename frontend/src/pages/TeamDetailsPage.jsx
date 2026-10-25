@@ -46,10 +46,9 @@ export default function TeamDetailsPage({
     );
   }
 
-  const memberIds =
-    Array.isArray(team.memberIds) && team.memberIds.length
-      ? team.memberIds
-      : users.filter((user) => String(user.teamId) === String(team.id)).map((user) => user.id);
+  const memberIds = Array.isArray(team.memberIds)
+    ? team.memberIds
+    : users.filter((user) => String(user.teamId) === String(team.id)).map((user) => user.id);
 
   const members = memberIds
     .map((id) => users.find((user) => String(user.id) === String(id)))
@@ -59,9 +58,13 @@ export default function TeamDetailsPage({
     .map((brandId) => brands.find((brand) => String(brand.id) === String(brandId)))
     .filter(Boolean);
 
-  const removeMember = (member) => {
-    removeTeamMember(team.id, member.id);
-    showToast(`${member.fullName} removed from ${team.name}.`);
+  const removeMember = async (member) => {
+    try {
+      await removeTeamMember(team.id, member.id);
+      showToast(`${member.fullName} removed from ${team.name}.`);
+    } catch (err) {
+      showToast(err?.message || `Failed to remove ${member.fullName} from team.`, 'error');
+    }
   };
 
   const confirmDelete = () => {

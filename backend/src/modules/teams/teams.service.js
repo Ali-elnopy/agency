@@ -204,14 +204,6 @@ export const TeamsService = {
       throw new ApiError(404, 'User is not a member of this team');
     }
 
-    // Prevent removing the current team leader from the team.
-    if (team.teamLeadId === userId) {
-      throw new ApiError(
-        400,
-        'Cannot remove the team leader without assigning another leader or removing the team leadership first',
-      );
-    }
-
     try {
       return await TeamsModel.removeMember(team.id, userId);
     } catch (error) {
