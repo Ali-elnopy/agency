@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'node:path';
+import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { authenticate } from '../../middlewares/auth.js';
@@ -8,10 +9,17 @@ import { ApiError } from '../../utils/ApiError.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const uploadDir = path.resolve(__dirname, '../../../uploads');
 
-if (!fs.existsSync(uploadDir)) {
+/* Serverless platforms mount the deployment read-only, so uploads go to the
+   writable temporary directory there instead of the project folder. */
+const uploadDir = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'orvia-uploads')
+  : path.resolve(__dirname, '../../../uploads');
+
+try {
   fs.mkdirSync(uploadDir, { recursive: true });
+} catch (error) {
+  console.warn(`Could not prepare the upload directory at ${uploadDir}:`, error.message);
 }
 
 const storage = multer.diskStorage({
