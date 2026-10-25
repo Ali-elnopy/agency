@@ -129,6 +129,25 @@ export const TeamsModel = {
     });
   },
 
+  /* A person can only belong to one team, so membership checks look at every
+     team except the one currently being edited. */
+  findMembershipsForUsers(userIds, excludeTeamId = null) {
+    if (!userIds.length) return Promise.resolve([]);
+
+    return prisma.teamMembership.findMany({
+      where: {
+        userId: { in: userIds },
+        ...(excludeTeamId == null ? {} : { teamId: { not: excludeTeamId } }),
+      },
+      select: {
+        userId: true,
+        teamId: true,
+        team: { select: { name: true } },
+        user: { select: { fullName: true } },
+      },
+    });
+  },
+
   async create(data, memberIds) {
     return prisma.$transaction(async (tx) => {
       const team = await tx.team.create({

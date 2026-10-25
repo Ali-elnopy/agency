@@ -40,6 +40,25 @@ async function assertEligibleUsers(ids) {
   }
 }
 
+/* Every person belongs to at most one team. Creating or joining a team is
+   rejected while the person is still a member of a different one. */
+async function assertUsersAvailableForTeam(ids, excludeTeamId = null) {
+  const uniqueIds = [...new Set(ids)];
+
+  if (uniqueIds.length === 0) return;
+
+  const conflicts = await TeamsModel.findMembershipsForUsers(uniqueIds, excludeTeamId);
+
+  if (conflicts.length > 0) {
+    const conflict = conflicts[0];
+
+    throw new ApiError(
+      409,
+      `${conflict.user.fullName} already belongs to ${conflict.team.name}. Remove them from that team first.`,
+    );
+  }
+}
+
 function mapPrismaError(error) {
   if (error?.code === 'P2002') {
     throw new ApiError(409, 'A team with this name already exists');
@@ -114,6 +133,7 @@ export const TeamsService = {
     }
 
     await assertEligibleUsers(memberIds);
+    await assertUsersAvailableForTeam(memberIds);
 
     try {
       return await TeamsModel.create(
@@ -156,6 +176,7 @@ export const TeamsService = {
         // Validate the new leader before updating the team.
         if (teamLeadId !== null) {
           await assertEligibleUsers([teamLeadId]);
+          await assertUsersAvailableForTeam([teamLeadId], team.id);
         }
 
         // The model updates the leader and membership transactionally.
@@ -184,6 +205,8 @@ export const TeamsService = {
         'User does not exist, is inactive, or cannot be assigned to a team',
       );
     }
+
+    await assertUsersAvailableForTeam([userId], team.id);
 
     try {
       return await TeamsModel.addMember(team.id, userId);

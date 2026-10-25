@@ -4,7 +4,7 @@ import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
 import { getJobTitles } from '../services/users';
-import { orderJobTitles } from '../data/jobTitles';
+import { isOtherJobTitle, orderJobTitles, OTHER_JOB_TITLE } from '../data/jobTitles';
 import {
   ACCESS_LEVELS,
   PERMISSION_OPTIONS,
@@ -15,6 +15,7 @@ const EMPTY_FORM = {
   fullName: '',
   email: '',
   jobTitle: '',
+  customJobTitle: '',
   systemAccess: 'employee',
   permissions: [],
 };
@@ -62,6 +63,17 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
+  const updateJobTitle = (event) => {
+    const value = event.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      jobTitle: value,
+      customJobTitle: isOtherJobTitle(value) ? prev.customJobTitle : '',
+    }));
+    setErrors((prev) => ({ ...prev, jobTitle: undefined, customJobTitle: undefined }));
+  };
+
   const updateAccess = (event) => {
     const systemAccess = event.target.value;
 
@@ -91,7 +103,9 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
     const nextErrors = {};
     const fullName = form.fullName.trim();
     const email = form.email.trim().toLowerCase();
-    const jobTitle = form.jobTitle.trim();
+    const jobTitle = isOtherJobTitle(form.jobTitle)
+      ? form.customJobTitle.trim()
+      : form.jobTitle.trim();
 
     if (!fullName) nextErrors.fullName = 'Full name is required.';
     if (!email) nextErrors.email = 'Email is required.';
@@ -100,8 +114,14 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
     } else if (users.some((user) => user.email.toLowerCase() === email)) {
       nextErrors.email = 'A member with this email already exists.';
     }
-    if (form.systemAccess !== 'admin' && !jobTitle) {
+    if (form.systemAccess !== 'admin' && !form.jobTitle) {
       nextErrors.jobTitle = 'Job title is required.';
+    } else if (
+      form.systemAccess !== 'admin' &&
+      isOtherJobTitle(form.jobTitle) &&
+      !jobTitle
+    ) {
+      nextErrors.customJobTitle = 'Enter the job title.';
     }
 
     if (Object.keys(nextErrors).length) {
@@ -210,7 +230,7 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
                 <select
                   className="ws-select"
                   value={form.jobTitle}
-                  onChange={updateField('jobTitle')}
+                  onChange={updateJobTitle}
                 >
                   <option value="">Select a job title</option>
                   {jobTitleChoices.map((title) => (
@@ -218,15 +238,27 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
                       {title.name}
                     </option>
                   ))}
+                  <option value={OTHER_JOB_TITLE}>Other</option>
                 </select>
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-chevron" />
                 </svg>
               </span>
+              {isOtherJobTitle(form.jobTitle) && (
+                <input
+                  className="ws-input"
+                  placeholder="Enter the job title"
+                  value={form.customJobTitle}
+                  onChange={updateField('customJobTitle')}
+                />
+              )}
               <small className="ws-hint">
                 Pick the title that best matches this person&rsquo;s work.
               </small>
               {errors.jobTitle && <small className="ws-error">{errors.jobTitle}</small>}
+              {errors.customJobTitle && (
+                <small className="ws-error">{errors.customJobTitle}</small>
+              )}
             </label>
           )}
 

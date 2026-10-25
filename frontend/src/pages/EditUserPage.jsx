@@ -3,7 +3,7 @@ import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { getJobTitles, updateUser } from '../services/users';
 import { getTeams } from '../services/teams';
-import { jobTitleOptions, resolveJobTitle } from '../data/jobTitles';
+import { isOtherJobTitle, jobTitleOptions, OTHER_JOB_TITLE, resolveJobTitle } from '../data/jobTitles';
 
 const PORTFOLIOS = ['Acme Corp', 'Lumina A.', 'Apex Global', 'Velcoe Media'];
 
@@ -42,6 +42,7 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
     email: record?.email || `${member.split(' ')[0].toLowerCase()}.vance@orvia-agency.com`,
     phone: record?.phone || '+1 (555) 340-1188',
     jobTitle: record?.jobTitleName || record?.jobTitle || '',
+    customJobTitle: '',
     teamId: record?.teamId || '',
   });
 
@@ -60,6 +61,16 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
     setDirty(true);
   };
 
+  const updateJobTitle = (event) => {
+    const value = event.target.value;
+    setForm((prev) => ({
+      ...prev,
+      jobTitle: value,
+      customJobTitle: isOtherJobTitle(value) ? prev.customJobTitle : '',
+    }));
+    setDirty(true);
+  };
+
   const handleSave = async () => {
     if (!record?.id) {
       setDirty(false);
@@ -68,12 +79,21 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
       return;
     }
 
+    const jobTitle = isOtherJobTitle(form.jobTitle)
+      ? form.customJobTitle.trim()
+      : form.jobTitle.trim();
+
+    if (!isAdmin && !jobTitle) {
+      showToast('Job title is required.', 'danger');
+      return;
+    }
+
     setSaving(true);
 
     try {
       const titlePayload = isAdmin
         ? { jobTitleId: null }
-        : resolveJobTitle(availableJobTitles, form.jobTitle);
+        : resolveJobTitle(availableJobTitles, jobTitle);
 
       await updateUser(record.id, {
         fullName: form.fullName.trim(),
@@ -225,7 +245,7 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
                       id="eu-title"
                       className="form-select"
                       value={form.jobTitle}
-                      onChange={update('jobTitle')}
+                      onChange={updateJobTitle}
                     >
                       <option value="">Select a Job Title</option>
                       {jobTitleChoices.map((title) => (
@@ -233,11 +253,21 @@ export default function EditUserPage({ member = 'Marcus Vance', record, onBack, 
                           {title.name}
                         </option>
                       ))}
+                      <option value={OTHER_JOB_TITLE}>Other</option>
                     </select>
                     <svg aria-hidden="true" className="icon">
                       <use href="#i-chevron" />
                     </svg>
                   </span>
+                  {isOtherJobTitle(form.jobTitle) && (
+                    <input
+                      id="eu-title-custom"
+                      className="form-input"
+                      placeholder="Enter the job title"
+                      value={form.customJobTitle}
+                      onChange={update('customJobTitle')}
+                    />
+                  )}
                 </div>
               )}
             </div>

@@ -5,11 +5,23 @@ import { initialsOf, teamMemberIds } from '../../data/workspace';
 
 const ELIGIBLE_ACCESS = new Set(['employee', 'account_manager', 'team_leader']);
 
+/* A person can only belong to one team. */
+function belongsToAnotherTeam(user, teamId) {
+  return user.teamId != null && String(user.teamId) !== String(teamId);
+}
+
 export default function TeamMembersModal({ team, onClose, onSaved }) {
-  const { users, updateTeam, addTeamMember, removeTeamMember } = useWorkspace();
+  const { users, teams, updateTeam, addTeamMember, removeTeamMember } = useWorkspace();
 
   const [name, setName] = useState(team.name || '');
   const [description, setDescription] = useState(team.description || '');
+
+  /* Demo records only carry a team id, so fall back to the teams list to name
+     the team a person is already in. */
+  const teamNameOf = (user) =>
+    user.teamName ||
+    teams.find((item) => String(item.id) === String(user.teamId))?.name ||
+    'another team';
 
   const eligible = useMemo(
     () =>
@@ -30,6 +42,8 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const currentTeamId = String(team.id);
+
   // Team Leader options: team leaders or people already in this team. Admins
   // cannot lead a team, so they are never offered as a candidate.
   const leaderCandidates = useMemo(
@@ -39,10 +53,11 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
           (user) =>
             user.active !== false &&
             user.systemAccess !== 'admin' &&
+            !belongsToAnotherTeam(user, currentTeamId) &&
             (user.systemAccess === 'team_leader' || selected.has(String(user.id))),
         )
         .sort((a, b) => String(a.fullName).localeCompare(String(b.fullName))),
-    [users, selected],
+    [users, selected, currentTeamId],
   );
 
   const visible = eligible.filter((user) => {
@@ -56,8 +71,16 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
 
   const currentIds = useMemo(() => teamMemberIds(team, users), [team, users]);
 
-  const toggle = (id) => {
-    const strId = String(id);
+  const toggle = (user) => {
+    const strId = String(user.id);
+
+    if (!selected.has(strId) && belongsToAnotherTeam(user, currentTeamId)) {
+      setError(
+        `${user.fullName} already belongs to ${teamNameOf(user)}. Remove them from that team first.`,
+      );
+      return;
+    }
+
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(strId)) {
@@ -248,15 +271,20 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
               {visible.map((user) => {
                 const checked = selected.has(String(user.id));
                 const isLeader = String(user.id) === leaderId;
+                const inAnotherTeam = belongsToAnotherTeam(user, currentTeamId);
+                const locked = inAnotherTeam && !checked;
 
                 return (
                   <li key={user.id}>
                     <button
                       type="button"
-                      className={`bw-team-row${checked ? ' is-selected' : ''}`}
-                      onClick={() => toggle(user.id)}
+                      className={`bw-team-row${checked ? ' is-selected' : ''}${
+                        locked ? ' is-locked' : ''
+                      }`}
+                      onClick={() => toggle(user)}
                       aria-pressed={checked}
-                      disabled={busy}
+                      aria-disabled={locked}
+                      disabled={busy || locked}
                     >
                       <span className="bw-team-avatar">{initialsOf(user.fullName)}</span>
                       <span className="bw-team-copy">
@@ -281,7 +309,11 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
                         </div>
                         <small>
                           {user.jobTitle || user.systemAccess}
-                          {user.teamName ? ` · ${user.teamName}` : ''}
+                          {inAnotherTeam
+                            ? ` · Already in ${teamNameOf(user)}`
+                            : user.teamName
+                              ? ` · ${user.teamName}`
+                              : ''}
                         </small>
                         <small>{user.email}</small>
                       </span>

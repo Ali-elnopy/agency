@@ -5,7 +5,7 @@ import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { createUser, getJobTitles } from '../services/users';
 import { getTeams } from '../services/teams';
-import { orderJobTitles, resolveJobTitle } from '../data/jobTitles';
+import { isOtherJobTitle, orderJobTitles, OTHER_JOB_TITLE, resolveJobTitle } from '../data/jobTitles';
 import { generateTemporaryPassword } from '../utils/credentials';
 
 const ROLES = [
@@ -45,6 +45,7 @@ const EMPTY_FORM = {
   email: '',
   roleId: 'team_leader',
   jobTitle: '',
+  customJobTitle: '',
   teamId: '',
 };
 
@@ -81,12 +82,23 @@ export default function AddUserPage({ onBack, onSaved }) {
     Boolean(form.fullName || form.phone || form.email) ||
     form.roleId !== EMPTY_FORM.roleId ||
     Boolean(form.teamId) ||
-    Boolean(form.jobTitle);
+    Boolean(form.jobTitle) ||
+    Boolean(form.customJobTitle);
 
   const update = (key) => (event) => {
     const val = event.target.value;
     setForm((prev) => ({ ...prev, [key]: val }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  const updateJobTitle = (event) => {
+    const value = event.target.value;
+    setForm((prev) => ({
+      ...prev,
+      jobTitle: value,
+      customJobTitle: isOtherJobTitle(value) ? prev.customJobTitle : '',
+    }));
+    setErrors((prev) => ({ ...prev, jobTitle: undefined, customJobTitle: undefined }));
   };
 
   const handleSubmit = (event) => {
@@ -101,6 +113,8 @@ export default function AddUserPage({ onBack, onSaved }) {
     if (!isAdmin) {
       if (!form.jobTitle) {
         nextErrors.jobTitle = 'Job title is required.';
+      } else if (isOtherJobTitle(form.jobTitle) && !form.customJobTitle.trim()) {
+        nextErrors.customJobTitle = 'Enter the job title.';
       }
     }
 
@@ -112,10 +126,11 @@ export default function AddUserPage({ onBack, onSaved }) {
 
   const createAccount = async () => {
     const password = generateTemporaryPassword();
+    const jobTitle = isOtherJobTitle(form.jobTitle)
+      ? form.customJobTitle.trim()
+      : form.jobTitle.trim();
 
-    const titlePayload = isAdmin
-      ? {}
-      : resolveJobTitle(availableJobTitles, form.jobTitle);
+    const titlePayload = isAdmin ? {} : resolveJobTitle(availableJobTitles, jobTitle);
 
     setSaving(true);
 
@@ -320,7 +335,7 @@ export default function AddUserPage({ onBack, onSaved }) {
                       id="au-jobtitle"
                       className="form-select"
                       value={form.jobTitle}
-                      onChange={update('jobTitle')}
+                      onChange={updateJobTitle}
                     >
                       <option value="">Select a Job Title</option>
                       {jobTitleChoices.map((title) => (
@@ -328,12 +343,26 @@ export default function AddUserPage({ onBack, onSaved }) {
                           {title.name}
                         </option>
                       ))}
+                      <option value={OTHER_JOB_TITLE}>Other</option>
                     </select>
                     <svg aria-hidden="true" className="icon">
                       <use href="#i-chevron" />
                     </svg>
                   </span>
+                  {isOtherJobTitle(form.jobTitle) && (
+                    <input
+                      id="au-jobtitle-custom"
+                      className="form-input"
+                      placeholder="Enter the job title"
+                      value={form.customJobTitle}
+                      onChange={update('customJobTitle')}
+                      aria-invalid={Boolean(errors.customJobTitle)}
+                    />
+                  )}
                   {errors.jobTitle && <span className="set-error">{errors.jobTitle}</span>}
+                  {errors.customJobTitle && (
+                    <span className="set-error">{errors.customJobTitle}</span>
+                  )}
                 </div>
               )}
 

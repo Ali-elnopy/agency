@@ -195,7 +195,7 @@ export const UsersService = {
   async createUser(input, adminId) {
     const roleId = await resolveRoleId(input.roleName);
 
-    let jobTitle = null;
+    let jobTitle;
 
     if (input.roleName === 'ADMIN') {
       // Admins do not have or require a job title.

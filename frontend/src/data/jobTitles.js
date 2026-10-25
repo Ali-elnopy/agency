@@ -9,6 +9,14 @@ export const PREFERRED_JOB_TITLES = [
   'Media Buyer',
 ];
 
+/* Value used by the job title selects to reveal a free-text field. It is
+   deliberately not a real title so it can never collide with stored data. */
+export const OTHER_JOB_TITLE = '__other__';
+
+export function isOtherJobTitle(value) {
+  return String(value ?? '') === OTHER_JOB_TITLE;
+}
+
 /* Always renders the curated list, using the database entry when the title
    exists and a placeholder option otherwise. The placeholder keeps the local
    demo usable when there is no metadata endpoint to read from. */

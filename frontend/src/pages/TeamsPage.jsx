@@ -21,6 +21,7 @@ export default function TeamsPage({ onOpenTeam }) {
         .filter(
           (u) =>
             u.active !== false &&
+            u.teamId == null &&
             (u.systemAccess === 'team_leader' ||
               u.systemAccess === 'employee' ||
               u.systemAccess === 'account_manager'),
