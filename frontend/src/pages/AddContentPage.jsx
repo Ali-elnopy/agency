@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import PlanModal from '../components/brands/PlanModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
@@ -68,6 +68,7 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
   const [platformId, setPlatformId] = useState(initialPlatformId ?? 'all');
   const [isAdding, setIsAdding] = useState(false);
   const draftRowRef = useRef(null);
+  const ideaInputRef = useRef(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [type, setType] = useState(CONTENT_TYPES[0].id);
   const [title, setTitle] = useState('');
@@ -103,11 +104,17 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
 
   const posts = monthItems.filter((item) => item.type === 'post').length;
   const reels = monthItems.filter((item) => item.type === 'reel').length;
+  const target = selectedPlan ? selectedPlan.postsTarget + selectedPlan.reelsTarget : null;
+  const completion = target ? Math.min(100, Math.round((monthItems.length / target) * 100)) : 0;
 
-  // The new row is edited directly in the sheet, so bring it into view.
-  useEffect(() => {
+  // The new row is edited directly in the sheet, so bring it into view and
+  // focus its first field. Clicking Add Row again re-focuses the open draft
+  // instead of appearing to do nothing.
+  useLayoutEffect(() => {
     if (!isAdding) return;
-    draftRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    draftRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ideaInputRef.current?.focus({ preventScroll: true });
   }, [isAdding]);
 
   const setField = (setter, key) => (event) => {
@@ -130,7 +137,12 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
   };
 
   const startAdding = () => {
-    if (isAdding) return;
+    if (isAdding) {
+      draftRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ideaInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
     resetDraft();
     setIsAdding(true);
   };
@@ -320,8 +332,43 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
             </svg>
             {selectedPlan ? 'Edit targets' : 'Set targets'}
           </button>
+          <button type="button" className="button button--primary button--sm" onClick={startAdding}>
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-plus" />
+            </svg>
+            Add Row
+          </button>
         </div>
       </section>
+
+      <div className="content-plan__stats">
+        <article className="content-plan__stat">
+          <span>Rows in sheet</span>
+          <strong>{monthItems.length}</strong>
+          <small>{monthLabel(planMonth)}</small>
+        </article>
+        <article className="content-plan__stat">
+          <span>Posts</span>
+          <strong>
+            {posts}
+            {selectedPlan ? <em>/ {selectedPlan.postsTarget}</em> : null}
+          </strong>
+          <small>{selectedPlan ? 'against target' : 'no target set'}</small>
+        </article>
+        <article className="content-plan__stat">
+          <span>Reels</span>
+          <strong>
+            {reels}
+            {selectedPlan ? <em>/ {selectedPlan.reelsTarget}</em> : null}
+          </strong>
+          <small>{selectedPlan ? 'against target' : 'no target set'}</small>
+        </article>
+        <article className="content-plan__stat">
+          <span>Monthly target</span>
+          <strong>{target ?? '—'}</strong>
+          <small>{target ? `${completion}% added` : 'set a target to track progress'}</small>
+        </article>
+      </div>
 
       {!selectedPlan ? (
         <div className="content-plan__notice">
@@ -342,8 +389,6 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
         </div>
       ) : null}
 
-
-
       <section className="content-plan__sheet">
         <header className="content-plan__sheet-head">
           <div>
@@ -357,6 +402,12 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
             <span>
               {posts} posts · {reels} reels
             </span>
+            <button type="button" className="button button--ghost button--sm" onClick={startAdding}>
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-plus" />
+              </svg>
+              Add row
+            </button>
           </div>
         </header>
 
@@ -400,9 +451,18 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
                   <td className="content-plan-table__empty" colSpan={10}>
                     <strong>This sheet is empty.</strong>
                     <span>
-                      Use Add Row at the bottom of the page to start the content plan for{' '}
-                      {monthLabel(planMonth)}.
+                      Add the first row for {monthLabel(planMonth)} to start the content plan.
                     </span>
+                    <button
+                      type="button"
+                      className="button button--primary button--sm"
+                      onClick={startAdding}
+                    >
+                      <svg aria-hidden="true" className="icon">
+                        <use href="#i-plus" />
+                      </svg>
+                      Add first row
+                    </button>
                   </td>
                 </tr>
               ) : null}
@@ -506,6 +566,7 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
                     </td>
                     <td>
                       <input
+                        ref={ideaInputRef}
                         className="content-plan__cell-input"
                         placeholder="Idea"
                         value={title}
@@ -513,7 +574,6 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
                         maxLength={160}
                         aria-label="Idea"
                         aria-invalid={Boolean(errors.title)}
-                        autoFocus
                       />
                       <select
                         className="content-plan__cell-input content-plan__cell-input--spaced"
@@ -611,28 +671,30 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
           </form>
         </div>
 
-        <footer className="content-plan__footer">
-          {isAdding ? (
-            <>
-              <button type="button" className="button button--ghost" onClick={cancelAdding}>
-                Cancel
-              </button>
-              <button type="submit" form="content-row-form" className="button button--primary">
+        {monthItems.length > 0 || isAdding ? (
+          <footer className="content-plan__footer">
+            {isAdding ? (
+              <>
+                <button type="button" className="button button--ghost" onClick={cancelAdding}>
+                  Cancel
+                </button>
+                <button type="submit" form="content-row-form" className="button button--primary">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-plus" />
+                  </svg>
+                  Add row to sheet
+                </button>
+              </>
+            ) : (
+              <button type="button" className="button button--primary" onClick={startAdding}>
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-plus" />
                 </svg>
-                Add row to sheet
+                Add Row
               </button>
-            </>
-          ) : (
-            <button type="button" className="button button--primary" onClick={startAdding}>
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-plus" />
-              </svg>
-              Add Row
-            </button>
-          )}
-        </footer>
+            )}
+          </footer>
+        ) : null}
       </section>
 
       {planModalOpen ? (
