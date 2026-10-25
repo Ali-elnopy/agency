@@ -1940,6 +1940,101 @@
   border-top: 1px solid color-mix(in srgb, var(--green) 18%, var(--line));
 }
 
+.content-plan__form {
+  margin: 0;
+}
+
+/* New rows are edited in place, so their inputs stay compact enough for the
+   sheet columns. */
+.content-plan-table__draft td {
+  background: color-mix(in srgb, var(--orange) 4%, var(--card)) !important;
+  vertical-align: top;
+}
+
+.content-plan-table__draft:hover td {
+  background: color-mix(in srgb, var(--orange) 7%, var(--card)) !important;
+}
+
+.content-plan__cell-input,
+.content-plan__cell-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--green) 22%, var(--line));
+  border-radius: 7px;
+  outline: none;
+}
+
+.content-plan__cell-input:focus,
+.content-plan__cell-textarea:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--orange) 15%, transparent);
+}
+
+.content-plan__cell-input[aria-invalid='true'],
+.content-plan__cell-textarea[aria-invalid='true'] {
+  border-color: var(--red);
+}
+
+.content-plan__cell-input--spaced {
+  margin-top: 5px;
+}
+
+.content-plan__cell-textarea {
+  min-height: 52px;
+  resize: vertical;
+}
+
+.content-plan-table__draft-day {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.content-plan__cell-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.35;
+  color: var(--red);
+}
+
+.content-plan-table__draft-links td {
+  padding: 10px 12px 12px;
+  background: color-mix(in srgb, var(--orange) 3%, var(--card)) !important;
+}
+
+.content-plan__draft-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  align-items: end;
+}
+
+.content-plan__draft-links label {
+  display: grid;
+  gap: 4px;
+}
+
+.content-plan__draft-links label > span {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.content-plan__draft-links small {
+  grid-column: 1 / -1;
+  font-size: 9px;
+  color: var(--faint);
+}
+
 .content-plan-table {
   width: 100%;
   min-width: 1500px;
