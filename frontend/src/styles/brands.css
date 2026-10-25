@@ -286,6 +286,11 @@
   background: color-mix(in srgb, var(--amber) 13%, transparent);
 }
 
+.brand-status.is-paused {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 13%, transparent);
+}
+
 .brand-status.is-archived {
   color: var(--muted);
   background: var(--soft);

@@ -82,6 +82,8 @@ export default function BrandDetailPage({
   const [planOpen, setPlanOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const [tab, setTab] = useState('hub');
   const [platformModal, setPlatformModal] = useState(null);
   const [platformToDelete, setPlatformToDelete] = useState(null);
@@ -146,6 +148,7 @@ export default function BrandDetailPage({
   const reelsDelivered = reelsItems.filter((item) => item.status === 'delivered').length;
 
   const statusLabel = BRAND_STATUS_LABEL[brand.status] ?? 'Active';
+  const isArchived = brand.status === 'archived';
 
   const platforms = getPlatforms(brand.id);
   const briefs = getBriefs(brand.id);
@@ -201,6 +204,26 @@ export default function BrandDetailPage({
   const handleEditSave = async (patch) => {
     await updateBrand(brand.id, patch);
     showToast('Brand details updated successfully.');
+  };
+
+  const handleArchive = async () => {
+    if (archiveBusy) return;
+
+    setArchiveBusy(true);
+
+    try {
+      await updateBrand(brand.id, { status: isArchived ? 'active' : 'archived' });
+      setArchiveOpen(false);
+      showToast(
+        isArchived
+          ? `${brand.name} restored to the active workspace.`
+          : `${brand.name} archived. You can restore it at any time.`,
+      );
+    } catch (err) {
+      showToast(err?.message || 'Could not update this brand.', 'danger');
+    } finally {
+      setArchiveBusy(false);
+    }
   };
 
   return (
@@ -315,6 +338,16 @@ export default function BrandDetailPage({
               <use href="#i-plus" />
             </svg>
             Add Content
+          </button>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => setArchiveOpen(true)}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-archive" />
+            </svg>
+            {isArchived ? 'Restore Brand' : 'Archive Brand'}
           </button>
           <button
             type="button"
@@ -893,6 +926,57 @@ export default function BrandDetailPage({
           onSave={handleSavePlan}
         />
       ) : null}
+
+      <Modal
+        isOpen={archiveOpen}
+        onClose={archiveBusy ? () => {} : () => setArchiveOpen(false)}
+        title={isArchived ? 'Restore brand?' : 'Archive brand?'}
+        subtitle={
+          isArchived
+            ? `${brand.name} will return to the active workspace.`
+            : `${brand.name} will be hidden from active work but kept intact.`
+        }
+        icon="#i-archive"
+        iconColor="amber"
+        maxWidth="480px"
+        footer={
+          <>
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => setArchiveOpen(false)}
+              disabled={archiveBusy}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={`button ${isArchived ? 'button--primary' : 'button--dark'}`}
+              onClick={handleArchive}
+              disabled={archiveBusy}
+            >
+              <svg aria-hidden="true" className="icon">
+                <use href={isArchived ? '#i-check' : '#i-archive'} />
+              </svg>
+              {archiveBusy ? 'Saving…' : isArchived ? 'Restore Brand' : 'Archive Brand'}
+            </button>
+          </>
+        }
+      >
+        <p className="modal-copy">
+          {isArchived ? (
+            <>
+              Restoring <strong>{brand.name}</strong> makes it active again. Its plans, content and
+              assets are unchanged.
+            </>
+          ) : (
+            <>
+              Archiving <strong>{brand.name}</strong> keeps every plan, content item and asset, but
+              removes the brand from active work. You can restore it at any time.
+            </>
+          )}
+        </p>
+      </Modal>
 
       <Modal
         isOpen={deleteOpen}

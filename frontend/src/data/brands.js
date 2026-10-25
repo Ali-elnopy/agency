@@ -8,6 +8,7 @@
 export const BRAND_STATUSES = [
   { id: 'active', label: 'Active' },
   { id: 'onboarding', label: 'Onboarding' },
+  { id: 'paused', label: 'Paused' },
   { id: 'archived', label: 'Archived' },
 ];
 
