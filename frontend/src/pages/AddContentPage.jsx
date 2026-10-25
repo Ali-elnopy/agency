@@ -103,10 +103,6 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
 
   const posts = monthItems.filter((item) => item.type === 'post').length;
   const reels = monthItems.filter((item) => item.type === 'reel').length;
-  const target = selectedPlan
-    ? selectedPlan.postsTarget + selectedPlan.reelsTarget
-    : null;
-  const completion = target ? Math.min(100, Math.round((monthItems.length / target) * 100)) : 0;
 
   const setField = (setter, key) => (event) => {
     setter(event.target.value);
@@ -297,47 +293,8 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
             </svg>
             {selectedPlan ? 'Edit targets' : 'Set targets'}
           </button>
-          <button
-            type="button"
-            className="button button--primary button--sm"
-            onClick={() => setEditorOpen((value) => !value)}
-          >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            {editorOpen ? 'Close editor' : 'Add Row'}
-          </button>
         </div>
       </section>
-
-      <div className="content-plan__stats">
-        <article className="content-plan__stat">
-          <span>Rows in sheet</span>
-          <strong>{monthItems.length}</strong>
-          <small>{monthLabel(planMonth)}</small>
-        </article>
-        <article className="content-plan__stat">
-          <span>Posts</span>
-          <strong>
-            {posts}
-            {selectedPlan ? <em>/ {selectedPlan.postsTarget}</em> : null}
-          </strong>
-          <small>{selectedPlan ? 'against target' : 'no target set'}</small>
-        </article>
-        <article className="content-plan__stat">
-          <span>Reels</span>
-          <strong>
-            {reels}
-            {selectedPlan ? <em>/ {selectedPlan.reelsTarget}</em> : null}
-          </strong>
-          <small>{selectedPlan ? 'against target' : 'no target set'}</small>
-        </article>
-        <article className="content-plan__stat">
-          <span>Monthly target</span>
-          <strong>{target ?? '—'}</strong>
-          <small>{target ? `${completion}% added` : 'set a target to track progress'}</small>
-        </article>
-      </div>
 
       {!selectedPlan ? (
         <div className="content-plan__notice">
@@ -602,16 +559,6 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
             <span>
               {posts} posts · {reels} reels
             </span>
-            <button
-              type="button"
-              className="button button--ghost button--sm"
-              onClick={() => setEditorOpen(true)}
-            >
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-plus" />
-              </svg>
-              Add row
-            </button>
           </div>
         </header>
 
@@ -649,18 +596,9 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
                   <td className="content-plan-table__empty" colSpan={10}>
                     <strong>This sheet is empty.</strong>
                     <span>
-                      Add the first row for {monthLabel(planMonth)} to start the content plan.
+                      Use Add Row at the bottom of the page to start the content plan for{' '}
+                      {monthLabel(planMonth)}.
                     </span>
-                    <button
-                      type="button"
-                      className="button button--primary button--sm"
-                      onClick={() => setEditorOpen(true)}
-                    >
-                      <svg aria-hidden="true" className="icon">
-                        <use href="#i-plus" />
-                      </svg>
-                      Add first row
-                    </button>
                   </td>
                 </tr>
               ) : (
@@ -717,6 +655,19 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
             </tbody>
           </table>
         </div>
+
+        <footer className="content-plan__footer">
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => setEditorOpen(true)}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-plus" />
+            </svg>
+            Add Row
+          </button>
+        </footer>
       </section>
 
       {planModalOpen ? (

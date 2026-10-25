@@ -1931,6 +1931,15 @@
   overflow-x: auto;
 }
 
+.content-plan__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--green) 4%, var(--card));
+  border-top: 1px solid color-mix(in srgb, var(--green) 18%, var(--line));
+}
+
 .content-plan-table {
   width: 100%;
   min-width: 1500px;
