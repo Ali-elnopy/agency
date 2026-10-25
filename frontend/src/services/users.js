@@ -261,27 +261,25 @@ export async function getUser(id) {
 export async function getJobTitles() {
   try {
     const data = unwrap(await request('/meta/job-titles'));
-    if (Array.isArray(data) && data.length) {
-      data.forEach((item) => jobTitleIndex.set(item.name, item.id));
-      return data;
+    const titles = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.jobTitles)
+        ? data.jobTitles
+        : [];
+
+    if (titles.length) {
+      titles.forEach((item) => jobTitleIndex.set(item.name, item.id));
+      return titles;
     }
-  } catch {}
+  } catch {
+    // Fall back to the titles already collected from the directory.
+  }
 
   if (!jobTitleIndex.size) {
     await getUsers().catch(() => null);
   }
 
   return [...jobTitleIndex.entries()].map(([name, id]) => ({ id, name }));
-}
-
-function resolveJobTitleId(name) {
-  const match = jobTitleIndex.get(name);
-
-  if (match) return match;
-
-  const fromEnv = Number(import.meta.env.VITE_JOB_TITLE_CONTENT_CREATOR);
-
-  return Number.isSafeInteger(fromEnv) && fromEnv > 0 ? fromEnv : null;
 }
 
 export async function createUser({

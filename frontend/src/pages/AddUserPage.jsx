@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import CredentialsModal from '../components/common/CredentialsModal';
 import Switch from '../components/ui/Switch';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { createUser, getJobTitles } from '../services/users';
 import { getTeams } from '../services/teams';
+import { orderJobTitles, resolveJobTitle } from '../data/jobTitles';
 import { generateTemporaryPassword } from '../utils/credentials';
 
 const ROLES = [
@@ -44,7 +45,6 @@ const EMPTY_FORM = {
   email: '',
   roleId: 'team_leader',
   jobTitle: '',
-  customJobTitle: '',
   teamId: '',
 };
 
@@ -58,6 +58,11 @@ export default function AddUserPage({ onBack, onSaved }) {
 
   const [availableTeams, setAvailableTeams] = useState([]);
   const [availableJobTitles, setAvailableJobTitles] = useState([]);
+
+  const jobTitleChoices = useMemo(
+    () => orderJobTitles(availableJobTitles),
+    [availableJobTitles],
+  );
 
   useEffect(() => {
     getTeams()
@@ -96,8 +101,6 @@ export default function AddUserPage({ onBack, onSaved }) {
     if (!isAdmin) {
       if (!form.jobTitle) {
         nextErrors.jobTitle = 'Job title is required.';
-      } else if (form.jobTitle === 'other' && !form.customJobTitle.trim()) {
-        nextErrors.customJobTitle = 'Please specify the custom job title.';
       }
     }
 
@@ -110,23 +113,9 @@ export default function AddUserPage({ onBack, onSaved }) {
   const createAccount = async () => {
     const password = generateTemporaryPassword();
 
-    let jobTitleId = null;
-    let customJobTitle = null;
-
-    if (!isAdmin) {
-      if (form.jobTitle === 'other') {
-        customJobTitle = form.customJobTitle.trim();
-      } else {
-        const match = availableJobTitles.find(
-          (t) => t.name.toLowerCase() === form.jobTitle.trim().toLowerCase(),
-        );
-        if (match) {
-          jobTitleId = match.id;
-        } else {
-          customJobTitle = form.jobTitle.trim();
-        }
-      }
-    }
+    const titlePayload = isAdmin
+      ? {}
+      : resolveJobTitle(availableJobTitles, form.jobTitle);
 
     setSaving(true);
 
@@ -137,8 +126,8 @@ export default function AddUserPage({ onBack, onSaved }) {
         phone: form.phone.trim(),
         password,
         roleName: role.backendRole,
-        jobTitleId,
-        customJobTitle,
+        jobTitleId: titlePayload.jobTitleId ?? null,
+        customJobTitle: titlePayload.customJobTitle,
         teamId: form.teamId ? Number(form.teamId) : null,
       });
 
@@ -166,8 +155,8 @@ export default function AddUserPage({ onBack, onSaved }) {
   };
 
   return (
-    <form className="page-screen au-page" onSubmit={handleSubmit}>
-      <div className="au-wrap">
+    <form className="page-screen au-page au-page--profile" onSubmit={handleSubmit}>
+      <div className="au-wrap au-wrap--profile">
         <header className="au-head">
           <div className="au-head__copy">
             <h1>Add User</h1>
@@ -334,37 +323,17 @@ export default function AddUserPage({ onBack, onSaved }) {
                       onChange={update('jobTitle')}
                     >
                       <option value="">Select a Job Title</option>
-                      {availableJobTitles.map((title) => (
+                      {jobTitleChoices.map((title) => (
                         <option key={title.id} value={title.name}>
                           {title.name}
                         </option>
                       ))}
-                      <option value="other">Other</option>
                     </select>
                     <svg aria-hidden="true" className="icon">
                       <use href="#i-chevron" />
                     </svg>
                   </span>
                   {errors.jobTitle && <span className="set-error">{errors.jobTitle}</span>}
-                </div>
-              )}
-
-              {!isAdmin && form.jobTitle === 'other' && (
-                <div className="au-field">
-                  <label className="au-label" htmlFor="au-custom-jobtitle">
-                    Custom Job Title
-                    <span className="req">*</span>
-                  </label>
-                  <input
-                    id="au-custom-jobtitle"
-                    className="form-input"
-                    placeholder="e.g. Creative Strategist"
-                    value={form.customJobTitle}
-                    onChange={update('customJobTitle')}
-                  />
-                  {errors.customJobTitle && (
-                    <span className="set-error">{errors.customJobTitle}</span>
-                  )}
                 </div>
               )}
 

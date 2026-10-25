@@ -10,17 +10,14 @@ import {
   permissionsForAccess,
 } from '../data/workspace';
 import { getJobTitles } from '../services/users';
+import { jobTitleOptions } from '../data/jobTitles';
 
-function emptyForm(user, availableTitles = []) {
+function emptyForm(user) {
   const currentTitle = user?.jobTitle ?? '';
-  const knownTitle = availableTitles.some(
-    (t) => t.name.toLowerCase() === currentTitle.toLowerCase(),
-  );
 
   return {
     fullName: user?.fullName ?? '',
-    jobTitle: user?.systemAccess === 'admin' ? '' : knownTitle ? currentTitle : currentTitle ? 'other' : '',
-    customJobTitle: user?.systemAccess === 'admin' ? '' : knownTitle ? '' : currentTitle,
+    jobTitle: user?.systemAccess === 'admin' ? '' : currentTitle,
     systemAccess: user?.systemAccess ?? 'employee',
     teamId: user?.teamId ?? '',
     active: user?.active !== false,
@@ -37,6 +34,8 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [query, setQuery] = useState('');
   const { toast, showToast } = useToast(3500);
+
+  const jobTitleChoices = jobTitleOptions(availableJobTitles, form.jobTitle);
 
   useEffect(() => {
     getJobTitles()
@@ -63,7 +62,7 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
 
   const openEditor = (user) => {
     setEditingId(user.id);
-    setForm(emptyForm(user, availableJobTitles));
+    setForm(emptyForm(user));
     setErrors({});
   };
 
@@ -86,7 +85,6 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
       ...prev,
       systemAccess,
       jobTitle: systemAccess === 'admin' ? '' : prev.jobTitle,
-      customJobTitle: systemAccess === 'admin' ? '' : prev.customJobTitle,
       permissions: permissionsForAccess(systemAccess, prev.permissions),
     }));
   };
@@ -112,12 +110,8 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
     if (!form.fullName.trim()) nextErrors.fullName = 'Full name is required.';
 
     const isAdmin = form.systemAccess === 'admin';
-    if (!isAdmin) {
-      if (!form.jobTitle) {
-        nextErrors.jobTitle = 'Job title is required.';
-      } else if (form.jobTitle === 'other' && !form.customJobTitle.trim()) {
-        nextErrors.customJobTitle = 'Please specify the custom job title.';
-      }
+    if (!isAdmin && !form.jobTitle) {
+      nextErrors.jobTitle = 'Job title is required.';
     }
 
     if (Object.keys(nextErrors).length) {
@@ -126,16 +120,11 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
     }
 
     try {
-      const resolvedJobTitle = isAdmin
-        ? ''
-        : form.jobTitle === 'other'
-          ? form.customJobTitle.trim()
-          : form.jobTitle.trim();
+      const resolvedJobTitle = isAdmin ? '' : form.jobTitle.trim();
 
       await updateUser(editingId, {
         fullName: form.fullName.trim(),
         jobTitle: resolvedJobTitle,
-        customJobTitle: form.jobTitle === 'other' ? form.customJobTitle.trim() : undefined,
         systemAccess: form.systemAccess,
         teamId: form.teamId ? form.teamId : null,
         permissions: permissionsForAccess(form.systemAccess, form.permissions),
@@ -274,36 +263,17 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                             onChange={updateField('jobTitle')}
                           >
                             <option value="">Select a job title</option>
-                            {availableJobTitles.map((item) => (
+                            {jobTitleChoices.map((item) => (
                               <option key={item.id} value={item.name}>
                                 {item.name}
                               </option>
                             ))}
-                            <option value="other">Other</option>
                           </select>
                           <svg aria-hidden="true" className="icon">
                             <use href="#i-chevron" />
                           </svg>
                         </span>
                         {errors.jobTitle && <small className="ws-error">{errors.jobTitle}</small>}
-                      </label>
-                    )}
-
-                    {form.systemAccess !== 'admin' && form.jobTitle === 'other' && (
-                      <label
-                        className={`ws-field${errors.customJobTitle ? ' is-invalid' : ''}`}
-                        style={{ gridColumn: '1 / -1' }}
-                      >
-                        <span>Custom Job Title</span>
-                        <input
-                          className="ws-input"
-                          placeholder="e.g. Creative Strategist"
-                          value={form.customJobTitle}
-                          onChange={updateField('customJobTitle')}
-                        />
-                        {errors.customJobTitle && (
-                          <small className="ws-error">{errors.customJobTitle}</small>
-                        )}
                       </label>
                     )}
                   </div>
