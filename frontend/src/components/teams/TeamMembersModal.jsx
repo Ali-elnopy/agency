@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import Modal from '../common/Modal';
 import { useWorkspace } from '../../context/workspaceStore';
-import { initialsOf } from '../../data/workspace';
+import { initialsOf, teamMemberIds } from '../../data/workspace';
 
 const ELIGIBLE_ACCESS = new Set(['employee', 'account_manager', 'team_leader']);
 
 export default function TeamMembersModal({ team, onClose, onSaved }) {
-  const { users, updateTeam, addTeamMember, removeTeamMember, setTeamLead } = useWorkspace();
+  const { users, updateTeam, addTeamMember, removeTeamMember } = useWorkspace();
 
   const [name, setName] = useState(team.name || '');
   const [description, setDescription] = useState(team.description || '');
@@ -19,13 +19,9 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
     [users],
   );
 
-  const [selected, setSelected] = useState(() => {
-    const current = Array.isArray(team.memberIds)
-      ? team.memberIds
-      : users.filter((user) => String(user.teamId) === String(team.id)).map((user) => user.id);
-
-    return new Set(current.map((id) => String(id)));
-  });
+  const [selected, setSelected] = useState(
+    () => new Set(teamMemberIds(team, users)),
+  );
 
   const [leaderId, setLeaderId] = useState(
     team.teamLeadId != null ? String(team.teamLeadId) : '',
@@ -34,13 +30,15 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  // Team Leader options: users with role team_leader or any selected member
+  // Team Leader options: team leaders or people already in this team. Admins
+  // cannot lead a team, so they are never offered as a candidate.
   const leaderCandidates = useMemo(
     () =>
       users
         .filter(
           (user) =>
             user.active !== false &&
+            user.systemAccess !== 'admin' &&
             (user.systemAccess === 'team_leader' || selected.has(String(user.id))),
         )
         .sort((a, b) => String(a.fullName).localeCompare(String(b.fullName))),
@@ -56,13 +54,7 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
       .some((value) => String(value).toLowerCase().includes(needle));
   });
 
-  const currentIds = useMemo(() => {
-    const current = Array.isArray(team.memberIds)
-      ? team.memberIds
-      : users.filter((user) => String(user.teamId) === String(team.id)).map((user) => user.id);
-
-    return current.map((id) => String(id));
-  }, [team, users]);
+  const currentIds = useMemo(() => teamMemberIds(team, users), [team, users]);
 
   const toggle = (id) => {
     const strId = String(id);
@@ -102,7 +94,6 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
     const removed = eligible.filter(
       (user) => !selected.has(String(user.id)) && currentIds.includes(String(user.id)),
     );
-    const currentLeaderId = team.teamLeadId != null ? String(team.teamLeadId) : '';
     const nextLeaderId = leaderId ? String(leaderId) : '';
 
     setBusy(true);

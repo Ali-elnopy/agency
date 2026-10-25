@@ -291,3 +291,15 @@ export const SEED_USERS = [
 export function teamMembers(users, teamId) {
   return users.filter((user) => user.teamId === teamId);
 }
+
+/* Resolves a team's member ids from its stored membership list, falling back to
+   the directory for teams that only track membership on the user record. */
+export function teamMemberIds(team, users = []) {
+  if (Array.isArray(team?.memberIds) && team.memberIds.length) {
+    return team.memberIds.map((id) => String(id));
+  }
+
+  return users
+    .filter((user) => String(user.teamId) === String(team?.id))
+    .map((user) => String(user.id));
+}

@@ -212,7 +212,7 @@ export default function TeamsPage({ onOpenTeam }) {
         <TeamMembersModal
           team={editingTeam}
           onClose={() => setEditingTeam(null)}
-          onSaved={(message) => showToast(`Team updated. ${message}.`)}
+          onSaved={(message) => showToast(message || 'Team updated.')}
         />
       ) : null}
 

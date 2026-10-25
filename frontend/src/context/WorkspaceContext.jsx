@@ -5,6 +5,7 @@ import {
   SEED_USERS,
   initialsOf,
   permissionsForAccess,
+  teamMemberIds,
   toneFor,
 } from '../data/workspace';
 import { apiRequest } from '../services/http';
@@ -209,7 +210,11 @@ export function WorkspaceProvider({ children }) {
     async (input) => {
       const name = String(input.name ?? '').trim();
       const description = String(input.description ?? '').trim();
-      const teamLeadId = input.teamLeadId ? Number(input.teamLeadId) : null;
+      const teamLeadId = input.teamLeadId
+        ? demo
+          ? input.teamLeadId
+          : Number(input.teamLeadId)
+        : null;
 
       if (demo) {
         const team = {
@@ -252,19 +257,42 @@ export function WorkspaceProvider({ children }) {
         patch.description !== undefined ? String(patch.description).trim() : undefined;
       const teamLeadId =
         patch.teamLeadId !== undefined
-          ? patch.teamLeadId ? Number(patch.teamLeadId) : null
+          ? patch.teamLeadId
+            ? demo
+              ? patch.teamLeadId
+              : Number(patch.teamLeadId)
+            : null
           : undefined;
 
       if (demo) {
         setTeams((prev) =>
           prev.map((team) => {
             if (String(team.id) !== String(teamId)) return team;
-            return {
+
+            const next = {
               ...team,
               ...(name !== undefined ? { name } : {}),
               ...(description !== undefined ? { description } : {}),
-              ...(teamLeadId !== undefined ? { teamLeadId } : {}),
             };
+
+            if (teamLeadId !== undefined) {
+              const leadUser = teamLeadId
+                ? users.find((user) => String(user.id) === String(teamLeadId))
+                : null;
+
+              next.teamLeadId = teamLeadId;
+              next.teamLead = leadUser
+                ? { id: leadUser.id, fullName: leadUser.fullName, email: leadUser.email }
+                : null;
+
+              if (leadUser) {
+                next.memberIds = Array.from(
+                  new Set([...teamMemberIds(team, users), String(teamLeadId)]),
+                );
+              }
+            }
+
+            return next;
           }),
         );
         return;
@@ -285,7 +313,7 @@ export function WorkspaceProvider({ children }) {
       await refresh().catch(() => {});
       return updated;
     },
-    [demo, refresh],
+    [demo, refresh, users],
   );
 
   const deleteTeam = useCallback(
@@ -363,8 +391,8 @@ export function WorkspaceProvider({ children }) {
           String(team.id) === String(teamId)
             ? {
                 ...team,
-                memberIds: (team.memberIds ?? []).filter(
-                  (id) => String(id) !== String(userId),
+                memberIds: teamMemberIds(team, users).filter(
+                  (id) => id !== String(userId),
                 ),
                 teamLeadId: String(team.teamLeadId) === String(userId) ? null : team.teamLeadId,
                 teamLead: String(team.teamLead?.id) === String(userId) ? null : team.teamLead,
@@ -384,7 +412,7 @@ export function WorkspaceProvider({ children }) {
         await refresh().catch(() => {});
       }
     },
-    [demo, refresh],
+    [demo, refresh, users],
   );
 
   const addTeamMember = useCallback(
@@ -397,20 +425,19 @@ export function WorkspaceProvider({ children }) {
       }
 
       setTeams((prev) =>
-        prev.map((team) =>
-          String(team.id) === String(teamId)
-            ? {
-                ...team,
-                memberIds: Array.from(new Set([...(team.memberIds ?? []), userId])),
-              }
-            : team,
-        ),
+        prev.map((team) => {
+          const base = teamMemberIds(team, users);
+          const nextIds =
+            String(team.id) === String(teamId)
+              ? Array.from(new Set([...base, String(userId)]))
+              : base.filter((id) => id !== String(userId));
+
+          return { ...team, memberIds: nextIds };
+        }),
       );
       setUsers((prev) =>
         prev.map((user) =>
-          String(user.id) === String(userId) && !user.teamId
-            ? { ...user, teamId, teamName: '' }
-            : user,
+          String(user.id) === String(userId) ? { ...user, teamId, teamName: '' } : user,
         ),
       );
 
@@ -418,7 +445,7 @@ export function WorkspaceProvider({ children }) {
         await refresh().catch(() => {});
       }
     },
-    [demo, refresh],
+    [demo, refresh, users],
   );
 
   const setTeamLead = useCallback(

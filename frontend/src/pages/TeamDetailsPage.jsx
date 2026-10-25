@@ -5,7 +5,7 @@ import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
 import { useBrands } from '../context/brandsStore';
-import { ACCESS_LEVEL_BY_ID, initialsOf } from '../data/workspace';
+import { ACCESS_LEVEL_BY_ID, initialsOf, teamMemberIds } from '../data/workspace';
 
 export default function TeamDetailsPage({
   team: teamName,
@@ -21,7 +21,7 @@ export default function TeamDetailsPage({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
 
-  const [currentTeamId, setCurrentTeamId] = useState(() => {
+  const [currentTeamId] = useState(() => {
     const found = teams.find(
       (item) => item.name === teamName || String(item.id) === String(teamName),
     );
@@ -46,9 +46,7 @@ export default function TeamDetailsPage({
     );
   }
 
-  const memberIds = Array.isArray(team.memberIds)
-    ? team.memberIds
-    : users.filter((user) => String(user.teamId) === String(team.id)).map((user) => user.id);
+  const memberIds = teamMemberIds(team, users);
 
   const members = memberIds
     .map((id) => users.find((user) => String(user.id) === String(id)))
@@ -238,7 +236,7 @@ export default function TeamDetailsPage({
         <TeamMembersModal
           team={team}
           onClose={() => setIsMembersOpen(false)}
-          onSaved={(message) => showToast(`Team updated. ${message}.`)}
+          onSaved={(message) => showToast(message || 'Team updated.')}
         />
       ) : null}
 
