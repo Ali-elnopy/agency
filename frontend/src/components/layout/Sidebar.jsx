@@ -50,6 +50,20 @@ const NAV_ITEMS = [
     roles: ['admin', 'account_manager', 'creative', 'client'],
   },
   {
+    id: 'tasks',
+    label: 'Tasks Management',
+    icon: '#i-layers',
+    group: 'Execution & Review',
+    roles: ['admin', 'account_manager', 'creative'],
+  },
+  {
+    id: 'myWork',
+    label: 'My Work',
+    icon: '#i-check',
+    group: 'Execution & Review',
+    roles: ['admin', 'account_manager', 'creative'],
+  },
+  {
     id: 'decisions',
     label: 'Decision Settings',
     icon: '#i-target',

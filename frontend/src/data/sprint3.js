@@ -1,3 +1,4 @@
+import { TASKS_ARABIC } from './tasksData';
 /* ==========================================================================
    Sprint 3 — Strategy & content lifecycle fixtures.
 
@@ -684,6 +685,7 @@ export const seedSettings = {
 /* -------------------------------------------------------------------------- */
 
 export const ARABIC = {
+  ...TASKS_ARABIC,
   // Auth & Login Screens
 
   'Forgot your password?': 'هل نسيت كلمة المرور؟',

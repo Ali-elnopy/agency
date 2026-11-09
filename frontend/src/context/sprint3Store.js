@@ -15,6 +15,12 @@ const DEFAULT_CONTEXT = {
   campaigns: [],
   contentMeta: {},
   settings: {},
+  tasks: [],
+  addTask: () => {},
+  updateTask: () => {},
+  deleteTask: () => {},
+  changeTaskStatus: () => {},
+  autoConvertContentToTasks: () => {},
 };
 
 export function useSprint3() {

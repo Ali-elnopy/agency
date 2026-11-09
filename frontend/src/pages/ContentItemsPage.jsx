@@ -45,6 +45,7 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
     deleteCampaign,
     getContentMeta,
     saveContentMeta,
+    autoConvertContentToTasks,
     role,
     t,
   } = useSprint3();
@@ -415,16 +416,37 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
         </span>
 
         {canEdit ? (
-          <button
-            type="button"
-            className="button button--ghost button--sm"
-            onClick={() => setCampaignModal(true)}
-          >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            {t('New campaign')}
-          </button>
+          <>
+            <button
+              type="button"
+              className="button button--ghost button--sm"
+              onClick={() => {
+                const count = autoConvertContentToTasks(filtered, brandId, brand?.name);
+                showToast(
+                  count > 0
+                    ? `${count} ${t('Convert Content to Tasks')} ✓`
+                    : t('All content items are already converted to tasks!'),
+                  count > 0 ? 'success' : 'info',
+                );
+              }}
+              title={t('Convert Content to Tasks')}
+            >
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-zap" />
+              </svg>
+              {t('Convert Content to Tasks')}
+            </button>
+            <button
+              type="button"
+              className="button button--ghost button--sm"
+              onClick={() => setCampaignModal(true)}
+            >
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-plus" />
+              </svg>
+              {t('New campaign')}
+            </button>
+          </>
         ) : null}
       </section>
 

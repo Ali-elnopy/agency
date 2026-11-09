@@ -3102,3 +3102,73 @@
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Tasks & Execution Styling
+   -------------------------------------------------------------------------- */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: var(--soft);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.status-pill.is-red {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #dc2626 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+.status-pill.is-amber {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #d97706 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+.status-pill.is-blue {
+  background: rgba(59, 130, 246, 0.12) !important;
+  color: #2563eb !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.status-pill.is-green {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.status-pill.is-purple {
+  background: rgba(168, 85, 247, 0.12) !important;
+  color: #7c3aed !important;
+  border: 1px solid rgba(168, 85, 247, 0.3) !important;
+}
+
+.status-pill.is-gray {
+  background: var(--soft) !important;
+  color: var(--faint) !important;
+  border: 1px solid var(--line) !important;
+}
+
+.task-kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+[dir='rtl'] .task-kanban-card {
+  text-align: right;
+}
+
+[dir='rtl'] .kanban-column header {
+  direction: rtl;
+}
+
+[dir='rtl'] .data-table th,
+[dir='rtl'] .data-table td {
+  text-align: right;
+}

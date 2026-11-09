@@ -1,3 +1,4 @@
+import { seedTasks } from '../data/tasksData';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Sprint3Context } from './sprint3Store';
 import {
@@ -29,6 +30,7 @@ const KEYS = {
   contentMeta: 'orvia_s3_content_meta_v1',
   settings: 'orvia_s3_settings_v1',
   prefs: 'orvia_s3_prefs_v1',
+  tasks: 'orvia_tasks_v1',
 };
 
 function readArray(key, fallback) {
@@ -84,6 +86,7 @@ export function Sprint3Provider({ children }) {
   const [settings, setSettings] = useState(() =>
     readObject(KEYS.settings, seedSettings),
   );
+  const [tasks, setTasks] = useState(() => readArray(KEYS.tasks, seedTasks));
 
   const [prefs, setPrefs] = useState(() => {
     const saved = readObject(KEYS.prefs, {});
@@ -101,6 +104,7 @@ export function Sprint3Provider({ children }) {
   useEffect(() => write(KEYS.contentMeta, contentMeta), [contentMeta]);
   useEffect(() => write(KEYS.settings, settings), [settings]);
   useEffect(() => write(KEYS.prefs, prefs), [prefs]);
+  useEffect(() => write(KEYS.tasks, tasks), [tasks]);
 
   useEffect(() => {
     document.documentElement.dir = prefs.lang === 'ar' ? 'rtl' : 'ltr';
@@ -551,6 +555,103 @@ export function Sprint3Provider({ children }) {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  /* ------------------------------- Tasks Management ------------------------------- */
+
+  const addTask = useCallback((taskInput) => {
+    const id = `tsk-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 5)}`;
+    const nowIso = new Date().toISOString();
+    const newTask = {
+      id,
+      title: taskInput.title || 'Untitled Task',
+      description: taskInput.description || '',
+      brandId: String(taskInput.brandId || '1'),
+      brandName: taskInput.brandName || 'Nike',
+      contentItemId: taskInput.contentItemId || '',
+      contentTitle: taskInput.contentTitle || taskInput.title,
+      priority: taskInput.priority || 'medium',
+      status: taskInput.status || 'to_do',
+      deadline: taskInput.deadline || new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+      assigneeId: taskInput.assigneeId || 'emp-1',
+      assigneeName: taskInput.assigneeName || 'Sarah Lin',
+      assigneeRole: taskInput.assigneeRole || 'Content Creator',
+      assigneeAvatar: (taskInput.assigneeName || 'SL').split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase(),
+      revisionNote: taskInput.revisionNote || '',
+      createdAt: nowIso,
+    };
+
+    setTasks((prev) => [newTask, ...prev]);
+    return newTask;
+  }, []);
+
+  const updateTask = useCallback((taskId, patch) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
+    );
+  }, []);
+
+  const deleteTask = useCallback((taskId) => {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  }, []);
+
+  const changeTaskStatus = useCallback((taskId, newStatus, optionalNote) => {
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const patch = { status: newStatus };
+        if (optionalNote !== undefined) {
+          patch.revisionNote = optionalNote;
+        }
+        if (newStatus === 'in_progress' && t.revisionNote) {
+          patch.returnedForRevision = false;
+        }
+        if (newStatus === 'to_do' && optionalNote) {
+          patch.returnedForRevision = true;
+        }
+        return { ...t, ...patch };
+      }),
+    );
+  }, []);
+
+  const autoConvertContentToTasks = useCallback((items, brandId, brandName) => {
+    const createdTasks = [];
+    const nowIso = new Date().toISOString();
+
+    for (const item of items || []) {
+      const exists = tasks.some((t) => t.contentItemId === item.id || t.title === item.title);
+      if (!exists) {
+        const deadlineDate = item.scheduledDate
+          ? new Date(item.scheduledDate).toISOString()
+          : new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+
+        const tsk = {
+          id: `tsk-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 5)}`,
+          title: item.title || 'Produce Content Deliverable',
+          description: `Prepare, review, and finalize visual/copy assets for ${item.platform || 'social'} (${item.format || 'post'}).`,
+          brandId: String(brandId || '1'),
+          brandName: brandName || 'Nike',
+          contentItemId: item.id || '',
+          contentTitle: item.title || 'Content Item',
+          priority: item.format?.toLowerCase().includes('video') ? 'high' : 'medium',
+          status: 'to_do',
+          deadline: deadlineDate,
+          assigneeId: 'emp-1',
+          assigneeName: 'Sarah Lin',
+          assigneeRole: 'Content Creator',
+          assigneeAvatar: 'SL',
+          revisionNote: '',
+          createdAt: nowIso,
+        };
+        createdTasks.push(tsk);
+      }
+    }
+
+    if (createdTasks.length > 0) {
+      setTasks((prev) => [...createdTasks, ...prev]);
+    }
+    return createdTasks.length;
+  }, [tasks]);
+
+
   const value = useMemo(
     () => ({
       templates,
@@ -593,6 +694,12 @@ export function Sprint3Provider({ children }) {
       saveContentMeta,
       getContentMeta,
       updateSettings,
+      tasks,
+      addTask,
+      updateTask,
+      deleteTask,
+      changeTaskStatus,
+      autoConvertContentToTasks,
     }),
     [
       templates,
@@ -635,6 +742,12 @@ export function Sprint3Provider({ children }) {
       saveContentMeta,
       getContentMeta,
       updateSettings,
+      tasks,
+      addTask,
+      updateTask,
+      deleteTask,
+      changeTaskStatus,
+      autoConvertContentToTasks,
     ],
   );
 

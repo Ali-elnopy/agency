@@ -25,6 +25,8 @@ import StrategyWorkspacePage from './StrategyWorkspacePage';
 import ContentItemsPage from './ContentItemsPage';
 import DecisionSettingsPage from './DecisionSettingsPage';
 import ClientPortalPage from './ClientPortalPage';
+import TasksPage from './TasksPage';
+import MyWorkPage from './MyWorkPage';
 import NewBriefModal from '../components/modals/NewBriefModal';
 import AssignTeamModal from '../components/modals/AssignTeamModal';
 import InfoModal from '../components/modals/InfoModal';
@@ -55,6 +57,8 @@ const SECTION_LABELS = {
   briefs: 'AI Briefs',
   strategy: 'Strategy',
   content: 'Content Items',
+  tasks: 'Tasks Management',
+  myWork: 'My Work',
   decisions: 'Decision Settings',
   portal: 'Client Portal',
 };
@@ -296,6 +300,10 @@ export default function DashboardPage({
             }}
           />
         );
+      case 'tasks':
+        return <TasksPage />;
+      case 'myWork':
+        return <MyWorkPage />;
       case 'portal':
         return <ClientPortalPage />;
       case 'decisions':
@@ -338,6 +346,8 @@ export default function DashboardPage({
             section === 'briefs' ||
             section === 'strategy' ||
             section === 'content' ||
+            section === 'tasks' ||
+            section === 'myWork' ||
             section === 'decisions' ||
             section === 'portal'
           ? null
