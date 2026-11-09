@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 const name = z
@@ -26,6 +27,19 @@ const teamId = z.number().int().positive().nullable().optional();
 
 const accountManagerId = z.number().int().positive().nullable().optional();
 
+const clientSchema = z.object({
+  fullName: z.string().trim().min(2).max(150),
+
+  email: z
+    .string()
+    .trim()
+    .email()
+    .max(255)
+    .transform((value) => value.toLowerCase()),
+
+  phone: z.string().trim().max(30).nullable().optional(),
+}).strict();
+
 export const createBrandSchema = z
   .object({
     name,
@@ -34,6 +48,7 @@ export const createBrandSchema = z
     description,
     teamId,
     accountManagerId,
+    client: clientSchema,
   })
   .strict();
 

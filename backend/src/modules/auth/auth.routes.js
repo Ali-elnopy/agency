@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { AuthController } from './auth.controller.js';
 import {
   loginSchema,
+  refreshTokenSchema,
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -40,9 +41,23 @@ const resetLimiter = rateLimit({
     message: 'Too many attempts. Request a fresh reset link and try again.',
   },
 });
-
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many refresh attempts. Please try again later.',
+  },
+});
 authRouter.post('/login', validate(loginSchema), AuthController.login);
-
+authRouter.post(
+  '/refresh',
+  refreshLimiter,
+  validate(refreshTokenSchema),
+  AuthController.refresh,
+);
 authRouter.post(
   '/forgot-password',
   forgotLimiter,

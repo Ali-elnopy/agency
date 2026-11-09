@@ -64,7 +64,6 @@ model User {
   failedLoginWindowStart DateTime? @map("failed_login_window_start") @db.Timestamptz(6)
   loginLockedUntil       DateTime? @map("login_locked_until") @db.Timestamptz(6)
 
-  sessions  AuthSession[]
   sessions AuthSession[]
 
   passwordResetTokens PasswordResetToken[]

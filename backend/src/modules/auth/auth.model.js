@@ -43,7 +43,34 @@ export const AuthModel = {
       where: { id },
     });
   },
-
+  rotateRefreshToken({ oldTokenHash, newTokenHash, expiresAt }) {
+    return prisma.authSession.updateMany({
+      where: {
+        refreshTokenHash: oldTokenHash,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+        user: {
+          isActive: true,
+        },
+      },
+      data: {
+        refreshTokenHash: newTokenHash,
+        expiresAt,
+      },
+    });
+  },
+  findSessionByRefreshTokenHash(tokenHash) {
+    return prisma.authSession.findUnique({
+      where: {
+        refreshTokenHash: tokenHash,
+      },
+      include: {
+        user: {
+          select: publicUserSelect,
+        },
+      },
+    });
+  },
   revokeSession(sessionId, userId) {
     return prisma.authSession.updateMany({
       where: {

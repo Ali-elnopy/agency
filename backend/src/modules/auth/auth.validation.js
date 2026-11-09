@@ -7,6 +7,14 @@ export const loginSchema = z
     password: z.string().min(1, 'Password is required').max(128, 'Password is too long'),
   })
   .strict();
+export const refreshTokenSchema = z
+  .object({
+    refreshToken: z
+      .string()
+      .trim()
+      .regex(/^[a-f0-9]{64}$/, 'Invalid refresh token'),
+  })
+  .strict();
 
 const strongPasswordSchema = z
   .string()
