@@ -5,7 +5,7 @@ import { ApiError } from '../../utils/ApiError.js';
 import { generateAccessToken } from '../../utils/tokens.js';
 import { generateRefreshToken, hashRefreshToken } from '../../utils/refreshTokens.js';
 import { isMailerConfigured, sendPasswordResetEmail } from '../../utils/mailer.js';
-
+import { env } from '../../config/env.js';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
@@ -66,7 +66,9 @@ export const AuthService = {
     const session = await AuthModel.createSession({
       userId: user.id,
       refreshTokenHash: hashRefreshToken(refreshToken),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(
+        Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+      ),
       userAgent: undefined,
       ipAddress: undefined,
     });
@@ -83,6 +85,41 @@ export const AuthService = {
       }),
       accessToken,
       refreshToken,
+    };
+  },
+
+  async refresh(refreshToken) {
+    const oldTokenHash = hashRefreshToken(refreshToken);
+
+    const session = await AuthModel.findSessionByRefreshTokenHash(oldTokenHash);
+
+    if (
+      !session ||
+      session.revokedAt ||
+      session.expiresAt.getTime() <= Date.now() ||
+      !session.user?.isActive
+    ) {
+      throw new ApiError(401, 'Invalid or expired refresh token');
+    }
+
+    const newRefreshToken = generateRefreshToken();
+    const newTokenHash = hashRefreshToken(newRefreshToken);
+
+    const rotated = await AuthModel.rotateRefreshToken({
+      oldTokenHash,
+      newTokenHash,
+      expiresAt: session.expiresAt,
+    });
+
+    if (rotated.count !== 1) {
+      throw new ApiError(401, 'Invalid or expired refresh token');
+    }
+
+    const accessToken = generateAccessToken(session.user, session.id);
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
     };
   },
 

@@ -1,6 +1,7 @@
 
+import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import crypto from 'node:crypto';
+
 import { BrandsModel } from './brands.model.js';
 import { ApiError } from '../../utils/ApiError.js';
 
@@ -56,9 +57,69 @@ async function getBrandOrThrow(idValue) {
   return brand;
 }
 
+// Determines which brands the authenticated user can access.
+function getBrandAccessWhere(user) {
+  const role = user?.role?.name;
+
+  // Admin can access all brands.
+  if (role === 'ADMIN') {
+    return {};
+  }
+
+  // Account Manager can access assigned brands only.
+  if (role === 'ACCOUNT_MANAGER') {
+    return {
+      accountManagerId: user.id,
+    };
+  }
+
+  // Content Creator is identified by role + job title.
+  if (
+    role === 'EMPLOYEE' &&
+    user?.jobTitle?.name === 'Content Creator'
+  ) {
+    return {
+      team: {
+        is: {
+          memberships: {
+            some: {
+              userId: user.id,
+            },
+          },
+        },
+      },
+    };
+  }
+
+  // Client can access their own brand only.
+  if (role === 'CLIENT') {
+    return {
+      clientId: user.id,
+    };
+  }
+
+  throw new ApiError(403, 'You are not authorized to access brands');
+}
+
+async function getAccessibleBrandOrThrow(idValue, user) {
+  const id = parseBrandId(idValue);
+  const accessWhere = getBrandAccessWhere(user);
+
+  const brand =
+    user.role.name === 'ADMIN'
+      ? await BrandsModel.findById(id)
+      : await BrandsModel.findAccessibleById(id, accessWhere);
+
+  if (!brand) {
+    throw new ApiError(404, 'Brand not found');
+  }
+
+  return brand;
+}
+
 function mapPrismaError(error) {
   if (error?.code === 'P2002') {
-    throw new ApiError(409, 'This client email is already registered');
+    throw new ApiError(409, 'A user with this email already exists');
   }
 
   if (error?.code === 'P2003' || error?.code === 'P2014') {
@@ -83,6 +144,15 @@ export const BrandsService = {
     await validateTeam(input.teamId);
     await validateAccountManager(input.accountManagerId);
 
+    const clientRole = await BrandsModel.findRoleByName('CLIENT');
+
+    if (!clientRole) {
+      throw new ApiError(500, 'CLIENT role is not configured');
+    }
+
+    const temporaryPassword = randomBytes(32).toString('hex');
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+
     const brandData = {
       name: input.name,
       industry: input.industry ?? null,
@@ -94,32 +164,40 @@ export const BrandsService = {
       createdBy: adminId,
     };
 
-    try {
-      if (input.client) {
-        const temporaryPassword = crypto.randomBytes(32).toString('base64url');
-        const passwordHash = await bcrypt.hash(temporaryPassword, 12);
-        const clientData = {
-          fullName: input.client.fullName,
-          email: input.client.email,
-          phone: input.client.phone ?? null,
-          passwordHash,
-          createdBy: adminId,
-        };
-        return await BrandsModel.createWithClient({ brandData, clientData });
-      }
+    const clientData = {
+      fullName: input.client.fullName,
+      email: input.client.email,
+      phone: input.client.phone ?? null,
+      passwordHash,
+      roleId: clientRole.id,
+    };
 
-      return await BrandsModel.create(brandData);
+    try {
+      const brand = await BrandsModel.createWithClient(
+        brandData,
+        clientData,
+      );
+
+      return {
+        brand,
+        temporaryPassword,
+      };
     } catch (error) {
       mapPrismaError(error);
     }
   },
 
-  async listBrands(filters = {}) {
-    return BrandsModel.list(filters);
+  async listBrands(filters = {}, user) {
+    const accessWhere = getBrandAccessWhere(user);
+
+    return BrandsModel.list({
+      ...filters,
+      accessWhere,
+    });
   },
 
-  async getBrand(id) {
-    return getBrandOrThrow(id);
+  async getBrand(id, user) {
+    return getAccessibleBrandOrThrow(id, user);
   },
 
   async updateBrand(idValue, input) {

@@ -1,4 +1,3 @@
-
 import { prisma } from '../../config/prisma.js';
 
 const brandSelect = {
@@ -39,7 +38,14 @@ const brandSelect = {
 };
 
 export const BrandsModel = {
-  async createWithClient({ brandData, clientData }) {
+  findRoleByName(name) {
+    return prisma.role.findUnique({
+      where: { name },
+      select: { id: true, name: true },
+    });
+  },
+
+  async createWithClient(brandData, clientData) {
     return prisma.$transaction(async (tx) => {
       const clientRole = await tx.role.findUnique({
         where: { name: 'CLIENT' },
@@ -83,19 +89,27 @@ export const BrandsModel = {
     });
   },
 
-  list({ query, status, teamId, accountManagerId } = {}) {
-    const where = {};
+  list({ query, status, teamId, accountManagerId, accessWhere } = {}) {
+    const conditions = [];
 
-    if (status) where.status = status;
-    if (teamId != null) where.teamId = teamId;
-    if (accountManagerId != null) where.accountManagerId = accountManagerId;
+    if (accessWhere && Object.keys(accessWhere).length > 0) {
+      conditions.push(accessWhere);
+    }
+
+    if (status) conditions.push({ status });
+    if (teamId != null) conditions.push({ teamId });
+    if (accountManagerId != null) conditions.push({ accountManagerId });
 
     if (query) {
-      where.OR = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { industry: { contains: query, mode: 'insensitive' } },
-      ];
+      conditions.push({
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { industry: { contains: query, mode: 'insensitive' } },
+        ],
+      });
     }
+
+    const where = conditions.length > 0 ? { AND: conditions } : {};
 
     return prisma.brand.findMany({
       where,
@@ -107,6 +121,13 @@ export const BrandsModel = {
   findById(id) {
     return prisma.brand.findUnique({
       where: { id },
+      select: brandSelect,
+    });
+  },
+
+  findAccessibleById(id, accessWhere) {
+    return prisma.brand.findFirst({
+      where: { id, ...accessWhere },
       select: brandSelect,
     });
   },

@@ -59,7 +59,7 @@ export const createBrandSchema = z
     country,
     timezone,
     driveFolderUrl,
-    client: clientSchema.optional(),
+    client: clientSchema,
   })
   .strict();
 

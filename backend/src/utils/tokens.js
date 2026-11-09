@@ -1,3 +1,4 @@
+
 import jwt from 'jsonwebtoken';
 
 export const generateAccessToken = (user, sessionId) => {
@@ -12,7 +13,7 @@ export const generateAccessToken = (user, sessionId) => {
     },
     process.env.JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRES_IN || '1d',
+      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
       issuer: 'orvia-agency-os',
       audience: 'orvia-api',
     },
