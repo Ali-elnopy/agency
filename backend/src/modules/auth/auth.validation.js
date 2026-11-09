@@ -50,3 +50,11 @@ export const resetPasswordSchema = z
     newPassword: strongPasswordSchema,
   })
   .strict();
+
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().regex(/^[a-f0-9]{64}$/i, 'Invalid refresh token'),
+}).strict();
+
+export const logoutSchema = z.object({
+  refreshToken: z.string().regex(/^[a-f0-9]{64}$/i, 'Invalid refresh token'),
+}).strict();

@@ -10,13 +10,14 @@ npm install
 
 # 2) Environment file
 cp .env.example .env        # Windows: copy .env.example .env
-# then change JWT_SECRET (openssl rand -hex 48)
+# then change JWT_ACCESS_SECRET (openssl rand -hex 48)
 
 # 3) Database (Docker; matches .env.example)
 docker compose up -d
 
 # 4) Apply migrations + seed the first Admin
 npx prisma migrate deploy
+npx prisma generate
 npm run db:seed
 
 # 5) Run
@@ -37,7 +38,9 @@ prepared-statement errors. If a migration fails through the pooler, run the
 migration with the direct connection string, then switch back to the pooler URL.
 
 The seed reads `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, and the other values
-from `.env`. For a fresh database it creates the first administrator; see the
+from `.env`. The API signs short-lived access JWTs with `JWT_ACCESS_SECRET` and
+rotates opaque refresh tokens through `POST /api/auth/refresh`. The matching
+`POST /api/auth/logout` revokes the session using its refresh token. For a fresh database it creates the first administrator; see the
 root `README.md` for the default local credentials.
 
 ### Frontend
@@ -113,3 +116,20 @@ Auth: Bearer access token (15m) + refresh token rotation (hash stored in the DB)
 - Prisma as the ORM, Postgres 16.
 - The email sender is a stub that prints to the console until a notification channel is chosen.
 - No file uploads yet (multer is installed for Sprint 4) — the storage provider is still undecided.
+
+## Authentication and authorization
+
+- All three workspace account types use the same `POST /api/auth/login` endpoint.
+- Access JWTs are short-lived (`JWT_ACCESS_EXPIRES_IN`, default `15m`). Refresh tokens are opaque, stored only as SHA-256 hashes, and rotated by `POST /api/auth/refresh`.
+- `POST /api/auth/logout` accepts the current refresh token and revokes its session, including when the access JWT has expired.
+- `ADMIN` has workspace-wide access. `ACCOUNT_MANAGER` is scoped to brands assigned through `Brand.accountManagerId`; `CLIENT` is scoped to the brand linked through `Brand.clientId`.
+- A Content Creator remains an `EMPLOYEE` with the `Content Creator` job title. Their content-plan scope is the `assigned_to_id` field; `created_by` continues to mean the user who created the plan.
+- Account Managers and Admins can assign plans to active Content Creators. If a brand belongs to a team, the assignee must be a member of that team.
+- When creating a brand together with a client account, provide `client.password` (12+ characters with lowercase, uppercase, number, and special character) so the client can sign in.
+
+After pulling these changes, apply the new migration and regenerate Prisma Client:
+
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```

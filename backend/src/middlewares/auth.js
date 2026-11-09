@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { ApiError } from '../utils/ApiError.js';
 import { AuthModel } from '../modules/auth/auth.model.js';
+import { env } from '../config/env.js';
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -16,11 +17,7 @@ export const authenticate = async (req, res, next) => {
       throw new ApiError(401, 'Authentication required');
     }
 
-    if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET is not configured');
-    }
-
-    const payload = jwt.verify(token, process.env.JWT_SECRET, {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, {
       issuer: 'orvia-agency-os',
       audience: 'orvia-api',
     });

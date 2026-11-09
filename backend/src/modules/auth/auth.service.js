@@ -5,9 +5,10 @@ import { ApiError } from '../../utils/ApiError.js';
 import { generateAccessToken } from '../../utils/tokens.js';
 import { generateRefreshToken, hashRefreshToken } from '../../utils/refreshTokens.js';
 import { isMailerConfigured, sendPasswordResetEmail } from '../../utils/mailer.js';
+import { env } from '../../config/env.js';
 
 const MAX_LOGIN_ATTEMPTS = 5;
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 const RESET_TOKEN_TTL_MINUTES = 30;
 
@@ -26,8 +27,9 @@ const getPublicUser = (user) => ({
 });
 
 export const AuthService = {
-  async login({ email, password }) {
-    const user = await AuthModel.findUserByEmail(email.toLowerCase());
+  async login({ email, password }, requestMeta = {}) {
+    const normalizedEmail = email.toLowerCase();
+    const user = await AuthModel.findUserByEmail(normalizedEmail);
 
     if (!user) {
       throw new ApiError(401, 'Invalid email or password');
@@ -46,19 +48,14 @@ export const AuthService = {
     const passwordIsValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!passwordIsValid) {
-      const currentWindowStart = user.failedLoginWindowStart?.getTime();
+      const result = await AuthModel.recordFailedLoginAttempt(user.id, {
+        maxAttempts: MAX_LOGIN_ATTEMPTS,
+        windowMs: LOGIN_WINDOW_MS,
+        lockDurationMs: LOCK_DURATION_MS,
+        now,
+      });
 
-      const windowExpired = !currentWindowStart || now - currentWindowStart >= LOGIN_WINDOW_MS;
-
-      const attempts = windowExpired ? 1 : user.failedLoginAttempts + 1;
-
-      const windowStart = windowExpired ? new Date(now) : user.failedLoginWindowStart;
-
-      const lockedUntil = attempts >= MAX_LOGIN_ATTEMPTS ? new Date(now + LOCK_DURATION_MS) : null;
-
-      await AuthModel.recordFailedLogin(user.id, attempts, windowStart, lockedUntil);
-
-      if (lockedUntil) {
+      if (result.locked) {
         throw new ApiError(423, 'Too many failed attempts. Please try again later.');
       }
 
@@ -70,9 +67,9 @@ export const AuthService = {
     const session = await AuthModel.createSession({
       userId: user.id,
       refreshTokenHash: hashRefreshToken(refreshToken),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      userAgent: undefined,
-      ipAddress: undefined,
+      expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
+      userAgent: requestMeta.userAgent?.slice(0, 500),
+      ipAddress: requestMeta.ipAddress?.slice(0, 45),
     });
 
     await AuthModel.resetLoginFailures(user.id);
@@ -88,6 +85,55 @@ export const AuthService = {
       accessToken,
       refreshToken,
     };
+  },
+
+  async refresh(refreshToken) {
+    if (typeof refreshToken !== 'string' || !/^[a-f0-9]{64}$/i.test(refreshToken)) {
+      throw new ApiError(401, 'Invalid or expired refresh token');
+    }
+
+    const currentTokenHash = hashRefreshToken(refreshToken);
+    const session = await AuthModel.findSessionByRefreshTokenHash(currentTokenHash);
+    const now = new Date();
+
+    if (!session || session.revokedAt || session.expiresAt <= now) {
+      throw new ApiError(401, 'Invalid or expired refresh token');
+    }
+    if (!session.user?.isActive) {
+      await AuthModel.revokeSession(session.id, session.userId);
+      throw new ApiError(401, 'User account is unavailable');
+    }
+
+    const nextRefreshToken = generateRefreshToken();
+    const rotated = await AuthModel.rotateRefreshToken({
+      sessionId: session.id,
+      currentTokenHash,
+      nextTokenHash: hashRefreshToken(nextRefreshToken),
+      now,
+    });
+
+    if (rotated.count !== 1) {
+      throw new ApiError(401, 'Refresh token has already been used');
+    }
+
+    const accessToken = generateAccessToken(session.user, session.id);
+
+    return {
+      user: getPublicUser(session.user),
+      accessToken,
+      refreshToken: nextRefreshToken,
+    };
+  },
+
+  async logoutByRefreshToken(refreshToken) {
+    if (typeof refreshToken !== 'string' || !/^[a-f0-9]{64}$/i.test(refreshToken)) {
+      return { message: 'Logout successful' };
+    }
+    const session = await AuthModel.findSessionByRefreshTokenHash(hashRefreshToken(refreshToken));
+    if (session && !session.revokedAt) {
+      await AuthModel.revokeSession(session.id, session.userId);
+    }
+    return { message: 'Logout successful' };
   },
 
   async logout(userId, sessionId) {

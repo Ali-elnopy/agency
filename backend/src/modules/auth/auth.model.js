@@ -44,6 +44,25 @@ export const AuthModel = {
     });
   },
 
+  findSessionByRefreshTokenHash(refreshTokenHash) {
+    return prisma.authSession.findUnique({
+      where: { refreshTokenHash },
+      include: { user: { select: publicUserSelect } },
+    });
+  },
+
+  rotateRefreshToken({ sessionId, currentTokenHash, nextTokenHash, now }) {
+    return prisma.authSession.updateMany({
+      where: {
+        id: sessionId,
+        refreshTokenHash: currentTokenHash,
+        revokedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: { refreshTokenHash: nextTokenHash },
+    });
+  },
+
   revokeSession(sessionId, userId) {
     return prisma.authSession.updateMany({
       where: {
@@ -62,6 +81,9 @@ export const AuthModel = {
       where: { email },
       include: {
         role: {
+          select: { id: true, name: true },
+        },
+        jobTitle: {
           select: { id: true, name: true },
         },
       },
@@ -103,6 +125,57 @@ export const AuthModel = {
         failedLoginWindowStart: windowStart,
         loginLockedUntil: lockedUntil,
       },
+    });
+  },
+
+  async recordFailedLoginAttempt(
+    userId,
+    { maxAttempts, windowMs, lockDurationMs, now = Date.now() },
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          failedLoginAttempts: true,
+          failedLoginWindowStart: true,
+          loginLockedUntil: true,
+        },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const currentNow = now;
+      const lockUntil = user.loginLockedUntil ? user.loginLockedUntil.getTime() : null;
+
+      if (lockUntil && lockUntil > currentNow) {
+        return { locked: true, attempts: user.failedLoginAttempts };
+      }
+
+      const windowStart = user.failedLoginWindowStart
+        ? user.failedLoginWindowStart.getTime()
+        : null;
+
+      const windowExpired = !windowStart || currentNow - windowStart >= windowMs;
+
+      const attempts = windowExpired ? 1 : user.failedLoginAttempts + 1;
+      const nextWindowStart = windowExpired ? new Date(currentNow) : user.failedLoginWindowStart;
+
+      const shouldLock = attempts >= maxAttempts;
+      const nextLockUntil = shouldLock ? new Date(currentNow + lockDurationMs) : null;
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          failedLoginAttempts: attempts,
+          failedLoginWindowStart: nextWindowStart,
+          loginLockedUntil: nextLockUntil,
+        },
+      });
+
+      return { locked: shouldLock, attempts };
     });
   },
 

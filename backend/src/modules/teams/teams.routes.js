@@ -20,12 +20,14 @@ teamsRouter.get('/:id', TeamsController.getById);
 
 teamsRouter.post(
   '/',
+  requireAdmin,
   validate(createTeamSchema),
   TeamsController.create,
 );
 
 teamsRouter.patch(
   '/:id',
+  requireAdmin,
   validate(updateTeamSchema),
   TeamsController.update,
 );
@@ -43,8 +45,9 @@ teamsRouter.delete(
 
 teamsRouter.post(
   '/:id/members/:userId/move',
+  requireAdmin,
   validate(moveTeamMemberSchema),
   TeamsController.moveMember,
 );
 
-teamsRouter.delete('/:id', TeamsController.removeTeam);
+teamsRouter.delete('/:id', requireAdmin, TeamsController.removeTeam);

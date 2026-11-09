@@ -1,20 +1,13 @@
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js';
 
-export const generateAccessToken = (user, sessionId) => {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET is not configured');
-  }
-
-  return jwt.sign(
+export const generateAccessToken = (user, sessionId) =>
+  jwt.sign(
+    { sub: String(user.id), sid: sessionId },
+    env.JWT_ACCESS_SECRET,
     {
-      sub: String(user.id),
-      sid: sessionId,
-    },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || '1d',
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
       issuer: 'orvia-agency-os',
       audience: 'orvia-api',
     },
   );
-};

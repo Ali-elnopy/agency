@@ -21,7 +21,7 @@ export const BrandsController = {
       teamId: teamId != null ? Number(teamId) : undefined,
       accountManagerId:
         accountManagerId != null ? Number(accountManagerId) : undefined,
-    });
+    }, req.user);
 
     res.status(200).json({
       success: true,
@@ -30,13 +30,13 @@ export const BrandsController = {
   }),
 
   getById: asyncHandler(async (req, res) => {
-    const brand = await BrandsService.getBrand(req.params.id);
+    const brand = await BrandsService.getBrand(req.params.id, req.user);
 
     res.status(200).json({ success: true, data: brand });
   }),
 
   update: asyncHandler(async (req, res) => {
-    const brand = await BrandsService.updateBrand(req.params.id, req.body);
+    const brand = await BrandsService.updateBrand(req.params.id, req.body, req.user);
 
     res.status(200).json({
       success: true,
@@ -46,7 +46,7 @@ export const BrandsController = {
   }),
 
   remove: asyncHandler(async (req, res) => {
-    const brand = await BrandsService.deleteBrand(req.params.id);
+    const brand = await BrandsService.deleteBrand(req.params.id, req.user);
 
     res.status(200).json({
       success: true,

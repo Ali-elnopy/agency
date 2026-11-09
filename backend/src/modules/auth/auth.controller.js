@@ -3,11 +3,24 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 
 export const AuthController = {
   login: asyncHandler(async (req, res) => {
-    const result = await AuthService.login(req.body);
+    const result = await AuthService.login(req.body, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
+      data: result,
+    });
+  }),
+
+  refresh: asyncHandler(async (req, res) => {
+    const result = await AuthService.refresh(req.body.refreshToken);
+
+    res.status(200).json({
+      success: true,
+      message: 'Session refreshed successfully',
       data: result,
     });
   }),
@@ -34,7 +47,7 @@ export const AuthController = {
   }),
 
   logout: asyncHandler(async (req, res) => {
-    const result = await AuthService.logout(req.user.id, req.authSession.id);
+    const result = await AuthService.logoutByRefreshToken(req.body.refreshToken);
 
     res.status(200).json({
       success: true,

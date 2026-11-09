@@ -7,6 +7,8 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  refreshTokenSchema,
+  logoutSchema,
 } from './auth.validation.js';
 
 import { validate } from '../../middlewares/validate.js';
@@ -42,6 +44,7 @@ const resetLimiter = rateLimit({
 });
 
 authRouter.post('/login', validate(loginSchema), AuthController.login);
+authRouter.post('/refresh', validate(refreshTokenSchema), AuthController.refresh);
 
 authRouter.post(
   '/forgot-password',
@@ -66,4 +69,4 @@ authRouter.post(
   AuthController.changePassword,
 );
 
-authRouter.post('/logout', authenticate, AuthController.logout);
+authRouter.post('/logout', validate(logoutSchema), AuthController.logout);

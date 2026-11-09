@@ -106,7 +106,7 @@ export const TeamsModel = {
         isActive: true,
         role: {
           is: {
-            name: { in: ['EMPLOYEE', 'ACCOUNT_MANAGER'] },
+            name: { in: ['EMPLOYEE', 'ACCOUNT_MANAGER', 'TEAM_LEADER'] },
           },
         },
       },
@@ -121,11 +121,30 @@ export const TeamsModel = {
         isActive: true,
         role: {
           is: {
-            name: { in: ['EMPLOYEE', 'ACCOUNT_MANAGER'] },
+            name: { in: ['EMPLOYEE', 'ACCOUNT_MANAGER', 'TEAM_LEADER'] },
           },
         },
       },
       select: publicUserSelect,
+    });
+  },
+
+  /* A person can only belong to one team, so membership checks look at every
+     team except the one currently being edited. */
+  findMembershipsForUsers(userIds, excludeTeamId = null) {
+    if (!userIds.length) return Promise.resolve([]);
+
+    return prisma.teamMembership.findMany({
+      where: {
+        userId: { in: userIds },
+        ...(excludeTeamId == null ? {} : { teamId: { not: excludeTeamId } }),
+      },
+      select: {
+        userId: true,
+        teamId: true,
+        team: { select: { name: true } },
+        user: { select: { fullName: true } },
+      },
     });
   },
 
@@ -206,8 +225,14 @@ export const TeamsModel = {
   },
 
   async removeMember(teamId, userId) {
-    await prisma.teamMembership.deleteMany({
-      where: { teamId, userId },
+    await prisma.$transaction(async (tx) => {
+      await tx.team.updateMany({
+        where: { id: teamId, teamLeadId: userId },
+        data: { teamLeadId: null },
+      });
+      await tx.teamMembership.deleteMany({
+        where: { teamId, userId },
+      });
     });
 
     return this.findById(teamId);
