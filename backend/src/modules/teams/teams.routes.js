@@ -12,7 +12,7 @@ import { validate } from '../../middlewares/validate.js';
 
 export const teamsRouter = Router();
 
-teamsRouter.use(authenticate, requireAdmin);
+teamsRouter.use(authenticate);
 
 teamsRouter.get('/', TeamsController.list);
 
@@ -20,12 +20,14 @@ teamsRouter.get('/:id', TeamsController.getById);
 
 teamsRouter.post(
   '/',
+  requireAdmin,
   validate(createTeamSchema),
   TeamsController.create,
 );
 
 teamsRouter.patch(
   '/:id',
+  requireAdmin,
   validate(updateTeamSchema),
   TeamsController.update,
 );
@@ -43,8 +45,9 @@ teamsRouter.delete(
 
 teamsRouter.post(
   '/:id/members/:userId/move',
+  requireAdmin,
   validate(moveTeamMemberSchema),
   TeamsController.moveMember,
 );
 
-teamsRouter.delete('/:id', TeamsController.removeTeam);
+teamsRouter.delete('/:id', requireAdmin, TeamsController.removeTeam);

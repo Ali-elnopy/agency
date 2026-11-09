@@ -13,6 +13,14 @@ export const RBAC_ROLES = [
     summary: 'Total governance, billing, users & API keys',
   },
   {
+    id: 'team_leader',
+    name: 'Team Leader',
+    badge: 'Team Lead',
+    tone: 'blue',
+    members: 'Team Oversight',
+    summary: 'Team supervision, pod assignments & workflows',
+  },
+  {
     id: 'director',
     name: 'Art Director',
     badge: 'Review & Approve',
@@ -55,7 +63,7 @@ export const PERMISSION_GROUPS = [
         id: 'users',
         name: 'Add, Edit & Deactivate User Accounts',
         hint: 'Invite internal team, modify profiles, or suspend/revoke seats',
-        permissions: { admin: 'allow', director: null, creator: null, client: null },
+        permissions: { admin: 'allow', team_leader: null, director: null, creator: null, client: null },
       },
       {
         id: 'roles',
@@ -63,6 +71,7 @@ export const PERMISSION_GROUPS = [
         hint: 'Configure RBAC rules and custom role scopes',
         permissions: {
           admin: 'allow',
+          team_leader: null,
           director: { label: 'View Only', tone: 'muted' },
           creator: null,
           client: null,
@@ -82,6 +91,7 @@ export const PERMISSION_GROUPS = [
         hint: 'Initialize project scopes, deliverables, and timelines',
         permissions: {
           admin: 'allow',
+          team_leader: { label: 'Assigned Pod', tone: 'blue' },
           director: 'allow',
           creator: { label: 'Assigned Brands', tone: 'orange' },
           client: null,
@@ -91,7 +101,7 @@ export const PERMISSION_GROUPS = [
         id: 'deliverables',
         name: 'Upload 3D, Motion & Design Deliverables',
         hint: 'Push new versions to review studio & asset CDN',
-        permissions: { admin: 'allow', director: 'allow', creator: 'allow', client: null },
+        permissions: { admin: 'allow', team_leader: 'allow', director: 'allow', creator: 'allow', client: null },
       },
       {
         id: 'signoff',
@@ -99,6 +109,7 @@ export const PERMISSION_GROUPS = [
         hint: 'Approve assets before publishing to external client portal',
         permissions: {
           admin: 'allow',
+          team_leader: 'allow',
           director: 'allow',
           creator: { label: 'Submit for Review', tone: 'blue' },
           client: null,
@@ -116,13 +127,19 @@ export const PERMISSION_GROUPS = [
         id: 'annotations',
         name: 'Live Frame Annotation & Review Comments',
         hint: 'Collaborate on video frames and design canvases',
-        permissions: { admin: 'allow', director: 'allow', creator: 'allow', client: 'allow' },
+        permissions: { admin: 'allow', team_leader: 'allow', director: 'allow', creator: 'allow', client: 'allow' },
       },
       {
         id: 'approvals',
         name: 'Final Client Deliverable Approval & Sign-Off',
         hint: 'Authorize production release and lock approved assets',
-        permissions: { admin: 'allow', director: 'allow', creator: null, client: 'allow' },
+        permissions: {
+          admin: 'allow',
+          team_leader: { label: 'Internal Review', tone: 'blue' },
+          director: 'allow',
+          creator: null,
+          client: 'allow',
+        },
       },
       {
         id: 'billing',
@@ -130,6 +147,7 @@ export const PERMISSION_GROUPS = [
         hint: 'View client contracts, invoices, and agency burn rates',
         permissions: {
           admin: 'allow',
+          team_leader: { label: 'Restricted', tone: 'danger' },
           director: { label: 'Restricted', tone: 'danger' },
           creator: { label: 'Restricted', tone: 'danger' },
           client: { label: 'Restricted', tone: 'danger' },

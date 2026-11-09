@@ -1,6 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import Modal from '../components/common/Modal';
+import ConfirmModal from '../components/modals/ConfirmModal';
 import PlanModal from '../components/brands/PlanModal';
+import EditBrandModal from '../components/brands/EditBrandModal';
+import AddPlatformModal from '../components/brands/AddPlatformModal';
+import BrandBriefSection from '../components/brands/BrandBriefSection';
+import ContentStrategySection from '../components/brands/ContentStrategySection';
+import PlanDirectionSection from '../components/brands/PlanDirectionSection';
+import SocialPlatformsSection from '../components/brands/SocialPlatformsSection';
+import FilesAssetsSection from '../components/brands/FilesAssetsSection';
+import BrandWorkspaceHub from '../components/brands/BrandWorkspaceHub';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useBrands } from '../context/brandsStore';
@@ -43,8 +52,17 @@ export default function BrandDetailPage({
     plans,
     content,
     savePlan,
+    updateBrand,
     deleteBrand,
     updateContentStatus,
+    addPlatform,
+    updatePlatform,
+    deletePlatform,
+    getPlatforms,
+    getBriefs,
+    getStrategies,
+    getPlanDirections,
+    getAssets,
   } = useBrands();
   const { toast, showToast } = useToast(4000);
 
@@ -62,7 +80,14 @@ export default function BrandDetailPage({
 
   const [month, setMonth] = useState(defaultMonth);
   const [planOpen, setPlanOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [tab, setTab] = useState('hub');
+  const [platformModal, setPlatformModal] = useState(null);
+  const [platformToDelete, setPlatformToDelete] = useState(null);
+  const [directionsFocus, setDirectionsFocus] = useState(null);
 
   const brand = getBrand(brandId);
 
@@ -123,6 +148,40 @@ export default function BrandDetailPage({
   const reelsDelivered = reelsItems.filter((item) => item.status === 'delivered').length;
 
   const statusLabel = BRAND_STATUS_LABEL[brand.status] ?? 'Active';
+  const isArchived = brand.status === 'archived';
+
+  const platforms = getPlatforms(brand.id);
+  const briefs = getBriefs(brand.id);
+  const strategies = getStrategies(brand.id);
+  const brandDirections = getPlanDirections(brand.id);
+  const assets = getAssets(brand.id);
+
+  const notify = (message, tone = 'success') => showToast(message, tone);
+
+  const handleSavePlatform = (values) => {
+    if (platformModal?.id) {
+      updatePlatform(platformModal.id, values);
+      showToast('Platform updated.');
+    } else {
+      addPlatform(brand.id, values);
+      showToast('Platform added.');
+    }
+
+    setPlatformModal(null);
+  };
+
+  const confirmDeletePlatform = () => {
+    if (!platformToDelete) return;
+
+    deletePlatform(platformToDelete.id);
+    setPlatformToDelete(null);
+    showToast('Platform deleted.');
+  };
+
+  const openDirections = (platformId, focusMonth) => {
+    setDirectionsFocus({ platformId, month: focusMonth });
+    setTab('direction');
+  };
 
   const handleSavePlan = (values) => {
     savePlan({ brandId: brand.id, ...values });
@@ -140,6 +199,31 @@ export default function BrandDetailPage({
     deleteBrand(brand.id);
     setDeleteOpen(false);
     onDeleted?.();
+  };
+
+  const handleEditSave = async (patch) => {
+    await updateBrand(brand.id, patch);
+    showToast('Brand details updated successfully.');
+  };
+
+  const handleArchive = async () => {
+    if (archiveBusy) return;
+
+    setArchiveBusy(true);
+
+    try {
+      await updateBrand(brand.id, { status: isArchived ? 'active' : 'archived' });
+      setArchiveOpen(false);
+      showToast(
+        isArchived
+          ? `${brand.name} restored to the active workspace.`
+          : `${brand.name} archived. You can restore it at any time.`,
+      );
+    } catch (err) {
+      showToast(err?.message || 'Could not update this brand.', 'danger');
+    } finally {
+      setArchiveBusy(false);
+    }
   };
 
   return (
@@ -193,10 +277,48 @@ export default function BrandDetailPage({
                 </a>
               ) : null}
             </div>
+
+            <div className="bw-hero-platforms">
+              {platforms.length ? (
+                platforms.map((platform) => (
+                  <button
+                    key={platform.id}
+                    type="button"
+                    className={`bw-hero-platform ${platform.tone ?? ''}`}
+                    onClick={() => setTab('social')}
+                    title={`${platform.name} settings`}
+                  >
+                    {platform.name}
+                  </button>
+                ))
+              ) : (
+                <span className="bw-muted">No social platforms yet.</span>
+              )}
+              <button
+                type="button"
+                className="bw-hero-platform is-add"
+                onClick={() => setPlatformModal({})}
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-plus" />
+                </svg>
+                Add Platform
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="brand-hero__actions">
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => setEditOpen(true)}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-edit" />
+            </svg>
+            Edit Brand
+          </button>
           <button
             type="button"
             className="button button--dark"
@@ -219,6 +341,16 @@ export default function BrandDetailPage({
           </button>
           <button
             type="button"
+            className="button button--ghost"
+            onClick={() => setArchiveOpen(true)}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-archive" />
+            </svg>
+            {isArchived ? 'Restore Brand' : 'Archive Brand'}
+          </button>
+          <button
+            type="button"
             className="button button--danger-ghost"
             onClick={() => setDeleteOpen(true)}
           >
@@ -230,7 +362,28 @@ export default function BrandDetailPage({
         </div>
       </section>
 
-      <div className="brand-detail-grid">
+      {tab === 'hub' ? (
+        <BrandWorkspaceHub
+          brand={brand}
+          counts={{
+            brief: `${briefs.length} ${briefs.length === 1 ? 'file' : 'files'}`,
+            strategy: `${strategies.length} ${strategies.length === 1 ? 'strategy' : 'strategies'}`,
+            direction: `${brandDirections.length} ${
+              brandDirections.length === 1 ? 'direction' : 'directions'
+            }`,
+            assets: `${assets.length} ${assets.length === 1 ? 'file' : 'files'}`,
+            social: `${platforms.length} ${platforms.length === 1 ? 'platform' : 'platforms'}`,
+          }}
+          onOpen={(next) => setTab(next)}
+        />
+      ) : (
+        <div className="bw-section-shell">
+          <button type="button" className="bw-back" onClick={() => setTab('hub')}>
+            <span aria-hidden="true">←</span> Brand workspace
+          </button>
+
+      {tab === 'overview' ? (
+        <div className="brand-detail-grid">
         <div className="brand-detail-main">
           <section className="cl-card brand-plan-card">
             <div className="brand-section-head">
@@ -733,6 +886,36 @@ export default function BrandDetailPage({
           </section>
         </aside>
       </div>
+      ) : null}
+
+      {tab === 'brief' ? <BrandBriefSection brand={brand} onToast={notify} /> : null}
+
+      {tab === 'strategy' ? <ContentStrategySection brand={brand} onToast={notify} /> : null}
+
+      {tab === 'direction' ? (
+        <PlanDirectionSection
+          brand={brand}
+          onToast={notify}
+          onAddPlatform={() => setPlatformModal({})}
+          onAddContent={(contentMonth, platformId) => onAddContent?.(contentMonth, platformId)}
+          initialPlatformId={directionsFocus?.platformId}
+          initialMonth={directionsFocus?.month}
+        />
+      ) : null}
+
+      {tab === 'assets' ? <FilesAssetsSection brand={brand} onToast={notify} /> : null}
+
+      {tab === 'social' ? (
+        <SocialPlatformsSection
+          brand={brand}
+          onAddPlatform={() => setPlatformModal({})}
+          onEditPlatform={(platform) => setPlatformModal(platform)}
+          onDeletePlatform={(platform) => setPlatformToDelete(platform)}
+          onOpenPlan={(platformId) => openDirections(platformId, monthKey())}
+        />
+      ) : null}
+        </div>
+      )}
 
       {planOpen ? (
         <PlanModal
@@ -743,6 +926,57 @@ export default function BrandDetailPage({
           onSave={handleSavePlan}
         />
       ) : null}
+
+      <Modal
+        isOpen={archiveOpen}
+        onClose={archiveBusy ? () => {} : () => setArchiveOpen(false)}
+        title={isArchived ? 'Restore brand?' : 'Archive brand?'}
+        subtitle={
+          isArchived
+            ? `${brand.name} will return to the active workspace.`
+            : `${brand.name} will be hidden from active work but kept intact.`
+        }
+        icon="#i-archive"
+        iconColor="amber"
+        maxWidth="480px"
+        footer={
+          <>
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => setArchiveOpen(false)}
+              disabled={archiveBusy}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={`button ${isArchived ? 'button--primary' : 'button--dark'}`}
+              onClick={handleArchive}
+              disabled={archiveBusy}
+            >
+              <svg aria-hidden="true" className="icon">
+                <use href={isArchived ? '#i-check' : '#i-archive'} />
+              </svg>
+              {archiveBusy ? 'Saving…' : isArchived ? 'Restore Brand' : 'Archive Brand'}
+            </button>
+          </>
+        }
+      >
+        <p className="modal-copy">
+          {isArchived ? (
+            <>
+              Restoring <strong>{brand.name}</strong> makes it active again. Its plans, content and
+              assets are unchanged.
+            </>
+          ) : (
+            <>
+              Archiving <strong>{brand.name}</strong> keeps every plan, content item and asset, but
+              removes the brand from active work. You can restore it at any time.
+            </>
+          )}
+        </p>
+      </Modal>
 
       <Modal
         isOpen={deleteOpen}
@@ -784,6 +1018,39 @@ export default function BrandDetailPage({
           </p>
         </div>
       </Modal>
+
+      {editOpen && brand ? (
+        <EditBrandModal
+          brand={brand}
+          onClose={() => setEditOpen(false)}
+          onSave={handleEditSave}
+        />
+      ) : null}
+
+      {platformModal !== null ? (
+        <AddPlatformModal
+          brand={brand}
+          platform={platformModal.id ? platformModal : undefined}
+          onClose={() => setPlatformModal(null)}
+          onSave={handleSavePlatform}
+        />
+      ) : null}
+
+      <ConfirmModal
+        isOpen={Boolean(platformToDelete)}
+        onClose={() => setPlatformToDelete(null)}
+        title="Delete platform?"
+        subtitle={platformToDelete ? `${platformToDelete.name} will be removed from ${brand.name}.` : ''}
+        icon="#i-trash"
+        iconColor="amber"
+        confirmText="Delete Platform"
+        onConfirm={confirmDeletePlatform}
+      >
+        <p className="modal-copy">
+          Its plan directions will be removed too. Content items already created stay in the
+          monthly calendar.
+        </p>
+      </ConfirmModal>
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </div>

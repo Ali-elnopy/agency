@@ -12,13 +12,8 @@ async function validateTeam(teamId) {
 
   const team = await BrandsModel.findTeamById(teamId);
 
-  if (!team) {
-    throw new ApiError(400, 'Selected team does not exist');
-  }
-
-  if (!team.isActive) {
-    throw new ApiError(400, 'Selected team is inactive');
-  }
+  if (!team) throw new ApiError(400, 'Selected team does not exist');
+  if (!team.isActive) throw new ApiError(400, 'Selected team is inactive');
 }
 
 async function validateAccountManager(accountManagerId) {
@@ -57,9 +52,7 @@ async function getBrandOrThrow(idValue) {
   const id = parseBrandId(idValue);
   const brand = await BrandsModel.findById(id);
 
-  if (!brand) {
-    throw new ApiError(404, 'Brand not found');
-  }
+  if (!brand) throw new ApiError(404, 'Brand not found');
 
   return brand;
 }
@@ -132,7 +125,14 @@ function mapPrismaError(error) {
   if (error?.code === 'P2003' || error?.code === 'P2014') {
     throw new ApiError(
       400,
-      'Invalid team, account manager, or creator reference',
+      'Invalid team, account manager, creator, or client reference',
+    );
+  }
+
+  if (error?.code === 'CLIENT_ROLE_MISSING') {
+    throw new ApiError(
+      500,
+      'CLIENT role is missing. Configure the role before creating clients.',
     );
   }
 
@@ -158,6 +158,7 @@ export const BrandsService = {
       industry: input.industry ?? null,
       websiteUrl: input.websiteUrl ?? null,
       description: input.description ?? null,
+      status: input.status ? String(input.status).toLowerCase() : 'active',
       teamId: input.teamId ?? null,
       accountManagerId: input.accountManagerId ?? null,
       createdBy: adminId,
@@ -202,14 +203,12 @@ export const BrandsService = {
   async updateBrand(idValue, input) {
     const brand = await getBrandOrThrow(idValue);
 
-    if (input.status !== undefined && !BRAND_STATUSES.has(input.status)) {
+    const lowerStatus = input.status !== undefined ? String(input.status).toLowerCase() : undefined;
+    if (lowerStatus !== undefined && !BRAND_STATUSES.has(lowerStatus)) {
       throw new ApiError(400, 'Invalid brand status');
     }
 
-    if (input.teamId !== undefined) {
-      await validateTeam(input.teamId);
-    }
-
+    if (input.teamId !== undefined) await validateTeam(input.teamId);
     if (input.accountManagerId !== undefined) {
       await validateAccountManager(input.accountManagerId);
     }
@@ -221,12 +220,13 @@ export const BrandsService = {
       'industry',
       'websiteUrl',
       'description',
-      'status',
       'teamId',
       'accountManagerId',
     ]) {
       if (input[key] !== undefined) data[key] = input[key];
     }
+
+    if (lowerStatus !== undefined) data.status = lowerStatus;
 
     try {
       return await BrandsModel.update(brand.id, data);
@@ -237,7 +237,6 @@ export const BrandsService = {
 
   async deleteBrand(idValue) {
     const brand = await getBrandOrThrow(idValue);
-
     return BrandsModel.remove(brand.id);
   },
 };

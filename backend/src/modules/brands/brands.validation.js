@@ -22,23 +22,30 @@ const websiteUrl = z
   .optional();
 
 const description = z.string().trim().nullable().optional();
-
 const teamId = z.number().int().positive().nullable().optional();
-
 const accountManagerId = z.number().int().positive().nullable().optional();
 
-const clientSchema = z.object({
-  fullName: z.string().trim().min(2).max(150),
+const clientSchema = z
+  .object({
+    fullName: z
+      .string()
+      .trim()
+      .min(1, 'Client name is required')
+      .max(150, 'Client name must not exceed 150 characters'),
+    email: z
+      .string()
+      .trim()
+      .email('Client email must be valid')
+      .max(255)
+      .transform((value) => value.toLowerCase()),
+    phone: z.string().trim().max(30).nullable().optional(),
+  })
+  .strict();
 
-  email: z
-    .string()
-    .trim()
-    .email()
-    .max(255)
-    .transform((value) => value.toLowerCase()),
-
-  phone: z.string().trim().max(30).nullable().optional(),
-}).strict();
+const country = z.string().trim().max(100).nullable().optional();
+const timezone = z.string().trim().max(100).nullable().optional();
+const driveFolderUrl = z.string().trim().nullable().optional();
+const statusSchema = z.string().trim().toLowerCase().optional();
 
 export const createBrandSchema = z
   .object({
@@ -48,6 +55,10 @@ export const createBrandSchema = z
     description,
     teamId,
     accountManagerId,
+    status: statusSchema,
+    country,
+    timezone,
+    driveFolderUrl,
     client: clientSchema,
   })
   .strict();
@@ -60,6 +71,9 @@ export const updateBrandSchema = z
     description,
     teamId,
     accountManagerId,
-    status: z.enum(['active', 'paused', 'archived']).optional(),
+    status: statusSchema,
+    country,
+    timezone,
+    driveFolderUrl,
   })
   .strict();

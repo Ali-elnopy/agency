@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import PlanModal from '../components/brands/PlanModal';
+import ContentDetailsModal from '../components/sprint3/ContentDetailsModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useBrands } from '../context/brandsStore';
+import { useSprint3 } from '../context/sprint3Store';
 import {
   BRAND_STATUS_LABEL,
   CONTENT_STATUS_LABEL,
@@ -16,6 +18,7 @@ import {
   monthKey,
   monthLabel,
 } from '../data/brands';
+import { linesOf } from '../data/sprint3';
 
 const STATUS_TONE = {
   planned: 'is-amber',
@@ -48,11 +51,31 @@ function defaultDateFor(month) {
   return today.startsWith(month) ? today : `${month}-01`;
 }
 
-export default function AddContentPage({ brandId, initialMonth, onBack }) {
-  const { getBrand, plans, content, addContent, savePlan } = useBrands();
+export default function AddContentPage({ brandId, initialMonth, initialPlatformId, onBack }) {
+  const { getBrand, plans, content, addContent, savePlan, getPlatforms, updateContent } =
+    useBrands();
+  const {
+    getApprovedStrategy,
+    getCampaigns,
+    getContentMeta,
+    saveContentMeta,
+    t,
+  } = useSprint3();
   const { toast, showToast } = useToast(5000);
 
   const brand = getBrand(brandId);
+  const platforms = useMemo(() => (brand ? getPlatforms(brand.id) : []), [brand, getPlatforms]);
+  const strategy = getApprovedStrategy(brandId);
+  const campaigns = useMemo(
+    () => (brand ? getCampaigns(brand.id) : []),
+    [brand, getCampaigns],
+  );
+  const pillars = useMemo(
+    () => linesOf(strategy?.sections?.pillars?.body ?? ''),
+    [strategy],
+  );
+  const strategyPlatforms = strategy?.platforms ?? [];
+  const campaignName = (id) => campaigns.find((campaign) => campaign.id === id)?.name ?? '';
   const brandPlans = useMemo(
     () =>
       plans
@@ -64,7 +87,10 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
   const [planMonth, setPlanMonth] = useState(
     () => initialMonth || brandPlans[brandPlans.length - 1]?.month || monthKey(),
   );
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [platformId, setPlatformId] = useState(initialPlatformId ?? 'all');
+  const [isAdding, setIsAdding] = useState(false);
+  const draftRowRef = useRef(null);
+  const ideaInputRef = useRef(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [type, setType] = useState(CONTENT_TYPES[0].id);
   const [title, setTitle] = useState('');
@@ -78,6 +104,10 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
   const [designDirection, setDesignDirection] = useState('');
   const [referenceUrl, setReferenceUrl] = useState('');
   const [materialUrl, setMaterialUrl] = useState('');
+  const [pillar, setPillar] = useState(() => pillars[0] ?? '');
+  const [platformName, setPlatformName] = useState(() => strategyPlatforms[0] ?? '');
+  const [campaignId, setCampaignId] = useState(() => campaigns[0]?.id ?? '');
+  const [detailsItem, setDetailsItem] = useState(null);
   const [errors, setErrors] = useState({});
 
   const selectedPlan = brandPlans.find((plan) => plan.month === planMonth) ?? null;
@@ -86,23 +116,69 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
   const monthItems = useMemo(
     () =>
       content
-        .filter((item) => item.brandId === brandId && item.month === planMonth)
+        .filter(
+          (item) =>
+            item.brandId === brandId &&
+            item.month === planMonth &&
+            (platformId === 'all' || String(item.platformId) === String(platformId)),
+        )
         .sort((a, b) =>
           `${a.publishDate}T${a.publishTime}`.localeCompare(`${b.publishDate}T${b.publishTime}`),
         ),
-    [content, brandId, planMonth],
+    [content, brandId, planMonth, platformId],
   );
 
   const posts = monthItems.filter((item) => item.type === 'post').length;
   const reels = monthItems.filter((item) => item.type === 'reel').length;
-  const target = selectedPlan
-    ? selectedPlan.postsTarget + selectedPlan.reelsTarget
-    : null;
+  const target = selectedPlan ? selectedPlan.postsTarget + selectedPlan.reelsTarget : null;
   const completion = target ? Math.min(100, Math.round((monthItems.length / target) * 100)) : 0;
+
+  // The new row is edited directly in the sheet, so bring it into view and
+  // focus its first field. Clicking Add Row again re-focuses the open draft
+  // instead of appearing to do nothing.
+  useLayoutEffect(() => {
+    if (!isAdding) return;
+
+    draftRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ideaInputRef.current?.focus({ preventScroll: true });
+  }, [isAdding]);
 
   const setField = (setter, key) => (event) => {
     setter(event.target.value);
     setErrors((prev) => ({ ...prev, [key]: '' }));
+  };
+
+  const resetDraft = () => {
+    setType(CONTENT_TYPES[0].id);
+    setTitle('');
+    setPublishDate(defaultDateFor(planMonth));
+    setPublishTime('10:00');
+    setTov(TOV_OPTIONS[0]);
+    setCaption('');
+    setNotes('');
+    setDesignDirection('');
+    setReferenceUrl('');
+    setMaterialUrl('');
+    setPillar(pillars[0] ?? '');
+    setPlatformName(strategyPlatforms[0] ?? '');
+    setCampaignId(campaigns[0]?.id ?? '');
+    setErrors({});
+  };
+
+  const startAdding = () => {
+    if (isAdding) {
+      draftRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ideaInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    resetDraft();
+    setIsAdding(true);
+  };
+
+  const cancelAdding = () => {
+    resetDraft();
+    setIsAdding(false);
   };
 
   const handleMonthChange = (event) => {
@@ -118,7 +194,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (!brand) return;
+    if (!brand || !isAdding) return;
 
     const nextErrors = {};
     const idea = title.trim();
@@ -147,6 +223,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
     addContent({
       brandId: brand.id,
       month: planMonth,
+      platformId: platformId === 'all' ? null : platformId,
       type,
       title: idea,
       publishDate,
@@ -157,15 +234,14 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
       designDirection,
       referenceUrl,
       materialUrl,
+      pillar,
+      platform: platformName,
+      campaignId,
     });
 
     showToast(`Row ${monthItems.length + 1} added to ${monthLabel(planMonth)}.`, 'success');
-    setTitle('');
-    setCaption('');
-    setNotes('');
-    setDesignDirection('');
-    setReferenceUrl('');
-    setMaterialUrl('');
+    resetDraft();
+    setIsAdding(false);
   };
 
   const handleSavePlan = (values) => {
@@ -178,6 +254,37 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
     );
     setPlanModalOpen(false);
     showToast(`Monthly plan saved for ${monthLabel(values.month)}.`, 'success');
+  };
+
+  const applyStrategyDefaults = () => {
+    if (!strategy) return;
+    const defaultPillar = pillars[0] ?? '';
+    const defaultPlatform = strategyPlatforms[0] ?? '';
+    let touched = 0;
+
+    monthItems.forEach((item) => {
+      const meta = getContentMeta(item.id);
+      const patch = {};
+      if (!meta.pillar && !item.pillar && defaultPillar) patch.pillar = defaultPillar;
+      if (!meta.platform && !item.platform && defaultPlatform) {
+        patch.platform = defaultPlatform;
+      }
+      if (!meta.campaignId && !item.campaignId && campaigns[0]?.id) {
+        patch.campaignId = campaigns[0].id;
+      }
+      if (Object.keys(patch).length) {
+        touched += 1;
+        updateContent(item.id, patch);
+        saveContentMeta(item.id, patch);
+      }
+    });
+
+    showToast(
+      touched
+        ? `${touched} rows linked to the approved strategy.`
+        : 'Every row is already linked to the strategy.',
+      touched ? 'success' : 'info',
+    );
   };
 
   if (!brand) {
@@ -226,6 +333,46 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
         </div>
       </section>
 
+      {strategy ? (
+        <section className="s3-linked-banner">
+          <span className="s3-linked-banner__icon">
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-layers" />
+            </svg>
+          </span>
+          <div>
+            <strong>
+              {t('Linked strategy')}: {strategy.title}
+            </strong>
+            <p>
+              {t('Auto-filled from the approved strategy')} · {pillars.length} {t('pillars')} ·{' '}
+              {strategyPlatforms.length} {t('platforms')}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="button button--ghost button--sm"
+            onClick={applyStrategyDefaults}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-zap" />
+            </svg>
+            {t('Apply strategy defaults')}
+          </button>
+        </section>
+      ) : (
+        <section className="s3-warning">
+          <svg aria-hidden="true" className="icon">
+            <use href="#i-alert" />
+          </svg>
+          <span>
+            {t(
+              'No approved strategy for this brand yet. Pillars and platforms will link automatically once the strategy is approved.',
+            )}
+          </span>
+        </section>
+      )}
+
       <section className="content-plan__toolbar">
         <div className="content-plan__brand">
           <span className={`cl-brand__mark content-plan__brand-mark ${brand.tone}`}>
@@ -245,6 +392,30 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
         </div>
 
         <div className="content-plan__controls">
+          {platforms.length ? (
+            <label className="content-plan__month">
+              <span>Platform</span>
+              <span className="form-select-wrap">
+                <select
+                  className="form-select"
+                  value={platformId}
+                  onChange={(event) => setPlatformId(event.target.value)}
+                  aria-label="Filter content plan by platform"
+                >
+                  <option value="all">All platforms</option>
+                  {platforms.map((platform) => (
+                    <option key={platform.id} value={platform.id}>
+                      {platform.name}
+                    </option>
+                  ))}
+                </select>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-chevron" />
+                </svg>
+              </span>
+            </label>
+          ) : null}
+
           <label className="content-plan__month">
             <span>Month</span>
             <input
@@ -264,15 +435,11 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
             </svg>
             {selectedPlan ? 'Edit targets' : 'Set targets'}
           </button>
-          <button
-            type="button"
-            className="button button--primary button--sm"
-            onClick={() => setEditorOpen((value) => !value)}
-          >
+          <button type="button" className="button button--primary button--sm" onClick={startAdding}>
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
             </svg>
-            {editorOpen ? 'Close editor' : 'Add Row'}
+            Add Row
           </button>
         </div>
       </section>
@@ -325,234 +492,6 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
         </div>
       ) : null}
 
-      {editorOpen ? (
-        <form className="content-plan__editor" onSubmit={handleSubmit} noValidate>
-          <header className="content-plan__editor-head">
-            <div>
-              <strong>New plan row</strong>
-              <span>
-                Row {monthItems.length + 1} · {monthLabel(planMonth)}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="content-plan__editor-close"
-              onClick={() => setEditorOpen(false)}
-              aria-label="Close row editor"
-            >
-              ×
-            </button>
-          </header>
-
-          <div className="content-plan__editor-grid">
-            <div className="brand-field">
-              <label htmlFor="cp-date">
-                Publish Date <span className="brand-required">*</span>
-              </label>
-              <input
-                id="cp-date"
-                type="date"
-                className="form-input"
-                value={publishDate}
-                onChange={setField(setPublishDate, 'publishDate')}
-                min={bounds.min}
-                max={bounds.max}
-                aria-invalid={Boolean(errors.publishDate)}
-              />
-              {errors.publishDate ? (
-                <span className="set-error">{errors.publishDate}</span>
-              ) : null}
-            </div>
-
-            <div className="brand-field">
-              <span className="content-plan__field-label">Day</span>
-              <div className="content-plan__readonly" aria-live="polite">
-                {weekdayLabel(publishDate)}
-              </div>
-            </div>
-
-            <div className="brand-field">
-              <label htmlFor="cp-time">
-                Suggested Time <span className="brand-required">*</span>
-              </label>
-              <input
-                id="cp-time"
-                type="time"
-                className="form-input"
-                value={publishTime}
-                onChange={setField(setPublishTime, 'publishTime')}
-                aria-invalid={Boolean(errors.publishTime)}
-              />
-              {errors.publishTime ? (
-                <span className="set-error">{errors.publishTime}</span>
-              ) : null}
-            </div>
-
-            <div className="brand-field">
-              <label htmlFor="cp-type">
-                Content Type <span className="brand-required">*</span>
-              </label>
-              <span className="form-select-wrap">
-                <select
-                  id="cp-type"
-                  className="form-select"
-                  value={type}
-                  onChange={setField(setType, 'type')}
-                >
-                  {CONTENT_TYPES.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <svg aria-hidden="true" className="icon">
-                  <use href="#i-chevron" />
-                </svg>
-              </span>
-            </div>
-
-            <div className="brand-field">
-              <label htmlFor="cp-tov">Tone of Voice</label>
-              <span className="form-select-wrap">
-                <select
-                  id="cp-tov"
-                  className="form-select"
-                  value={tov}
-                  onChange={setField(setTov, 'tov')}
-                >
-                  {TOV_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <svg aria-hidden="true" className="icon">
-                  <use href="#i-chevron" />
-                </svg>
-              </span>
-            </div>
-
-            <div className="brand-field">
-              <span className="content-plan__field-label">Status</span>
-              <div className="content-plan__readonly">
-                <span className="pill is-amber">Planned</span>
-              </div>
-            </div>
-
-            <div className="brand-field content-plan__editor-full">
-              <label htmlFor="cp-idea">
-                Idea <span className="brand-required">*</span>
-              </label>
-              <input
-                id="cp-idea"
-                className="form-input"
-                placeholder="e.g. The refill ritual, simplified"
-                value={title}
-                onChange={setField(setTitle, 'title')}
-                maxLength={160}
-                aria-invalid={Boolean(errors.title)}
-                autoFocus
-              />
-              {errors.title ? (
-                <span className="set-error">{errors.title}</span>
-              ) : (
-                <span className="brand-field__hint">
-                  The working idea from the brief. {title.length}/160
-                </span>
-              )}
-            </div>
-
-            <div className="brand-field content-plan__editor-full">
-              <label htmlFor="cp-caption">Idea Description</label>
-              <textarea
-                id="cp-caption"
-                className="form-textarea"
-                placeholder="What the post or reel says, and why it matters to the audience…"
-                value={caption}
-                onChange={setField(setCaption, 'caption')}
-                rows={3}
-              />
-            </div>
-
-            <div className="brand-field content-plan__editor-full">
-              <label htmlFor="cp-brief">Brief (Script / Copy)</label>
-              <textarea
-                id="cp-brief"
-                className="form-textarea"
-                placeholder="The script, caption, talking points or production notes behind the idea…"
-                value={notes}
-                onChange={setField(setNotes, 'notes')}
-                rows={3}
-              />
-            </div>
-
-            <div className="brand-field content-plan__editor-full">
-              <label htmlFor="cp-direction">Design Direction</label>
-              <textarea
-                id="cp-direction"
-                className="form-textarea"
-                placeholder="Visual style, references, format, colours, typography or shoot notes…"
-                value={designDirection}
-                onChange={setField(setDesignDirection, 'designDirection')}
-                rows={3}
-              />
-            </div>
-
-            <div className="brand-field">
-              <label htmlFor="cp-reference">Reference Link</label>
-              <input
-                id="cp-reference"
-                type="url"
-                className="form-input"
-                placeholder="https://…"
-                value={referenceUrl}
-                onChange={setField(setReferenceUrl, 'referenceUrl')}
-                aria-invalid={Boolean(errors.referenceUrl)}
-              />
-              {errors.referenceUrl ? (
-                <span className="set-error">{errors.referenceUrl}</span>
-              ) : (
-                <span className="brand-field__hint">Inspiration or an approved reference.</span>
-              )}
-            </div>
-
-            <div className="brand-field">
-              <label htmlFor="cp-material">Materials / Drive Link</label>
-              <input
-                id="cp-material"
-                type="url"
-                className="form-input"
-                placeholder="https://drive.google.com/…"
-                value={materialUrl}
-                onChange={setField(setMaterialUrl, 'materialUrl')}
-                aria-invalid={Boolean(errors.materialUrl)}
-              />
-              {errors.materialUrl ? (
-                <span className="set-error">{errors.materialUrl}</span>
-              ) : (
-                <span className="brand-field__hint">Assets, footage or final files.</span>
-              )}
-            </div>
-          </div>
-
-          <div className="content-plan__editor-actions">
-            <button
-              type="button"
-              className="button button--ghost"
-              onClick={() => setEditorOpen(false)}
-            >
-              Cancel
-            </button>
-            <button type="submit" className="button button--primary">
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-plus" />
-              </svg>
-              Add row to sheet
-            </button>
-          </div>
-        </form>
-      ) : null}
-
       <section className="content-plan__sheet">
         <header className="content-plan__sheet-head">
           <div>
@@ -566,11 +505,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
             <span>
               {posts} posts · {reels} reels
             </span>
-            <button
-              type="button"
-              className="button button--ghost button--sm"
-              onClick={() => setEditorOpen(true)}
-            >
+            <button type="button" className="button button--ghost button--sm" onClick={startAdding}>
               <svg aria-hidden="true" className="icon">
                 <use href="#i-plus" />
               </svg>
@@ -580,6 +515,12 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
         </header>
 
         <div className="content-plan__scroll">
+          <form
+            id="content-row-form"
+            className="content-plan__form"
+            onSubmit={handleSubmit}
+            noValidate
+          >
           <table className="content-plan-table">
             <colgroup>
               <col className="content-plan-table__col-index" />
@@ -608,7 +549,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
               </tr>
             </thead>
             <tbody>
-              {monthItems.length === 0 ? (
+              {monthItems.length === 0 && !isAdding ? (
                 <tr>
                   <td className="content-plan-table__empty" colSpan={10}>
                     <strong>This sheet is empty.</strong>
@@ -618,7 +559,7 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
                     <button
                       type="button"
                       className="button button--primary button--sm"
-                      onClick={() => setEditorOpen(true)}
+                      onClick={startAdding}
                     >
                       <svg aria-hidden="true" className="icon">
                         <use href="#i-plus" />
@@ -627,8 +568,9 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
                     </button>
                   </td>
                 </tr>
-              ) : (
-                monthItems.map((item, index) => (
+              ) : null}
+
+              {monthItems.map((item, index) => (
                   <tr key={item.id}>
                     <td className="content-plan-table__index">{index + 1}</td>
                     <td className="content-plan-table__date">{formatDate(item.publishDate)}</td>
@@ -642,6 +584,19 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
                     <td>
                       <strong className="content-plan-table__idea">{item.title}</strong>
                       {item.tov ? <span className="content-plan__tov">{item.tov}</span> : null}
+                      {(() => {
+                        const meta = getContentMeta(item.id);
+                        const itemPillar = meta.pillar ?? item.pillar ?? '';
+                        const itemCampaign =
+                          campaignName(meta.campaignId ?? item.campaignId ?? '') ?? '';
+                        if (!itemPillar && !itemCampaign) return null;
+                        return (
+                          <span className="content-plan__link-tags">
+                            {itemPillar ? <em>{itemPillar}</em> : null}
+                            {itemCampaign ? <em className="is-campaign">{itemCampaign}</em> : null}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>
                       <span className="content-plan-table__copy">
@@ -674,13 +629,250 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
                           ) : null}
                         </span>
                       ) : null}
+                      <button
+                        type="button"
+                        className="button button--ghost button--xs"
+                        onClick={() => setDetailsItem(item)}
+                      >
+                        {t('Content details')}
+                      </button>
                     </td>
                   </tr>
-                ))
-              )}
+                ))}
+
+              {isAdding ? (
+                <>
+                  <tr ref={draftRowRef} className="content-plan-table__draft">
+                    <td className="content-plan-table__index">{monthItems.length + 1}</td>
+                    <td>
+                      <input
+                        type="date"
+                        className="content-plan__cell-input"
+                        value={publishDate}
+                        onChange={setField(setPublishDate, 'publishDate')}
+                        min={bounds.min}
+                        max={bounds.max}
+                        aria-label="Publish date"
+                        aria-invalid={Boolean(errors.publishDate)}
+                      />
+                      {errors.publishDate ? (
+                        <span className="content-plan__cell-error">{errors.publishDate}</span>
+                      ) : null}
+                    </td>
+                    <td className="content-plan-table__draft-day">{weekdayLabel(publishDate)}</td>
+                    <td>
+                      <input
+                        type="time"
+                        className="content-plan__cell-input"
+                        value={publishTime}
+                        onChange={setField(setPublishTime, 'publishTime')}
+                        aria-label="Suggested time"
+                        aria-invalid={Boolean(errors.publishTime)}
+                      />
+                      {errors.publishTime ? (
+                        <span className="content-plan__cell-error">{errors.publishTime}</span>
+                      ) : null}
+                    </td>
+                    <td>
+                      <select
+                        className="content-plan__cell-input"
+                        value={type}
+                        onChange={setField(setType, 'type')}
+                        aria-label="Content type"
+                      >
+                        {CONTENT_TYPES.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        ref={ideaInputRef}
+                        className="content-plan__cell-input"
+                        placeholder="Idea"
+                        value={title}
+                        onChange={setField(setTitle, 'title')}
+                        maxLength={160}
+                        aria-label="Idea"
+                        aria-invalid={Boolean(errors.title)}
+                      />
+                      <select
+                        className="content-plan__cell-input content-plan__cell-input--spaced"
+                        value={tov}
+                        onChange={setField(setTov, 'tov')}
+                        aria-label="Tone of voice"
+                      >
+                        {TOV_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.title ? (
+                        <span className="content-plan__cell-error">{errors.title}</span>
+                      ) : null}
+                    </td>
+                    <td>
+                      <textarea
+                        className="content-plan__cell-textarea"
+                        placeholder="What the post or reel says…"
+                        value={caption}
+                        onChange={setField(setCaption, 'caption')}
+                        rows={2}
+                        aria-label="Idea description"
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        className="content-plan__cell-textarea"
+                        placeholder="Script, caption, talking points…"
+                        value={notes}
+                        onChange={setField(setNotes, 'notes')}
+                        rows={2}
+                        aria-label="Brief"
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        className="content-plan__cell-textarea"
+                        placeholder="Visual style, references, format…"
+                        value={designDirection}
+                        onChange={setField(setDesignDirection, 'designDirection')}
+                        rows={2}
+                        aria-label="Design direction"
+                      />
+                    </td>
+                    <td>
+                      <span className="pill is-amber">Planned</span>
+                    </td>
+                  </tr>
+                  <tr className="content-plan-table__draft-links">
+                    <td colSpan={10}>
+                      <div className="content-plan__draft-links">
+                        <label>
+                          <span>Reference link</span>
+                          <input
+                            type="url"
+                            className="content-plan__cell-input"
+                            placeholder="https://…"
+                            value={referenceUrl}
+                            onChange={setField(setReferenceUrl, 'referenceUrl')}
+                            aria-invalid={Boolean(errors.referenceUrl)}
+                          />
+                          {errors.referenceUrl ? (
+                            <span className="content-plan__cell-error">
+                              {errors.referenceUrl}
+                            </span>
+                          ) : null}
+                        </label>
+                        <label>
+                          <span>Materials link</span>
+                          <input
+                            type="url"
+                            className="content-plan__cell-input"
+                            placeholder="https://drive.google.com/…"
+                            value={materialUrl}
+                            onChange={setField(setMaterialUrl, 'materialUrl')}
+                            aria-invalid={Boolean(errors.materialUrl)}
+                          />
+                          {errors.materialUrl ? (
+                            <span className="content-plan__cell-error">
+                              {errors.materialUrl}
+                            </span>
+                          ) : null}
+                        </label>
+                        <label>
+                          <span>Pillar</span>
+                          <select
+                            className="content-plan__cell-input"
+                            value={pillar}
+                            onChange={(event) => setPillar(event.target.value)}
+                          >
+                            <option value="">No pillar</option>
+                            {Array.from(new Set([...pillars, pillar].filter(Boolean))).map(
+                              (option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Platform</span>
+                          <select
+                            className="content-plan__cell-input"
+                            value={platformName}
+                            onChange={(event) => setPlatformName(event.target.value)}
+                          >
+                            <option value="">No platform</option>
+                            {Array.from(
+                              new Set([
+                                ...strategyPlatforms,
+                                ...platforms.map((platform) => platform.name),
+                                platformName,
+                              ].filter(Boolean)),
+                            ).map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Campaign</span>
+                          <select
+                            className="content-plan__cell-input"
+                            value={campaignId}
+                            onChange={(event) => setCampaignId(event.target.value)}
+                          >
+                            <option value="">No campaign</option>
+                            {campaigns.map((campaign) => (
+                              <option key={campaign.id} value={campaign.id}>
+                                {campaign.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <small>
+                          Optional. Pillar and platform default from the approved strategy.
+                        </small>
+                      </div>
+                    </td>
+                  </tr>
+                </>
+              ) : null}
             </tbody>
           </table>
+          </form>
         </div>
+
+        {monthItems.length > 0 || isAdding ? (
+          <footer className="content-plan__footer">
+            {isAdding ? (
+              <>
+                <button type="button" className="button button--ghost" onClick={cancelAdding}>
+                  Cancel
+                </button>
+                <button type="submit" form="content-row-form" className="button button--primary">
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-plus" />
+                  </svg>
+                  Add row to sheet
+                </button>
+              </>
+            ) : (
+              <button type="button" className="button button--primary" onClick={startAdding}>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-plus" />
+                </svg>
+                Add Row
+              </button>
+            )}
+          </footer>
+        ) : null}
       </section>
 
       {planModalOpen ? (
@@ -690,6 +882,22 @@ export default function AddContentPage({ brandId, initialMonth, onBack }) {
           plans={brandPlans}
           onClose={() => setPlanModalOpen(false)}
           onSave={handleSavePlan}
+        />
+      ) : null}
+
+      {detailsItem ? (
+        <ContentDetailsModal
+          content={detailsItem}
+          brand={brand}
+          strategy={strategy}
+          onClose={() => setDetailsItem(null)}
+          onSaved={(state) => {
+            setDetailsItem(null);
+            showToast(
+              state === 'saved' ? 'Content details saved.' : 'Details saved as draft',
+              'success',
+            );
+          }}
         />
       ) : null}
 

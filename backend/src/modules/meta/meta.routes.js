@@ -7,7 +7,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 
 export const metaRouter = Router();
 
-metaRouter.use(authenticate, requireAdmin);
+metaRouter.use(authenticate);
 
 metaRouter.get(
   '/roles',
@@ -31,5 +31,22 @@ metaRouter.get(
     });
 
     res.status(200).json({ success: true, data: { jobTitles } });
+  }),
+);
+
+metaRouter.post(
+  '/job-titles',
+  asyncHandler(async (req, res) => {
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Job title name is required' });
+    }
+    const jobTitle = await prisma.jobTitle.upsert({
+      where: { name },
+      create: { name, isActive: true },
+      update: { isActive: true },
+      select: { id: true, name: true, description: true },
+    });
+    res.status(201).json({ success: true, data: { jobTitle } });
   }),
 );

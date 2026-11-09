@@ -5,6 +5,7 @@ import {
   SEED_USERS,
   initialsOf,
   permissionsForAccess,
+  teamMemberIds,
   toneFor,
 } from '../data/workspace';
 import { apiRequest } from '../services/http';
@@ -16,12 +17,14 @@ import { generateTemporaryPassword } from '../utils/credentials';
 
 const ACCESS_BY_ROLE = {
   ADMIN: 'admin',
+  TEAM_LEADER: 'team_leader',
   ACCOUNT_MANAGER: 'account_manager',
   EMPLOYEE: 'employee',
 };
 
 const ROLE_BY_ACCESS = {
   admin: 'ADMIN',
+  team_leader: 'TEAM_LEADER',
   account_manager: 'ACCOUNT_MANAGER',
   employee: 'EMPLOYEE',
 };
@@ -77,6 +80,7 @@ export function mapApiUser(user) {
   const roleName = user.role?.name ?? 'EMPLOYEE';
   const systemAccess = ACCESS_BY_ROLE[roleName] ?? 'employee';
   const membership = Array.isArray(user.memberships) ? user.memberships[0] : null;
+  const teamLeadTeam = Array.isArray(user.teamsLed) ? user.teamsLed[0] : null;
 
   return {
     id: user.id,
@@ -89,8 +93,8 @@ export function mapApiUser(user) {
     backendRole: roleName,
     permissions: permissionsForAccess(systemAccess),
     active: user.isActive !== false,
-    teamId: membership?.teamId ?? null,
-    teamName: membership?.team?.name ?? '',
+    teamId: membership?.teamId ?? teamLeadTeam?.id ?? null,
+    teamName: membership?.team?.name ?? teamLeadTeam?.name ?? '',
     createdAt: user.createdAt ? String(user.createdAt).slice(0, 10) : '',
     lastLoginAt: user.lastLoginAt ?? null,
     initials: initialsOf(user.fullName),
@@ -101,12 +105,21 @@ export function mapApiUser(user) {
 export function mapApiTeam(team) {
   if (!team) return null;
 
+  const memberIds = Array.isArray(team.memberships)
+    ? team.memberships
+        .map((membership) => membership.user?.id ?? membership.userId ?? null)
+        .filter((id) => id != null)
+    : [];
+
   return {
     id: team.id,
     name: team.name,
     description: team.description ?? '',
     status: team.isActive === false ? 'inactive' : 'active',
     brandIds: [],
+    memberIds,
+    teamLeadId: team.teamLeadId ?? null,
+    teamLead: team.teamLead ?? null,
     createdAt: team.createdAt ? String(team.createdAt).slice(0, 10) : '',
   };
 }
@@ -197,6 +210,11 @@ export function WorkspaceProvider({ children }) {
     async (input) => {
       const name = String(input.name ?? '').trim();
       const description = String(input.description ?? '').trim();
+      const teamLeadId = input.teamLeadId
+        ? demo
+          ? input.teamLeadId
+          : Number(input.teamLeadId)
+        : null;
 
       if (demo) {
         const team = {
@@ -205,6 +223,8 @@ export function WorkspaceProvider({ children }) {
           description,
           status: 'active',
           brandIds: [],
+          teamLeadId,
+          memberIds: teamLeadId ? [teamLeadId] : [],
           createdAt: today(),
         };
 
@@ -212,19 +232,88 @@ export function WorkspaceProvider({ children }) {
         return team;
       }
 
+      const body = { name, description: description || null };
+      if (teamLeadId) body.teamLeadId = teamLeadId;
+
       const team = mapApiTeam(
         unwrap(
           await apiRequest('/teams', {
             method: 'POST',
-            body: { name, description: description || null },
+            body,
           }),
         ),
       );
 
-      setTeams((prev) => [{ ...team, brandIds: [] }, ...prev]);
+      await refresh().catch(() => {});
       return team;
     },
-    [demo],
+    [demo, refresh],
+  );
+
+  const updateTeam = useCallback(
+    async (teamId, patch) => {
+      const name = patch.name !== undefined ? String(patch.name).trim() : undefined;
+      const description =
+        patch.description !== undefined ? String(patch.description).trim() : undefined;
+      const teamLeadId =
+        patch.teamLeadId !== undefined
+          ? patch.teamLeadId
+            ? demo
+              ? patch.teamLeadId
+              : Number(patch.teamLeadId)
+            : null
+          : undefined;
+
+      if (demo) {
+        setTeams((prev) =>
+          prev.map((team) => {
+            if (String(team.id) !== String(teamId)) return team;
+
+            const next = {
+              ...team,
+              ...(name !== undefined ? { name } : {}),
+              ...(description !== undefined ? { description } : {}),
+            };
+
+            if (teamLeadId !== undefined) {
+              const leadUser = teamLeadId
+                ? users.find((user) => String(user.id) === String(teamLeadId))
+                : null;
+
+              next.teamLeadId = teamLeadId;
+              next.teamLead = leadUser
+                ? { id: leadUser.id, fullName: leadUser.fullName, email: leadUser.email }
+                : null;
+
+              if (leadUser) {
+                next.memberIds = Array.from(
+                  new Set([...teamMemberIds(team, users), String(teamLeadId)]),
+                );
+              }
+            }
+
+            return next;
+          }),
+        );
+        return;
+      }
+
+      const body = {};
+      if (name !== undefined) body.name = name;
+      if (description !== undefined) body.description = description || null;
+      if (teamLeadId !== undefined) body.teamLeadId = teamLeadId;
+
+      const updated = unwrap(
+        await apiRequest(`/teams/${encodeURIComponent(teamId)}`, {
+          method: 'PATCH',
+          body,
+        }),
+      );
+
+      await refresh().catch(() => {});
+      return updated;
+    },
+    [demo, refresh, users],
   );
 
   const deleteTeam = useCallback(
@@ -297,93 +386,176 @@ export function WorkspaceProvider({ children }) {
         );
       }
 
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === userId && user.teamId === teamId ? { ...user, teamId: null } : user,
+      setTeams((prev) =>
+        prev.map((team) =>
+          String(team.id) === String(teamId)
+            ? {
+                ...team,
+                memberIds: teamMemberIds(team, users).filter(
+                  (id) => id !== String(userId),
+                ),
+                teamLeadId: String(team.teamLeadId) === String(userId) ? null : team.teamLeadId,
+                teamLead: String(team.teamLead?.id) === String(userId) ? null : team.teamLead,
+              }
+            : team,
         ),
       );
+      setUsers((prev) =>
+        prev.map((user) =>
+          String(user.id) === String(userId) && String(user.teamId) === String(teamId)
+            ? { ...user, teamId: null, teamName: '' }
+            : user,
+        ),
+      );
+
+      if (!demo) {
+        await refresh().catch(() => {});
+      }
     },
-    [demo],
+    [demo, refresh, users],
+  );
+
+  const addTeamMember = useCallback(
+    async (teamId, userId) => {
+      if (!demo) {
+        await apiRequest(`/teams/${encodeURIComponent(teamId)}/members`, {
+          method: 'POST',
+          body: { userId: Number(userId) },
+        });
+      }
+
+      setTeams((prev) =>
+        prev.map((team) => {
+          const base = teamMemberIds(team, users);
+          const nextIds =
+            String(team.id) === String(teamId)
+              ? Array.from(new Set([...base, String(userId)]))
+              : base.filter((id) => id !== String(userId));
+
+          return { ...team, memberIds: nextIds };
+        }),
+      );
+      setUsers((prev) =>
+        prev.map((user) =>
+          String(user.id) === String(userId) ? { ...user, teamId, teamName: '' } : user,
+        ),
+      );
+
+      if (!demo) {
+        await refresh().catch(() => {});
+      }
+    },
+    [demo, refresh, users],
+  );
+
+  const setTeamLead = useCallback(
+    async (teamId, userId) => {
+      const nextLeadId = userId == null || userId === '' ? null : demo ? userId : Number(userId);
+
+      if (!demo) {
+        await apiRequest(`/teams/${encodeURIComponent(teamId)}`, {
+          method: 'PATCH',
+          body: { teamLeadId: nextLeadId },
+        });
+      }
+
+      setTeams((prev) =>
+        prev.map((team) => {
+          if (String(team.id) !== String(teamId)) return team;
+
+          const leadUser = users.find((user) => String(user.id) === String(nextLeadId));
+          const memberIds =
+            nextLeadId != null && !(team.memberIds ?? []).some((id) => String(id) === String(nextLeadId))
+              ? [...(team.memberIds ?? []), nextLeadId]
+              : team.memberIds;
+
+          return {
+            ...team,
+            teamLeadId: nextLeadId,
+            memberIds,
+            teamLead: leadUser
+              ? { id: leadUser.id, fullName: leadUser.fullName, email: leadUser.email }
+              : null,
+          };
+        }),
+      );
+    },
+    [demo, users],
   );
 
   const createMember = useCallback(
     async (input) => {
       const fullName = String(input.fullName ?? '').trim();
       const systemAccess = input.systemAccess ?? 'employee';
+      const roleName = input.roleName || ROLE_BY_ACCESS[systemAccess] || 'EMPLOYEE';
+      const email = String(input.email ?? '').trim().toLowerCase();
+      const phone = input.phone ? String(input.phone).trim() : null;
+      const teamId = input.teamId ? Number(input.teamId) : null;
 
       if (demo) {
         const member = {
           id: makeId('user'),
           fullName,
-          email: String(input.email ?? '').trim().toLowerCase(),
-          jobTitle: String(input.jobTitle ?? '').trim(),
+          email,
+          phone: phone || '',
+          jobTitle: roleName === 'ADMIN' ? '' : String(input.customJobTitle || input.jobTitle || '').trim(),
           systemAccess,
           permissions: permissionsForAccess(systemAccess, input.permissions ?? []),
           active: true,
-          teamId: input.teamId ?? null,
+          teamId,
           createdAt: today(),
           initials: initialsOf(fullName),
           tone: toneFor(fullName),
         };
 
         setUsers((prev) => [member, ...prev]);
-
-        // Demo members live in localStorage only: no server account exists, so
-        // there is no password to hand out.
         return { ...member, isDemo: true };
       }
 
-      const jobTitles = await getJobTitleOptions();
-      const jobTitleName = String(input.jobTitle ?? '').trim();
-      const jobTitle = jobTitles.find(
-        (item) => item.name.toLowerCase() === jobTitleName.toLowerCase(),
-      );
+      const password = String(input.password || '').trim() || generateTemporaryPassword();
 
-      if (!jobTitle) {
-        const available = jobTitles.map((item) => item.name).join(', ');
-        throw new Error(
-          `Unknown job title "${jobTitleName}". Choose one of: ${available || 'none configured'}.`,
-        );
+      const body = {
+        fullName,
+        email,
+        phone,
+        password,
+        roleName,
+      };
+
+      if (roleName !== 'ADMIN') {
+        if (input.customJobTitle?.trim()) {
+          body.customJobTitle = input.customJobTitle.trim();
+        } else if (input.jobTitleId != null) {
+          body.jobTitleId = Number(input.jobTitleId);
+        } else if (input.jobTitle?.trim()) {
+          const jobTitles = await getJobTitleOptions().catch(() => []);
+          const match = jobTitles.find(
+            (item) => item.name.toLowerCase() === input.jobTitle.trim().toLowerCase(),
+          );
+          if (match) {
+            body.jobTitleId = match.id;
+          } else {
+            body.customJobTitle = input.jobTitle.trim();
+          }
+        }
       }
 
-      // Every account gets its own temporary password. The value sent to the
-      // API is exactly the one the dialog shows, so it is guaranteed to work.
-      const password = String(input.password || '').trim() || generateTemporaryPassword();
+      if (teamId) {
+        body.teamId = teamId;
+      }
 
       const created = mapApiUser(
         unwrap(
           await apiRequest('/users', {
             method: 'POST',
-            body: {
-              fullName,
-              email: String(input.email ?? '').trim().toLowerCase(),
-              password,
-              roleName: ROLE_BY_ACCESS[systemAccess] ?? 'EMPLOYEE',
-              jobTitleId: jobTitle.id,
-            },
+            body,
           }),
         ),
       );
 
-      // The account already exists at this point. Linking it to a team is a
-      // separate step, so a failure there must not hide the new credentials.
-      let teamWarning = '';
-
-      if (input.teamId) {
-        try {
-          await apiRequest(`/teams/${encodeURIComponent(input.teamId)}/members`, {
-            method: 'POST',
-            body: { userId: created.id },
-          });
-        } catch (error) {
-          teamWarning =
-            error?.message || 'The account was created but could not be added to this team.';
-        }
-      }
-
       await refresh().catch(() => {});
 
-      return { ...created, tempPassword: password, isDemo: false, teamWarning };
+      return { ...created, tempPassword: password, isDemo: false };
     },
     [demo, refresh],
   );
@@ -407,7 +579,10 @@ export function WorkspaceProvider({ children }) {
               systemAccess,
               permissions,
               fullName: String(patch.fullName ?? user.fullName).trim(),
-              jobTitle: String(patch.jobTitle ?? user.jobTitle).trim(),
+              jobTitle:
+                systemAccess === 'admin'
+                  ? ''
+                  : String(patch.customJobTitle || (patch.jobTitle ?? user.jobTitle)).trim(),
             };
           }),
         );
@@ -421,25 +596,35 @@ export function WorkspaceProvider({ children }) {
       if (patch.email !== undefined) body.email = String(patch.email).trim().toLowerCase();
       if (patch.phone !== undefined) body.phone = String(patch.phone).trim() || null;
 
-      if (patch.systemAccess && patch.systemAccess !== current?.systemAccess) {
-        if (patch.systemAccess === 'admin') {
-          throw new Error('Administrator access cannot be granted from the directory.');
-        }
-
-        body.roleName = ROLE_BY_ACCESS[patch.systemAccess];
+      let effectiveAccess = current?.systemAccess;
+      if (patch.systemAccess) {
+        effectiveAccess = patch.systemAccess;
+        body.roleName = ROLE_BY_ACCESS[patch.systemAccess] || patch.systemAccess;
+      } else if (patch.roleName) {
+        body.roleName = patch.roleName;
+        effectiveAccess = ACCESS_BY_ROLE[patch.roleName];
       }
 
-      if (patch.jobTitle && patch.jobTitle !== current?.jobTitle) {
-        const jobTitles = await getJobTitleOptions();
+      if (effectiveAccess === 'admin') {
+        body.jobTitleId = null;
+      } else if (patch.customJobTitle?.trim()) {
+        body.customJobTitle = patch.customJobTitle.trim();
+      } else if (patch.jobTitleId !== undefined) {
+        body.jobTitleId = patch.jobTitleId != null ? Number(patch.jobTitleId) : null;
+      } else if (patch.jobTitle !== undefined) {
+        const jobTitles = await getJobTitleOptions().catch(() => []);
         const match = jobTitles.find(
           (item) => item.name.toLowerCase() === String(patch.jobTitle).trim().toLowerCase(),
         );
-
-        if (!match) {
-          throw new Error(`Unknown job title "${patch.jobTitle}".`);
+        if (match) {
+          body.jobTitleId = match.id;
+        } else if (patch.jobTitle?.trim()) {
+          body.customJobTitle = String(patch.jobTitle).trim();
         }
+      }
 
-        body.jobTitleId = match.id;
+      if (patch.teamId !== undefined) {
+        body.teamId = patch.teamId ? Number(patch.teamId) : null;
       }
 
       if (patch.active === false && current?.active !== false) {
@@ -481,10 +666,14 @@ export function WorkspaceProvider({ children }) {
       error,
       refresh,
       addTeam,
+      updateTeam,
       deleteTeam,
       setTeamBrands,
       removeTeamMember,
+      addTeamMember,
+      setTeamLead,
       createMember,
+      addUser: createMember,
       updateUser,
       deleteUser,
       getTeamByName,
@@ -496,9 +685,12 @@ export function WorkspaceProvider({ children }) {
       error,
       refresh,
       addTeam,
+      updateTeam,
       deleteTeam,
       setTeamBrands,
       removeTeamMember,
+      addTeamMember,
+      setTeamLead,
       createMember,
       updateUser,
       deleteUser,

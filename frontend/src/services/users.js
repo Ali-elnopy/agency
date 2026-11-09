@@ -68,24 +68,28 @@ function roleIdFor(roleName) {
 
 const BACKEND_ROLE_TO_UI = {
   ADMIN: 'admin',
+  TEAM_LEADER: 'team_leader',
   ACCOUNT_MANAGER: 'director',
   EMPLOYEE: 'creator',
 };
 
 const UI_ROLE_TO_BACKEND = {
   admin: 'ADMIN',
+  team_leader: 'TEAM_LEADER',
   director: 'ACCOUNT_MANAGER',
   creator: 'EMPLOYEE',
 };
 
 const ROLE_HINTS = {
   ADMIN: 'Full governance • Users, roles & billing',
+  TEAM_LEADER: 'Team supervision • Pod assignments & workflows',
   ACCOUNT_MANAGER: 'Client portfolios • Brief approvals',
   EMPLOYEE: 'Production • Edit & draft',
 };
 
 const ROLE_TONES = {
   ADMIN: 'orange',
+  TEAM_LEADER: 'blue',
   ACCOUNT_MANAGER: 'purple',
   EMPLOYEE: 'blue',
 };
@@ -255,6 +259,22 @@ export async function getUser(id) {
 }
 
 export async function getJobTitles() {
+  try {
+    const data = unwrap(await request('/meta/job-titles'));
+    const titles = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.jobTitles)
+        ? data.jobTitles
+        : [];
+
+    if (titles.length) {
+      titles.forEach((item) => jobTitleIndex.set(item.name, item.id));
+      return titles;
+    }
+  } catch {
+    // Fall back to the titles already collected from the directory.
+  }
+
   if (!jobTitleIndex.size) {
     await getUsers().catch(() => null);
   }
@@ -262,29 +282,33 @@ export async function getJobTitles() {
   return [...jobTitleIndex.entries()].map(([name, id]) => ({ id, name }));
 }
 
-function resolveJobTitleId(name) {
-  const match = jobTitleIndex.get(name);
-
-  if (match) return match;
-
-  const fromEnv = Number(import.meta.env.VITE_JOB_TITLE_CONTENT_CREATOR);
-
-  return Number.isSafeInteger(fromEnv) && fromEnv > 0 ? fromEnv : null;
-}
-
-export async function createUser({ fullName, email, phone, password, roleName, jobTitleId }) {
+export async function createUser({
+  fullName,
+  email,
+  phone,
+  password,
+  roleName,
+  jobTitleId,
+  customJobTitle,
+  teamId,
+}) {
   try {
+    const body = {
+      fullName,
+      email,
+      phone: phone || null,
+      password,
+      roleName,
+      jobTitleId: roleName === 'ADMIN' ? null : jobTitleId ?? null,
+    };
+
+    if (customJobTitle?.trim()) body.customJobTitle = customJobTitle.trim();
+    if (teamId) body.teamId = Number(teamId);
+
     const data = unwrap(
       await request('/users', {
         method: 'POST',
-        body: {
-          fullName,
-          email,
-          phone: phone || null,
-          password,
-          roleName,
-          jobTitleId: jobTitleId ?? null,
-        },
+        body,
       }),
     );
 
@@ -302,7 +326,14 @@ export async function createUser({ fullName, email, phone, password, roleName, j
       isActive: true,
       createdAt: new Date().toISOString(),
       role: { name: roleName },
-      jobTitle: jobTitleId ? { id: jobTitleId, name: 'Team Member' } : null,
+      jobTitle:
+        roleName === 'ADMIN'
+          ? null
+          : customJobTitle
+            ? { id: Date.now(), name: customJobTitle }
+            : jobTitleId
+              ? { id: jobTitleId, name: 'Team Member' }
+              : null,
     });
 
     mockUsers.unshift(created);
@@ -330,41 +361,27 @@ function buildUpdateBody(patch, current) {
       );
     }
 
-    if (nextRoleId === 'admin') {
-      throw new ApiError(
-        'Workspace Admin accounts are provisioned by the platform and cannot be reassigned here.',
-        400,
-      );
-    }
-
     if (nextRoleId === 'client') {
       throw new ApiError('Client Reviewer accounts are not supported by the API yet.', 400);
     }
 
-    const roleName = UI_ROLE_TO_BACKEND[nextRoleId];
-
-    if (!roleName) {
-      throw new ApiError('That workspace role is not supported by the API.', 400);
-    }
+    const roleName = UI_ROLE_TO_BACKEND[nextRoleId] ?? nextRoleId;
 
     body.roleName = roleName;
-
-    if (roleName === 'EMPLOYEE' && !patch.jobTitleId) {
-      const jobTitleId = resolveJobTitleId('Content Creator');
-
-      if (!jobTitleId) {
-        throw new ApiError(
-          'A Content Creator job title is required. Ask an administrator to configure job titles first.',
-          400,
-        );
-      }
-
-      body.jobTitleId = jobTitleId;
-    }
   }
 
-  if (patch.jobTitleId && !body.jobTitleId && current?.backendRole !== 'ADMIN') {
-    body.jobTitleId = patch.jobTitleId;
+  const effectiveRole = body.roleName ?? current?.backendRole;
+
+  if (effectiveRole === 'ADMIN') {
+    body.jobTitleId = null;
+  } else if (patch.customJobTitle?.trim()) {
+    body.customJobTitle = patch.customJobTitle.trim();
+  } else if (patch.jobTitleId !== undefined) {
+    body.jobTitleId = patch.jobTitleId != null ? Number(patch.jobTitleId) : null;
+  }
+
+  if (patch.teamId !== undefined) {
+    body.teamId = patch.teamId ? Number(patch.teamId) : null;
   }
 
   return body;

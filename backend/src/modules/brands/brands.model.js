@@ -1,4 +1,3 @@
-
 import { prisma } from '../../config/prisma.js';
 
 const brandSelect = {
@@ -14,23 +13,21 @@ const brandSelect = {
   createdBy: true,
   createdAt: true,
   updatedAt: true,
-
   client: {
     select: {
       id: true,
       fullName: true,
       email: true,
       phone: true,
+      isActive: true,
     },
   },
-
   team: {
     select: {
       id: true,
       name: true,
     },
   },
-
   accountManager: {
     select: {
       id: true,
@@ -48,12 +45,30 @@ export const BrandsModel = {
     });
   },
 
-  createWithClient(brandData, clientData) {
+  async createWithClient(brandData, clientData) {
     return prisma.$transaction(async (tx) => {
+      const clientRole = await tx.role.findUnique({
+        where: { name: 'CLIENT' },
+        select: { id: true },
+      });
+
+      if (!clientRole) {
+        const error = new Error('CLIENT role is not configured');
+        error.code = 'CLIENT_ROLE_MISSING';
+        throw error;
+      }
+
       const client = await tx.user.create({
-        data: clientData,
+        data: {
+          ...clientData,
+          roleId: clientRole.id,
+        },
         select: {
           id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          isActive: true,
         },
       });
 
@@ -67,27 +82,23 @@ export const BrandsModel = {
     });
   },
 
+  create(data) {
+    return prisma.brand.create({
+      data,
+      select: brandSelect,
+    });
+  },
 
   list({ query, status, teamId, accountManagerId, accessWhere } = {}) {
     const conditions = [];
 
-    // Mandatory access restrictions.
     if (accessWhere && Object.keys(accessWhere).length > 0) {
       conditions.push(accessWhere);
     }
 
-    // Additional filters.
-    if (status) {
-      conditions.push({ status });
-    }
-
-    if (teamId != null) {
-      conditions.push({ teamId });
-    }
-
-    if (accountManagerId != null) {
-      conditions.push({ accountManagerId });
-    }
+    if (status) conditions.push({ status });
+    if (teamId != null) conditions.push({ teamId });
+    if (accountManagerId != null) conditions.push({ accountManagerId });
 
     if (query) {
       conditions.push({
@@ -98,9 +109,7 @@ export const BrandsModel = {
       });
     }
 
-    const where = conditions.length > 0
-      ? { AND: conditions }
-      : {};
+    const where = conditions.length > 0 ? { AND: conditions } : {};
 
     return prisma.brand.findMany({
       where,
@@ -109,22 +118,20 @@ export const BrandsModel = {
     });
   },
 
-
   findById(id) {
     return prisma.brand.findUnique({
       where: { id },
       select: brandSelect,
     });
   },
+
   findAccessibleById(id, accessWhere) {
     return prisma.brand.findFirst({
-      where: {
-        id,
-        ...accessWhere,
-      },
+      where: { id, ...accessWhere },
       select: brandSelect,
     });
   },
+
   update(id, data) {
     return prisma.brand.update({
       where: { id },
@@ -159,9 +166,7 @@ export const BrandsModel = {
         fullName: true,
         isActive: true,
         role: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
         },
       },
     });

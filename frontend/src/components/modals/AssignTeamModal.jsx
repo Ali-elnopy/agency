@@ -1,19 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../common/Modal';
 import { useWorkspace } from '../../context/workspaceStore';
 import { useBrands } from '../../context/brandsStore';
 import { initialsOf } from '../../services/brands';
 
 /* Assigns an unassigned brand to a team from the dashboard alert.
+   Brand and team lists come from the workspace (API or local project data).
    The brand update lands in the API first, then the workspace cache is
-   refreshed so team brand lists and dashboard counters stay in sync. */
+   refreshed in the background so team brand lists stay in sync without
+   making the dialog wait on the (slow) re-read. */
+
+function brandBelongsToTeam(brand, team) {
+  if (brand?.teamId != null) return String(brand.teamId) === String(team.id);
+
+  return Boolean(brand?.team) && brand.team === team.name;
+}
 export default function AssignTeamModal({ isOpen, brand, onClose, onAssigned }) {
-  const { teams, refresh } = useWorkspace();
-  const { updateBrand } = useBrands();
+  const { teams, users, loading, refresh } = useWorkspace();
+  const { brands, updateBrand } = useBrands();
 
   const [teamId, setTeamId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const resolvedBrand = useMemo(() => {
+    if (!brand) return null;
+
+    return brands.find((item) => String(item.id) === String(brand.id)) ?? brand;
+  }, [brand, brands]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -21,15 +35,18 @@ export default function AssignTeamModal({ isOpen, brand, onClose, onAssigned }) 
     setTeamId('');
     setError('');
     setBusy(false);
-  }, [isOpen, brand?.id]);
+  }, [isOpen, resolvedBrand?.id]);
 
-  const activeTeams = teams.filter((team) => team.status !== 'inactive');
+  const activeTeams = useMemo(
+    () => teams.filter((team) => team.status !== 'inactive'),
+    [teams],
+  );
   const selectedTeam = activeTeams.find((team) => String(team.id) === String(teamId)) ?? null;
 
   const handleAssign = async () => {
     if (busy) return;
 
-    if (!brand?.id) {
+    if (!resolvedBrand?.id) {
       setError('This brand could not be identified. Refresh the dashboard and try again.');
       return;
     }
@@ -43,18 +60,24 @@ export default function AssignTeamModal({ isOpen, brand, onClose, onAssigned }) 
     setError('');
 
     try {
-      await updateBrand(brand.id, { teamId: selectedTeam.id });
-      await refresh().catch(() => {});
-      onAssigned?.(selectedTeam.name, brand.name);
+      await updateBrand(resolvedBrand.id, {
+        teamId: selectedTeam.id,
+        team: selectedTeam.name,
+      });
+
+      // The brand is persisted and the dashboard derives its counters from the
+      // brands list, so close the dialog right away. Syncing the workspace
+      // (team member/brand lists) continues in the background.
+      onAssigned?.(selectedTeam.name, resolvedBrand.name);
       onClose();
+      refresh().catch(() => {});
     } catch (err) {
       setError(err?.message || 'Could not assign this brand to the selected team.');
-    } finally {
       setBusy(false);
     }
   };
 
-  if (!brand) return null;
+  if (!resolvedBrand) return null;
 
   const footer = (
     <>
@@ -92,15 +115,24 @@ export default function AssignTeamModal({ isOpen, brand, onClose, onAssigned }) 
 
         <div className="modal-info-card">
           <div className="assign-brand">
-            <span className="assign-brand__mark">{initialsOf(brand.name)}</span>
+            <span className="assign-brand__mark">{initialsOf(resolvedBrand.name)}</span>
             <span className="assign-brand__body">
-              <strong>{brand.name}</strong>
-              <small>{brand.sub || 'No team assigned'}</small>
+              <strong>{resolvedBrand.name}</strong>
+              <small>
+                {resolvedBrand.industry
+                  ? `${resolvedBrand.industry} · No team assigned`
+                  : resolvedBrand.sub || 'No team assigned'}
+              </small>
             </span>
           </div>
         </div>
 
-        {activeTeams.length === 0 ? (
+        {loading && activeTeams.length === 0 ? (
+          <div className="ws-empty">
+            <strong>Loading teams…</strong>
+            <p>Workspace teams are being loaded from the project.</p>
+          </div>
+        ) : activeTeams.length === 0 ? (
           <div className="ws-empty">
             <strong>No active teams yet.</strong>
             <p>Create a team from the Teams page, then assign this brand.</p>
@@ -109,7 +141,17 @@ export default function AssignTeamModal({ isOpen, brand, onClose, onAssigned }) 
           <div className="team-picker" role="radiogroup" aria-label="Available teams">
             {activeTeams.map((team) => {
               const selected = String(team.id) === String(teamId);
-              const brandCount = team.brandIds?.length ?? 0;
+              const linkedBrandCount = brands.filter((item) =>
+                brandBelongsToTeam(item, team),
+              ).length;
+              const brandCount =
+                brands.some((item) => item.teamId != null)
+                  ? linkedBrandCount
+                  : (team.brandIds?.length ?? 0);
+              const memberCount = Math.max(
+                users.filter((user) => String(user.teamId) === String(team.id)).length,
+                team.memberIds?.length ?? 0,
+              );
 
               return (
                 <button
@@ -129,6 +171,7 @@ export default function AssignTeamModal({ isOpen, brand, onClose, onAssigned }) 
                     <span className="team-option__name">{team.name}</span>
                     <span className="team-option__meta">
                       {brandCount} {brandCount === 1 ? 'brand' : 'brands'} assigned
+                      {` · ${memberCount} ${memberCount === 1 ? 'member' : 'members'}`}
                       {team.description ? ` · ${team.description}` : ''}
                     </span>
                   </span>

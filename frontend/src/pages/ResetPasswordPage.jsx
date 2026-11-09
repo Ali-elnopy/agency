@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Logo from '../components/Logo';
 import { resetPasswordApi } from '../services/api';
+import { useSprint3 } from '../context/sprint3Store';
 
 const REQUIREMENTS = [
   { id: 'length', label: 'At least 12 characters long', test: (value) => value.length >= 12 },
@@ -31,6 +32,7 @@ export default function ResetPasswordPage({
   accountEmail,
   token = '',
 }) {
+  const { lang, setLang, t } = useSprint3();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -61,7 +63,7 @@ export default function ResetPasswordPage({
     if (result.success) {
       setDone(true);
     } else {
-      setError(result.message);
+      setError(t(result.message));
     }
 
     setSubmitting(false);
@@ -84,13 +86,37 @@ export default function ResetPasswordPage({
           </span>
         </a>
 
-        <div className="login__actions">
+        <div className="login__actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            className="s3-lang-toggle"
+            onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+            title={lang === 'ar' ? 'Switch to English' : 'التحويل إلى العربية'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '32px',
+              padding: '0 12px',
+              fontSize: '12.5px',
+              fontWeight: '700',
+              borderRadius: '8px',
+              border: '1px solid var(--auth-input-line, rgba(0,0,0,0.12))',
+              background: 'var(--auth-input-bg, #ffffff)',
+              color: 'var(--auth-ink, #1e1b3c)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {lang === 'ar' ? 'English' : 'عربي'}
+          </button>
+
           <button
             type="button"
             className="theme-toggle"
             aria-label="Toggle dark mode"
             onClick={onToggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={theme === 'dark' ? t('Switch to Light Mode') : t('Switch to Dark Mode')}
           >
             <svg className="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
@@ -102,71 +128,57 @@ export default function ResetPasswordPage({
           </button>
 
           <ol className="stepper">
-            <li className={done ? '' : 'is-active'}>1. Reset Form</li>
-            <li className={done ? 'is-active' : ''}>2. Success</li>
-            <li>3. Expired Link</li>
+            <li className={done ? '' : 'is-active'}>{t('1. Reset Form')}</li>
+            <li className={done ? 'is-active' : ''}>{t('2. Success')}</li>
+            <li>{t('3. Expired Link')}</li>
           </ol>
         </div>
       </header>
 
       <div className="login__body">
         <span className="badge">
-          <svg aria-hidden="true">
+          <svg aria-hidden="true" style={{ width: 14, height: 14, display: 'inline-block', verticalAlign: 'middle', marginRight: lang === 'ar' ? 0 : 6, marginLeft: lang === 'ar' ? 6 : 0 }}>
             <use href="#i-key" />
           </svg>
-          Secure Credential Update
+          {t('Secure Credential Update')}
         </span>
 
-        <h1 className="login__title">Reset your password</h1>
-        <p className="login__subtitle">Choose a strong, unique password for {target}</p>
+        <h1 className="login__title">{t('Reset your password')}</h1>
+        <p className="login__subtitle">{t('Choose a strong, unique password for')} {target}</p>
 
         {done ? (
           <div className="auth-notice" role="status">
-            <strong>Password updated</strong>
+            <strong>{t('Password updated')}</strong>
             <p className="auth-notice__text">
-              Your credentials are secured. You can now sign in with your new password.
+              {t('Your credentials are secured. You can now sign in with your new password.')}
             </p>
             <button
               type="button"
               className="btn auth-notice__btn"
               onClick={() => onNavigate('login')}
             >
-              Sign in to ORVIA
-              <svg viewBox="0 0 24 24" aria-hidden="true">
+              {t('Sign in to ORVIA')}
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ transform: lang === 'ar' ? 'rotate(180deg)' : 'none' }}>
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </button>
           </div>
         ) : !hasToken ? (
           <div className="auth-notice" role="alert">
-            <strong>This reset link is incomplete</strong>
+            <strong>{t('This reset link is incomplete')}</strong>
             <p className="auth-notice__text">
-              Reset links are single-use and expire after 30 minutes. Request a fresh one and open
-              it from your inbox.
+              {t('Reset links are single-use and expire after 30 minutes. Request a fresh one and open it from your inbox.')}
             </p>
             <button
               type="button"
               className="btn auth-notice__btn"
               onClick={() => onNavigate('forgot')}
             >
-              Request a new link
-              <svg viewBox="0 0 24 24" aria-hidden="true">
+              {t('Request a new link')}
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ transform: lang === 'ar' ? 'rotate(180deg)' : 'none' }}>
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </button>
-            <a
-              href="#login"
-              className="back-link"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate('login');
-              }}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M19 12H5M11 6l-6 6 6 6" />
-              </svg>
-              Return to Login
-            </a>
           </div>
         ) : (
           <form className="form" onSubmit={handleSubmit}>
@@ -177,8 +189,12 @@ export default function ResetPasswordPage({
             )}
 
             <div className="field">
-              <label htmlFor="rp-password">New Password</label>
-              <div className="input">
+              <label htmlFor="rp-password">{t('New Password')}</label>
+              <div className="input input--icon">
+                <svg className="input__lead" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4.5" y="10.5" width="15" height="9.5" rx="2.5" />
+                  <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+                </svg>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="rp-password"
@@ -186,12 +202,13 @@ export default function ResetPasswordPage({
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   autoComplete="new-password"
+                  required
                 />
                 <button
                   type="button"
                   className="input__toggle"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('Hide password') : t('Show password')}
                 >
                   {showPassword ? (
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -210,9 +227,9 @@ export default function ResetPasswordPage({
 
             <div className="pw-strength">
               <div className="pw-strength__head">
-                <span>Password Strength</span>
+                <span>{t('Password Strength')}</span>
                 <strong className={passed === REQUIREMENTS.length ? 'is-strong' : ''}>
-                  {password ? strengthLabel : '—'} ({passed}/4)
+                  {password ? t(strengthLabel) : '—'} ({passed}/4)
                 </strong>
               </div>
               <div className="pw-strength__bar">
@@ -232,7 +249,7 @@ export default function ResetPasswordPage({
                         <circle cx="12" cy="12" r="11" />
                         <path d="M7.4 12.3l3.1 3.1 6.1-6.6" />
                       </svg>
-                      {rule.label}
+                      {t(rule.label)}
                     </li>
                   );
                 })}
@@ -240,7 +257,7 @@ export default function ResetPasswordPage({
             </div>
 
             <div className="field">
-              <label htmlFor="rp-confirm">Confirm New Password</label>
+              <label htmlFor="rp-confirm">{t('Confirm New Password')}</label>
               <div className="input">
                 <input
                   type={showConfirm ? 'text' : 'password'}
@@ -254,7 +271,7 @@ export default function ResetPasswordPage({
                   type="button"
                   className="input__toggle"
                   onClick={() => setShowConfirm(!showConfirm)}
-                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  aria-label={showConfirm ? t('Hide password') : t('Show password')}
                 >
                   {showConfirm ? (
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -274,14 +291,14 @@ export default function ResetPasswordPage({
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M5 12.5l4.5 4.5L19 7.5" />
                   </svg>
-                  Passwords match
+                  {t('Passwords match')}
                 </span>
               )}
             </div>
 
             <button type="submit" className="btn" disabled={!canSubmit}>
-              {submitting ? 'Updating…' : 'Update password & sign in'}
-              <svg viewBox="0 0 24 24" aria-hidden="true">
+              {submitting ? t('Updating…') : t('Update password & sign in')}
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ transform: lang === 'ar' ? 'rotate(180deg)' : 'none' }}>
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </button>
@@ -294,10 +311,10 @@ export default function ResetPasswordPage({
                 onNavigate('login');
               }}
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ transform: lang === 'ar' ? 'rotate(180deg)' : 'none' }}>
                 <path d="M19 12H5M11 6l-6 6 6 6" />
               </svg>
-              Return to Login
+              {t('Return to Login')}
             </a>
           </form>
         )}
@@ -305,13 +322,13 @@ export default function ResetPasswordPage({
 
       <footer className="login__footer">
         <p>
-          Need assistance?{' '}
+          {t('Need assistance?')}{' '}
           <a href="#support" className="link link--strong" onClick={(e) => e.preventDefault()}>
-            Contact Support
+            {t('Contact Support')}
           </a>
         </p>
         <nav className="footer-nav">
-          <span>Studio Security Protocol 2.4</span>
+          <span>{t('Studio Security Protocol 2.4')}</span>
         </nav>
       </footer>
     </section>

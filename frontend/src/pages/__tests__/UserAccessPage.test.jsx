@@ -42,32 +42,34 @@ describe('UserAccessPage directory', () => {
     const user = userEvent.setup();
     renderPage();
 
-    const row = screen.getByText('Elena Vance').closest('article');
-    await user.click(within(row).getByRole('button', { name: 'Edit User' }));
+    // Elena is admin, so Job Title field should not be present
+    const elenaRow = screen.getByText('Elena Vance').closest('article');
+    await user.click(within(elenaRow).getByRole('button', { name: 'Edit User' }));
+    expect(screen.getByLabelText('Full Name')).toHaveValue('Elena Vance');
+    expect(screen.queryByLabelText('Job Title')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+
+    // Maya Lin is account_manager, so Job Title is present
+    const mayaRow = screen.getByText('Maya Lin').closest('article');
+    await user.click(within(mayaRow).getByRole('button', { name: 'Edit User' }));
 
     const nameInput = screen.getByLabelText('Full Name');
-    const jobInput = screen.getByLabelText('Job Title');
-
-    expect(nameInput).toHaveValue('Elena Vance');
-    expect(jobInput).toHaveValue('Studio Lead');
+    expect(nameInput).toHaveValue('Maya Lin');
+    expect(screen.getByLabelText('Job Title')).toBeInTheDocument();
 
     await user.clear(nameInput);
-    await user.type(nameInput, 'Elena V. Vance');
-    await user.clear(jobInput);
-    await user.type(jobInput, 'Managing Partner');
+    await user.type(nameInput, 'Maya L. Lin');
     await user.click(screen.getByRole('button', { name: 'Save User' }));
 
-    expect(screen.getByText('Elena V. Vance')).toBeInTheDocument();
-    expect(screen.getByText(/Managing Partner/)).toBeInTheDocument();
+    expect(screen.getByText('Maya L. Lin')).toBeInTheDocument();
     expect(screen.queryByLabelText('Full Name')).not.toBeInTheDocument();
 
     const stored = JSON.parse(
       window.localStorage.getItem('orvia_workspace_users_v1'),
     );
-    const elena = stored.find((member) => member.id === 'user-1');
+    const maya = stored.find((member) => member.id === 'user-2');
 
-    expect(elena.fullName).toBe('Elena V. Vance');
-    expect(elena.jobTitle).toBe('Managing Partner');
+    expect(maya.fullName).toBe('Maya L. Lin');
   });
 
   it('offers Delete instead of Reset Password and filters from global search', () => {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Modal from '../components/common/Modal';
+import TeamMembersModal from '../components/teams/TeamMembersModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
@@ -7,14 +8,30 @@ import { useWorkspace } from '../context/workspaceStore';
 const TONES = ['tone-orange', 'tone-purple', 'tone-blue', 'tone-green', 'tone-amber'];
 
 export default function TeamsPage({ onOpenTeam }) {
-  const { teams, addTeam } = useWorkspace();
+  const { users, teams, addTeam } = useWorkspace();
   const { toast, showToast } = useToast(3500);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [editingTeam, setEditingTeam] = useState(null);
+  const [form, setForm] = useState({ name: '', description: '', teamLeadId: '' });
   const [errors, setErrors] = useState({});
 
+  const leaderCandidates = React.useMemo(
+    () =>
+      users
+        .filter(
+          (u) =>
+            u.active !== false &&
+            u.teamId == null &&
+            (u.systemAccess === 'team_leader' ||
+              u.systemAccess === 'employee' ||
+              u.systemAccess === 'account_manager'),
+        )
+        .sort((a, b) => String(a.fullName).localeCompare(String(b.fullName))),
+    [users],
+  );
+
   const openCreate = () => {
-    setForm({ name: '', description: '' });
+    setForm({ name: '', description: '', teamLeadId: '' });
     setErrors({});
     setIsCreateOpen(true);
   };
@@ -29,7 +46,7 @@ export default function TeamsPage({ onOpenTeam }) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  const createTeam = () => {
+  const createTeam = async () => {
     const name = form.name.trim();
 
     if (!name) {
@@ -42,9 +59,17 @@ export default function TeamsPage({ onOpenTeam }) {
       return;
     }
 
-    addTeam({ name, description: form.description });
-    closeCreate();
-    showToast('Team created successfully.');
+    try {
+      await addTeam({
+        name,
+        description: form.description,
+        teamLeadId: form.teamLeadId ? Number(form.teamLeadId) : null,
+      });
+      closeCreate();
+      showToast('Team created successfully.');
+    } catch (err) {
+      setErrors({ name: err?.message || 'Could not create team.' });
+    }
   };
 
   return (
@@ -80,12 +105,35 @@ export default function TeamsPage({ onOpenTeam }) {
                 {team.description?.trim() || 'No description added.'}
               </p>
 
+              <div className="ws-team-card__leader">
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-user" />
+                </svg>
+                {team.teamLead ? (
+                  <span>
+                    <strong>Team leader:</strong> {team.teamLead.fullName}
+                  </span>
+                ) : (
+                  <span className="is-muted">No team leader assigned</span>
+                )}
+              </div>
+
               <div className="ws-team-card__foot">
                 <button type="button" className="ws-open-team" onClick={() => onOpenTeam(team.name)}>
                   Open Team
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-arrow" />
                   </svg>
+                </button>
+                <button
+                  type="button"
+                  className="ws-btn ws-btn--ghost ws-btn--sm"
+                  onClick={() => setEditingTeam(team)}
+                >
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-users" />
+                  </svg>
+                  Edit Team
                 </button>
               </div>
             </article>
@@ -132,13 +180,42 @@ export default function TeamsPage({ onOpenTeam }) {
           <span>Description</span>
           <textarea
             className="ws-textarea"
-            rows={4}
+            rows={3}
             value={form.description}
             onChange={updateField('description')}
             placeholder="What does this team own?"
           />
         </label>
+
+        <label className="ws-field">
+          <span>Team Leader (Optional)</span>
+          <span className="ws-select-wrap">
+            <select
+              className="ws-select"
+              value={form.teamLeadId}
+              onChange={updateField('teamLeadId')}
+            >
+              <option value="">No leader assigned</option>
+              {leaderCandidates.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName} {user.systemAccess === 'team_leader' ? '⭐ (Team Leader)' : ''} — {user.jobTitle || user.systemAccess}
+                </option>
+              ))}
+            </select>
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-chevron" />
+            </svg>
+          </span>
+        </label>
       </Modal>
+
+      {editingTeam ? (
+        <TeamMembersModal
+          team={editingTeam}
+          onClose={() => setEditingTeam(null)}
+          onSaved={(message) => showToast(message || 'Team updated.')}
+        />
+      ) : null}
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </div>

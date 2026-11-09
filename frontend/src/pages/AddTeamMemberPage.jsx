@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import CredentialsModal from '../components/common/CredentialsModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
+import { getJobTitles } from '../services/users';
+import { isOtherJobTitle, orderJobTitles, OTHER_JOB_TITLE } from '../data/jobTitles';
 import {
   ACCESS_LEVELS,
   PERMISSION_OPTIONS,
@@ -13,6 +15,7 @@ const EMPTY_FORM = {
   fullName: '',
   email: '',
   jobTitle: '',
+  customJobTitle: '',
   systemAccess: 'employee',
   permissions: [],
 };
@@ -24,6 +27,18 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [credentials, setCredentials] = useState(null);
+  const [availableJobTitles, setAvailableJobTitles] = useState([]);
+
+  const jobTitleChoices = useMemo(
+    () => orderJobTitles(availableJobTitles),
+    [availableJobTitles],
+  );
+
+  useEffect(() => {
+    getJobTitles()
+      .then((titles) => setAvailableJobTitles(Array.isArray(titles) ? titles : []))
+      .catch(() => {});
+  }, []);
 
   const team = teams.find((item) => item.name === teamName) ?? null;
 
@@ -46,6 +61,17 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
 
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const updateJobTitle = (event) => {
+    const value = event.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      jobTitle: value,
+      customJobTitle: isOtherJobTitle(value) ? prev.customJobTitle : '',
+    }));
+    setErrors((prev) => ({ ...prev, jobTitle: undefined, customJobTitle: undefined }));
   };
 
   const updateAccess = (event) => {
@@ -77,7 +103,9 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
     const nextErrors = {};
     const fullName = form.fullName.trim();
     const email = form.email.trim().toLowerCase();
-    const jobTitle = form.jobTitle.trim();
+    const jobTitle = isOtherJobTitle(form.jobTitle)
+      ? form.customJobTitle.trim()
+      : form.jobTitle.trim();
 
     if (!fullName) nextErrors.fullName = 'Full name is required.';
     if (!email) nextErrors.email = 'Email is required.';
@@ -86,7 +114,15 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
     } else if (users.some((user) => user.email.toLowerCase() === email)) {
       nextErrors.email = 'A member with this email already exists.';
     }
-    if (!jobTitle) nextErrors.jobTitle = 'Job title is required.';
+    if (form.systemAccess !== 'admin' && !form.jobTitle) {
+      nextErrors.jobTitle = 'Job title is required.';
+    } else if (
+      form.systemAccess !== 'admin' &&
+      isOtherJobTitle(form.jobTitle) &&
+      !jobTitle
+    ) {
+      nextErrors.customJobTitle = 'Enter the job title.';
+    }
 
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
@@ -185,21 +221,46 @@ export default function AddTeamMemberPage({ team: teamName, onBack, onSaved }) {
             {errors.email && <small className="ws-error">{errors.email}</small>}
           </label>
 
-          <label className={`ws-field${errors.jobTitle ? ' is-invalid' : ''}`}>
-            <span>
-              Job Title <em>*</em>
-            </span>
-            <input
-              className="ws-input"
-              value={form.jobTitle}
-              onChange={updateField('jobTitle')}
-              placeholder="Designer, Video Editor, Content Creator..."
-            />
-            <small className="ws-hint">
-              Job Title is flexible. You can write any role used by your agency.
-            </small>
-            {errors.jobTitle && <small className="ws-error">{errors.jobTitle}</small>}
-          </label>
+          {form.systemAccess !== 'admin' && (
+            <label className={`ws-field${errors.jobTitle ? ' is-invalid' : ''}`}>
+              <span>
+                Job Title <em>*</em>
+              </span>
+              <span className="ws-select-wrap">
+                <select
+                  className="ws-select"
+                  value={form.jobTitle}
+                  onChange={updateJobTitle}
+                >
+                  <option value="">Select a job title</option>
+                  {jobTitleChoices.map((title) => (
+                    <option key={title.id} value={title.name}>
+                      {title.name}
+                    </option>
+                  ))}
+                  <option value={OTHER_JOB_TITLE}>Other</option>
+                </select>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-chevron" />
+                </svg>
+              </span>
+              {isOtherJobTitle(form.jobTitle) && (
+                <input
+                  className="ws-input"
+                  placeholder="Enter the job title"
+                  value={form.customJobTitle}
+                  onChange={updateField('customJobTitle')}
+                />
+              )}
+              <small className="ws-hint">
+                Pick the title that best matches this person&rsquo;s work.
+              </small>
+              {errors.jobTitle && <small className="ws-error">{errors.jobTitle}</small>}
+              {errors.customJobTitle && (
+                <small className="ws-error">{errors.customJobTitle}</small>
+              )}
+            </label>
+          )}
 
           <label className="ws-field">
             <span>

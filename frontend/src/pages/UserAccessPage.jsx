@@ -9,25 +9,43 @@ import {
   PERMISSION_OPTIONS,
   permissionsForAccess,
 } from '../data/workspace';
+import { getJobTitles } from '../services/users';
+import { isOtherJobTitle, jobTitleOptions, OTHER_JOB_TITLE } from '../data/jobTitles';
 
 function emptyForm(user) {
+  const currentTitle = user?.jobTitle ?? '';
+
   return {
     fullName: user?.fullName ?? '',
-    jobTitle: user?.jobTitle ?? '',
+    jobTitle: user?.systemAccess === 'admin' ? '' : currentTitle,
+    customJobTitle: '',
     systemAccess: user?.systemAccess ?? 'employee',
+    teamId: user?.teamId ?? '',
     active: user?.active !== false,
     permissions: [...(user?.permissions ?? [])],
   };
 }
 
-export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
+export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQuery }) {
   const { users, teams, updateUser, deleteUser } = useWorkspace();
   const [editingId, setEditingId] = useState(null);
+  const [availableJobTitles, setAvailableJobTitles] = useState([]);
   const [form, setForm] = useState(emptyForm());
   const [errors, setErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [query, setQuery] = useState('');
   const { toast, showToast } = useToast(3500);
+
+  const jobTitleChoices = jobTitleOptions(
+    availableJobTitles,
+    isOtherJobTitle(form.jobTitle) ? '' : form.jobTitle,
+  );
+
+  useEffect(() => {
+    getJobTitles()
+      .then((titles) => setAvailableJobTitles(Array.isArray(titles) ? titles : []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setQuery(initialQuery?.query ?? '');
@@ -64,12 +82,24 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
+  const updateJobTitle = (event) => {
+    const value = event.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      jobTitle: value,
+      customJobTitle: isOtherJobTitle(value) ? prev.customJobTitle : '',
+    }));
+    setErrors((prev) => ({ ...prev, jobTitle: undefined, customJobTitle: undefined }));
+  };
+
   const updateAccess = (event) => {
     const systemAccess = event.target.value;
 
     setForm((prev) => ({
       ...prev,
       systemAccess,
+      jobTitle: systemAccess === 'admin' ? '' : prev.jobTitle,
       permissions: permissionsForAccess(systemAccess, prev.permissions),
     }));
   };
@@ -93,7 +123,13 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
     const nextErrors = {};
 
     if (!form.fullName.trim()) nextErrors.fullName = 'Full name is required.';
-    if (!form.jobTitle.trim()) nextErrors.jobTitle = 'Job title is required.';
+
+    const isAdmin = form.systemAccess === 'admin';
+    if (!isAdmin && !form.jobTitle) {
+      nextErrors.jobTitle = 'Job title is required.';
+    } else if (!isAdmin && isOtherJobTitle(form.jobTitle) && !form.customJobTitle.trim()) {
+      nextErrors.customJobTitle = 'Enter the job title.';
+    }
 
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
@@ -101,10 +137,17 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
     }
 
     try {
+      const resolvedJobTitle = isAdmin
+        ? ''
+        : isOtherJobTitle(form.jobTitle)
+          ? form.customJobTitle.trim()
+          : form.jobTitle.trim();
+
       await updateUser(editingId, {
-        fullName: form.fullName,
-        jobTitle: form.jobTitle,
+        fullName: form.fullName.trim(),
+        jobTitle: resolvedJobTitle,
         systemAccess: form.systemAccess,
+        teamId: form.teamId ? form.teamId : null,
         permissions: permissionsForAccess(form.systemAccess, form.permissions),
         active: form.active,
       });
@@ -139,11 +182,15 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
           <p className="ws-page-sub">Edit roles, permissions and account status.</p>
         </div>
 
-        <button type="button" className="ws-btn ws-btn--primary" onClick={onAddMemberViaTeam}>
+        <button
+          type="button"
+          className="ws-btn ws-btn--primary"
+          onClick={onAddUser || onAddMemberViaTeam}
+        >
           <svg aria-hidden="true" className="icon">
             <use href="#i-plus" />
           </svg>
-          Create Member via Team
+          Add User
         </button>
       </section>
 
@@ -193,7 +240,9 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
                       <span className="ws-badge ws-badge--role">{access.short}</span>
                     </div>
                     <p className="ws-user-meta">
-                      {user.jobTitle} • {user.email}
+                      {user.systemAccess === 'admin'
+                        ? user.email
+                        : `${user.jobTitle ? `${user.jobTitle} • ` : ''}${user.email}`}
                     </p>
                     <p className="ws-user-team">Team: {teamName(user.teamId)}</p>
                   </div>
@@ -225,15 +274,45 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
                       {errors.fullName && <small className="ws-error">{errors.fullName}</small>}
                     </label>
 
-                    <label className={`ws-field${errors.jobTitle ? ' is-invalid' : ''}`}>
-                      <span>Job Title</span>
-                      <input
-                        className="ws-input"
-                        value={form.jobTitle}
-                        onChange={updateField('jobTitle')}
-                      />
-                      {errors.jobTitle && <small className="ws-error">{errors.jobTitle}</small>}
-                    </label>
+                    {form.systemAccess !== 'admin' && (
+                      <label
+                        className={`ws-field${
+                          errors.jobTitle || errors.customJobTitle ? ' is-invalid' : ''
+                        }`}
+                      >
+                        <span>Job Title</span>
+                        <span className="ws-select-wrap">
+                          <select
+                            className="ws-select"
+                            value={form.jobTitle}
+                            onChange={updateJobTitle}
+                          >
+                            <option value="">Select a job title</option>
+                            {jobTitleChoices.map((item) => (
+                              <option key={item.id} value={item.name}>
+                                {item.name}
+                              </option>
+                            ))}
+                            <option value={OTHER_JOB_TITLE}>Other</option>
+                          </select>
+                          <svg aria-hidden="true" className="icon">
+                            <use href="#i-chevron" />
+                          </svg>
+                        </span>
+                        {isOtherJobTitle(form.jobTitle) && (
+                          <input
+                            className="ws-input"
+                            placeholder="Enter the job title"
+                            value={form.customJobTitle}
+                            onChange={updateField('customJobTitle')}
+                          />
+                        )}
+                        {errors.jobTitle && <small className="ws-error">{errors.jobTitle}</small>}
+                        {errors.customJobTitle && (
+                          <small className="ws-error">{errors.customJobTitle}</small>
+                        )}
+                      </label>
+                    )}
                   </div>
 
                   <div className="ws-access-row">
@@ -248,6 +327,27 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
                           {ACCESS_LEVELS.map((level) => (
                             <option key={level.id} value={level.id}>
                               {level.label}
+                            </option>
+                          ))}
+                        </select>
+                        <svg aria-hidden="true" className="icon">
+                          <use href="#i-chevron" />
+                        </svg>
+                      </span>
+                    </label>
+
+                    <label className="ws-field">
+                      <span>Assigned Team</span>
+                      <span className="ws-select-wrap">
+                        <select
+                          className="ws-select"
+                          value={form.teamId}
+                          onChange={updateField('teamId')}
+                        >
+                          <option value="">No team assigned</option>
+                          {teams.map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {team.name}
                             </option>
                           ))}
                         </select>
@@ -293,8 +393,13 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
                   </fieldset>
 
                   <p className="ws-permission-note">
-                    Admin always receives all permissions. Account Manager always receives Review +
-                    Publish.
+                    {form.systemAccess === 'admin'
+                      ? 'Admin always receives all permissions across the entire workspace.'
+                      : form.systemAccess === 'team_leader'
+                        ? 'Team Leader has full management and review access over their assigned team.'
+                        : form.systemAccess === 'account_manager'
+                          ? 'Account Manager receives Review + Publish permissions.'
+                          : 'Configure individual work permissions for this team member.'}
                   </p>
 
                   <footer className="ws-editor__foot">
@@ -321,7 +426,9 @@ export default function UserAccessPage({ onAddMemberViaTeam, initialQuery }) {
                     <span className="ws-badge ws-badge--role">{access.short}</span>
                   </div>
                   <p className="ws-user-meta">
-                    {user.jobTitle} • {user.email}
+                    {user.systemAccess === 'admin'
+                      ? user.email
+                      : `${user.jobTitle ? `${user.jobTitle} • ` : ''}${user.email}`}
                   </p>
                   <p className="ws-user-team">Team: {teamName(user.teamId)}</p>
                 </div>

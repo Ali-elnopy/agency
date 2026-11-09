@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import TeamMembersModal from '../components/teams/TeamMembersModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
 import { useBrands } from '../context/brandsStore';
-import { ACCESS_LEVEL_BY_ID, initialsOf } from '../data/workspace';
+import { ACCESS_LEVEL_BY_ID, initialsOf, teamMemberIds } from '../data/workspace';
 
 export default function TeamDetailsPage({
   team: teamName,
@@ -18,8 +19,18 @@ export default function TeamDetailsPage({
   const { brands } = useBrands();
   const { toast, showToast } = useToast(3500);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
 
-  const team = teams.find((item) => item.name === teamName) ?? null;
+  const [currentTeamId] = useState(() => {
+    const found = teams.find(
+      (item) => item.name === teamName || String(item.id) === String(teamName),
+    );
+    return found ? found.id : null;
+  });
+
+  const team =
+    teams.find((item) => (currentTeamId && item.id === currentTeamId) || item.name === teamName) ??
+    null;
 
   if (!team) {
     return (
@@ -35,14 +46,23 @@ export default function TeamDetailsPage({
     );
   }
 
-  const members = users.filter((user) => user.teamId === team.id);
-  const assignedBrands = (team.brandIds ?? [])
-    .map((brandId) => brands.find((brand) => brand.id === brandId))
+  const memberIds = teamMemberIds(team, users);
+
+  const members = memberIds
+    .map((id) => users.find((user) => String(user.id) === String(id)))
     .filter(Boolean);
 
-  const removeMember = (member) => {
-    removeTeamMember(team.id, member.id);
-    showToast(`${member.fullName} removed from ${team.name}.`);
+  const assignedBrands = (team.brandIds ?? [])
+    .map((brandId) => brands.find((brand) => String(brand.id) === String(brandId)))
+    .filter(Boolean);
+
+  const removeMember = async (member) => {
+    try {
+      await removeTeamMember(team.id, member.id);
+      showToast(`${member.fullName} removed from ${team.name}.`);
+    } catch (err) {
+      showToast(err?.message || `Failed to remove ${member.fullName} from team.`, 'error');
+    }
   };
 
   const confirmDelete = () => {
@@ -62,17 +82,36 @@ export default function TeamDetailsPage({
           <div className="ws-team-title-line">
             <h1 className="ws-page-title">{team.name}</h1>
             <span className="ws-badge ws-badge--active">Active</span>
+            {team.teamLead ? (
+              <span className="ws-badge ws-badge--role">
+                Team leader: {team.teamLead.fullName}
+              </span>
+            ) : (
+              <span className="ws-badge ws-badge--muted">No team leader</span>
+            )}
           </div>
           <p className="ws-team-desc">{team.description?.trim() || 'No description added.'}</p>
         </div>
 
-        <button
-          type="button"
-          className="ws-btn ws-btn--danger-ghost"
-          onClick={() => setIsDeleteOpen(true)}
-        >
-          Delete Team
-        </button>
+        <div className="ws-team-actions">
+          <button
+            type="button"
+            className="ws-btn ws-btn--ghost"
+            onClick={() => setIsMembersOpen(true)}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-users" />
+            </svg>
+            Edit Team
+          </button>
+          <button
+            type="button"
+            className="ws-btn ws-btn--danger-ghost"
+            onClick={() => setIsDeleteOpen(true)}
+          >
+            Delete Team
+          </button>
+        </div>
       </section>
 
       <div className="ws-stat-grid">
@@ -192,6 +231,14 @@ export default function TeamDetailsPage({
           no longer be assigned to this team.
         </p>
       </ConfirmModal>
+
+      {isMembersOpen ? (
+        <TeamMembersModal
+          team={team}
+          onClose={() => setIsMembersOpen(false)}
+          onSaved={(message) => showToast(message || 'Team updated.')}
+        />
+      ) : null}
 
       <Toast message={toast?.message} tone={toast?.tone} />
     </div>

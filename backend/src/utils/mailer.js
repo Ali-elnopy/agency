@@ -34,15 +34,12 @@ export function getMailConfig() {
 }
 
 export function isMailerConfigured() {
-  return getMailConfig().provider !== null;
+  return getMailConfig().provider !== null || process.env.NODE_ENV !== 'production';
 }
 
 /** Base URL the reset link should point at (the SPA, not the API). */
 export function frontendBaseUrl() {
-  const raw =
-    read('FRONTEND_URL') ||
-    read('CLIENT_URL').split(',')[0] ||
-    'http://localhost:5173';
+  const raw = read('FRONTEND_URL') || read('CLIENT_URL').split(',')[0] || 'http://localhost:5173';
 
   return raw.replace(/\/+$/, '');
 }
@@ -94,7 +91,17 @@ export async function sendMail({ to, subject, html, text }) {
     return { provider: 'smtp' };
   }
 
-  throw new Error('No mail transport is configured (RESEND_API_KEY or SMTP_HOST).');
+  if (!config.provider) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n================== [DEV EMAIL SIMULATION] ==================');
+      console.log(`To: ${to}`);
+      console.log(`Subject: ${subject}`);
+      console.log(`Text:\n${text}`);
+      console.log('============================================================\n');
+      return { provider: 'dev-console' };
+    }
+    throw new Error('No mail transport is configured (RESEND_API_KEY or SMTP_HOST).');
+  }
 }
 
 function resetEmailBody({ fullName, resetUrl, expiresInMinutes }) {
@@ -136,12 +143,7 @@ function resetEmailBody({ fullName, resetUrl, expiresInMinutes }) {
   return { text, html };
 }
 
-export async function sendPasswordResetEmail({
-  to,
-  fullName,
-  token,
-  expiresInMinutes = 30,
-}) {
+export async function sendPasswordResetEmail({ to, fullName, token, expiresInMinutes = 30 }) {
   const resetUrl = buildResetUrl(token);
   const { text, html } = resetEmailBody({ fullName, resetUrl, expiresInMinutes });
 

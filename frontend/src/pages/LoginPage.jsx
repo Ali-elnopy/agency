@@ -3,10 +3,12 @@ import { getMockCredentials } from '../services/api';
 import InfoModal from '../components/modals/InfoModal';
 import Logo from '../components/Logo';
 import useAuth from '../hooks/useAuth';
+import { useSprint3 } from '../context/sprint3Store';
 
 export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
   const auth = useAuth();
   const { login } = auth;
+  const { lang, setLang, t } = useSprint3();
   const DEV_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true';
   const demoAccounts = getMockCredentials();
   const [email, setEmail] = useState('');
@@ -27,7 +29,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
         auth.devLogin();
         onNavigate('dashboard', { replace: true });
       } catch {
-        setError('Development login bypass is disabled.');
+        setError(t('Development login bypass is disabled.'));
       }
       return;
     }
@@ -40,10 +42,10 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
       if (result.success) {
         onNavigate('dashboard', { replace: true });
       } else {
-        setError(result.message || 'Login failed. Please check your credentials.');
+        setError(t(result.message || 'Login failed. Please check your credentials.'));
       }
     } catch {
-      setError('An unexpected error occurred during sign in.');
+      setError(t('An unexpected error occurred during sign in.'));
     } finally {
       setLoading(false);
     }
@@ -73,13 +75,37 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
             </span>
           </a>
 
-          <div className="login__actions">
+          <div className="login__actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              className="s3-lang-toggle"
+              onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+              title={lang === 'ar' ? 'Switch to English' : 'التحويل إلى العربية'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '32px',
+                padding: '0 12px',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                borderRadius: '8px',
+                border: '1px solid var(--auth-input-line, rgba(0,0,0,0.12))',
+                background: 'var(--auth-input-bg, #ffffff)',
+                color: 'var(--auth-ink, #1e1b3c)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {lang === 'ar' ? 'English' : 'عربي'}
+            </button>
+
             <button
               type="button"
               className="theme-toggle"
               aria-label="Toggle dark mode"
               onClick={onToggleTheme}
-              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              title={theme === 'dark' ? t('Switch to Light Mode') : t('Switch to Dark Mode')}
             >
               <svg className="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
@@ -93,11 +119,11 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
         </header>
 
         <div className="login__body">
-          <span className="badge">Welcome back</span>
+          <span className="badge">{t('Welcome back')}</span>
 
-          <h1 className="login__title">Sign in to your workspace</h1>
+          <h1 className="login__title">{t('Sign in to your workspace')}</h1>
           <p className="login__subtitle">
-            Access your creative operations, briefs, pipelines, and client approvals.
+            {t('Access your creative operations, briefs, pipelines, and client approvals.')}
           </p>
 
           {error && (
@@ -109,7 +135,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
           <form className="form" onSubmit={handleSubmit} noValidate={DEV_BYPASS}>
             <div className="field">
               <label htmlFor="email" className="is-req">
-                Work Email
+                {t('Work Email')}
               </label>
               <div className="input input--icon">
                 <svg className="input__lead" viewBox="0 0 24 24" aria-hidden="true">
@@ -132,7 +158,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
             <div className="field">
               <div className="field__row">
                 <label htmlFor="password" className="is-req">
-                  Password
+                  {t('Password')}
                 </label>
                 <a
                   href="#forgot"
@@ -142,7 +168,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                     onNavigate('forgot');
                   }}
                 >
-                  Forgot password?
+                  {t('Forgot password?')}
                 </a>
               </div>
               <div className="input input--icon">
@@ -164,7 +190,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                   type="button"
                   className="input__toggle"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('Hide password') : t('Show password')}
                 >
                   {showPassword ? (
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -189,21 +215,21 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
               />
               <span className="check__box" />
               <span className="check__text">
-                <strong>Keep me signed in for 30 days</strong>
-                <small>Only for trusted private devices</small>
+                <strong>{t('Keep me signed in for 30 days')}</strong>
+                <small>{t('Only for trusted private devices')}</small>
               </span>
             </label>
 
             <button type="submit" className="btn" disabled={loading}>
-              {loading ? 'Authenticating…' : 'Log in to ORVIA'}
-              <svg viewBox="0 0 24 24" aria-hidden="true">
+              {loading ? t('Authenticating…') : t('Log in to ORVIA')}
+              <svg viewBox="0 0 24 24" aria-hidden="true" style={{ transform: lang === 'ar' ? 'rotate(180deg)' : 'none' }}>
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </button>
 
             {demoAccounts.length > 0 && (
               <div className="quick-login">
-                <span>Demo login:</span>
+                <span>{t('Demo login:')}</span>
                 {demoAccounts.map((account) => (
                   <button
                     key={account.email}
@@ -212,7 +238,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                     onClick={() => applyDemoAccount(account)}
                     title={account.email}
                   >
-                    {account.label}
+                    {t(account.label)}
                   </button>
                 ))}
               </div>
@@ -221,14 +247,14 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
         </div>
 
         <footer className="login__footer">
-          <p>SOC2 Type II &amp; 256-bit SSL Protected</p>
+          <p>{t('SOC2 Type II & 256-bit SSL Protected')}</p>
           <nav className="footer-nav">
             <a href="#privacy" onClick={(e) => e.preventDefault()}>
-              Privacy
+              {t('Privacy')}
             </a>
             <span className="dot">·</span>
             <a href="#terms" onClick={(e) => e.preventDefault()}>
-              Terms
+              {t('Terms')}
             </a>
             <span className="dot">·</span>
             <a
@@ -239,7 +265,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                 setIsHelpOpen(true);
               }}
             >
-              Contact Support
+              {t('Contact Support')}
             </a>
           </nav>
         </footer>
@@ -249,17 +275,16 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
       <InfoModal
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
-        title="ORVIA Workspace Support"
-        subtitle="Need assistance accessing your creative workspace?"
+        title={t('ORVIA Workspace Support')}
+        subtitle={t('Need assistance accessing your creative workspace?')}
         icon="#i-users"
         iconColor="orange"
       >
         <p className="modal-copy">
-          For login assistance, password resets, or enterprise single sign-on (SSO) queries, please
-          contact your studio administrator.
+          {t('For login assistance, password resets, or enterprise single sign-on (SSO) queries, please contact your studio administrator.')}
         </p>
         <p className="modal-copy modal-copy--muted">
-          Support desk: <code>support@orvia-creative.com</code>
+          {t('Support desk:')} <code>support@orvia-creative.com</code>
         </p>
       </InfoModal>
 
@@ -267,18 +292,17 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
       <InfoModal
         isOpen={isTrialOpen}
         onClose={() => setIsTrialOpen(false)}
-        title="Start 14-Day Studio Trial"
-        subtitle="Experience full production velocity for your brand &amp; agency."
+        title={t('Start 14-Day Studio Trial')}
+        subtitle={t('Experience full production velocity for your brand & agency.')}
         icon="#i-zap"
         iconColor="green"
-        actionText="Request Access"
+        actionText={t('Request Access')}
       >
         <p className="modal-copy">
-          Includes 20 user seats, multi-brand asset review gates, real-time feedback canvases, and
-          priority support.
+          {t('Includes 20 user seats, multi-brand asset review gates, real-time feedback canvases, and priority support.')}
         </p>
         <p className="modal-copy modal-copy--muted">
-          Direct onboarding: <code>sales@orvia-creative.com</code>
+          {t('Direct onboarding:')} <code>sales@orvia-creative.com</code>
         </p>
       </InfoModal>
     </>
