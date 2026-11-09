@@ -312,12 +312,25 @@ export function BrandsProvider({ children }) {
       designDirection: String(input.designDirection ?? '').trim(),
       referenceUrl: String(input.referenceUrl ?? '').trim(),
       materialUrl: String(input.materialUrl ?? '').trim(),
+      pillar: String(input.pillar ?? '').trim(),
+      campaignId: input.campaignId ?? '',
+      platform: String(input.platform ?? '').trim(),
+      keyMessage: String(input.keyMessage ?? '').trim(),
+      references: Array.isArray(input.references) ? input.references : [],
+      attachments: Array.isArray(input.attachments) ? input.attachments : [],
+      detailsStatus: input.detailsStatus ?? 'draft',
       status: 'planned',
       createdAt: new Date().toISOString().slice(0, 10),
     };
 
     setContent((prev) => [item, ...prev]);
     return item;
+  }, []);
+
+  const updateContent = useCallback((contentId, patch) => {
+    setContent((prev) =>
+      prev.map((item) => (item.id === contentId ? { ...item, ...patch } : item)),
+    );
   }, []);
 
   const updateContentStatus = useCallback((contentId, status) => {
@@ -628,6 +641,7 @@ export function BrandsProvider({ children }) {
       updateBrand,
       savePlan,
       addContent,
+      updateContent,
       updateContentStatus,
       getBrand,
       getPlan,
@@ -664,6 +678,7 @@ export function BrandsProvider({ children }) {
       updateBrand,
       savePlan,
       addContent,
+      updateContent,
       updateContentStatus,
       getBrand,
       getPlan,

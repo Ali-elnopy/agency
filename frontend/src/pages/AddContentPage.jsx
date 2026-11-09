@@ -1,8 +1,10 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import PlanModal from '../components/brands/PlanModal';
+import ContentDetailsModal from '../components/sprint3/ContentDetailsModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useBrands } from '../context/brandsStore';
+import { useSprint3 } from '../context/sprint3Store';
 import {
   BRAND_STATUS_LABEL,
   CONTENT_STATUS_LABEL,
@@ -16,6 +18,7 @@ import {
   monthKey,
   monthLabel,
 } from '../data/brands';
+import { linesOf } from '../data/sprint3';
 
 const STATUS_TONE = {
   planned: 'is-amber',
@@ -49,11 +52,30 @@ function defaultDateFor(month) {
 }
 
 export default function AddContentPage({ brandId, initialMonth, initialPlatformId, onBack }) {
-  const { getBrand, plans, content, addContent, savePlan, getPlatforms } = useBrands();
+  const { getBrand, plans, content, addContent, savePlan, getPlatforms, updateContent } =
+    useBrands();
+  const {
+    getApprovedStrategy,
+    getCampaigns,
+    getContentMeta,
+    saveContentMeta,
+    t,
+  } = useSprint3();
   const { toast, showToast } = useToast(5000);
 
   const brand = getBrand(brandId);
   const platforms = useMemo(() => (brand ? getPlatforms(brand.id) : []), [brand, getPlatforms]);
+  const strategy = getApprovedStrategy(brandId);
+  const campaigns = useMemo(
+    () => (brand ? getCampaigns(brand.id) : []),
+    [brand, getCampaigns],
+  );
+  const pillars = useMemo(
+    () => linesOf(strategy?.sections?.pillars?.body ?? ''),
+    [strategy],
+  );
+  const strategyPlatforms = strategy?.platforms ?? [];
+  const campaignName = (id) => campaigns.find((campaign) => campaign.id === id)?.name ?? '';
   const brandPlans = useMemo(
     () =>
       plans
@@ -82,6 +104,10 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
   const [designDirection, setDesignDirection] = useState('');
   const [referenceUrl, setReferenceUrl] = useState('');
   const [materialUrl, setMaterialUrl] = useState('');
+  const [pillar, setPillar] = useState(() => pillars[0] ?? '');
+  const [platformName, setPlatformName] = useState(() => strategyPlatforms[0] ?? '');
+  const [campaignId, setCampaignId] = useState(() => campaigns[0]?.id ?? '');
+  const [detailsItem, setDetailsItem] = useState(null);
   const [errors, setErrors] = useState({});
 
   const selectedPlan = brandPlans.find((plan) => plan.month === planMonth) ?? null;
@@ -133,6 +159,9 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
     setDesignDirection('');
     setReferenceUrl('');
     setMaterialUrl('');
+    setPillar(pillars[0] ?? '');
+    setPlatformName(strategyPlatforms[0] ?? '');
+    setCampaignId(campaigns[0]?.id ?? '');
     setErrors({});
   };
 
@@ -205,6 +234,9 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
       designDirection,
       referenceUrl,
       materialUrl,
+      pillar,
+      platform: platformName,
+      campaignId,
     });
 
     showToast(`Row ${monthItems.length + 1} added to ${monthLabel(planMonth)}.`, 'success');
@@ -222,6 +254,37 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
     );
     setPlanModalOpen(false);
     showToast(`Monthly plan saved for ${monthLabel(values.month)}.`, 'success');
+  };
+
+  const applyStrategyDefaults = () => {
+    if (!strategy) return;
+    const defaultPillar = pillars[0] ?? '';
+    const defaultPlatform = strategyPlatforms[0] ?? '';
+    let touched = 0;
+
+    monthItems.forEach((item) => {
+      const meta = getContentMeta(item.id);
+      const patch = {};
+      if (!meta.pillar && !item.pillar && defaultPillar) patch.pillar = defaultPillar;
+      if (!meta.platform && !item.platform && defaultPlatform) {
+        patch.platform = defaultPlatform;
+      }
+      if (!meta.campaignId && !item.campaignId && campaigns[0]?.id) {
+        patch.campaignId = campaigns[0].id;
+      }
+      if (Object.keys(patch).length) {
+        touched += 1;
+        updateContent(item.id, patch);
+        saveContentMeta(item.id, patch);
+      }
+    });
+
+    showToast(
+      touched
+        ? `${touched} rows linked to the approved strategy.`
+        : 'Every row is already linked to the strategy.',
+      touched ? 'success' : 'info',
+    );
   };
 
   if (!brand) {
@@ -269,6 +332,46 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
           </button>
         </div>
       </section>
+
+      {strategy ? (
+        <section className="s3-linked-banner">
+          <span className="s3-linked-banner__icon">
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-layers" />
+            </svg>
+          </span>
+          <div>
+            <strong>
+              {t('Linked strategy')}: {strategy.title}
+            </strong>
+            <p>
+              {t('Auto-filled from the approved strategy')} · {pillars.length} {t('pillars')} ·{' '}
+              {strategyPlatforms.length} {t('platforms')}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="button button--ghost button--sm"
+            onClick={applyStrategyDefaults}
+          >
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-zap" />
+            </svg>
+            {t('Apply strategy defaults')}
+          </button>
+        </section>
+      ) : (
+        <section className="s3-warning">
+          <svg aria-hidden="true" className="icon">
+            <use href="#i-alert" />
+          </svg>
+          <span>
+            {t(
+              'No approved strategy for this brand yet. Pillars and platforms will link automatically once the strategy is approved.',
+            )}
+          </span>
+        </section>
+      )}
 
       <section className="content-plan__toolbar">
         <div className="content-plan__brand">
@@ -481,6 +584,19 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
                     <td>
                       <strong className="content-plan-table__idea">{item.title}</strong>
                       {item.tov ? <span className="content-plan__tov">{item.tov}</span> : null}
+                      {(() => {
+                        const meta = getContentMeta(item.id);
+                        const itemPillar = meta.pillar ?? item.pillar ?? '';
+                        const itemCampaign =
+                          campaignName(meta.campaignId ?? item.campaignId ?? '') ?? '';
+                        if (!itemPillar && !itemCampaign) return null;
+                        return (
+                          <span className="content-plan__link-tags">
+                            {itemPillar ? <em>{itemPillar}</em> : null}
+                            {itemCampaign ? <em className="is-campaign">{itemCampaign}</em> : null}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>
                       <span className="content-plan-table__copy">
@@ -513,6 +629,13 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
                           ) : null}
                         </span>
                       ) : null}
+                      <button
+                        type="button"
+                        className="button button--ghost button--xs"
+                        onClick={() => setDetailsItem(item)}
+                      >
+                        {t('Content details')}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -660,7 +783,62 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
                             </span>
                           ) : null}
                         </label>
-                        <small>Optional. Links appear in the Status column after saving.</small>
+                        <label>
+                          <span>Pillar</span>
+                          <select
+                            className="content-plan__cell-input"
+                            value={pillar}
+                            onChange={(event) => setPillar(event.target.value)}
+                          >
+                            <option value="">No pillar</option>
+                            {Array.from(new Set([...pillars, pillar].filter(Boolean))).map(
+                              (option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Platform</span>
+                          <select
+                            className="content-plan__cell-input"
+                            value={platformName}
+                            onChange={(event) => setPlatformName(event.target.value)}
+                          >
+                            <option value="">No platform</option>
+                            {Array.from(
+                              new Set([
+                                ...strategyPlatforms,
+                                ...platforms.map((platform) => platform.name),
+                                platformName,
+                              ].filter(Boolean)),
+                            ).map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Campaign</span>
+                          <select
+                            className="content-plan__cell-input"
+                            value={campaignId}
+                            onChange={(event) => setCampaignId(event.target.value)}
+                          >
+                            <option value="">No campaign</option>
+                            {campaigns.map((campaign) => (
+                              <option key={campaign.id} value={campaign.id}>
+                                {campaign.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <small>
+                          Optional. Pillar and platform default from the approved strategy.
+                        </small>
                       </div>
                     </td>
                   </tr>
@@ -704,6 +882,22 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
           plans={brandPlans}
           onClose={() => setPlanModalOpen(false)}
           onSave={handleSavePlan}
+        />
+      ) : null}
+
+      {detailsItem ? (
+        <ContentDetailsModal
+          content={detailsItem}
+          brand={brand}
+          strategy={strategy}
+          onClose={() => setDetailsItem(null)}
+          onSaved={(state) => {
+            setDetailsItem(null);
+            showToast(
+              state === 'saved' ? 'Content details saved.' : 'Details saved as draft',
+              'success',
+            );
+          }}
         />
       ) : null}
 

@@ -1,14 +1,122 @@
 import React, { useState } from 'react';
 import Logo from '../Logo';
+import { useSprint3 } from '../../context/sprint3Store';
+import { roleLabel as previewRoleLabel } from '../sprint3/Sprint3UI';
 
 // "ADMIN CORE" navigation from the ORVIA design.
 // Roles & Permissions is not a top-level destination — it is reached from the Users page.
 // Settings is not a nav item either: it lives behind the gear icon in the user card.
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: '#i-dashboard' },
-  { id: 'clients', label: 'Brands', icon: '#i-briefcase' },
-  { id: 'teams', label: 'Teams', icon: '#i-layers' },
-  { id: 'users', label: 'Users', icon: '#i-users' },
+  {
+    id: 'clients',
+    label: 'Brands',
+    icon: '#i-briefcase',
+    roles: ['admin', 'account_manager', 'creative'],
+  },
+  {
+    id: 'templates',
+    label: 'Templates',
+    icon: '#i-file',
+    group: 'Strategy & Content',
+    roles: ['admin'],
+  },
+  {
+    id: 'dispatch',
+    label: 'Question Dispatch',
+    icon: '#i-send',
+    group: 'Strategy & Content',
+    roles: ['admin', 'account_manager'],
+  },
+  {
+    id: 'briefs',
+    label: 'AI Briefs',
+    icon: '#i-zap',
+    group: 'Strategy & Content',
+    roles: ['admin', 'account_manager'],
+  },
+  {
+    id: 'strategy',
+    label: 'Strategy',
+    icon: '#i-chart',
+    group: 'Strategy & Content',
+    roles: ['admin', 'account_manager', 'creative', 'client'],
+  },
+  {
+    id: 'content',
+    label: 'Content Items',
+    icon: '#i-calendar',
+    group: 'Strategy & Content',
+    roles: ['admin', 'account_manager', 'creative', 'client'],
+  },
+  {
+    id: 'tasks',
+    label: 'Tasks Management',
+    icon: '#i-layers',
+    group: 'Execution & Review',
+    roles: ['admin', 'account_manager', 'creative'],
+  },
+  {
+    id: 'myWork',
+    label: 'My Work',
+    icon: '#i-check',
+    group: 'Execution & Review',
+    roles: ['creative'],
+  },
+  {
+    id: 'managerProgress',
+    label: 'Team Progress',
+    icon: '#i-trend',
+    group: 'Execution & Review',
+    roles: ['admin', 'account_manager'],
+  },
+  {
+    id: 'clientReview',
+    label: 'Client Review',
+    icon: '#i-eye',
+    group: 'Client & Delivery',
+    roles: ['client', 'admin', 'account_manager'],
+  },
+  {
+    id: 'clientRequests',
+    label: 'Client Requests',
+    icon: '#i-mail',
+    group: 'Client & Delivery',
+    roles: ['client', 'admin', 'account_manager'],
+  },
+  {
+    id: 'publishing',
+    label: 'Publishing',
+    icon: '#i-globe',
+    group: 'Client & Delivery',
+    roles: ['admin', 'account_manager'],
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics & Reports',
+    icon: '#i-chart',
+    group: 'Client & Delivery',
+    roles: ['admin', 'account_manager'],
+  },
+  {
+    id: 'decisions',
+    label: 'Decision Settings',
+    icon: '#i-target',
+    roles: ['admin'],
+  },
+  {
+    id: 'portal',
+    label: 'Client Portal',
+    icon: '#i-external',
+    roles: ['admin', 'account_manager', 'client'],
+  },
+  {
+    id: 'teams',
+    label: 'Teams',
+    icon: '#i-layers',
+    roles: ['admin', 'account_manager'],
+  },
+  { id: 'users', label: 'Users', icon: '#i-users', roles: ['admin'] },
   { id: 'profile', label: 'Profile', icon: '#i-user' },
 ];
 
@@ -21,11 +129,16 @@ export default function Sidebar({
   user,
   onSignOut,
 }) {
+  const { role, t } = useSprint3();
   const [localTab, setLocalTab] = useState('dashboard');
   const activeTab = activeTabProp ?? localTab;
 
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => !item.roles || item.roles.includes(role),
+  );
+
   const displayName = user?.fullName || 'Elena Vance';
-  const roleLabel =
+  const accountRole =
     user?.role === 'ADMIN'
       ? 'Admin'
       : user?.role === 'TEAM_LEADER'
@@ -33,6 +146,7 @@ export default function Sidebar({
         : user?.role === 'ACCOUNT_MANAGER'
           ? 'Account Manager'
           : 'Team Member';
+  const roleLabel = `${t(accountRole)} · ${t(previewRoleLabel(role))}`;
   const initials = displayName
     .split(' ')
     .filter(Boolean)
@@ -72,9 +186,9 @@ export default function Sidebar({
           <button
             type="button"
             className="sidebar__collapse"
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isCollapsed ? t('Expand sidebar') : t('Collapse sidebar')}
             onClick={onToggleCollapse}
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? t('Expand sidebar') : t('Collapse sidebar')}
           >
             <svg aria-hidden="true" className="icon">
               <use href="#i-panel" />
@@ -83,26 +197,35 @@ export default function Sidebar({
         </div>
 
         <nav className="nav">
-          {NAV_ITEMS.map((item) => (
-            <React.Fragment key={item.id}>
-              {item.id === 'profile' ? <span className="nav__divider" aria-hidden="true" /> : null}
-              <a
-                href={`#${item.id}`}
-                className={`nav__item ${activeTab === item.id ? 'is-active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  selectTab(item.id);
-                }}
-                title={item.soon ? `${item.label} — coming soon` : item.label}
-                aria-disabled={item.soon || undefined}
-              >
-                <svg aria-hidden="true" className="icon">
-                  <use href={item.icon} />
-                </svg>
-                <span className="sb-label">{item.label}</span>
-              </a>
-            </React.Fragment>
-          ))}
+          {visibleItems.map((item, index) => {
+            const previous = visibleItems[index - 1];
+            const startGroup = item.group && item.group !== previous?.group;
+            const isProfile = item.id === 'profile';
+            const showDivider = isProfile || (previous?.group && !item.group);
+
+            return (
+              <React.Fragment key={item.id}>
+                {startGroup ? (
+                  <span className="nav__group sb-label">{t(item.group)}</span>
+                ) : null}
+                {showDivider ? <span className="nav__divider" aria-hidden="true" /> : null}
+                <a
+                  href={`#${item.id}`}
+                  className={`nav__item ${activeTab === item.id ? 'is-active' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    selectTab(item.id);
+                  }}
+                  title={t(item.label)}
+                >
+                  <svg aria-hidden="true" className="icon">
+                    <use href={item.icon} />
+                  </svg>
+                  <span className="sb-label">{t(item.label)}</span>
+                </a>
+              </React.Fragment>
+            );
+          })}
         </nav>
 
         <div className="sidebar__foot">
@@ -119,8 +242,8 @@ export default function Sidebar({
                 type="button"
                 className="sb-user__icon"
                 onClick={() => selectTab('settings')}
-                aria-label="Settings"
-                title="Settings"
+                aria-label={t('Settings')}
+                title={t('Settings')}
               >
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-settings" />
@@ -130,8 +253,8 @@ export default function Sidebar({
                 type="button"
                 className="sb-user__icon"
                 onClick={handleSignOut}
-                aria-label="Sign out"
-                title="Sign out"
+                aria-label={t('Sign out')}
+                title={t('Sign out')}
               >
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-logout" />

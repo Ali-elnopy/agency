@@ -4,8 +4,10 @@ import ForgotPage from './pages/ForgotPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import Showcase from './components/Showcase';
 import DashboardPage from './pages/DashboardPage';
+import ClientPortalPage from './pages/ClientPortalPage';
 import IconSprite from './components/IconSprite';
 import useAuth from './hooks/useAuth';
+import { Sprint3Provider } from './context/Sprint3Context';
 import { hasStoredSession } from './services/tokenStorage';
 
 const TITLES = {
@@ -13,9 +15,10 @@ const TITLES = {
   forgot: 'ORVIA — Forgot Password',
   reset: 'ORVIA — Reset Password',
   dashboard: 'ORVIA — Account Manager Dashboard',
+  portal: 'ORVIA — Client Portal',
 };
 
-const VIEWS = ['login', 'forgot', 'reset', 'dashboard'];
+const VIEWS = ['login', 'forgot', 'reset', 'dashboard', 'portal'];
 
 // Auth screens live in the hash (`#reset?token=…`) so the reset link email can
 // carry the token without a server-side route.
@@ -49,6 +52,10 @@ export default function App() {
     const route = readHashRoute();
     const authenticated = hasStoredSession();
 
+    // A client portal link is a protected, client-only session. It must work
+    // even when an agency member happens to be signed in on the same browser.
+    if (route.view === 'portal') return 'portal';
+
     // A valid reset link wins over an existing session: the whole point is to
     // recover an account, possibly on a shared device.
     if (route.view === 'reset' && route.params.get('token')) return 'reset';
@@ -62,6 +69,11 @@ export default function App() {
   // Token from the emailed `#reset?token=…` link.
   const [resetToken, setResetToken] = useState(
     () => readHashRoute().params.get('token') || '',
+  );
+
+  // Token from the client portal link `#portal?token=…`.
+  const [portalToken, setPortalToken] = useState(
+    () => (readHashRoute().view === 'portal' ? readHashRoute().params.get('token') : '') || '',
   );
 
   // Light is the product default. Only an explicit toggle is remembered, so a
@@ -106,7 +118,7 @@ export default function App() {
   // An authenticated user should never remain on an auth screen, even for the
   // brief render between setUser() and the login redirect.
   useEffect(() => {
-    if (user && view !== 'dashboard' && !resetToken) {
+    if (user && view !== 'dashboard' && view !== 'portal' && !resetToken) {
       replaceHashView('dashboard');
       setView('dashboard');
     }
@@ -123,6 +135,14 @@ export default function App() {
       const authenticated = hasStoredSession();
 
       setResetToken(route.params.get('token') || '');
+      setPortalToken(route.view === 'portal' ? route.params.get('token') || '' : '');
+
+      // The client portal is its own protected session and never redirects to
+      // the agency dashboard, even when a staff session exists.
+      if (route.view === 'portal') {
+        setView('portal');
+        return;
+      }
 
       // Always honour an emailed reset link, even if a stale session exists.
       if (route.view === 'reset' && route.params.get('token')) {
@@ -177,10 +197,12 @@ export default function App() {
   const showDashboard = view === 'dashboard' && Boolean(user);
 
   return (
-    <>
+    <Sprint3Provider>
       <IconSprite />
 
-      {showDashboard ? (
+      {view === 'portal' ? (
+        <ClientPortalPage token={portalToken} />
+      ) : showDashboard ? (
         <DashboardPage
           theme={theme}
           onToggleTheme={toggleTheme}
@@ -212,6 +234,6 @@ export default function App() {
           <Showcase />
         </main>
       )}
-    </>
+    </Sprint3Provider>
   );
 }

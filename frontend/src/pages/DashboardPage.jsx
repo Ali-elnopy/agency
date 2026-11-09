@@ -18,12 +18,32 @@ import TeamsPage from './TeamsPage';
 import TeamDetailsPage from './TeamDetailsPage';
 import AddTeamMemberPage from './AddTeamMemberPage';
 import ManageBrandsPage from './ManageBrandsPage';
+import TemplateLibraryPage from './TemplateLibraryPage';
+import QuestionDispatchPage from './QuestionDispatchPage';
+import AiBriefPage from './AiBriefPage';
+import StrategyWorkspacePage from './StrategyWorkspacePage';
+import ContentItemsPage from './ContentItemsPage';
+import DecisionSettingsPage from './DecisionSettingsPage';
+import ClientPortalPage from './ClientPortalPage';
+import TasksPage from './TasksPage';
+import MyWorkPage from './MyWorkPage';
+import ManagerProgressPage from './ManagerProgressPage';
+import ClientReviewPortalPage from './ClientReviewPortalPage';
+import ClientRequestsPage from './ClientRequestsPage';
+import PublishingPage from './PublishingPage';
+import AnalyticsPage from './AnalyticsPage';
+import {
+  AccountManagerDashboardView,
+  CreativeDashboardView,
+  ClientDashboardView,
+} from '../components/dashboard/RoleDashboards';
 import NewBriefModal from '../components/modals/NewBriefModal';
 import AssignTeamModal from '../components/modals/AssignTeamModal';
 import InfoModal from '../components/modals/InfoModal';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
+import { useSprint3 } from '../context/sprint3Store';
 import { getDashboardStats } from '../services/dashboard';
 
 // Every screen that can be reached from the sidebar or from a list row.
@@ -42,6 +62,13 @@ const SECTION_LABELS = {
   roles: 'Roles & Permissions',
   profile: 'Profile',
   settings: 'Settings',
+  templates: 'Template Library',
+  dispatch: 'Question Dispatch',
+  briefs: 'AI Briefs',
+  strategy: 'Strategy',
+  content: 'Content Items',
+  decisions: 'Decision Settings',
+  portal: 'Client Portal',
 };
 
 // The section each screen highlights in the sidebar.
@@ -67,6 +94,7 @@ export default function DashboardPage({
   onNavigate,
 }) {
   const { user } = useAuth();
+  const { t } = useSprint3();
   const { toast, showToast, clearToast } = useToast(8000);
 
   const [section, setSection] = useState('dashboard');
@@ -199,9 +227,9 @@ export default function DashboardPage({
         return (
           <AddBrandPage
             onBack={() => go('clients')}
-            onSaved={(brand) => {
+            onSaved={(brand, message) => {
               setActiveBrandId(brand.id);
-              go('brandDetail', 'Brand created successfully.');
+              go('brandDetail', message || 'Brand created successfully.');
             }}
           />
         );
@@ -244,11 +272,51 @@ export default function DashboardPage({
             onSaved={(message) => go('teamDetails', message)}
           />
         );
+      case 'templates':
+        return <TemplateLibraryPage />;
+      case 'dispatch':
+        return <QuestionDispatchPage />;
+      case 'briefs':
+        return (
+          <AiBriefPage
+            onOpenStrategy={(brandId) => {
+              if (brandId) setActiveBrandId(brandId);
+              go('strategy');
+            }}
+          />
+        );
+      case 'strategy':
+        return (
+          <StrategyWorkspacePage
+            key={`strategy-${activeBrandId}`}
+            initialBrandId={activeBrandId}
+            onOpenBriefs={() => go('briefs')}
+            onOpenContent={(brandId) => {
+              if (brandId) setActiveBrandId(brandId);
+              go('content');
+            }}
+          />
+        );
+      case 'content':
+        return (
+          <ContentItemsPage
+            key={`content-${activeBrandId}`}
+            initialBrandId={activeBrandId}
+            onOpenPlan={(brandId, month) => {
+              if (brandId) setActiveBrandId(brandId);
+              openAddContent(month);
+            }}
+          />
+        );
+      case 'portal':
+        return <ClientPortalPage />;
+      case 'decisions':
+        return <DecisionSettingsPage />;
       default:
         return (
           <>
             <section className="page-head">
-              <h1 className="page-head__title">Dashboard</h1>
+              <h1 className="page-head__title">{t('Dashboard')}</h1>
             </section>
 
             <OverviewSection
@@ -276,7 +344,14 @@ export default function DashboardPage({
             section === 'teams' ||
             section === 'teamDetails' ||
             section === 'addTeamMember' ||
-            section === 'manageBrands'
+            section === 'manageBrands' ||
+            section === 'templates' ||
+            section === 'dispatch' ||
+            section === 'briefs' ||
+            section === 'strategy' ||
+            section === 'content' ||
+            section === 'decisions' ||
+            section === 'portal'
           ? null
           : 'New Brief';
 
@@ -295,6 +370,7 @@ export default function DashboardPage({
   return (
     <WorkspaceProvider>
       <BrandsProvider>
+
         <div className="app" data-collapsed={isCollapsed ? 'true' : 'false'}>
         <Sidebar
           isCollapsed={isCollapsed}
@@ -389,6 +465,7 @@ export default function DashboardPage({
           {/* Floating Toast Notification */}
           <Toast message={toast?.message} tone={toast?.tone} />
         </div>
+
       </BrandsProvider>
     </WorkspaceProvider>
   );

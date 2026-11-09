@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useBrands } from '../../context/brandsStore';
 import { useWorkspace } from '../../context/workspaceStore';
+import { useSprint3 } from '../../context/sprint3Store';
 
 const KPI_META = [
   { label: 'Total Brands', unit: 'Brands', icon: 'i-briefcase', tone: 'is-orange' },
@@ -41,6 +42,7 @@ function workloadState(clients, max) {
 export default function OverviewSection({ stats, onViewWorkload, onAssignTeam }) {
   const { brands } = useBrands();
   const { users, teams: workspaceTeams } = useWorkspace();
+  const { t } = useSprint3();
 
   const hasStats = Boolean(stats);
   const hasBrands = brands.length > 0;
@@ -200,35 +202,35 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
     {
       ...KPI_META[0],
       value: hasBrandData ? String(totalClients) : '—',
-      chip: hasBrandData ? `${assignedBrands} assigned` : 'No data',
+      chip: hasBrandData ? `${assignedBrands} ${t('assigned')}` : t('No data'),
       chipTone: hasBrandData && assignedBrands > 0 ? 'is-green' : 'is-amber',
       foot: hasBrandData
         ? `${unassignedTeamBrands} ${
-            unassignedTeamBrands === 1 ? 'brand' : 'brands'
-          } without a team`
-        : 'Studio metrics are unavailable for this account.',
+            unassignedTeamBrands === 1 ? t('brand without a team') : t('brands without a team')
+          }`
+        : t('Studio metrics are unavailable for this account.'),
     },
     {
       ...KPI_META[1],
       value: hasPeopleData ? String(totalEmployees) : '—',
-      chip: hasPeopleData ? `${activeEmployees} active` : 'No data',
+      chip: hasPeopleData ? `${activeEmployees} ${t('active')}` : t('No data'),
       chipTone: hasPeopleData ? 'is-purple' : 'is-amber',
       foot: hasPeopleData
         ? deactivatedEmployees > 0
-          ? `${deactivatedEmployees} deactivated ${
-              deactivatedEmployees === 1 ? 'account' : 'accounts'
+          ? `${deactivatedEmployees} ${
+              deactivatedEmployees === 1 ? t('deactivated account') : t('deactivated accounts')
             }`
-          : 'Every account is active'
-        : 'Studio metrics are unavailable for this account.',
+          : t('Every account is active')
+        : t('Studio metrics are unavailable for this account.'),
     },
     {
       ...KPI_META[2],
       value: hasTeamData ? String(activeTeams) : '—',
-      chip: hasTeamData ? (emptyTeams > 0 ? `${emptyTeams} empty` : 'All covered') : 'No data',
+      chip: hasTeamData ? (emptyTeams > 0 ? `${emptyTeams} ${t('empty')}` : t('All covered')) : t('No data'),
       chipTone: hasTeamData ? (emptyTeams > 0 ? 'is-amber' : 'is-green') : 'is-amber',
       foot: hasTeamData
-        ? `${teamsWithBrands} of ${totalTeams} teams have assigned brands`
-        : 'Studio metrics are unavailable for this account.',
+        ? `${teamsWithBrands} ${t('of')} ${totalTeams} ${t('teams have assigned brands')}`
+        : t('Studio metrics are unavailable for this account.'),
     },
   ];
 
@@ -242,10 +244,10 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                 <use href={`#${kpi.icon}`} />
               </svg>
             </span>
-            <span className="cl-label">{kpi.label}</span>
+            <span className="cl-label">{t(kpi.label)}</span>
             <strong className="ov-kpi__value">
               {kpi.value}
-              <small>{kpi.unit}</small>
+              <small>{t(kpi.unit)}</small>
             </strong>
             <div className="ov-kpi__foot">
               <span className={`pill ${kpi.chipTone}`}>{kpi.chip}</span>
@@ -260,13 +262,13 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
           <section className="cl-card">
             <header className="cl-card__head">
               <div>
-                <h2 className="cl-card__title">Brands per Teams</h2>
+                <h2 className="cl-card__title">{t('Brands per Teams')}</h2>
                 <p className="cl-card__sub">
-                  Brands currently assigned to each team in the workspace.
+                  {t('Brands currently assigned to each team in the workspace.')}
                 </p>
               </div>
               <button type="button" className="ec-link" onClick={onViewWorkload}>
-                Review assignments in Brands →
+                {t('Review assignments in Brands →')}
               </button>
             </header>
 
@@ -276,18 +278,18 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                   <div key={team.id ?? team.name} className="ov-bar">
                     <span className="cl-avatar cl-avatar--orange">{initials(team.name)}</span>
                     <span className="ov-bar__name">
-                      <span className="ov-bar__label" title={team.name}>
-                        {team.name}
+                      <span className="ov-bar__label" title={t(team.name)}>
+                        {t(team.name)}
                       </span>
                       <em>
-                        {team.members} {team.members === 1 ? 'member' : 'members'}
+                        {team.members} {team.members === 1 ? t('member') : t('members')}
                       </em>
                     </span>
                     <span className="ov-bar__track">
                       <i style={{ width: `${team.pct}%` }} />
                     </span>
                     <span className="ov-bar__value">
-                      {team.clients} {team.clients === 1 ? 'brand' : 'brands'}
+                      {team.clients} {team.clients === 1 ? t('brand') : t('brands')}
                     </span>
                     <span className="ov-bar__pct">{team.pct}%</span>
                   </div>
@@ -308,9 +310,9 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
           <section className="cl-card">
             <header className="cl-card__head">
               <div>
-                <h2 className="cl-card__title">Workload Allocation Matrix</h2>
+                <h2 className="cl-card__title">{t('Workload Allocation Matrix')}</h2>
                 <p className="cl-card__sub">
-                  Account managers and the brands currently assigned to them.
+                  {t('Account managers and the brands currently assigned to them.')}
                 </p>
               </div>
             </header>
@@ -319,10 +321,10 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
               <table className="table ov-table">
                 <thead>
                   <tr>
-                    <th>Account Manager</th>
-                    <th>Assigned Team</th>
-                    <th>Brands</th>
-                    <th>Capacity State</th>
+                    <th>{t('Account Manager')}</th>
+                    <th>{t('Assigned Team')}</th>
+                    <th>{t('Brands')}</th>
+                    <th>{t('Capacity State')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -332,15 +334,15 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                         <td>
                           <div className="ov-person">
                             <span className="cl-avatar cl-avatar--gray">{initials(row.name)}</span>
-                            {row.name}
+                            {t(row.name)}
                           </div>
                         </td>
-                        <td>{row.team}</td>
+                        <td>{t(row.team)}</td>
                         <td>
                           <strong>{row.clients}</strong>
                         </td>
                         <td>
-                          <span className={`pill ${row.tone}`}>{row.state}</span>
+                          <span className={`pill ${row.tone}`}>{t(row.state)}</span>
                         </td>
                       </tr>
                     ))
@@ -377,10 +379,10 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                     <use href="#i-alert" />
                   </svg>
                 </span>
-                Attention Required
+                {t('Attention Required')}
               </h2>
               <span className={`pill ${alertCount > 0 ? 'is-orange' : 'is-green'}`}>
-                {alertCount} {alertCount === 1 ? 'Alert' : 'Alerts'}
+                {alertCount} {alertCount === 1 ? t('Alert') : t('Alerts')}
               </span>
             </header>
 
@@ -396,12 +398,12 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
               <div key={alert.group} className="ov-alert">
                 <div className="ov-alert__head">
                   <span className="cl-label">
-                    {alert.group} <strong>({alert.count})</strong>
+                    {t(alert.group)} <strong>({alert.count})</strong>
                   </span>
                   <span
                     className={`pill ${alert.tone === 'High Priority' ? 'is-red' : 'is-amber'}`}
                   >
-                    {alert.tone}
+                    {t(alert.tone)}
                   </span>
                 </div>
 
@@ -409,8 +411,8 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                   <div key={row.id ?? row.name} className="ov-alert__row">
                     <span className="ov-alert__mark">{initials(row.name)}</span>
                     <span>
-                      <strong>{row.name}</strong>
-                      <small>{row.sub}</small>
+                      <strong>{t(row.name)}</strong>
+                      <small>{t(row.sub)}</small>
                     </span>
                     <button
                       type="button"
@@ -423,7 +425,7 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                         onAssignTeam?.(brand);
                       }}
                     >
-                      {row.action || 'Assign Team'}
+                      {t(row.action || 'Assign Team')}
                     </button>
                   </div>
                 ))}
@@ -435,7 +437,7 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-alert" />
                 </svg>
-                Brands without a team are excluded from team workload until a team is assigned.
+                {t('Brands without a team are excluded from team workload until a team is assigned.')}
               </div>
             ) : null}
           </section>

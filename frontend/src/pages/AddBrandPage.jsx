@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useBrands } from '../context/brandsStore';
+import { useWorkspace } from '../context/workspaceStore';
+import { useSprint3 } from '../context/sprint3Store';
 import {
   COUNTRIES,
   INDUSTRIES,
@@ -21,7 +23,11 @@ const EMPTY_FORM = {
 
 export default function AddBrandPage({ onBack, onSaved }) {
   const { brands, addBrand } = useBrands();
+  const { addTeam, setTeamBrands } = useWorkspace();
+  const { t } = useSprint3();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [createTeam, setCreateTeam] = useState(false);
+  const [teamName, setTeamName] = useState('');
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -88,7 +94,28 @@ export default function AddBrandPage({ onBack, onSaved }) {
         driveFolderUrl: form.driveFolderUrl.trim(),
       });
 
-      onSaved?.(brand);
+      let notice = 'Brand created successfully.';
+
+      // Sprint 3: a brand usually needs a squad before strategy work starts.
+      // The team is created after the brand so it can be linked immediately.
+      if (createTeam) {
+        try {
+          const team = await addTeam({
+            name: teamName.trim() || `${name} Team`,
+            description: `Dedicated squad for ${name}.`,
+          });
+
+          if (team?.id !== undefined && team?.id !== null) {
+            await setTeamBrands(team.id, [brand.id]);
+          }
+
+          notice = `Brand created and its team “${team?.name || teamName.trim() || `${name} Team`}” is ready.`;
+        } catch {
+          notice = 'Brand created, but the team could not be created. You can add it from Teams.';
+        }
+      }
+
+      onSaved?.(brand, notice);
     } catch (error) {
       setSubmitError(error?.message ?? 'Could not create the brand.');
     } finally {
@@ -239,6 +266,33 @@ export default function AddBrandPage({ onBack, onSaved }) {
             The brand starts as <strong>Active</strong> and appears in the Brands workspace right
             away. You can create its first monthly plan from the brand dashboard.
           </p>
+        </div>
+
+        <div className="s3-team-option">
+          <label className="s3-check">
+            <input
+              type="checkbox"
+              checked={createTeam}
+              onChange={(event) => setCreateTeam(event.target.checked)}
+            />
+            <span>
+              <strong>{t('Create team for this brand')}</strong>
+              <small>
+                {t('A dedicated squad is created and linked to this brand right away.')}
+              </small>
+            </span>
+          </label>
+          {createTeam ? (
+            <label className="s3-field">
+              <span className="s3-field__label">{t('Team name')}</span>
+              <input
+                className="form-input"
+                value={teamName}
+                onChange={(event) => setTeamName(event.target.value)}
+                placeholder={`${form.name.trim() || 'Brand'} Team`}
+              />
+            </label>
+          ) : null}
         </div>
 
         <div className="brand-form__actions">

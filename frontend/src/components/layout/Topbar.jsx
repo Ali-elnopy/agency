@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useAuth from '../../hooks/useAuth';
 import { useBrands } from '../../context/brandsStore';
 import { useWorkspace } from '../../context/workspaceStore';
+import { useSprint3 } from '../../context/sprint3Store';
+import { ROLE_OPTIONS, roleLabel } from '../sprint3/Sprint3UI';
+import NotificationDrawer from '../common/NotificationDrawer';
 
 const MAX_PER_GROUP = 5;
 
@@ -33,6 +36,104 @@ const PAGES = [
     hint: 'Directory, roles & access',
     icon: '#i-users',
     keywords: 'people directory members users access',
+  },
+  {
+    id: 'templates',
+    label: 'Template Library',
+    hint: 'Questionnaire templates & question builder',
+    icon: '#i-file',
+    keywords: 'questionnaire templates questions builder industry',
+  },
+  {
+    id: 'dispatch',
+    label: 'Question Dispatch',
+    hint: 'Send discovery questions & portal links',
+    icon: '#i-send',
+    keywords: 'send dispatch portal link client questions',
+  },
+  {
+    id: 'briefs',
+    label: 'AI Briefs',
+    hint: 'Generate, review & approve the AI brief',
+    icon: '#i-zap',
+    keywords: 'ai brief approve generate clarifying',
+  },
+  {
+    id: 'strategy',
+    label: 'Strategy',
+    hint: 'Strategy editor, review & client approval',
+    icon: '#i-chart',
+    keywords: 'strategy brief review approval client',
+  },
+  {
+    id: 'content',
+    label: 'Content Items',
+    hint: 'Content plan items, campaigns & details',
+    icon: '#i-calendar',
+    keywords: 'content plan items campaigns kanban details',
+  },
+  {
+    id: 'tasks',
+    label: 'Tasks Management',
+    hint: 'Kanban board, deadlines & task assignment',
+    icon: '#i-layers',
+    keywords: 'tasks kanban todo in progress review overdue deadlines',
+  },
+  {
+    id: 'myWork',
+    label: 'My Work',
+    hint: 'Focused queue for assigned deliverables',
+    icon: '#i-check',
+    keywords: 'my work employee tasks today upcoming revisions',
+  },
+  {
+    id: 'managerProgress',
+    label: 'Team Progress',
+    hint: 'Brand delivery velocity & team workload',
+    icon: '#i-trend',
+    keywords: 'manager progress workload capacity overdue client',
+  },
+  {
+    id: 'clientReview',
+    label: 'Client Review',
+    hint: 'Client feed preview & approval workflow',
+    icon: '#i-eye',
+    keywords: 'client review feed preview approval changes comments',
+  },
+  {
+    id: 'clientRequests',
+    label: 'Client Requests',
+    hint: 'Special requests, emergency edits & banners',
+    icon: '#i-mail',
+    keywords: 'client requests emergency edit extra design occasion',
+  },
+  {
+    id: 'publishing',
+    label: 'Publishing',
+    hint: 'Live URLs & publishing delivery logs',
+    icon: '#i-globe',
+    keywords: 'publishing scheduled published live post url broadcast',
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics & Reports',
+    hint: 'Delivery KPIs, turnaround & PDF export',
+    icon: '#i-chart',
+    keywords: 'analytics reports kpi velocity export csv pdf turnaround',
+  },
+  {
+    id: 'decisions',
+    label: 'Decision Settings',
+    hint: 'AI provider & notification channels',
+    icon: '#i-target',
+    keywords: 'settings ai provider notifications email whatsapp',
+  },
+  {
+    id: 'portal',
+    label: 'Client Portal',
+    hint: 'Protected questionnaire & draft/submit view',
+    icon: '#i-send',
+    keywords: 'portal client questionnaire answers draft submit lock',
   },
   {
     id: 'roles',
@@ -109,6 +210,9 @@ export default function Topbar({
   const { user } = useAuth();
   const { brands } = useBrands();
   const { users, teams } = useWorkspace();
+  const { role, setRole, lang, setLang, notifications = [], t } = useSprint3();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const unreadNotifsCount = notifications.filter((n) => !n.read).length;
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -117,7 +221,7 @@ export default function Topbar({
   const inputRef = useRef(null);
 
   const displayName = user?.fullName || 'Studio Lead';
-  const roleDisplay = user?.role === 'ADMIN' ? 'Admin | Studio Lead' : 'Admin | Creative Dir.';
+  const roleDisplay = `${t(roleLabel(role))} · ${t('Preview')}`;
   const initials = displayName
     .split(' ')
     .map((n) => n[0])
@@ -341,7 +445,7 @@ export default function Topbar({
           <input
             ref={inputRef}
             type="search"
-            placeholder={searchPlaceholder}
+            placeholder={t(searchPlaceholder)}
             value={search}
             autoComplete="off"
             spellCheck="false"
@@ -423,12 +527,45 @@ export default function Topbar({
       </div>
 
       <div className="topbar__right">
+        <label className="s3-role-switch" title={t('Role preview')}>
+          <svg aria-hidden="true" className="icon">
+            <use href="#i-users" />
+          </svg>
+          <span className="s3-role-switch__label">{t('Previewing as')}</span>
+          <select
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+            aria-label={t('Role preview')}
+          >
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {t(option.label)}
+              </option>
+            ))}
+          </select>
+          <svg aria-hidden="true" className="icon s3-role-switch__chevron">
+            <use href="#i-chevron" />
+          </svg>
+        </label>
+
+        <button
+          type="button"
+          className="s3-lang-toggle"
+          onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+          title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+        >
+          <svg aria-hidden="true" className="icon">
+            <use href="#i-globe" />
+          </svg>
+          {lang === 'ar' ? 'EN' : 'ع'}
+        </button>
+
         <button
           type="button"
           className="icon-btn"
           aria-label="Help"
           onClick={onOpenHelp}
-          title="Help &amp; Documentation"
+          title={t('Help & Documentation')}
         >
           <svg aria-hidden="true" className="icon" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="9" />
@@ -441,7 +578,7 @@ export default function Topbar({
           className="theme-toggle"
           aria-label="Toggle dark mode"
           onClick={onToggleTheme}
-          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          title={theme === 'dark' ? t('Switch to Light Mode') : t('Switch to Dark Mode')}
         >
           <svg className="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
@@ -455,7 +592,7 @@ export default function Topbar({
         <a
           href="#signout"
           className="user"
-          title="Click to Sign out"
+          title={t('Click to Sign out')}
           onClick={(e) => {
             e.preventDefault();
             onSignOut();
@@ -477,7 +614,7 @@ export default function Topbar({
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
             </svg>
-            {actionLabel}
+            {t(actionLabel)}
           </button>
         ) : null}
       </div>
