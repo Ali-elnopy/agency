@@ -25,18 +25,6 @@ import StrategyWorkspacePage from './StrategyWorkspacePage';
 import ContentItemsPage from './ContentItemsPage';
 import DecisionSettingsPage from './DecisionSettingsPage';
 import ClientPortalPage from './ClientPortalPage';
-import TasksPage from './TasksPage';
-import MyWorkPage from './MyWorkPage';
-import ManagerProgressPage from './ManagerProgressPage';
-import ClientReviewPortalPage from './ClientReviewPortalPage';
-import ClientRequestsPage from './ClientRequestsPage';
-import PublishingPage from './PublishingPage';
-import AnalyticsPage from './AnalyticsPage';
-import {
-  AccountManagerDashboardView,
-  CreativeDashboardView,
-  ClientDashboardView,
-} from '../components/dashboard/RoleDashboards';
 import NewBriefModal from '../components/modals/NewBriefModal';
 import AssignTeamModal from '../components/modals/AssignTeamModal';
 import InfoModal from '../components/modals/InfoModal';

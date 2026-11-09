@@ -18,7 +18,6 @@ export default function DecisionSettingsPage() {
     aiProvider: settings.aiProvider ?? 'openai',
     channels: settings.channels ?? ['in_app'],
     autoLink: settings.autoLink !== false,
-    postApprovalEditReturnsToReview: settings.postApprovalEditReturnsToReview !== false,
   });
 
   const toggleChannel = (channelId) => {
@@ -150,25 +149,6 @@ export default function DecisionSettingsPage() {
               checked={form.autoLink}
               onChange={(next) => setForm((prev) => ({ ...prev, autoLink: next }))}
               label={t('Auto-link content plans')}
-              disabled={!canEdit}
-            />
-          </div>
-
-          <div className="s3-auto-link">
-            <div>
-              <strong>{t('Post-Approval Edit Decision')}</strong>
-              <small>
-                {t(
-                  'If approved content is edited, automatically return it to the internal review cycle',
-                )}
-              </small>
-            </div>
-            <Switch
-              checked={form.postApprovalEditReturnsToReview}
-              onChange={(next) =>
-                setForm((prev) => ({ ...prev, postApprovalEditReturnsToReview: next }))
-              }
-              label={t('Post-Approval Edit Decision')}
               disabled={!canEdit}
             />
           </div>

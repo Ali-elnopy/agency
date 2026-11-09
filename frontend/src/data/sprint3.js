@@ -7,7 +7,6 @@
    localStorage by Sprint3Context so every screen reads the same records.
    ========================================================================== */
 
-import { SPRINT4_5_ARABIC } from './sprintWorkflow';
 
 export const TEMPLATE_INDUSTRIES = [
   'E-commerce',
@@ -685,7 +684,6 @@ export const seedSettings = {
 /* -------------------------------------------------------------------------- */
 
 export const ARABIC = {
-  ...SPRINT4_5_ARABIC,
   // Auth & Login Screens
 
   'Forgot your password?': 'هل نسيت كلمة المرور؟',

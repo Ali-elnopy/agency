@@ -4,7 +4,6 @@ import { useBrands } from '../../context/brandsStore';
 import { useWorkspace } from '../../context/workspaceStore';
 import { useSprint3 } from '../../context/sprint3Store';
 import { ROLE_OPTIONS, roleLabel } from '../sprint3/Sprint3UI';
-import NotificationDrawer from '../common/NotificationDrawer';
 
 const MAX_PER_GROUP = 5;
 
@@ -210,9 +209,7 @@ export default function Topbar({
   const { user } = useAuth();
   const { brands } = useBrands();
   const { users, teams } = useWorkspace();
-  const { role, setRole, lang, setLang, notifications = [], t } = useSprint3();
-  const [showNotifications, setShowNotifications] = useState(false);
-  const unreadNotifsCount = notifications.filter((n) => !n.read).length;
+  const { role, setRole, lang, setLang, t } = useSprint3();
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);

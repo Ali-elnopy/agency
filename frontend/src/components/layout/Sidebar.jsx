@@ -50,55 +50,6 @@ const NAV_ITEMS = [
     roles: ['admin', 'account_manager', 'creative', 'client'],
   },
   {
-    id: 'tasks',
-    label: 'Tasks Management',
-    icon: '#i-layers',
-    group: 'Execution & Review',
-    roles: ['admin', 'account_manager', 'creative'],
-  },
-  {
-    id: 'myWork',
-    label: 'My Work',
-    icon: '#i-check',
-    group: 'Execution & Review',
-    roles: ['creative'],
-  },
-  {
-    id: 'managerProgress',
-    label: 'Team Progress',
-    icon: '#i-trend',
-    group: 'Execution & Review',
-    roles: ['admin', 'account_manager'],
-  },
-  {
-    id: 'clientReview',
-    label: 'Client Review',
-    icon: '#i-eye',
-    group: 'Client & Delivery',
-    roles: ['client', 'admin', 'account_manager'],
-  },
-  {
-    id: 'clientRequests',
-    label: 'Client Requests',
-    icon: '#i-mail',
-    group: 'Client & Delivery',
-    roles: ['client', 'admin', 'account_manager'],
-  },
-  {
-    id: 'publishing',
-    label: 'Publishing',
-    icon: '#i-globe',
-    group: 'Client & Delivery',
-    roles: ['admin', 'account_manager'],
-  },
-  {
-    id: 'analytics',
-    label: 'Analytics & Reports',
-    icon: '#i-chart',
-    group: 'Client & Delivery',
-    roles: ['admin', 'account_manager'],
-  },
-  {
     id: 'decisions',
     label: 'Decision Settings',
     icon: '#i-target',
@@ -179,36 +130,36 @@ export default function Sidebar({
             }}
           >
             <Logo />
-            <span className="brand__text sb-label">
+            <span className="brand__text">
               <strong>ORVIA</strong>
             </span>
           </a>
+
           <button
             type="button"
             className="sidebar__collapse"
             aria-label={isCollapsed ? t('Expand sidebar') : t('Collapse sidebar')}
             onClick={onToggleCollapse}
-            title={isCollapsed ? t('Expand sidebar') : t('Collapse sidebar')}
+            title={isCollapsed ? t('Expand') : t('Collapse')}
           >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-panel" />
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16M4 12h10M4 18h16" />
             </svg>
           </button>
         </div>
 
-        <nav className="nav">
+        <nav className="nav" aria-label="Main navigation">
           {visibleItems.map((item, index) => {
             const previous = visibleItems[index - 1];
-            const startGroup = item.group && item.group !== previous?.group;
-            const isProfile = item.id === 'profile';
-            const showDivider = isProfile || (previous?.group && !item.group);
+            const showGroup =
+              item.group && (!previous || previous.group !== item.group);
 
             return (
               <React.Fragment key={item.id}>
-                {startGroup ? (
-                  <span className="nav__group sb-label">{t(item.group)}</span>
+                {showGroup ? (
+                  <span className="s3-nav-group-label">{t(item.group)}</span>
                 ) : null}
-                {showDivider ? <span className="nav__divider" aria-hidden="true" /> : null}
+
                 <a
                   href={`#${item.id}`}
                   className={`nav__item ${activeTab === item.id ? 'is-active' : ''}`}
@@ -216,9 +167,8 @@ export default function Sidebar({
                     e.preventDefault();
                     selectTab(item.id);
                   }}
-                  title={t(item.label)}
                 >
-                  <svg aria-hidden="true" className="icon">
+                  <svg className="icon" aria-hidden="true">
                     <use href={item.icon} />
                   </svg>
                   <span className="sb-label">{t(item.label)}</span>
@@ -230,37 +180,35 @@ export default function Sidebar({
 
         <div className="sidebar__foot">
           <div className="sb-user">
-            <span className="sb-user__avatar" aria-hidden="true">
-              {initials}
-            </span>
-            <span className="sb-user__meta sb-label">
-              <strong>{displayName}</strong>
-              <span className="sb-user__role">{roleLabel}</span>
-            </span>
-            <span className="sb-user__actions">
+            <span className="avatar avatar--accent">{initials}</span>
+            <div className="sb-user__meta">
+              <strong title={displayName}>{displayName}</strong>
+              <small title={roleLabel}>{roleLabel}</small>
+            </div>
+            <div className="sb-user__actions">
               <button
                 type="button"
-                className="sb-user__icon"
-                onClick={() => selectTab('settings')}
-                aria-label={t('Settings')}
+                className="icon-btn"
                 title={t('Settings')}
+                aria-label="Settings"
+                onClick={() => selectTab('settings')}
               >
-                <svg aria-hidden="true" className="icon">
+                <svg className="icon" aria-hidden="true">
                   <use href="#i-settings" />
                 </svg>
               </button>
               <button
                 type="button"
-                className="sb-user__icon"
+                className="icon-btn"
+                title={t('Click to Sign out')}
+                aria-label="Sign out"
                 onClick={handleSignOut}
-                aria-label={t('Sign out')}
-                title={t('Sign out')}
               >
-                <svg aria-hidden="true" className="icon">
+                <svg className="icon" aria-hidden="true">
                   <use href="#i-logout" />
                 </svg>
               </button>
-            </span>
+            </div>
           </div>
         </div>
       </aside>
