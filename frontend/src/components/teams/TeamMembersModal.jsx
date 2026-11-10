@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Modal from '../common/Modal';
 import { useWorkspace } from '../../context/workspaceStore';
+import { useSprint3 } from '../../context/sprint3Store';
 import { initialsOf, teamMemberIds } from '../../data/workspace';
 
 const ELIGIBLE_ACCESS = new Set(['employee', 'account_manager', 'team_leader']);
@@ -11,6 +12,7 @@ function belongsToAnotherTeam(user, teamId) {
 }
 
 export default function TeamMembersModal({ team, onClose, onSaved }) {
+  const { t } = useSprint3();
   const { users, teams, updateTeam, addTeamMember, removeTeamMember } = useWorkspace();
 
   const [name, setName] = useState(team.name || '');
@@ -154,8 +156,8 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
     <Modal
       isOpen
       onClose={busy ? () => {} : onClose}
-      title="Edit Team"
-      subtitle={`Manage team details, leader and members for ${team.name}.`}
+      title={t('Edit Team')}
+      subtitle={team.name ? `${t('Manage team details, leader and members for')} ${team.name}.` : ''}
       icon="#i-users"
       iconColor="purple"
       maxWidth="620px"
@@ -163,10 +165,10 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
       footer={
         <>
           <span className="bw-team-count">
-            {selected.size} {selected.size === 1 ? 'member' : 'members'} selected
+            {selected.size} {selected.size === 1 ? t('member selected') : t('members selected')}
           </span>
           <button type="button" className="button button--ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="button"
@@ -177,7 +179,7 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
             <svg aria-hidden="true" className="icon">
               <use href="#i-check" />
             </svg>
-            {busy ? 'Saving…' : 'Save changes'}
+            {busy ? t('Saving…') : t('Save changes')}
           </button>
         </>
       }
@@ -186,7 +188,7 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
           <div>
             <label className="form-label" htmlFor="edit-team-name" style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>
-              Team Name
+              {t('Team Name')}
             </label>
             <input
               id="edit-team-name"
@@ -196,14 +198,14 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
                 setName(e.target.value);
                 setError('');
               }}
-              placeholder="Team Name"
+              placeholder={t('Team Name')}
               disabled={busy}
             />
           </div>
 
           <div>
             <label className="form-label" htmlFor="edit-team-desc" style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>
-              Description
+              {t('Description')}
             </label>
             <textarea
               id="edit-team-desc"
@@ -211,7 +213,7 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this team do?"
+              placeholder={t('What does this team do?')}
               disabled={busy}
               style={{ resize: 'vertical' }}
             />
@@ -219,7 +221,7 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
 
           <div className="bw-leader-field" style={{ margin: 0 }}>
             <label htmlFor="team-leader" style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>
-              Team Leader <span style={{ fontWeight: 400, opacity: 0.7 }}>(Optional)</span>
+              {t('Team Leader')} <span style={{ fontWeight: 400, opacity: 0.7 }}>({t('(Optional)')})</span>
             </label>
             <span className="form-select-wrap">
               <select
@@ -229,7 +231,7 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
                 onChange={(event) => handleLeaderChange(event.target.value)}
                 disabled={busy}
               >
-                <option value="">No leader assigned</option>
+                <option value="">{t('No leader assigned')}</option>
                 {leaderCandidates.map((user) => (
                   <option key={user.id} value={String(user.id)}>
                     {user.fullName} {user.systemAccess === 'team_leader' ? '⭐ (Team Leader)' : ''} — {user.jobTitle || user.systemAccess}
@@ -241,23 +243,23 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
               </svg>
             </span>
             <small className="bw-hint" style={{ marginTop: '4px', display: 'block' }}>
-              The Team Leader is responsible for this team’s members, tasks, and deliverables.
+              {t('The Team Leader is responsible for this team’s members, tasks, and deliverables.')}
             </small>
           </div>
         </div>
 
         <div style={{ borderTop: '1px solid var(--border, rgba(255,255,255,0.08))', paddingTop: '16px', marginTop: '12px' }}>
           <label style={{ fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-            Manage Team Members
+            {t('Manage Team Members')}
           </label>
 
           <label className="search bw-team-search" style={{ marginBottom: '12px' }}>
             <input
               type="search"
-              placeholder="Search people by name, email or role…"
+              placeholder={t('Search people by name, email or role…')}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              aria-label="Search team members"
+              aria-label={t('Search team members')}
             />
             <svg aria-hidden="true" className="icon">
               <use href="#i-search" />
