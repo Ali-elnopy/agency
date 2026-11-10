@@ -56,8 +56,18 @@ async function validatePlatformAccount(platformAccountId, brandId) {
 }
 
 function mapPrismaError(error) {
+  if (error?.code === 'P2002') {
+    throw new ApiError(
+      409,
+      'A content plan already exists for this platform account and month',
+    );
+  }
+
   if (error?.code === 'P2003') {
-    throw new ApiError(400, 'Invalid brand, platform account, or user reference');
+    throw new ApiError(
+      400,
+      'Invalid brand, platform account, or user reference',
+    );
   }
 
   if (error?.code === 'P2025') {
