@@ -2,7 +2,7 @@ import './config/env.js';
 import app from './app.js';
 import { prisma } from './config/prisma.js';
 
-const PORT = Number(process.env.PORT) || 5000;
+const PORT = Number(process.env.PORT) || 5001;
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET is required');
