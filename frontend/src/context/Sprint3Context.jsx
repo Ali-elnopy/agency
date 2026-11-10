@@ -105,6 +105,50 @@ export function Sprint3Provider({ children }) {
   useEffect(() => write(KEYS.prefs, prefs), [prefs]);
   useEffect(() => write(KEYS.tasks, tasks), [tasks]);
 
+  // The client portal is usually opened in its own tab, so a submission there
+  // must reach the account-manager dashboard without a manual reload. The
+  // `storage` event only fires in other tabs, and writing the same JSON back
+  // does not trigger a second event, so this cannot loop.
+  useEffect(() => {
+    const sync = (event) => {
+      if (event.storageArea !== window.localStorage) return;
+      switch (event.key) {
+        case KEYS.templates:
+          setTemplates(readArray(KEYS.templates, seedTemplates));
+          break;
+        case KEYS.dispatches:
+          setDispatches(readArray(KEYS.dispatches, seedDispatches));
+          break;
+        case KEYS.briefs:
+          setBriefs(readArray(KEYS.briefs, seedBriefs));
+          break;
+        case KEYS.strategies:
+          setStrategies(readArray(KEYS.strategies, seedStrategies));
+          break;
+        case KEYS.campaigns:
+          setCampaigns(readArray(KEYS.campaigns, seedCampaigns));
+          break;
+        case KEYS.contentMeta:
+          setContentMeta(readObject(KEYS.contentMeta, seedContentMeta));
+          break;
+        case KEYS.settings:
+          setSettings(readObject(KEYS.settings, seedSettings));
+          break;
+        case KEYS.prefs:
+          setPrefs((prev) => ({ ...prev, ...readObject(KEYS.prefs, prev) }));
+          break;
+        case KEYS.tasks:
+          setTasks(readArray(KEYS.tasks, seedTasks));
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+
   useEffect(() => {
     document.documentElement.dir = prefs.lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = prefs.lang;
