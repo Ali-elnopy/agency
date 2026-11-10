@@ -1,0 +1,1498 @@
+{
+  "schema_version": "1.1.0",
+  "language": "ar",
+  "id_strategy": "All template, section, and question codes are globally unique within this bundle. Prefixes identify the owning template or section.",
+  "answer_types": [
+    "text",
+    "textarea",
+    "single_select",
+    "multi_select",
+    "boolean"
+  ],
+  "defaults": {
+    "required": false,
+    "required_policy": "المصدر لا يحدد الأسئلة الإلزامية؛ لذلك كل الأسئلة اختيارية افتراضيًا."
+  },
+  "composition_rules": {
+    "merge_order": [
+      "category_template",
+      "optional_subtype_template"
+    ],
+    "merge_behavior": "Concatenate sections in the listed order; do not copy parent questions into child templates. A template is included at most once.",
+    "general_definition": "GENERAL uses COMMON only. COMMON is not included with FOOD, COMMERCIAL, or MEDICAL.",
+    "subtype_parent": {
+      "HYPERMARKET": "COMMERCIAL",
+      "CLOTHING": "COMMERCIAL",
+      "PERFUMES": "COMMERCIAL",
+      "PRINTING": "COMMERCIAL",
+      "ELECTRONICS": "COMMERCIAL",
+      "CAFE": "FOOD",
+      "BAKERY": "FOOD",
+      "CENTRAL_KITCHEN": "FOOD",
+      "DELIVERY": "FOOD"
+    }
+  },
+  "templates": {
+    "COMMON": {
+      "code": "COMMON",
+      "name": "الأسئلة المشتركة لجميع الأنشطة",
+      "description": "القالب الأساسي المشترك. GENERAL يستخدم هذا القالب وحده.",
+      "sections": [
+        {
+          "code": "COM_INFO",
+          "title": "معلومات عن النشاط",
+          "questions": [
+            {
+              "code": "COM_INFO_NATURE",
+              "label": "إيه طبيعة نشاطك التجاري؟ وإيه المنتجات أو الخدمات اللي بتقدمها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_INFO_DIFFERENTIATOR",
+              "label": "إيه أهم حاجة بتميز البراند بتاعك عن المنافسين؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_INFO_FOCUS",
+              "label": "إيه أكتر المنتجات أو الخدمات اللي حابب تركز عليها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_INFO_IDEAL_CUSTOMER",
+              "label": "مين العميل المثالي بالنسبة لك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_INFO_TARGET_AREAS",
+              "label": "إيه المناطق الجغرافية اللي بتستهدفها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "COM_SOCIAL",
+          "title": "السوشيال ميديا",
+          "questions": [
+            {
+              "code": "COM_SOCIAL_PLATFORMS",
+              "label": "إيه منصات التواصل الاجتماعي اللي البراند موجود عليها حاليًا؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "فيسبوك",
+                "إنستجرام",
+                "تيك توك",
+                "إكس",
+                "لينكدإن",
+                "يوتيوب",
+                "أخرى"
+              ]
+            },
+            {
+              "code": "COM_SOCIAL_CHALLENGE",
+              "label": "إيه أكبر مشكلة بتواجهك في صفحات السوشيال ميديا حاليًا؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_SOCIAL_PREVIOUS_MARKETING",
+              "label": "هل اشتغلت قبل كده مع شركة تسويق أو شخص مسؤول عن إدارة صفحاتك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_SOCIAL_BEST_CONTENT",
+              "label": "إيه أنواع المحتوى اللي حققت أفضل نتيجة معاك قبل كده، لو عندك تجربة سابقة؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_SOCIAL_VISUAL_IDENTITY",
+              "label": "هل عندك هوية بصرية جاهزة للبراند، زي اللوجو والألوان والخطوط؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_SOCIAL_EXISTING_MEDIA",
+              "label": "هل عندك صور وفيديوهات سابقة للمنتجات أو الخدمات نقدر نستخدمها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "COM_GOALS",
+          "title": "الأهداف والتوقعات",
+          "questions": [
+            {
+              "code": "COM_GOALS_MAIN",
+              "label": "إيه أهم هدف عايز تحققه من خلال السوشيال ميديا؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_GOALS_SUCCESS",
+              "label": "إيه النتيجة اللي لو وصلنالها هتعتبر إن التعاون معانا ناجح؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_GOALS_PRIORITY",
+              "label": "هل الأولوية عندك زيادة المبيعات، ولا انتشار البراند، ولا زيادة التفاعل، ولا جذب عملاء جدد؟",
+              "type": "single_select",
+              "required": false,
+              "options": [
+                "زيادة المبيعات",
+                "انتشار البراند",
+                "زيادة التفاعل",
+                "جذب عملاء جدد"
+              ]
+            },
+            {
+              "code": "COM_GOALS_FOCUS",
+              "label": "هل فيه منتج أو خدمة معينة عايز تركز عليها الفترة الجاية؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_GOALS_PROBLEM",
+              "label": "هل فيه مشكلة معينة في البراند عايز المحتوى يساعد في حلها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "COM_AUDIENCE",
+          "title": "الجمهور والمنافسين",
+          "questions": [
+            {
+              "code": "COM_AUDIENCE_PROFILE",
+              "label": "مين جمهورك المستهدف من حيث السن والاهتمامات وطبيعة احتياجاته؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_AUDIENCE_COMPETITORS",
+              "label": "مين أهم المنافسين بالنسبة لك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_AUDIENCE_BRAND_REFERENCES",
+              "label": "هل فيه براندات بتحب طريقة ظهورها على السوشيال ميديا؟ وإيه اللي عاجبك فيها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_AUDIENCE_CHOICE_REASON",
+              "label": "إيه أهم الأسباب اللي بتخلي العميل يختارك بدل المنافسين؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "COM_CONTENT",
+          "title": "المحتوى والتعاون",
+          "questions": [
+            {
+              "code": "COM_CONTENT_TONE",
+              "label": "تحب أسلوب الكلام في المحتوى يكون عامل إزاي؟ (مثلاً: رسمي، بسيط، شبابي، كوميدي...)",
+              "type": "textarea",
+              "required": false,
+              "options": [
+                "رسمي",
+                "بسيط",
+                "شبابي",
+                "كوميدي"
+              ]
+            },
+            {
+              "code": "COM_CONTENT_FORMATS",
+              "label": "إيه أنواع المحتوى اللي تفضلها: تعريفي، تعليمي، ترويجي، ترفيهي، ولا مزيج بينهم؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "تعريفي",
+                "تعليمي",
+                "ترويجي",
+                "ترفيهي",
+                "مزيج بينهم"
+              ]
+            },
+            {
+              "code": "COM_CONTENT_FILMING",
+              "label": "هل متاح تصوير منتجاتك أو مكان النشاط؟ وهل فيه أشخاص ممكن يظهروا في الفيديوهات؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_CONTENT_ASSET_CONTACT",
+              "label": "مين الشخص المسؤول عن توفير المعلومات والصور والفيديوهات المطلوبة؟",
+              "type": "text",
+              "required": false
+            },
+            {
+              "code": "COM_CONTENT_APPROVER",
+              "label": "مين الشخص المسؤول عن مراجعة المحتوى والموافقة عليه قبل النشر؟",
+              "type": "text",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "COM_EXTRA",
+          "title": "متطلبات إضافية",
+          "questions": [
+            {
+              "code": "COM_EXTRA_SEASONS",
+              "label": "هل فيه مواسم أو مناسبات أو عروض معينة لازم نجهز لها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_EXTRA_CONSTRAINTS",
+              "label": "هل فيه أي تعليمات أو حدود لازم نلتزم بيها في المحتوى؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "COM_EXTRA_NOTES",
+              "label": "هل فيه أي تفاصيل أو ملاحظات إضافية عن نشاطك حابب تضيفها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "COMMERCIAL": {
+      "code": "COMMERCIAL",
+      "name": "الأنشطة التجارية",
+      "description": "للأنشطة التي تبيع منتجات أو تقدم خدمات تجارية؛ يدمج بعد COMMON.",
+      "sections": [
+        {
+          "code": "BIZ_PRODUCTS",
+          "title": "المنتجات والخدمات",
+          "questions": [
+            {
+              "code": "BIZ_PRODUCTS_CATEGORIES",
+              "label": "إيه الأقسام أو أنواع المنتجات الأساسية اللي بتقدمها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_PRODUCTS_BESTSELLERS",
+              "label": "إيه أكتر المنتجات مبيعًا عندك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_PRODUCTS_NEW_FOCUS",
+              "label": "هل فيه منتجات جديدة أو منتجات معينة عايز تزود مبيعاتها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_PRODUCTS_PRICE_RANGE",
+              "label": "إيه الفئة السعرية لمنتجاتك بشكل عام؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_PRODUCTS_BENEFITS",
+              "label": "إيه المميزات اللي بتقدمها للعملاء، زي الجودة أو تنوع المنتجات أو الأسعار أو الضمان؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_PRODUCTS_EXTRA_SERVICES",
+              "label": "هل بتقدم خدمات إضافية زي التوصيل أو التركيب أو الصيانة أو الطباعة حسب الطلب؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_PRODUCTS_OFFERS",
+              "label": "هل عندك عروض وخصومات بشكل مستمر، ولا في مواسم معينة بس؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "BIZ_SALES",
+          "title": "البيع وخدمة العملاء",
+          "questions": [
+            {
+              "code": "BIZ_SALES_CHANNELS",
+              "label": "العميل بيشتري منك إزاي: من الفرع، أو واتساب، أو الموقع، أو السوشيال ميديا؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "من الفرع",
+                "واتساب",
+                "الموقع",
+                "السوشيال ميديا"
+              ]
+            },
+            {
+              "code": "BIZ_SALES_STEPS",
+              "label": "إيه خطوات الطلب أو الشراء اللي العميل محتاج يعرفها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_SALES_FAQ",
+              "label": "إيه أكتر الأسئلة اللي العملاء بيسألوها قبل الشراء؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_SALES_HESITATION",
+              "label": "إيه الأسباب اللي ممكن تخلي العميل يتردد قبل ما يشتري؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_SALES_FOCUS",
+              "label": "هل فيه منتجات معينة عايز تركز عليها في الفترة الجاية؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_SALES_DELIVERY_AREAS",
+              "label": "هل فيه مناطق معينة بتقدم فيها خدمة التوصيل؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "BIZ_MARKET",
+          "title": "المنافسة والجمهور",
+          "questions": [
+            {
+              "code": "BIZ_MARKET_CURRENT_BUYERS",
+              "label": "مين أكتر فئة بتشتري منك حاليًا؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_MARKET_GROWTH_AUDIENCE",
+              "label": "هل فيه فئة معينة حابب تجذبها ومش بتوصل لها بالشكل الكافي؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_MARKET_COMPETITORS",
+              "label": "مين أهم المنافسين ليك في السوق؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_MARKET_PREFERENCE_REASON",
+              "label": "إيه أكتر ميزة بتخلي العملاء يفضلوا الشراء منك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_MARKET_COMPLAINTS",
+              "label": "هل فيه اعتراضات أو شكاوى متكررة من العملاء محتاجين نتعامل معاها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "BIZ_CONTENT",
+          "title": "التصوير والمحتوى",
+          "questions": [
+            {
+              "code": "BIZ_CONTENT_LOCATION_FILMING",
+              "label": "هل متاح نصور المنتجات داخل المحل أو مكان التصنيع؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "BIZ_CONTENT_PRODUCT_AVAILABILITY",
+              "label": "هل تقدر توفر المنتجات المطلوبة للتصوير بشكل مستمر؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "BIZ_CONTENT_TEAM_APPEARANCE",
+              "label": "هل ممكن يظهر أحد أفراد فريق العمل في الفيديوهات؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "BIZ_CONTENT_PRODUCT_EXPLANATION",
+              "label": "هل فيه تفاصيل أو مميزات في منتجاتك محتاجة شرح أو توضيح للعميل؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_CONTENT_PREFERENCE",
+              "label": "هل تفضل التركيز على عرض المنتجات، ولا شرح مميزاتها، ولا العروض، ولا المحتوى الترفيهي؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "عرض المنتجات",
+                "شرح المميزات",
+                "العروض",
+                "المحتوى الترفيهي"
+              ]
+            },
+            {
+              "code": "BIZ_CONTENT_EXISTING_ASSETS",
+              "label": "هل عندك صور احترافية أو فيديوهات سابقة نقدر نستفيد منها؟",
+              "type": "boolean",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "BIZ_GOALS",
+          "title": "الأهداف",
+          "questions": [
+            {
+              "code": "BIZ_GOALS_PRIMARY_RESULT",
+              "label": "إيه النتيجة الأهم بالنسبة لك: زيادة المبيعات، أو زيارات الفرع، أو رسائل واتساب، أو انتشار البراند؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "زيادة المبيعات",
+                "زيارات الفرع",
+                "رسائل واتساب",
+                "انتشار البراند"
+              ]
+            },
+            {
+              "code": "BIZ_GOALS_FIRST_PERIOD",
+              "label": "هل فيه هدف معين عايز تحققه خلال أول 3 شهور؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_GOALS_TRACKING",
+              "label": "إزاي بتتابع حاليًا عدد المبيعات أو الاستفسارات اللي بتيجي من السوشيال ميديا؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BIZ_GOALS_UPCOMING",
+              "label": "هل فيه عروض أو مواسم أو منتجات جديدة محتاجين نجهز لها من دلوقتي؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "BIZ_EXTRA",
+          "title": "ملاحظات إضافية",
+          "questions": [
+            {
+              "code": "BIZ_EXTRA_NOTES",
+              "label": "هل فيه أي تفاصيل أو ملاحظات إضافية حابب تضيفها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "MEDICAL": {
+      "code": "MEDICAL",
+      "name": "الأنشطة الطبية",
+      "description": "للعيادات والمراكز الطبية والعلاج الطبيعي والأسنان والجلدية والتغذية وغيرها؛ يدمج بعد COMMON.",
+      "sections": [
+        {
+          "code": "MED_SPECIALTY",
+          "title": "التخصص والخدمات",
+          "questions": [
+            {
+              "code": "MED_SPECIALTY_MAIN",
+              "label": "إيه التخصص الطبي الأساسي للعيادة أو المركز؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_SPECIALTY_SUB",
+              "label": "إيه الخدمات أو التخصصات الفرعية اللي بتقدمها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_SPECIALTY_CONTENT_FOCUS",
+              "label": "إيه الخدمات اللي حابب تركز عليها في المحتوى؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_SPECIALTY_DIFFERENTIATOR",
+              "label": "إيه اللي بيميز العيادة أو المركز عن غيره؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_SPECIALTY_AWARENESS",
+              "label": "هل فيه تخصصات أو خدمات محتاجة تعريف الجمهور بيها بشكل أكبر؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_SPECIALTY_PROFESSIONALS",
+              "label": "هل فيه أطباء أو متخصصين معينين حابب نسلط الضوء عليهم وعلى خبراتهم؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "MED_AUDIENCE",
+          "title": "الجمهور واحتياجاته",
+          "questions": [
+            {
+              "code": "MED_AUDIENCE_GROUPS",
+              "label": "مين الفئات اللي بتستهدفها العيادة أو المركز؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_AUDIENCE_AREAS",
+              "label": "إيه المناطق اللي بيجيلك منها معظم المرضى؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_AUDIENCE_CONCERNS",
+              "label": "إيه أكتر الأسئلة أو المخاوف اللي المرضى بيسألوا عنها قبل حجز الكشف؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_AUDIENCE_MISCONCEPTIONS",
+              "label": "هل فيه مفاهيم طبية خاطئة أو معلومات منتشرة حابب توضحها للجمهور؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_AUDIENCE_TRUST",
+              "label": "إيه أهم العوامل اللي بتخلي المريض يثق في العيادة ويختارها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "MED_BOOKING",
+          "title": "الحجز والتواصل",
+          "questions": [
+            {
+              "code": "MED_BOOKING_CHANNELS",
+              "label": "المريض يقدر يحجز إزاي: تليفون، واتساب، رسائل الصفحة، ولا نظام حجز إلكتروني؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "تليفون",
+                "واتساب",
+                "رسائل الصفحة",
+                "نظام حجز إلكتروني"
+              ]
+            },
+            {
+              "code": "MED_BOOKING_HOURS",
+              "label": "إيه مواعيد العمل المتاحة؟",
+              "type": "text",
+              "required": false
+            },
+            {
+              "code": "MED_BOOKING_FIRST_VISIT",
+              "label": "إيه المعلومات اللي المريض محتاج يعرفها قبل الزيارة الأولى؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_BOOKING_CONTACT_PERSON",
+              "label": "مين المسؤول عن الرد على استفسارات المرضى وتنظيم الحجوزات؟",
+              "type": "text",
+              "required": false
+            },
+            {
+              "code": "MED_BOOKING_PREPARATION",
+              "label": "هل فيه خدمات محتاجة توضيح خطوات الحجز أو التحضير قبل الزيارة؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "MED_CONTENT",
+          "title": "المحتوى والتصوير",
+          "questions": [
+            {
+              "code": "MED_CONTENT_TYPES",
+              "label": "إيه نوع المحتوى اللي تفضله: توعية طبية، إجابات عن الأسئلة الشائعة، تعريف بالأطباء، شرح الخدمات، ولا جولة داخل المركز؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "توعية طبية",
+                "إجابات عن الأسئلة الشائعة",
+                "تعريف بالأطباء",
+                "شرح الخدمات",
+                "جولة داخل المركز"
+              ]
+            },
+            {
+              "code": "MED_CONTENT_DOCTOR_APPEARANCE",
+              "label": "هل الأطباء مستعدين يظهروا في الفيديوهات ويتكلموا عن تخصصهم؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "MED_CONTENT_LOCATION_FILMING",
+              "label": "هل متاح تصوير العيادة والأجهزة والإمكانيات المتوفرة؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "MED_CONTENT_EXISTING_ASSETS",
+              "label": "هل عندك صور وفيديوهات احترافية سابقة نقدر نستخدمها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_CONTENT_TONE",
+              "label": "إيه أسلوب التواصل المناسب للبراند: طبي ورسمي، ولا بسيط وقريب من الجمهور؟",
+              "type": "single_select",
+              "required": false,
+              "options": [
+                "طبي ورسمي",
+                "بسيط وقريب من الجمهور"
+              ]
+            },
+            {
+              "code": "MED_CONTENT_TOPICS",
+              "label": "هل فيه موضوعات طبية معينة حابب نركز عليها في الفترة الجاية؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "MED_REVIEW",
+          "title": "المراجعة والضوابط",
+          "questions": [
+            {
+              "code": "MED_REVIEW_APPROVER",
+              "label": "مين المسؤول عن مراجعة المعلومات الطبية والموافقة عليها قبل النشر؟",
+              "type": "text",
+              "required": false
+            },
+            {
+              "code": "MED_REVIEW_REGULATIONS",
+              "label": "هل فيه ضوابط مهنية أو تنظيمية معينة لازم نلتزم بيها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_REVIEW_PROHIBITED",
+              "label": "هل فيه ادعاءات أو موضوعات طبية ممنوع تناولها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_REVIEW_PATIENT_CONSENT",
+              "label": "هل عندكم إجراءات واضحة للموافقة على استخدام صور المرضى أو تجاربهم وقصصهم؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_REVIEW_SOURCES",
+              "label": "هل فيه مصادر علمية أو إرشادات طبية معتمدة تفضلوا نعتمد عليها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "MED_GOALS",
+          "title": "الأهداف",
+          "questions": [
+            {
+              "code": "MED_GOALS_PRIMARY",
+              "label": "إيه الهدف الأساسي من السوشيال ميديا: زيادة الوعي، تثقيف الجمهور، زيادة الحجوزات، ولا التعريف بخدمات معينة؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "زيادة الوعي",
+                "تثقيف الجمهور",
+                "زيادة الحجوزات",
+                "التعريف بخدمات معينة"
+              ]
+            },
+            {
+              "code": "MED_GOALS_SERVICE_PRIORITY",
+              "label": "إيه الخدمات اللي محتاجة أولوية في المحتوى؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "MED_GOALS_TRACKING",
+              "label": "هل بتتابعوا عدد الحجوزات والاستفسارات اللي بتيجي من السوشيال ميديا؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "MED_GOALS_FIRST_PERIOD",
+              "label": "إيه النتيجة اللي تتمنوا تحققوها خلال أول 3 شهور؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "MED_EXTRA",
+          "title": "ملاحظات إضافية",
+          "questions": [
+            {
+              "code": "MED_EXTRA_NOTES",
+              "label": "هل فيه أي تفاصيل أو ملاحظات إضافية حابب تضيفها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "notice": "يجب مراجعة المعلومات الطبية بواسطة الطبيب أو الشخص المختص قبل النشر، مع الحفاظ على سرية بيانات المرضى والحصول على الموافقات اللازمة عند استخدام صورهم أو تجاربهم."
+    },
+    "FOOD": {
+      "code": "FOOD",
+      "name": "المطاعم والكافيهات والأنشطة الغذائية",
+      "description": "للمطاعم والكافيهات ومحلات الحلويات والمخابز والمطابخ المركزية؛ يدمج بعد COMMON.",
+      "sections": [
+        {
+          "code": "FOOD_BUSINESS",
+          "title": "النشاط والمنيو",
+          "questions": [
+            {
+              "code": "FOOD_BUSINESS_CONCEPT",
+              "label": "إيه فكرة المطعم أو الكافيه، وإيه نوع الأكل أو المشروبات اللي بتقدمها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_BUSINESS_BESTSELLERS",
+              "label": "إيه أشهر الأصناف أو المنتجات عندك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_BUSINESS_FOCUS",
+              "label": "إيه الأصناف اللي حابب تركز عليها في المحتوى؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_BUSINESS_AVERAGE_PRICE",
+              "label": "إيه متوسط أسعار المنتجات أو الوجبات؟",
+              "type": "text",
+              "required": false
+            },
+            {
+              "code": "FOOD_BUSINESS_SERVICE_MODES",
+              "label": "هل عندك خدمة أكل داخل المكان، ولا تيك أواي، ولا توصيل، ولا أكتر من خدمة؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "أكل داخل المكان",
+                "تيك أواي",
+                "توصيل"
+              ]
+            },
+            {
+              "code": "FOOD_BUSINESS_DIFFERENTIATOR",
+              "label": "إيه اللي بيميزك عن المطاعم أو الكافيهات المنافسة؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_BUSINESS_SEASONAL",
+              "label": "هل فيه أصناف موسمية أو منتجات جديدة بتقدمها خلال السنة؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "FOOD_AUDIENCE",
+          "title": "العملاء والموقع",
+          "questions": [
+            {
+              "code": "FOOD_AUDIENCE_TARGET",
+              "label": "مين الفئة الأساسية اللي بتستهدفها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_AUDIENCE_AREAS",
+              "label": "إيه المناطق اللي بتخدمها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_AUDIENCE_COMPETITORS",
+              "label": "مين أهم المنافسين ليك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_AUDIENCE_OCCASIONS",
+              "label": "إيه أكتر الأوقات أو المناسبات اللي العملاء بيطلبوا فيها منك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_AUDIENCE_PEAK_HOURS",
+              "label": "إيه أيام أو أوقات الذروة عندك؟ وإيه الأوقات اللي بتكون أهدى؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "FOOD_ORDERS",
+          "title": "الطلبات وخدمة العملاء",
+          "questions": [
+            {
+              "code": "FOOD_ORDERS_CHANNELS",
+              "label": "العميل يقدر يطلب إزاي: من الفرع، أو واتساب، أو التليفون، أو تطبيقات التوصيل؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "من الفرع",
+                "واتساب",
+                "التليفون",
+                "تطبيقات التوصيل"
+              ]
+            },
+            {
+              "code": "FOOD_ORDERS_DELIVERY_DETAILS",
+              "label": "إيه مناطق التوصيل والرسوم والمدة المتوقعة للطلب؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_ORDERS_FAQ",
+              "label": "إيه أكتر الأسئلة اللي العملاء بيسألوها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_ORDERS_COMPLAINTS",
+              "label": "إيه أكتر الشكاوى أو الملاحظات اللي بتتكرر من العملاء؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_ORDERS_PACKAGES",
+              "label": "هل بتقدم وجبات عائلية أو عروض أو باقات للمناسبات والشركات؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_ORDERS_PREORDER",
+              "label": "هل فيه أصناف محتاجة وقت تجهيز مسبق أو حجز قبلها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "FOOD_CONTENT",
+          "title": "التصوير والمحتوى",
+          "questions": [
+            {
+              "code": "FOOD_CONTENT_FEATURED_ITEMS",
+              "label": "إيه الأصناف اللي عايز نظهرها بشكل أكبر؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_CONTENT_KITCHEN_FILMING",
+              "label": "هل متاح تصوير تحضير الأكل والمطبخ وطريقة التقديم؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "FOOD_CONTENT_TEAM_APPEARANCE",
+              "label": "هل الشيف أو فريق العمل مستعد يظهر في الفيديوهات؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "FOOD_CONTENT_STYLE",
+              "label": "هل تفضل فيديوهات عرض الأكل، ولا الكواليس، ولا المحتوى الكوميدي والترفيهي، ولا العروض؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "عرض الأكل",
+                "الكواليس",
+                "المحتوى الكوميدي والترفيهي",
+                "العروض"
+              ]
+            },
+            {
+              "code": "FOOD_CONTENT_PREPARATION_DETAILS",
+              "label": "إيه التفاصيل اللي بتميز طريقة التحضير أو المكونات أو التقديم عندك؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_CONTENT_EXISTING_ASSETS",
+              "label": "هل عندك صور وفيديوهات احترافية نقدر نستخدمها؟",
+              "type": "boolean",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "FOOD_OFFERS",
+          "title": "العروض والحملات",
+          "questions": [
+            {
+              "code": "FOOD_OFFERS_CURRENT",
+              "label": "هل فيه عروض حالية أو خصومات عايز نعلن عنها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_OFFERS_UPCOMING",
+              "label": "هل فيه أصناف جديدة أو مناسبات قريبة محتاجين نجهز لها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_OFFERS_DAYS",
+              "label": "هل فيه أيام معينة عايز تزود فيها الطلبات أو الزيارات؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "FOOD_OFFERS_COMMERCIAL_GOAL",
+              "label": "هل هدفك الترويج لأصناف معينة، ولا زيادة متوسط قيمة الطلب، ولا جذب عملاء جدد؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "الترويج لأصناف معينة",
+                "زيادة متوسط قيمة الطلب",
+                "جذب عملاء جدد"
+              ]
+            },
+            {
+              "code": "FOOD_OFFERS_AVAILABILITY",
+              "label": "هل فيه أصناف موسمية أو منتجات ممكن تكون غير متاحة في بعض الأوقات؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "FOOD_GOALS",
+          "title": "الأهداف وقياس النتائج",
+          "questions": [
+            {
+              "code": "FOOD_GOALS_PRIMARY",
+              "label": "إيه هدفك الأساسي من السوشيال ميديا: زيادة الطلبات، أو زيارات المكان، أو انتشار البراند، أو حجوزات المناسبات؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "زيادة الطلبات",
+                "زيارات المكان",
+                "انتشار البراند",
+                "حجوزات المناسبات"
+              ]
+            },
+            {
+              "code": "FOOD_GOALS_ORDER_CHANNEL",
+              "label": "إيه وسيلة الطلب اللي عايز نوجه العملاء ليها بشكل أساسي؟",
+              "type": "text",
+              "required": false
+            },
+            {
+              "code": "FOOD_GOALS_TRACKING",
+              "label": "هل بتقدر تعرف عدد الطلبات اللي بتيجي من السوشيال ميديا؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "FOOD_GOALS_FIRST_PERIOD",
+              "label": "إيه النتيجة اللي حابب تحققها خلال أول 3 شهور؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        },
+        {
+          "code": "FOOD_EXTRA",
+          "title": "ملاحظات إضافية",
+          "questions": [
+            {
+              "code": "FOOD_EXTRA_NOTES",
+              "label": "هل فيه أي تفاصيل أو ملاحظات إضافية حابب تضيفها؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "HYPERMARKET": {
+      "code": "HYPERMARKET",
+      "name": "الهايبر ماركت",
+      "description": "أسئلة إضافية خاصة بـالهايبر ماركت؛ تدمج بعد COMMERCIAL.",
+      "sections": [
+        {
+          "code": "HYPERMARKET_DETAILS",
+          "title": "أسئلة إضافية — الهايبر ماركت",
+          "questions": [
+            {
+              "code": "HYPER_FOCUS_SECTIONS",
+              "label": "إيه الأقسام اللي عايز تركز عليها؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "HYPER_WEEKLY_CHANGES",
+              "label": "هل الأسعار والعروض بتتغير كل أسبوع؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "HYPER_EXTRA_SERVICES",
+              "label": "هل فيه خدمات إضافية للعملاء؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "CLOTHING": {
+      "code": "CLOTHING",
+      "name": "محلات الملابس",
+      "description": "أسئلة إضافية خاصة بـمحلات الملابس؛ تدمج بعد COMMERCIAL.",
+      "sections": [
+        {
+          "code": "CLOTHING_DETAILS",
+          "title": "أسئلة إضافية — محلات الملابس",
+          "questions": [
+            {
+              "code": "CLOTH_SIZES_COLORS",
+              "label": "هل فيه مقاسات وألوان متوفرة باستمرار؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "CLOTH_RETURN_EXCHANGE",
+              "label": "هل فيه استبدال واسترجاع؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "CLOTH_MODEL_SHOOT",
+              "label": "هل التصوير على موديل متاح؟",
+              "type": "boolean",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "PERFUMES": {
+      "code": "PERFUMES",
+      "name": "العطور",
+      "description": "أسئلة إضافية خاصة بـالعطور؛ تدمج بعد COMMERCIAL.",
+      "sections": [
+        {
+          "code": "PERFUMES_DETAILS",
+          "title": "أسئلة إضافية — العطور",
+          "questions": [
+            {
+              "code": "PERFUME_TYPES",
+              "label": "إيه أنواع العطور المتاحة؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "PERFUME_PRICE_RANGES",
+              "label": "إيه الفئات السعرية؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "PERFUME_BESTSELLERS",
+              "label": "إيه أكتر الروائح والمنتجات طلبًا؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "PRINTING": {
+      "code": "PRINTING",
+      "name": "المطابع والتغليف",
+      "description": "أسئلة إضافية خاصة بـالمطابع والتغليف؛ تدمج بعد COMMERCIAL.",
+      "sections": [
+        {
+          "code": "PRINTING_DETAILS",
+          "title": "أسئلة إضافية — المطابع والتغليف",
+          "questions": [
+            {
+              "code": "PRINT_TYPES_MATERIALS",
+              "label": "إيه أنواع الطباعة والخامات المتاحة؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "PRINT_CUSTOMERS",
+              "label": "مين عملاؤك الأساسيون: أفراد ولا شركات؟",
+              "type": "single_select",
+              "required": false,
+              "options": [
+                "أفراد",
+                "شركات"
+              ]
+            },
+            {
+              "code": "PRINT_PROCESS_FILMING",
+              "label": "هل نقدر نصور مراحل التصنيع؟",
+              "type": "boolean",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "ELECTRONICS": {
+      "code": "ELECTRONICS",
+      "name": "الإلكترونيات",
+      "description": "أسئلة إضافية خاصة بـالإلكترونيات؛ تدمج بعد COMMERCIAL.",
+      "sections": [
+        {
+          "code": "ELECTRONICS_DETAILS",
+          "title": "أسئلة إضافية — الإلكترونيات",
+          "questions": [
+            {
+              "code": "ELECTRONICS_WARRANTY_MAINTENANCE",
+              "label": "هل فيه ضمان وصيانة؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "ELECTRONICS_EXPLAIN_COMPARE",
+              "label": "إيه المنتجات اللي محتاجة شرح ومقارنة قبل الشراء؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "CAFE": {
+      "code": "CAFE",
+      "name": "الكافيهات",
+      "description": "أسئلة إضافية خاصة بـالكافيهات؛ تدمج بعد FOOD.",
+      "sections": [
+        {
+          "code": "CAFE_DETAILS",
+          "title": "أسئلة إضافية — الكافيهات",
+          "questions": [
+            {
+              "code": "CAFE_WORK_STUDY",
+              "label": "هل المكان مناسب للمذاكرة أو الشغل أو التجمعات؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "المذاكرة",
+                "الشغل",
+                "التجمعات"
+              ]
+            },
+            {
+              "code": "CAFE_VISITS_ORDERS",
+              "label": "هل هدفك زيادة الزيارات ولا الطلبات الخارجية؟",
+              "type": "single_select",
+              "required": false,
+              "options": [
+                "زيادة الزيارات",
+                "الطلبات الخارجية"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "BAKERY": {
+      "code": "BAKERY",
+      "name": "الحلويات والمخابز",
+      "description": "أسئلة إضافية خاصة بـالحلويات والمخابز؛ تدمج بعد FOOD.",
+      "sections": [
+        {
+          "code": "BAKERY_DETAILS",
+          "title": "أسئلة إضافية — الحلويات والمخابز",
+          "questions": [
+            {
+              "code": "BAKERY_SPECIAL_ITEMS",
+              "label": "إيه الأصناف المميزة؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "BAKERY_CUSTOM_CAKES",
+              "label": "هل فيه تورت للمناسبات وطلبات مخصصة؟",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "code": "BAKERY_PREPARATION_TIME",
+              "label": "محتاجين وقت تجهيز قد إيه؟",
+              "type": "text",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "CENTRAL_KITCHEN": {
+      "code": "CENTRAL_KITCHEN",
+      "name": "المطابخ المركزية",
+      "description": "أسئلة إضافية خاصة بـالمطابخ المركزية؛ تدمج بعد FOOD.",
+      "sections": [
+        {
+          "code": "CENTRAL_KITCHEN_DETAILS",
+          "title": "أسئلة إضافية — المطابخ المركزية",
+          "questions": [
+            {
+              "code": "KITCHEN_CUSTOMER_TYPES",
+              "label": "هل البيع للأفراد ولا للشركات والمطاعم والكافيهات؟",
+              "type": "multi_select",
+              "required": false,
+              "options": [
+                "الأفراد",
+                "الشركات",
+                "المطاعم",
+                "الكافيهات"
+              ]
+            },
+            {
+              "code": "KITCHEN_MINIMUM_ORDER",
+              "label": "إيه الحد الأدنى للطلب؟",
+              "type": "text",
+              "required": false
+            },
+            {
+              "code": "KITCHEN_DISTRIBUTION_AREAS",
+              "label": "إيه مناطق التوزيع؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    "DELIVERY": {
+      "code": "DELIVERY",
+      "name": "مطاعم التوصيل",
+      "description": "أسئلة إضافية خاصة بـمطاعم التوصيل؛ تدمج بعد FOOD.",
+      "sections": [
+        {
+          "code": "DELIVERY_DETAILS",
+          "title": "أسئلة إضافية — مطاعم التوصيل",
+          "questions": [
+            {
+              "code": "DELIVERY_AREAS",
+              "label": "إيه مناطق التوصيل؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "DELIVERY_SUITABLE_ITEMS",
+              "label": "إيه الأصناف المناسبة للتوصيل؟",
+              "type": "textarea",
+              "required": false
+            },
+            {
+              "code": "DELIVERY_PEAK_TIMES",
+              "label": "إيه أوقات الضغط على الطلبات؟",
+              "type": "textarea",
+              "required": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "compositions": {
+    "GENERAL": [
+      "COMMON"
+    ],
+    "COMMERCIAL": [
+      "COMMERCIAL"
+    ],
+    "MEDICAL": [
+      "MEDICAL"
+    ],
+    "FOOD": [
+      "FOOD"
+    ],
+    "HYPERMARKET": [
+      "COMMERCIAL",
+      "HYPERMARKET"
+    ],
+    "CLOTHING": [
+      "COMMERCIAL",
+      "CLOTHING"
+    ],
+    "PERFUMES": [
+      "COMMERCIAL",
+      "PERFUMES"
+    ],
+    "PRINTING": [
+      "COMMERCIAL",
+      "PRINTING"
+    ],
+    "ELECTRONICS": [
+      "COMMERCIAL",
+      "ELECTRONICS"
+    ],
+    "CAFE": [
+      "FOOD",
+      "CAFE"
+    ],
+    "BAKERY": [
+      "FOOD",
+      "BAKERY"
+    ],
+    "CENTRAL_KITCHEN": [
+      "FOOD",
+      "CENTRAL_KITCHEN"
+    ],
+    "DELIVERY": [
+      "FOOD",
+      "DELIVERY"
+    ]
+  },
+  "source_notes": [
+    "تم تحويل نصوص الأسئلة من مستند متطلبات جمع العملاء المقدم في المحادثة.",
+    "الخيارات الموجودة في الأسئلة الاختيارية مقتصرة على أمثلة الاختيارات الواردة صراحةً في صياغة السؤال أو المستند؛ لا تمثل قائمة شاملة إلا إذا كانت كذلك في النص.",
+    "في الأسئلة التي لا يحدد المصدر نوع إجابة واضحًا، استُخدم textarea. استُخدم text للأسماء والمواعيد والقيم القصيرة، وboolean لأسئلة نعم/لا الواضحة.",
+    "COMMON is now used only for GENERAL. FOOD, COMMERCIAL, and MEDICAL forms do not include COMMON.",
+    "Extra notes are included once in each main-category template and in COMMON for GENERAL.",
+    "Post-intake workflow is maintained in a separate agency_post_intake_workflow.json file."
+  ],
+  "onboarding_flow": {
+    "main_categories": [
+      {
+        "code": "FOOD",
+        "label": "مطاعم وكافيهات",
+        "template_code": "FOOD",
+        "requires_subtype": true,
+        "subtypes": [
+          {
+            "code": "RESTAURANT",
+            "label": "مطعم",
+            "composition": "FOOD"
+          },
+          {
+            "code": "CAFE",
+            "label": "كافيه",
+            "composition": "CAFE"
+          },
+          {
+            "code": "BAKERY",
+            "label": "مخبز / حلويات",
+            "composition": "BAKERY"
+          },
+          {
+            "code": "CENTRAL_KITCHEN",
+            "label": "مطبخ مركزي",
+            "composition": "CENTRAL_KITCHEN"
+          },
+          {
+            "code": "DELIVERY",
+            "label": "مطعم توصيل / دليفري",
+            "composition": "DELIVERY"
+          }
+        ]
+      },
+      {
+        "code": "COMMERCIAL",
+        "label": "أنشطة تجارية",
+        "template_code": "COMMERCIAL",
+        "requires_subtype": true,
+        "subtypes": [
+          {
+            "code": "CLOTHING",
+            "label": "ملابس",
+            "composition": "CLOTHING"
+          },
+          {
+            "code": "PERFUMES",
+            "label": "عطور",
+            "composition": "PERFUMES"
+          },
+          {
+            "code": "ELECTRONICS",
+            "label": "إلكترونيات",
+            "composition": "ELECTRONICS"
+          },
+          {
+            "code": "PRINTING",
+            "label": "مطابع وتغليف",
+            "composition": "PRINTING"
+          },
+          {
+            "code": "HYPERMARKET",
+            "label": "هايبر ماركت",
+            "composition": "HYPERMARKET"
+          },
+          {
+            "code": "OTHER_COMMERCIAL",
+            "label": "نشاط تجاري آخر",
+            "composition": "COMMERCIAL"
+          }
+        ]
+      },
+      {
+        "code": "MEDICAL",
+        "label": "أنشطة طبية",
+        "template_code": "MEDICAL",
+        "requires_subtype": false,
+        "subtypes": []
+      },
+      {
+        "code": "GENERAL",
+        "label": "نشاطي مش تابع لأي تصنيف من دول",
+        "template_code": "COMMON",
+        "requires_subtype": false,
+        "subtypes": []
+      }
+    ],
+    "selection_behavior": {
+      "first_screen": "Show only the three main categories plus GENERAL. Do not show template names or subtype choices on this screen.",
+      "second_screen": "For FOOD and COMMERCIAL, show only the matching subtype choices. MEDICAL has no subtype selection for now.",
+      "general": "Use COMMON only. Do not show FOOD, COMMERCIAL, or MEDICAL questions.",
+      "medical": "Use MEDICAL only. The client specifies the medical specialty in the MEDICAL questionnaire.",
+      "food": "Use FOOD plus the selected optional subtype template. RESTAURANT maps to FOOD only.",
+      "commercial": "Use COMMERCIAL plus the selected optional subtype template. OTHER_COMMERCIAL maps to COMMERCIAL only."
+    }
+  }
+}

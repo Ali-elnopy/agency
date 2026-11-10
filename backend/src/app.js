@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -13,6 +14,8 @@ import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { platformAccountsRouter } from './modules/platform-accounts/platform-accounts.routes.js';
 import { contentPlansRouter } from './modules/content-plans/content-plans.routes.js';
 import { filesRouter } from './modules/files/files.routes.js';
+import { clientOnboardingRouter } from './modules/client-onboarding/client-onboarding.routes.js';
+
 const app = express();
 
 app.disable('x-powered-by');
@@ -25,7 +28,11 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: (process.env.CLIENT_URL || process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000')
+    origin: (
+      process.env.CLIENT_URL ||
+      process.env.CORS_ORIGINS ||
+      'http://localhost:5173,http://localhost:3000'
+    )
       .split(',')
       .map((url) => url.trim()),
     credentials: true,
@@ -57,6 +64,14 @@ const apiIndex = (_req, res) => {
       dashboard: 'GET /api/dashboard',
       roles: 'GET /api/meta/roles',
       jobTitles: 'GET /api/meta/job-titles',
+      clientOnboarding: {
+        categories: 'GET /api/client-onboarding/categories',
+        template: 'GET /api/client-onboarding/template',
+        myOnboarding: 'GET /api/client-onboarding/me',
+        selectTemplate: 'PUT /api/client-onboarding/selection',
+        saveAnswers: 'PUT /api/client-onboarding/answers',
+        submit: 'POST /api/client-onboarding/submit',
+      },
     },
   });
 };
@@ -73,6 +88,7 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/platform-accounts', platformAccountsRouter);
 app.use('/api/content-plans', contentPlansRouter);
 app.use('/api/files', filesRouter);
+app.use('/api/client-onboarding', clientOnboardingRouter);
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
@@ -83,6 +99,8 @@ app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/platform-accounts', platformAccountsRouter);
 app.use('/api/v1/content-plans', contentPlansRouter);
 app.use('/api/v1/files', filesRouter);
+app.use('/api/v1/client-onboarding', clientOnboardingRouter);
+
 app.use(notFound);
 app.use(errorHandler);
 

@@ -4,9 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Role {
@@ -69,8 +68,9 @@ model User {
 
   passwordResetTokens PasswordResetToken[]
 
-  auditLogs           AuditLog[]
-  createdContentPlans ContentPlan[] @relation("ContentPlanCreator")
+  auditLogs            AuditLog[]
+  createdContentPlans  ContentPlan[] @relation("ContentPlanCreator")
+  assignedContentPlans ContentPlan[] @relation("ContentPlanAssignee")
 
   @@index([roleId])
   @@index([jobTitleId])
@@ -148,9 +148,43 @@ model Brand {
   platformAccounts PlatformAccount[]
   contentPlans     ContentPlan[]
 
+  onboarding ClientOnboarding?
+
   @@index([accountManagerId])
   @@index([teamId])
   @@map("brands")
+}
+
+model ClientOnboarding {
+  id              Int       @id @default(autoincrement())
+  brandId         Int       @unique @map("brand_id")
+  mainCategory    String    @map("main_category") @db.VarChar(30)
+  activityType    String    @map("activity_type") @db.VarChar(50)
+  templateVersion String    @map("template_version") @db.VarChar(20)
+  status          String    @default("DRAFT") @db.VarChar(20)
+  submittedAt     DateTime? @map("submitted_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  brand   Brand              @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  answers OnboardingAnswer[]
+
+  @@index([status])
+  @@map("client_onboardings")
+}
+
+model OnboardingAnswer {
+  id           Int      @id @default(autoincrement())
+  onboardingId Int      @map("onboarding_id")
+  questionCode String   @map("question_code") @db.VarChar(100)
+  answer       Json
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  onboarding ClientOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+
+  @@unique([onboardingId, questionCode])
+  @@map("onboarding_answers")
 }
 
 model Permission {
@@ -190,9 +224,6 @@ model AuthSession {
   @@map("auth_sessions")
 }
 
-// Password reset links. The table already exists (see the
-// 20261022120000_add_audit_logs_and_password_reset_tokens migration); the
-// model was missing, which is why the reset flow had no backend behind it.
 model PasswordResetToken {
   id        String    @id @default(uuid()) @db.Uuid
   userId    Int       @map("user_id")
@@ -235,16 +266,19 @@ model ContentPlan {
   notes             String?  @db.Text
   status            String   @default("DRAFT") @db.VarChar(30)
   createdBy         Int      @map("created_by")
+  assignedToId      Int?     @map("assigned_to_id")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   brand           Brand           @relation(fields: [brandId], references: [id], onDelete: Cascade)
   platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: Restrict)
   creator         User            @relation("ContentPlanCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  assignedTo      User?           @relation("ContentPlanAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   @@index([brandId])
   @@index([platformAccountId])
   @@index([createdBy])
+  @@index([assignedToId])
   @@index([year, month])
   @@map("content_plans")
 }
