@@ -3,7 +3,7 @@ import { useSprint3 } from '../../context/sprint3Store';
 import { isTaskOverdue, formatDateTime, TASK_STATUSES, TASK_PRIORITIES } from '../../data/tasksData';
 
 export default function TaskDetailModal({ task, isOpen, onClose, onUpdated }) {
-  const { changeTaskStatus, deleteTask, role, t } = useSprint3();
+  const { changeTaskStatus, deleteTask, t } = useSprint3();
   const [showRevisionInput, setShowRevisionInput] = useState(false);
   const [revisionNote, setRevisionNote] = useState('');
   const [error, setError] = useState('');

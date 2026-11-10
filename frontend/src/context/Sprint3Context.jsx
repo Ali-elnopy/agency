@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Sprint3Context } from './sprint3Store';
 import {
   BRIEF_STATUSES,
-  STRATEGY_SECTIONS,
   portalToken,
   seedBriefs,
   seedCampaigns,
@@ -124,7 +123,6 @@ export function Sprint3Provider({ children }) {
   /* -------------------------- Template Library -------------------------- */
 
   const saveTemplate = useCallback((templateInput) => {
-    const isNew = !templateInput.id;
     const now = stamp();
     const id = templateInput.id || sprint3Id('tmpl');
 
@@ -294,7 +292,6 @@ export function Sprint3Provider({ children }) {
             (d.status === 'submitted' || d.status === 'locked'),
         ) || dispatches.find((d) => d.brandId === String(brandId));
 
-      const template = dispatch ? getTemplate(dispatch.templateId) : null;
       const brandName = dispatch?.brandName || `Brand ${brandId}`;
       const answers = dispatch?.answers || dispatch?.draftAnswers || {};
       const answerTexts = Object.values(answers).map(String).join(' ');
@@ -368,7 +365,7 @@ export function Sprint3Provider({ children }) {
 
       return newBrief;
     },
-    [dispatches, briefs, getTemplate],
+    [dispatches, briefs],
   );
 
   const saveBrief = useCallback((briefInput) => {
