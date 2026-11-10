@@ -126,7 +126,7 @@ export default function AddBrandPage({ onBack, onSaved }) {
   return (
     <div className="page-screen brand-form-page">
       <section className="page-head">
-        <h1 className="page-head__title">Add Brand</h1>
+        <h1 className="page-head__title">{t('Add Brand')}</h1>
       </section>
 
       <form className="brand-form-card" onSubmit={handleSubmit} noValidate>
@@ -135,43 +135,43 @@ export default function AddBrandPage({ onBack, onSaved }) {
             {initialsOf(form.name)}
           </span>
           <div className="brand-form-preview__copy">
-            <strong>{form.name.trim() || 'New brand workspace'}</strong>
+            <strong>{form.name.trim() || t('New brand workspace')}</strong>
             <p>
-              {form.industry.trim() || 'Industry'} · {form.country} ·{' '}
+              {form.industry.trim() ? t(form.industry.trim()) : t('Industry')} · {t(form.country)} ·{' '}
               {selectedTimezone?.label.split(' · ')[0] || timezoneLabelFor(form.timezone)}
             </p>
           </div>
           <span className="brand-status is-active">
             <i className="brand-status__dot" aria-hidden="true" />
-            Active
+            {t('Active')}
           </span>
         </div>
 
         <div className="brand-form-grid">
           <div className="brand-field brand-field--full">
             <label htmlFor="brand-name">
-              Brand Name <span className="brand-required">*</span>
+              {t('Brand Name')} <span className="brand-required">*</span>
             </label>
             <input
               id="brand-name"
               className="form-input"
-              placeholder="e.g. Hyper El Barka"
+              placeholder={t('e.g. Hyper El Barka')}
               value={form.name}
               onChange={update('name')}
               aria-invalid={Boolean(errors.name)}
               autoFocus
             />
-            {errors.name ? <span className="set-error">{errors.name}</span> : null}
+            {errors.name ? <span className="set-error">{t(errors.name)}</span> : null}
           </div>
 
           <div className="brand-field">
             <label htmlFor="brand-industry">
-              Industry <span className="brand-required">*</span>
+              {t('Industry')} <span className="brand-required">*</span>
             </label>
             <input
               id="brand-industry"
               className="form-input"
-              placeholder="e.g. Fashion & Apparel"
+              placeholder={t('e.g. Fashion & Apparel')}
               value={form.industry}
               onChange={update('industry')}
               list="brand-industry-options"
@@ -182,12 +182,12 @@ export default function AddBrandPage({ onBack, onSaved }) {
                 <option key={industry} value={industry} />
               ))}
             </datalist>
-            {errors.industry ? <span className="set-error">{errors.industry}</span> : null}
+            {errors.industry ? <span className="set-error">{t(errors.industry)}</span> : null}
           </div>
 
           <div className="brand-field">
             <label htmlFor="brand-country">
-              Country <span className="brand-required">*</span>
+              {t('Country')} <span className="brand-required">*</span>
             </label>
             <span className="form-select-wrap">
               <select
@@ -199,7 +199,7 @@ export default function AddBrandPage({ onBack, onSaved }) {
               >
                 {COUNTRIES.map((country) => (
                   <option key={country.name} value={country.name}>
-                    {country.name}
+                    {t(country.name)}
                   </option>
                 ))}
               </select>
@@ -207,12 +207,12 @@ export default function AddBrandPage({ onBack, onSaved }) {
                 <use href="#i-chevron" />
               </svg>
             </span>
-            {errors.country ? <span className="set-error">{errors.country}</span> : null}
+            {errors.country ? <span className="set-error">{t(errors.country)}</span> : null}
           </div>
 
           <div className="brand-field">
             <label htmlFor="brand-timezone">
-              Timezone <span className="brand-required">*</span>
+              {t('Timezone')} <span className="brand-required">*</span>
             </label>
             <span className="form-select-wrap">
               <select
@@ -232,11 +232,11 @@ export default function AddBrandPage({ onBack, onSaved }) {
                 <use href="#i-chevron" />
               </svg>
             </span>
-            {errors.timezone ? <span className="set-error">{errors.timezone}</span> : null}
+            {errors.timezone ? <span className="set-error">{t(errors.timezone)}</span> : null}
           </div>
 
           <div className="brand-field">
-            <label htmlFor="brand-drive">Google Drive Folder URL</label>
+            <label htmlFor="brand-drive">{t('Google Drive Folder URL')}</label>
             <input
               id="brand-drive"
               type="url"
@@ -247,10 +247,10 @@ export default function AddBrandPage({ onBack, onSaved }) {
               aria-invalid={Boolean(errors.driveFolderUrl)}
             />
             {errors.driveFolderUrl ? (
-              <span className="set-error">{errors.driveFolderUrl}</span>
+              <span className="set-error">{t(errors.driveFolderUrl)}</span>
             ) : (
               <span className="brand-field__hint">
-                Shared folder for brand assets, references and final files.
+                {t('Shared folder for brand assets, references and final files.')}
               </span>
             )}
           </div>
@@ -263,8 +263,7 @@ export default function AddBrandPage({ onBack, onSaved }) {
             </svg>
           </span>
           <p>
-            The brand starts as <strong>Active</strong> and appears in the Brands workspace right
-            away. You can create its first monthly plan from the brand dashboard.
+            {t('The brand starts as Active and appears in the Brands workspace right away. You can create its first monthly plan from the brand dashboard.')}
           </p>
         </div>
 
@@ -296,15 +295,15 @@ export default function AddBrandPage({ onBack, onSaved }) {
         </div>
 
         <div className="brand-form__actions">
-          {submitError ? <span className="set-error">{submitError}</span> : null}
+          {submitError ? <span className="set-error">{t(submitError)}</span> : null}
           <button type="button" className="button button--ghost" onClick={onBack}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={submitting}>
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
             </svg>
-            {submitting ? 'Creating…' : 'Create Brand'}
+            {submitting ? t('Creating…') : t('Create Brand')}
           </button>
         </div>
       </form>

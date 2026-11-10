@@ -106,7 +106,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
   }, [brand, getPlatforms, strategy]);
 
   const startNew = () => {
-    if (!brand || !approvedBrief) return;
+    if (!brand) return;
     setEditor(emptyDraft(brand, approvedBrief));
     setSelectedId(null);
     setReviewNote('');
@@ -309,7 +309,6 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                 type="button"
                 className="button button--primary"
                 onClick={startNew}
-                disabled={!approvedBrief}
               >
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-plus" />

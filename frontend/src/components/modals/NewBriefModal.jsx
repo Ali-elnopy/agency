@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Modal from '../common/Modal';
+import { useSprint3 } from '../../context/sprint3Store';
 
 const BRANDS = [
   'Lumina Health',
@@ -24,6 +25,7 @@ const PRIORITIES = [
 ];
 
 export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
+  const { t } = useSprint3();
   const [title, setTitle] = useState('');
   const [brand, setBrand] = useState('Lumina Health');
   const [deliverable, setDeliverable] = useState('Motion & 3D Video');
@@ -35,7 +37,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Please provide a campaign brief title.');
+      setError(t('Please provide a campaign brief title.'));
       return;
     }
 
@@ -62,21 +64,21 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create Creative Brief"
-      subtitle="Launch a new campaign asset brief across brands and creative teams."
+      title={t('Create Creative Brief')}
+      subtitle={t('Launch a new campaign asset brief across brands and creative teams.')}
       icon="#i-file"
       iconColor="orange"
       maxWidth="560px"
       footer={
         <>
           <button type="button" className="button button--ghost" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button type="button" className="button button--primary" onClick={handleSubmit}>
             <svg aria-hidden="true" className="icon">
               <use href="#i-send" />
             </svg>
-            Launch Brief
+            {t('Launch Brief')}
           </button>
         </>
       }
@@ -87,13 +89,13 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
         {/* Brief Title */}
         <div className="modal-field">
           <label className="modal-label" htmlFor="brief-title">
-            BRIEF TITLE <small>Required</small>
+            {t('Brief Title')} <small>{t('Required')}</small>
           </label>
           <input
             id="brief-title"
             className="modal-input"
             type="text"
-            placeholder="e.g. Q4 Global Brand Relaunch Hero Motion"
+            placeholder={t('e.g. Q4 Global Brand Relaunch Hero Motion')}
             value={title}
             onChange={(e) => {
               setTitle(e.target.value);
@@ -107,7 +109,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
         <div className="modal-grid">
           <div className="modal-field">
             <label className="modal-label" htmlFor="brief-brand">
-              BRAND PARTNER
+              {t('Brand Partner')}
             </label>
             <select
               id="brief-brand"
@@ -117,7 +119,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
             >
               {BRANDS.map((b) => (
                 <option key={b} value={b}>
-                  {b}
+                  {t(b)}
                 </option>
               ))}
             </select>
@@ -125,7 +127,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
 
           <div className="modal-field">
             <label className="modal-label" htmlFor="brief-deliverable">
-              DELIVERABLE TYPE
+              {t('Deliverable Type')}
             </label>
             <select
               id="brief-deliverable"
@@ -135,7 +137,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
             >
               {DELIVERABLE_TYPES.map((d) => (
                 <option key={d} value={d}>
-                  {d}
+                  {t(d)}
                 </option>
               ))}
             </select>
@@ -144,7 +146,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
 
         {/* Priority */}
         <div className="modal-field">
-          <label className="modal-label">PRODUCTION PRIORITY</label>
+          <label className="modal-label">{t('Production Priority')}</label>
           <div className="modal-chips">
             {PRIORITIES.map((p) => (
               <button
@@ -153,7 +155,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
                 className={`modal-chip-btn ${priority === p.id ? 'is-selected' : ''}`}
                 onClick={() => setPriority(p.id)}
               >
-                <span className={`pill is-${p.color} pill--compact`}>{p.label}</span>
+                <span className={`pill is-${p.color} pill--compact`}>{t(p.label)}</span>
               </button>
             ))}
           </div>
@@ -162,7 +164,7 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
         {/* Due Date */}
         <div className="modal-field">
           <label className="modal-label" htmlFor="brief-date">
-            TARGET DELIVERY DATE
+            {t('Target Delivery Date')}
           </label>
           <input
             id="brief-date"
@@ -176,12 +178,12 @@ export default function NewBriefModal({ isOpen, onClose, onAddBrief }) {
         {/* Objectives */}
         <div className="modal-field">
           <label className="modal-label" htmlFor="brief-objective">
-            CREATIVE SCOPE &amp; OBJECTIVES
+            {t('Creative Scope & Objectives')}
           </label>
           <textarea
             id="brief-objective"
             className="modal-textarea"
-            placeholder="Outline strategic goals, target audience, deliverables checklist, and brand compliance guidelines."
+            placeholder={t('Outline strategic goals, target audience, deliverables checklist, and brand compliance guidelines.')}
             value={objective}
             onChange={(e) => setObjective(e.target.value)}
             rows={3}
