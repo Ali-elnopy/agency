@@ -40,6 +40,13 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_DEV_BYPASS_LOGIN': JSON.stringify('true'),
     'import.meta.env.VITE_USE_MOCK_API': JSON.stringify('true'),
+    // Demo accounts, baked in so the bundle behaves the same on any machine
+    // regardless of a local `.env.local`.
+    'import.meta.env.VITE_MOCK_NAME': JSON.stringify('Elena Vance'),
+    'import.meta.env.VITE_MOCK_EMAIL': JSON.stringify('elena.vance@orvia-creative.com'),
+    'import.meta.env.VITE_MOCK_PASSWORD': JSON.stringify('password1234'),
+    'import.meta.env.VITE_MOCK_ADMIN_EMAIL': JSON.stringify('admin@agency.local'),
+    'import.meta.env.VITE_MOCK_ADMIN_PASSWORD': JSON.stringify('ChangeMe123!'),
   },
   plugins: [forceDevelopmentEnv(), react(), viteSingleFile()],
   build: {
