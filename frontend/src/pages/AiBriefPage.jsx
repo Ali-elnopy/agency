@@ -33,10 +33,11 @@ const SECTION_HINT = {
   messages: 'The ideas every deliverable should reinforce.',
 };
 
-function answerText(value) {
-  if (Array.isArray(value)) return value.join(', ');
-  if (value && typeof value === 'object') return value.name ?? 'File uploaded';
-  return String(value ?? '');
+function answerText(value, t = (s) => s) {
+  if (Array.isArray(value)) return value.map((v) => t(v)).join('، ');
+  if (value && typeof value === 'object') return t(value.name) ?? t('File uploaded');
+  const str = String(value ?? '');
+  return t(str);
 }
 
 export default function AiBriefPage({ onOpenStrategy }) {
@@ -213,9 +214,9 @@ export default function AiBriefPage({ onOpenStrategy }) {
             <header className="s3-card__head">
               <div>
                 <span className="s3-eyebrow">{t('Client answers')}</span>
-                <h2>{dispatch.brandName}</h2>
+                <h2>{t(dispatch.brandName)}</h2>
                 <p className="s3-muted">
-                  {dispatch.templateName} · {t('Submitted')} {formatStamp(dispatch.submittedAt)}
+                  {t(dispatch.templateName)} · {t('Submitted')} {formatStamp(dispatch.submittedAt)}
                 </p>
               </div>
               <span className="form-select-wrap">
@@ -227,7 +228,7 @@ export default function AiBriefPage({ onOpenStrategy }) {
                 >
                   {submitted.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.brandName} · {item.templateName}
+                      {t(item.brandName)} · {t(item.templateName)}
                     </option>
                   ))}
                 </select>
@@ -260,11 +261,11 @@ export default function AiBriefPage({ onOpenStrategy }) {
                 return (
                   <div className="s3-answer" key={question.id}>
                     <span className="s3-answer__label">
-                      {question.label}
+                      {t(question.label)}
                       <em>{t(QUESTION_TYPE_LABEL[question.type] ?? question.type)}</em>
                     </span>
                     <p className={value ? undefined : 'is-muted'}>
-                      {value ? answerText(value) : t('Not answered')}
+                      {value ? answerText(value, t) : t('Not answered')}
                     </p>
                   </div>
                 );
@@ -305,7 +306,7 @@ export default function AiBriefPage({ onOpenStrategy }) {
               <div>
                 <span className="s3-eyebrow">{t('AI brief')}</span>
                 <h2>
-                  {dispatch.brandName}
+                  {t(dispatch.brandName)}
                   {brief ? (
                     <StatusPill
                       label={t(
@@ -357,7 +358,7 @@ export default function AiBriefPage({ onOpenStrategy }) {
                     <div>
                       <strong>{t('Approved brief')}</strong>
                       <p>
-                        {t('Approved by')} <b>{brief.approverName}</b> ·{' '}
+                        {t('Approved by')} <b>{t(brief.approverName)}</b> ·{' '}
                         {formatStamp(brief.approvedAt)}
                       </p>
                     </div>
@@ -385,7 +386,7 @@ export default function AiBriefPage({ onOpenStrategy }) {
                       <textarea
                         className="form-textarea"
                         rows={key === 'overview' ? 3 : 4}
-                        value={draft.sections[key] ?? ''}
+                        value={t(draft.sections[key]) || draft.sections[key] || ''}
                         onChange={(event) => updateSection(key, event.target.value)}
                         disabled={!canEdit || isApproved}
                         placeholder={t(SECTION_HINT[key])}

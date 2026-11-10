@@ -44,8 +44,8 @@ export default function TaskDetailModal({ task, isOpen, onClose, onUpdated }) {
       <div className="s3-modal" style={{ maxWidth: 580 }} onClick={(e) => e.stopPropagation()}>
         <header className="s3-modal__head">
           <div className="s3-modal__title-group">
-            <span className="s3-eyebrow">{t('Task Details')} · {task.brandName}</span>
-            <h2>{task.title}</h2>
+            <span className="s3-eyebrow">{t('Task Details')} · {t(task.brandName)}</span>
+            <h2>{t(task.title)}</h2>
           </div>
           <button type="button" className="s3-modal-close" onClick={onClose} aria-label="Close">
             <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
@@ -103,7 +103,7 @@ export default function TaskDetailModal({ task, isOpen, onClose, onUpdated }) {
                 {t('Manager Feedback:')}
               </strong>
               <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink)' }}>
-                {task.revisionNote}
+                {t(task.revisionNote)}
               </p>
             </div>
           )}
@@ -114,7 +114,7 @@ export default function TaskDetailModal({ task, isOpen, onClose, onUpdated }) {
               {t('Description')}
             </strong>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)' }}>
-              {task.description || t('No description provided.')}
+              {t(task.description) || t('No description provided.')}
             </p>
           </div>
 
@@ -127,7 +127,7 @@ export default function TaskDetailModal({ task, isOpen, onClose, onUpdated }) {
                   {task.assigneeAvatar}
                 </span>
                 <div>
-                  <strong style={{ fontSize: 13 }}>{task.assigneeName}</strong>
+                  <strong style={{ fontSize: 13 }}>{t(task.assigneeName)}</strong>
                   <div style={{ fontSize: 11, color: 'var(--faint)' }}>{t(task.assigneeRole)}</div>
                 </div>
               </div>
@@ -144,7 +144,7 @@ export default function TaskDetailModal({ task, isOpen, onClose, onUpdated }) {
               <div style={{ gridColumn: 'span 2' }}>
                 <span style={{ display: 'block', fontSize: 11, color: 'var(--faint)' }}>{t('Associated Content Item')}</span>
                 <span className="status-pill is-purple" style={{ marginTop: 4, display: 'inline-block' }}>
-                  📌 {task.contentTitle}
+                  📌 {t(task.contentTitle)}
                 </span>
               </div>
             )}

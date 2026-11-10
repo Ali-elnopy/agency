@@ -165,7 +165,7 @@ export default function MyWorkPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span className="status-pill is-gray">{task.brandName}</span>
+                    <span className="status-pill is-gray">{t(task.brandName)}</span>
                     <span className={`status-pill ${prio.tone}`}>{t('Priority')}: {t(prio.label)}</span>
                     {overdue && (
                       <span className="status-pill is-red" style={{ fontWeight: 800 }}>
@@ -190,16 +190,16 @@ export default function MyWorkPage() {
 
                 <div style={{ cursor: 'pointer' }} onClick={() => setActiveTask(task)}>
                   <h3 style={{ margin: '0 0 6px', fontSize: 16, color: 'var(--ink)' }}>
-                    {task.title}
+                    {t(task.title)}
                   </h3>
                   <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink)', lineHeight: 1.55 }}>
-                    {task.description}
+                    {t(task.description)}
                   </p>
                 </div>
 
                 {task.contentTitle && (
                   <span style={{ fontSize: 12, color: 'var(--purple)', display: 'inline-block' }}>
-                    📌 {t('Associated Content Item')}: <strong>{task.contentTitle}</strong>
+                    📌 {t('Associated Content Item')}: <strong>{t(task.contentTitle)}</strong>
                   </span>
                 )}
 
@@ -218,7 +218,7 @@ export default function MyWorkPage() {
                       ↩ {t('Manager Feedback:')}
                     </strong>
                     <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink)', fontWeight: 500 }}>
-                      {task.revisionNote}
+                      {t(task.revisionNote)}
                     </p>
                   </div>
                 )}

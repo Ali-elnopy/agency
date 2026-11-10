@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useBrands } from '../context/brandsStore';
+import { useSprint3 } from '../context/sprint3Store';
 import {
   BRAND_STATUSES,
   BRAND_STATUS_LABEL,
@@ -15,6 +16,7 @@ function normalize(value) {
 
 export default function BrandsPage({ onOpenBrand, onAddBrand }) {
   const { brands, plans, content } = useBrands();
+  const { t } = useSprint3();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState(ALL_STATUSES);
 
@@ -27,18 +29,24 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
 
       return [
         brand.name,
+        t(brand.name),
         brand.industry,
+        t(brand.industry),
         brand.country,
+        t(brand.country),
         brand.timezone,
         brand.timezoneLabel,
         brand.manager,
+        t(brand.manager),
         brand.team,
+        t(brand.team),
         BRAND_STATUS_LABEL[brand.status],
+        t(BRAND_STATUS_LABEL[brand.status]),
       ]
         .filter(Boolean)
         .some((value) => normalize(value).includes(needle));
     });
-  }, [brands, query, status]);
+  }, [brands, query, status, t]);
 
   const counts = useMemo(
     () =>
@@ -76,13 +84,13 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
   return (
     <div className="page-screen brands-page">
       <section className="page-head page-head--actions">
-        <h1 className="page-head__title">Brands</h1>
+        <h1 className="page-head__title">{t('Brands')}</h1>
         <div className="page-head__actions">
           <button type="button" className="button button--primary" onClick={onAddBrand}>
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
             </svg>
-            Add Brand
+            {t('Add Brand')}
           </button>
         </div>
       </section>
@@ -91,10 +99,10 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
         <label className="search">
           <input
             type="search"
-            placeholder="Search brands by name, industry, country or manager…"
+            placeholder={t('Search brands by name, industry, country or manager…')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            aria-label="Search brands"
+            aria-label={t('Search brands')}
           />
           <svg aria-hidden="true" className="icon">
             <use href="#i-search" />
@@ -105,12 +113,12 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value)}
-            aria-label="Filter brands by status"
+            aria-label={t('Filter brands by status')}
           >
-            <option value={ALL_STATUSES}>All statuses ({counts.all})</option>
+            <option value={ALL_STATUSES}>{t('All statuses')} ({counts.all})</option>
             {BRAND_STATUSES.map((option) => (
               <option key={option.id} value={option.id}>
-                {option.label} ({counts[option.id] ?? 0})
+                {t(option.label)} ({counts[option.id] ?? 0})
               </option>
             ))}
           </select>
@@ -120,7 +128,7 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
         </span>
 
         <span className="brands-count">
-          {filtered.length} {filtered.length === 1 ? 'brand' : 'brands'}
+          {filtered.length} {filtered.length === 1 ? t('brand') : t('brands')}
         </span>
       </div>
 
@@ -138,15 +146,15 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
                   </span>
                   <span className={`brand-status is-${brand.status}`}>
                     <i className="brand-status__dot" aria-hidden="true" />
-                    {statusLabel}
+                    {t(statusLabel)}
                   </span>
                 </div>
 
                 <div className="brand-card__body">
                   <div className="brand-card__name-row">
-                    <h2 className="brand-card__name">{brand.name}</h2>
+                    <h2 className="brand-card__name">{t(brand.name)}</h2>
                     {brand.verified ? (
-                      <span className="brand-card__verified" title="Verified brand">
+                      <span className="brand-card__verified" title={t('Verified brand')}>
                         <svg aria-hidden="true" className="icon">
                           <use href="#i-check" />
                         </svg>
@@ -154,20 +162,20 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
                     ) : null}
                   </div>
 
-                  <p className="brand-card__industry">{brand.industry || 'Uncategorized'}</p>
+                  <p className="brand-card__industry">{t(brand.industry || 'Uncategorized')}</p>
 
                   <div className="brand-card__meta">
                     <span>
                       <svg aria-hidden="true" className="icon">
                         <use href="#i-globe" />
                       </svg>
-                      {brand.country || 'Country not set'}
+                      {t(brand.country || 'Country not set')}
                     </span>
                     <span>
                       <svg aria-hidden="true" className="icon">
                         <use href="#i-clock" />
                       </svg>
-                      {brand.timezoneLabel || brand.timezone || 'Timezone not set'}
+                      {t(brand.timezoneLabel || brand.timezone || 'Timezone not set')}
                     </span>
                   </div>
 
@@ -178,8 +186,8 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
                           {brand.managerInitials || initialsOf(brand.manager)}
                         </span>
                         <span className="brand-card__manager-copy">
-                          <strong>{brand.manager}</strong>
-                          <small>{brand.team || 'No team assigned'}</small>
+                          <strong>{t(brand.manager)}</strong>
+                          <small>{t(brand.team || 'No team assigned')}</small>
                         </span>
                       </>
                     ) : (
@@ -187,7 +195,7 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
                         <svg aria-hidden="true" className="icon">
                           <use href="#i-user-plus" />
                         </svg>
-                        Awaiting manager assignment
+                        {t('Awaiting manager assignment')}
                       </span>
                     )}
                   </div>
@@ -196,15 +204,15 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
                 <div className="brand-card__foot">
                   <span className="brand-card__plan">
                     {plan
-                      ? `${monthShortLabel(plan.month)} plan · ${items} ${items === 1 ? 'item' : 'items'}`
-                      : 'No monthly plan yet'}
+                      ? t(`${monthShortLabel(plan.month)} plan · ${items} ${items === 1 ? 'item' : 'items'}`)
+                      : t('No monthly plan yet')}
                   </span>
                   <button
                     type="button"
                     className="brand-open"
                     onClick={() => onOpenBrand(brand.id)}
                   >
-                    Open Brand
+                    {t('Open Brand')}
                     <svg aria-hidden="true" className="icon">
                       <use href="#i-arrow" />
                     </svg>
@@ -221,11 +229,11 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
               <use href="#i-briefcase" />
             </svg>
           </span>
-          <h2>{brands.length === 0 ? 'No brands yet' : 'No brands match those filters'}</h2>
+          <h2>{brands.length === 0 ? t('No brands yet') : t('No brands match those filters')}</h2>
           <p>
             {brands.length === 0
-              ? 'Create your first brand workspace to start building monthly content plans.'
-              : 'Try a different name, industry, country or status.'}
+              ? t('Create your first brand workspace to start building monthly content plans.')
+              : t('Try a different name, industry, country or status.')}
           </p>
           <div className="brand-empty__actions">
             {hasFilters ? (
@@ -237,14 +245,14 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
                   setStatus(ALL_STATUSES);
                 }}
               >
-                Clear filters
+                {t('Clear filters')}
               </button>
             ) : null}
             <button type="button" className="button button--primary" onClick={onAddBrand}>
               <svg aria-hidden="true" className="icon">
                 <use href="#i-plus" />
               </svg>
-              Add Brand
+              {t('Add Brand')}
             </button>
           </div>
         </section>

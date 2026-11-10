@@ -266,7 +266,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                 <span className="s3-link-badge is-muted">{t('Not linked')}</span>
               )}
             </header>
-            <p className={body ? undefined : 'is-muted'}>{body || t('Not written yet.')}</p>
+            <p className={body ? undefined : 'is-muted'}>{body ? t(body) : t('Not written yet.')}</p>
           </article>
         );
       })}
@@ -351,7 +351,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                     setClientError('');
                   }}
                 >
-                  <span>{item.title}</span>
+                  <span>{t(item.title)}</span>
                   <StatusPill
                     label={t(STRATEGY_FLOW_LABEL[item.status] ?? item.status)}
                     tone={STRATEGY_FLOW_TONE[item.status] ?? 'is-gray'}
@@ -518,16 +518,16 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
             <section className="s3-card s3-strategy-view">
               <header className="s3-card__head">
                 <div>
-                  <span className="s3-eyebrow">{strategy.brandName}</span>
+                  <span className="s3-eyebrow">{t(strategy.brandName)}</span>
                   <h2>
-                    {strategy.title}
+                    {t(strategy.title)}
                     <StatusPill
                       label={t(STRATEGY_FLOW_LABEL[strategy.status] ?? strategy.status)}
                       tone={STRATEGY_FLOW_TONE[strategy.status] ?? 'is-gray'}
                     />
                   </h2>
                   <p className="s3-muted">
-                    {strategy.authorName ? `${t('By')} ${strategy.authorName}` : ''} ·{' '}
+                    {strategy.authorName ? `${t('By')} ${t(strategy.authorName)}` : ''} ·{' '}
                     {t('Updated')} {formatStamp(strategy.updatedAt)}
                   </p>
                 </div>
@@ -577,16 +577,16 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
               {strategy.reviewerNote ? (
                 <div className="s3-review-note">
                   <strong>{t('Account manager note')}</strong>
-                  <p>{strategy.reviewerNote}</p>
-                  {strategy.reviewerName ? <small>— {strategy.reviewerName}</small> : null}
+                  <p>{t(strategy.reviewerNote)}</p>
+                  {strategy.reviewerName ? <small>— {t(strategy.reviewerName)}</small> : null}
                 </div>
               ) : null}
 
               {strategy.clientReason ? (
                 <div className="s3-review-note is-client">
                   <strong>{t('Client change request')}</strong>
-                  <p>{strategy.clientReason}</p>
-                  {strategy.clientName ? <small>— {strategy.clientName}</small> : null}
+                  <p>{t(strategy.clientReason)}</p>
+                  {strategy.clientName ? <small>— {t(strategy.clientName)}</small> : null}
                 </div>
               ) : null}
 
@@ -600,7 +600,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                   <div>
                     <strong>{t('The strategy is approved')}</strong>
                     <p>
-                      {t('Approved by')} {strategy.clientName || strategy.reviewerName} ·{' '}
+                      {t('Approved by')} {t(strategy.clientName || strategy.reviewerName)} ·{' '}
                       {formatStamp(strategy.approvedAt)}
                     </p>
                   </div>
@@ -614,7 +614,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                 {(strategy.platforms ?? []).length ? (
                   strategy.platforms.map((name) => (
                     <span className="s3-platform-tag" key={name}>
-                      {name}
+                      {t(name)}
                     </span>
                   ))
                 ) : (

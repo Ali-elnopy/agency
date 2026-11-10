@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSprint3 } from '../../context/sprint3Store';
 
 const SECTIONS = [
   {
@@ -39,13 +40,14 @@ const SECTIONS = [
 ];
 
 export default function BrandWorkspaceHub({ brand, counts, onOpen }) {
+  const { t } = useSprint3();
+
   return (
     <div className="bw-hub">
       <div className="bw-hub-intro">
-        <span className="bw-hub-hero__eyebrow">Brand Workspace</span>
+        <span className="bw-hub-hero__eyebrow">{t('Brand Workspace')}</span>
         <p className="bw-hub-intro__sub">
-          Everything about {brand.name} in one place — brief, strategy, monthly plans, assets and
-          platforms. Team membership is managed from the Teams screen.
+          {t('Everything about')} {t(brand.name)} {t('in one place — brief, strategy, monthly plans, assets and platforms. Team membership is managed from the Teams screen.')}
         </p>
       </div>
 
@@ -62,9 +64,9 @@ export default function BrandWorkspaceHub({ brand, counts, onOpen }) {
                 <use href={section.icon} />
               </svg>
             </span>
-            <strong className="bw-hub-card__title">{section.label}</strong>
-            <span className="bw-hub-card__description">{section.description}</span>
-            <span className="bw-hub-card__meta">{counts[section.id] ?? ''}</span>
+            <strong className="bw-hub-card__title">{t(section.label)}</strong>
+            <span className="bw-hub-card__description">{t(section.description)}</span>
+            <span className="bw-hub-card__meta">{t(counts[section.id] ?? '')}</span>
           </button>
         ))}
       </div>

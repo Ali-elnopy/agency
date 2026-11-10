@@ -596,7 +596,7 @@ export default function Topbar({
           }}
         >
           <span className="user__text">
-            <strong>{displayName}</strong>
+            <strong>{t(displayName)}</strong>
             <small>{roleDisplay}</small>
           </span>
           <span className="avatar">{initials}</span>

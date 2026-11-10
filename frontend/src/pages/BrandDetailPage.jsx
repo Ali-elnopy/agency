@@ -13,6 +13,7 @@ import BrandWorkspaceHub from '../components/brands/BrandWorkspaceHub';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useBrands } from '../context/brandsStore';
+import { useSprint3 } from '../context/sprint3Store';
 import {
   BRAND_STATUS_LABEL,
   CONTENT_STATUS_LABEL,
@@ -47,6 +48,7 @@ export default function BrandDetailPage({
   onAddContent,
   onDeleted,
 }) {
+  const { t } = useSprint3();
   const {
     getBrand,
     plans,
@@ -235,9 +237,9 @@ export default function BrandDetailPage({
           </span>
           <div className="brand-hero__copy">
             <div className="brand-hero__title">
-              <h1>{brand.name}</h1>
+              <h1>{t(brand.name)}</h1>
               {brand.verified ? (
-                <span className="brand-card__verified" title="Verified brand">
+                <span className="brand-card__verified" title={t('Verified brand')}>
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-check" />
                   </svg>
@@ -245,7 +247,7 @@ export default function BrandDetailPage({
               ) : null}
               <span className={`brand-status is-${brand.status}`}>
                 <i className="brand-status__dot" aria-hidden="true" />
-                {statusLabel}
+                {t(statusLabel)}
               </span>
             </div>
 
@@ -254,19 +256,19 @@ export default function BrandDetailPage({
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-briefcase" />
                 </svg>
-                {brand.industry || 'Uncategorized'}
+                {t(brand.industry || 'Uncategorized')}
               </span>
               <span>
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-globe" />
                 </svg>
-                {brand.country || 'Country not set'}
+                {t(brand.country || 'Country not set')}
               </span>
               <span>
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-clock" />
                 </svg>
-                {brand.timezoneLabel || brand.timezone || 'Timezone not set'}
+                {t(brand.timezoneLabel || brand.timezone || 'Timezone not set')}
               </span>
               {brand.website ? (
                 <a href={brand.website} target="_blank" rel="noreferrer">
@@ -288,11 +290,11 @@ export default function BrandDetailPage({
                     onClick={() => setTab('social')}
                     title={`${platform.name} settings`}
                   >
-                    {platform.name}
+                    {t(platform.name)}
                   </button>
                 ))
               ) : (
-                <span className="bw-muted">No social platforms yet.</span>
+                <span className="bw-muted">{t('No social platforms yet.')}</span>
               )}
               <button
                 type="button"
@@ -302,7 +304,7 @@ export default function BrandDetailPage({
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-plus" />
                 </svg>
-                Add Platform
+                {t('Add Platform')}
               </button>
             </div>
           </div>
@@ -317,7 +319,7 @@ export default function BrandDetailPage({
             <svg aria-hidden="true" className="icon">
               <use href="#i-edit" />
             </svg>
-            Edit Brand
+            {t('Edit Brand')}
           </button>
           <button
             type="button"
@@ -327,7 +329,7 @@ export default function BrandDetailPage({
             <svg aria-hidden="true" className="icon">
               <use href="#i-calendar" />
             </svg>
-            {plan ? 'Update Monthly Plan' : 'Create Monthly Plan'}
+            {plan ? t('Update Monthly Plan') : t('Create Monthly Plan')}
           </button>
           <button
             type="button"
@@ -337,7 +339,7 @@ export default function BrandDetailPage({
             <svg aria-hidden="true" className="icon">
               <use href="#i-plus" />
             </svg>
-            Add Content
+            {t('Add Content')}
           </button>
           <button
             type="button"
@@ -347,7 +349,7 @@ export default function BrandDetailPage({
             <svg aria-hidden="true" className="icon">
               <use href="#i-archive" />
             </svg>
-            {isArchived ? 'Restore Brand' : 'Archive Brand'}
+            {isArchived ? t('Restore Brand') : t('Archive Brand')}
           </button>
           <button
             type="button"
@@ -357,7 +359,7 @@ export default function BrandDetailPage({
             <svg aria-hidden="true" className="icon">
               <use href="#i-trash" />
             </svg>
-            Delete Brand
+            {t('Delete Brand')}
           </button>
         </div>
       </section>
@@ -379,7 +381,7 @@ export default function BrandDetailPage({
       ) : (
         <div className="bw-section-shell">
           <button type="button" className="bw-back" onClick={() => setTab('hub')}>
-            <span aria-hidden="true">←</span> Brand workspace
+            <span aria-hidden="true">←</span> {t('Brand workspace')}
           </button>
 
       {tab === 'overview' ? (

@@ -216,7 +216,7 @@ export default function TasksPage() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                             <span className="status-pill is-gray" style={{ fontSize: 11, padding: '2px 8px' }}>
-                              {task.brandName}
+                              {t(task.brandName)}
                             </span>
                             <span className={`status-pill ${prio.tone}`} style={{ fontSize: 10, padding: '1px 6px' }}>
                               {t(prio.label)}
@@ -224,12 +224,12 @@ export default function TasksPage() {
                           </div>
 
                           <strong style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.4 }}>
-                            {task.title}
+                            {t(task.title)}
                           </strong>
 
                           {task.contentTitle && (
                             <span style={{ fontSize: 11, color: 'var(--purple)', display: 'inline-block' }}>
-                              📌 {task.contentTitle}
+                              📌 {t(task.contentTitle)}
                             </span>
                           )}
 
@@ -244,7 +244,7 @@ export default function TasksPage() {
                               <span className="avatar avatar--sm avatar--accent" style={{ width: 22, height: 22, fontSize: 10 }}>
                                 {task.assigneeAvatar}
                               </span>
-                              <span style={{ fontSize: 11.5, color: 'var(--faint)' }}>{task.assigneeName}</span>
+                              <span style={{ fontSize: 11.5, color: 'var(--faint)' }}>{t(task.assigneeName)}</span>
                             </div>
 
                             <div style={{ textAlign: 'right' }}>
@@ -303,16 +303,16 @@ export default function TasksPage() {
                       style={{ borderBottom: '1px solid var(--line)', cursor: 'pointer', transition: 'background 0.15s' }}
                     >
                       <td style={{ padding: '12px 16px' }}>
-                        <strong style={{ display: 'block', color: 'var(--ink)' }}>{task.title}</strong>
-                        {task.contentTitle && <small style={{ color: 'var(--purple)' }}>📌 {task.contentTitle}</small>}
+                        <strong style={{ display: 'block', color: 'var(--ink)' }}>{t(task.title)}</strong>
+                        {task.contentTitle && <small style={{ color: 'var(--purple)' }}>📌 {t(task.contentTitle)}</small>}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>{task.brandName}</td>
+                      <td style={{ padding: '12px 16px' }}>{t(task.brandName)}</td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span className="avatar avatar--sm avatar--accent" style={{ width: 22, height: 22, fontSize: 10 }}>
                             {task.assigneeAvatar}
                           </span>
-                          <span>{task.assigneeName}</span>
+                          <span>{t(task.assigneeName)}</span>
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>

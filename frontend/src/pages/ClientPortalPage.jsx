@@ -214,8 +214,8 @@ export default function ClientPortalPage({ token }) {
           <header className="s3-portal__hero">
             <span className="s3-portal__brand-mark">{dispatch.brandName.slice(0, 2).toUpperCase()}</span>
             <div>
-              <span className="s3-eyebrow">{dispatch.brandName}</span>
-              <h1>{dispatch.templateName}</h1>
+              <span className="s3-eyebrow">{t(dispatch.brandName)}</span>
+              <h1>{t(dispatch.templateName)}</h1>
               <p>
                 {t(
                   'Answer these questions so the ORVIA team can build your brief, strategy and content plan.',
@@ -227,7 +227,7 @@ export default function ClientPortalPage({ token }) {
           {dispatch.note ? (
             <div className="s3-portal-note">
               <strong>{t('Note from your account manager')}</strong>
-              <p>{dispatch.note}</p>
+              <p>{t(dispatch.note)}</p>
             </div>
           ) : null}
 
@@ -265,7 +265,7 @@ export default function ClientPortalPage({ token }) {
                     <span className="s3-portal-question__index">{String(index + 1).padStart(2, '0')}</span>
                     <div>
                       <strong>
-                        {question.label}
+                        {t(question.label)}
                         {question.required ? <em className="s3-required">*</em> : null}
                       </strong>
                       <small>{t(QUESTION_TYPE_LABEL[question.type] ?? question.type)}</small>
@@ -275,7 +275,7 @@ export default function ClientPortalPage({ token }) {
                   {question.type === 'text' ? (
                     <input
                       className="form-input"
-                      value={value ?? ''}
+                      value={disabled ? (t(value) || value || '') : (value ?? '')}
                       onChange={(event) => setAnswer(question.id, event.target.value)}
                       disabled={disabled}
                       placeholder={t('Type your answer')}
@@ -286,7 +286,7 @@ export default function ClientPortalPage({ token }) {
                     <textarea
                       className="form-textarea"
                       rows={4}
-                      value={value ?? ''}
+                      value={disabled ? (t(value) || value || '') : (value ?? '')}
                       onChange={(event) => setAnswer(question.id, event.target.value)}
                       disabled={disabled}
                       placeholder={t('Type your answer')}
@@ -307,7 +307,7 @@ export default function ClientPortalPage({ token }) {
                             onChange={() => setAnswer(question.id, option)}
                             disabled={disabled}
                           />
-                          <span>{option}</span>
+                          <span>{t(option)}</span>
                         </label>
                       ))}
                     </div>
@@ -328,7 +328,7 @@ export default function ClientPortalPage({ token }) {
                               onChange={() => toggleMulti(question.id, option)}
                               disabled={disabled}
                             />
-                            <span>{option}</span>
+                            <span>{t(option)}</span>
                           </label>
                         );
                       })}
@@ -353,7 +353,7 @@ export default function ClientPortalPage({ token }) {
                         <Icon id="#i-upload" />
                         <span>{t('Choose a file')}</span>
                       </label>
-                      {value ? <small>{fileLabel(value)}</small> : null}
+                      {value ? <small>{t(value?.name) || fileLabel(value)}</small> : null}
                     </div>
                   ) : null}
 

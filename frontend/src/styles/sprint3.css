@@ -2922,17 +2922,57 @@
 }
 
 .ov-kpi {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
   padding: 22px 24px !important;
   border-radius: 16px !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
+  background: var(--card) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.ov-kpi__head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  margin-bottom: 8px !important;
+  gap: 12px !important;
 }
 
 .ov-kpi .cl-label {
-  font-size: 12px !important;
+  display: block !important;
+  font-size: 14px !important;
   font-weight: 700 !important;
-  letter-spacing: 0.04em !important;
+  letter-spacing: 0.02em !important;
   color: var(--muted) !important;
+  line-height: 1.4 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: 1 !important;
+}
+
+.ov-kpi__icon {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 12px !important;
+  flex-shrink: 0 !important;
+}
+
+.ov-kpi__icon .icon {
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .ov-kpi__value {

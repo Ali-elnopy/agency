@@ -2688,10 +2688,15 @@
   box-shadow: var(--shadow);
 }
 
+.ov-kpi__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
 .ov-kpi__icon {
-  position: absolute;
-  top: 14px;
-  right: 14px;
+  position: static;
   width: 30px;
   height: 30px;
 }

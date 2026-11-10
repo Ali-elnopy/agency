@@ -196,7 +196,7 @@ export default function Sidebar({
           <div className="sb-user">
             <span className="avatar avatar--accent">{initials}</span>
             <div className="sb-user__meta">
-              <strong title={displayName}>{displayName}</strong>
+              <strong title={t(displayName)}>{t(displayName)}</strong>
               <small title={roleLabel}>{roleLabel}</small>
             </div>
             <div className="sb-user__actions">

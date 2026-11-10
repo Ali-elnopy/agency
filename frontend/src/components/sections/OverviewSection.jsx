@@ -239,12 +239,14 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
       <div className="ov-kpis">
         {kpis.map((kpi) => (
           <article key={kpi.label} className="ov-kpi">
-            <span className={`ov-kpi__icon tile ${kpi.tone}`}>
-              <svg aria-hidden="true" className="icon">
-                <use href={`#${kpi.icon}`} />
-              </svg>
-            </span>
-            <span className="cl-label">{t(kpi.label)}</span>
+            <div className="ov-kpi__head">
+              <span className="cl-label">{t(kpi.label)}</span>
+              <span className={`ov-kpi__icon tile ${kpi.tone}`}>
+                <svg aria-hidden="true" className="icon">
+                  <use href={`#${kpi.icon}`} />
+                </svg>
+              </span>
+            </div>
             <strong className="ov-kpi__value">
               {kpi.value}
               <small>{t(kpi.unit)}</small>

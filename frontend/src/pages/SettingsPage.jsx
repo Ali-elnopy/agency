@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
+import { useSprint3 } from '../context/sprint3Store';
 import { changePassword } from '../services/users';
 import { validatePasswordChange } from '../utils/validation';
 
@@ -81,6 +82,7 @@ function writeDeadlines(value) {
 export default function SettingsPage({ onSignOut }) {
   const { user } = useAuth();
   const { toast, showToast } = useToast(3500);
+  const { t } = useSprint3();
 
   const [deadlines, setDeadlines] = useState(readDeadlines);
   const [savedDeadlines, setSavedDeadlines] = useState(readDeadlines);
@@ -95,7 +97,7 @@ export default function SettingsPage({ onSignOut }) {
   const [changingPassword, setChangingPassword] = useState(false);
   const [visible, setVisible] = useState({ current: false, next: false, confirm: false });
 
-  const notify = (message, tone = 'success') => showToast(message, tone);
+  const notify = (message, tone = 'success') => showToast(t(message), tone);
 
   const strength = strengthOf(passwordForm.newPassword);
   const passwordsMatch =
@@ -121,7 +123,7 @@ export default function SettingsPage({ onSignOut }) {
     if (!isValidDeadline(value)) {
       setDeadlineErrors((prev) => ({
         ...prev,
-        [stage.id]: 'Enter a whole number between 0 and 720.',
+        [stage.id]: t('Enter a whole number between 0 and 720.'),
       }));
       return;
     }
@@ -130,7 +132,7 @@ export default function SettingsPage({ onSignOut }) {
     setSavedDeadlines(next);
     setDeadlines((prev) => ({ ...prev, [stage.id]: value }));
     writeDeadlines(next);
-    notify(`${stage.label} deadline saved.`);
+    notify(`${t(stage.label)} ${t('deadline saved.')}`);
   };
 
   const updatePasswordField = (field) => (event) => {
@@ -153,21 +155,14 @@ export default function SettingsPage({ onSignOut }) {
       PASSWORD_RULES.some((rule) => !rule.test(passwordForm.newPassword))
     ) {
       nextErrors.newPassword =
-        'Use 16+ characters with an uppercase letter, a number and a special symbol.';
+        t('Use 16+ characters with an uppercase letter, a number and a special symbol.');
     }
 
     if (passwordForm.newPassword && passwordForm.currentPassword === passwordForm.newPassword) {
-      nextErrors.newPassword = 'Choose a password that differs from your current one.';
-    }
-
-    if (!passwordForm.confirmPassword) {
-      nextErrors.confirmPassword = 'Confirm your new password.';
-    } else if (passwordForm.confirmPassword !== passwordForm.newPassword) {
-      nextErrors.confirmPassword = 'Passwords do not match.';
+      nextErrors.newPassword = t('Choose a password that differs from your current one.');
     }
 
     setPasswordErrors(nextErrors);
-
     if (Object.keys(nextErrors).length) return;
 
     setChangingPassword(true);
@@ -177,10 +172,11 @@ export default function SettingsPage({ onSignOut }) {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
       });
+
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      notify('Password updated successfully.');
+      notify('Password changed successfully.');
     } catch (error) {
-      notify(error.message || 'Could not update your password. Please try again.', 'danger');
+      notify(error.message || 'Could not update your password. Please check your current password.', 'danger');
     } finally {
       setChangingPassword(false);
     }
@@ -189,18 +185,19 @@ export default function SettingsPage({ onSignOut }) {
   return (
     <div className="page-screen st-page">
       <header className="st-head">
-        <span className="st-eyebrow">Admin Settings</span>
-        <h1>Settings</h1>
-        <p>Control default workflow deadlines and keep your account secure.</p>
+        <span className="st-eyebrow">{t('Admin Settings')}</span>
+        <h1>{t('Settings')}</h1>
+        <p>{t('Control default workflow deadlines and keep your account secure.')}</p>
       </header>
 
       <section className="st-card">
         <header className="st-card__head">
           <div>
-            <h2>Workflow Settings</h2>
+            <h2>{t('Workflow Settings')}</h2>
             <p>
-              Control the default deadline rules used when an Account Manager assigns a new content
-              workflow. Existing tasks keep their current due dates.
+              {t(
+                'Control the default deadline rules used when an Account Manager assigns a new content workflow. Existing tasks keep their current due dates.',
+              )}
             </p>
           </div>
           <span className="st-card__icon">
@@ -212,20 +209,20 @@ export default function SettingsPage({ onSignOut }) {
 
         <div className="st-rules">
           <header className="st-rules__head">
-            <h3>Deadline Rules</h3>
-            <p>Example: 48 hours means the task is due 48 hours before publish_at.</p>
+            <h3>{t('Deadline Rules')}</h3>
+            <p>{t('Example: 48 hours means the task is due 48 hours before publish_at.')}</p>
           </header>
 
           <div className="st-rule-list">
             {DEADLINE_STAGES.map((stage) => (
               <div className="st-rule" key={stage.id}>
                 <div className="st-rule__copy">
-                  <strong>{stage.label}</strong>
-                  <p>{stage.copy}</p>
+                  <strong>{t(stage.label)}</strong>
+                  <p>{t(stage.copy)}</p>
                 </div>
 
                 <div className="st-rule__field">
-                  <label htmlFor={`deadline-${stage.id}`}>Hours before publish</label>
+                  <label htmlFor={`deadline-${stage.id}`}>{t('Hours before publish')}</label>
                   <div className="st-rule__controls">
                     <input
                       id={`deadline-${stage.id}`}
@@ -243,7 +240,7 @@ export default function SettingsPage({ onSignOut }) {
                       className="st-save"
                       onClick={() => saveDeadline(stage)}
                     >
-                      Save
+                      {t('Save')}
                     </button>
                   </div>
                   {deadlineErrors[stage.id] && (
@@ -259,8 +256,8 @@ export default function SettingsPage({ onSignOut }) {
       <section className="st-card st-security">
         <header className="st-card__head st-card__head--row">
           <div>
-            <h2>Security</h2>
-            <p>Update password and session preferences.</p>
+            <h2>{t('Security')}</h2>
+            <p>{t('Update password and session preferences.')}</p>
           </div>
           <span className="st-card__icon st-card__icon--purple">
             <svg aria-hidden="true" className="icon">
@@ -274,7 +271,7 @@ export default function SettingsPage({ onSignOut }) {
             <div className="pf-field">
               <div className="pf-label-row">
                 <label className="pf-label" htmlFor="pf-current">
-                  Current Password
+                  {t('Current Password')}
                 </label>
               </div>
               <div className="pf-password">
@@ -291,7 +288,7 @@ export default function SettingsPage({ onSignOut }) {
                 <button
                   type="button"
                   className="pf-eye"
-                  aria-label={visible.current ? 'Hide password' : 'Show password'}
+                  aria-label={visible.current ? t('Hide password') : t('Show password')}
                   onClick={() => setVisible((prev) => ({ ...prev, current: !prev.current }))}
                 >
                   <svg aria-hidden="true" className="icon">
@@ -300,14 +297,14 @@ export default function SettingsPage({ onSignOut }) {
                 </button>
               </div>
               {passwordErrors.currentPassword && (
-                <span className="st-error">{passwordErrors.currentPassword}</span>
+                <span className="st-error">{t(passwordErrors.currentPassword)}</span>
               )}
             </div>
 
             <div className="pf-field">
               <div className="pf-label-row">
                 <label className="pf-label" htmlFor="pf-new">
-                  New Password
+                  {t('New Password')}
                 </label>
               </div>
               <div className="pf-password">
@@ -315,7 +312,7 @@ export default function SettingsPage({ onSignOut }) {
                   id="pf-new"
                   className="pf-input"
                   type={visible.next ? 'text' : 'password'}
-                  placeholder="Enter fresh passphrase"
+                  placeholder={t('Enter fresh passphrase')}
                   value={passwordForm.newPassword}
                   onChange={updatePasswordField('newPassword')}
                   autoComplete="new-password"
@@ -324,7 +321,7 @@ export default function SettingsPage({ onSignOut }) {
                 <button
                   type="button"
                   className="pf-eye"
-                  aria-label={visible.next ? 'Hide password' : 'Show password'}
+                  aria-label={visible.next ? t('Hide password') : t('Show password')}
                   onClick={() => setVisible((prev) => ({ ...prev, next: !prev.next }))}
                 >
                   <svg aria-hidden="true" className="icon">
@@ -333,20 +330,20 @@ export default function SettingsPage({ onSignOut }) {
                 </button>
               </div>
               {passwordErrors.newPassword && (
-                <span className="st-error">{passwordErrors.newPassword}</span>
+                <span className="st-error">{t(passwordErrors.newPassword)}</span>
               )}
             </div>
 
             <div className="pf-strength">
               <div className="pf-strength__head">
-                <span>Security strength:</span>
+                <span>{t('Security strength:')}</span>
                 <span className="pf-strength__bars" aria-hidden="true">
                   {PASSWORD_RULES.map((rule, index) => (
                     <i key={rule.id} className={index < strength ? 'is-on' : ''} />
                   ))}
                 </span>
                 <strong>
-                  {STRENGTH_LABELS[strength]} ({strength}/4)
+                  {t(STRENGTH_LABELS[strength])} ({strength}/4)
                 </strong>
               </div>
 
@@ -358,7 +355,7 @@ export default function SettingsPage({ onSignOut }) {
                       <svg aria-hidden="true" className="icon">
                         <use href={passed ? '#i-check' : '#i-circle'} />
                       </svg>
-                      {rule.label}
+                      {t(rule.label)}
                     </li>
                   );
                 })}
@@ -368,7 +365,7 @@ export default function SettingsPage({ onSignOut }) {
             <div className="pf-field">
               <div className="pf-label-row">
                 <label className="pf-label" htmlFor="pf-confirm">
-                  Confirm New Password
+                  {t('Confirm New Password')}
                 </label>
               </div>
               <div className="pf-password">
@@ -376,7 +373,7 @@ export default function SettingsPage({ onSignOut }) {
                   id="pf-confirm"
                   className="pf-input"
                   type={visible.confirm ? 'text' : 'password'}
-                  placeholder="Re-type new passphrase"
+                  placeholder={t('Re-type new passphrase')}
                   value={passwordForm.confirmPassword}
                   onChange={updatePasswordField('confirmPassword')}
                   autoComplete="new-password"
@@ -385,7 +382,7 @@ export default function SettingsPage({ onSignOut }) {
                 <button
                   type="button"
                   className="pf-eye"
-                  aria-label={visible.confirm ? 'Hide password' : 'Show password'}
+                  aria-label={visible.confirm ? t('Hide password') : t('Show password')}
                   onClick={() => setVisible((prev) => ({ ...prev, confirm: !prev.confirm }))}
                 >
                   <svg aria-hidden="true" className="icon">
@@ -394,14 +391,14 @@ export default function SettingsPage({ onSignOut }) {
                 </button>
               </div>
               {passwordErrors.confirmPassword && (
-                <span className="st-error">{passwordErrors.confirmPassword}</span>
+                <span className="st-error">{t(passwordErrors.confirmPassword)}</span>
               )}
               {passwordsMatch && (
                 <span className="pf-match">
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-check" />
                   </svg>
-                  Passwords match correctly
+                  {t('Passwords match correctly')}
                 </span>
               )}
             </div>
@@ -413,7 +410,7 @@ export default function SettingsPage({ onSignOut }) {
                 onClick={handlePasswordUpdate}
                 disabled={changingPassword}
               >
-                {changingPassword ? 'Updating…' : 'Update password'}
+                {changingPassword ? t('Updating…') : t('Update password')}
               </button>
               <button
                 type="button"
@@ -426,7 +423,7 @@ export default function SettingsPage({ onSignOut }) {
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-logout" />
                 </svg>
-                Log out
+                {t('Log out')}
               </button>
             </div>
           </div>
@@ -437,18 +434,18 @@ export default function SettingsPage({ onSignOut }) {
                 <use href="#i-shield" />
               </svg>
             </span>
-            <strong>Active Sessions</strong>
-            <p>Logged in on 3 devices</p>
+            <strong>{t('Active Sessions')}</strong>
+            <p>{t('Logged in on 3 devices')}</p>
             <button
               type="button"
               className="st-sessions__button"
               onClick={() => notify('Signed out of all other devices.')}
             >
-              Log out all devices
+              {t('Log out all devices')}
             </button>
             <span className="st-sessions__user">
-              {user?.fullName || 'Elena Vance'}
-              <small>{user?.role === 'ADMIN' ? 'Workspace Admin' : 'Account Manager'}</small>
+              {t(user?.fullName || 'Elena Vance')}
+              <small>{user?.role === 'ADMIN' ? t('Workspace Admin') : t('Account Manager')}</small>
             </span>
           </aside>
         </div>

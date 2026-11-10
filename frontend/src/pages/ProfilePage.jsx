@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
+import { useSprint3 } from '../context/sprint3Store';
 import { validateProfile } from '../utils/validation';
 import managerPhoto from '../assets/managerPhoto';
 
@@ -10,6 +11,7 @@ import managerPhoto from '../assets/managerPhoto';
 export default function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const { toast, showToast } = useToast(4000);
+  const { t } = useSprint3();
   const fileRef = useRef(null);
 
   const currentProfile = useMemo(
@@ -31,7 +33,7 @@ export default function ProfilePage() {
     setErrors({});
   }, [currentProfile]);
 
-  const notify = (message, tone = 'success') => showToast(message, tone);
+  const notify = (message, tone = 'success') => showToast(t(message), tone);
 
   const isDirty =
     profile.fullName !== currentProfile.fullName ||
@@ -108,7 +110,7 @@ export default function ProfilePage() {
       <div className="au-wrap au-wrap--profile">
         <header className="au-head">
           <div className="au-head__copy">
-            <h1>Profile</h1>
+            <h1>{t('Profile')}</h1>
           </div>
         </header>
 
@@ -122,11 +124,11 @@ export default function ProfilePage() {
                   </svg>
                 </span>
                 <div>
-                  <h2>My details</h2>
-                  <p>Personal identification and role assignment within the agency.</p>
+                  <h2>{t('My details')}</h2>
+                  <p>{t('Personal identification and role assignment within the agency.')}</p>
                 </div>
               </div>
-              <span className="au-step">Profile</span>
+              <span className="au-step">{t('Profile')}</span>
             </div>
 
             <div className="au-upload">
@@ -134,7 +136,7 @@ export default function ProfilePage() {
                 type="button"
                 className="au-upload__avatar is-clickable"
                 onClick={() => fileRef.current?.click()}
-                aria-label="Upload profile photo"
+                aria-label={t('Upload profile photo')}
               >
                 {photo ? (
                   <img src={photo} alt="" />
@@ -151,8 +153,8 @@ export default function ProfilePage() {
               </button>
 
               <div className="au-upload__copy">
-                <strong>Profile Photo</strong>
-                <p>PNG, JPG, or WEBP up to 5MB. Circular display across Kanban &amp; avatars.</p>
+                <strong>{t('Profile Photo')}</strong>
+                <p>{t('PNG, JPG, or WEBP up to 5MB. Circular display across Kanban & avatars.')}</p>
                 <div className="upload__actions">
                   <button
                     type="button"
@@ -162,13 +164,13 @@ export default function ProfilePage() {
                     <svg aria-hidden="true" className="icon">
                       <use href="#i-upload" />
                     </svg>
-                    Upload photo
+                    {t('Upload photo')}
                   </button>
                   <button type="button" className="button button--ghost button--xs" onClick={handleCrop}>
                     <svg aria-hidden="true" className="icon">
                       <use href="#i-crop" />
                     </svg>
-                    Crop
+                    {t('Crop')}
                   </button>
                   <button
                     type="button"
@@ -178,7 +180,7 @@ export default function ProfilePage() {
                     <svg aria-hidden="true" className="icon">
                       <use href="#i-trash" />
                     </svg>
-                    Remove
+                    {t('Remove')}
                   </button>
                 </div>
               </div>
@@ -189,14 +191,14 @@ export default function ProfilePage() {
                 accept="image/*"
                 className="pf-file"
                 onChange={handlePhotoPick}
-                aria-label="Upload profile photo"
+                aria-label={t('Upload profile photo')}
               />
             </div>
 
             <div className="au-grid">
               <div className="au-field">
                 <label className="au-label" htmlFor="profile-name">
-                  Full Name
+                  {t('Full Name')}
                   <span className="req">*</span>
                 </label>
                 <input
@@ -207,15 +209,15 @@ export default function ProfilePage() {
                   autoComplete="name"
                   aria-invalid={Boolean(errors.fullName)}
                 />
-                {errors.fullName && <span className="set-error">{errors.fullName}</span>}
+                {errors.fullName && <span className="set-error">{t(errors.fullName)}</span>}
               </div>
 
               <div className="au-field">
                 <div className="au-label-row">
                   <label className="au-label" htmlFor="profile-phone">
-                    Phone Number
+                    {t('Phone Number')}
                   </label>
-                  <small className="au-optional">Optional</small>
+                  <small className="au-optional">{t('Optional')}</small>
                 </div>
                 <input
                   id="profile-phone"
@@ -225,13 +227,13 @@ export default function ProfilePage() {
                   onChange={updateField('phone')}
                   autoComplete="tel"
                 />
-                <span className="au-hint">Used strictly for two-factor security alerts.</span>
+                <span className="au-hint">{t('Used strictly for two-factor security alerts.')}</span>
               </div>
 
               <div className="au-field au-field--full">
                 <div className="au-label-row">
-                  <span className="au-label">Work Email</span>
-                  <small className="au-optional">Managed by workspace administrator</small>
+                  <span className="au-label">{t('Work Email')}</span>
+                  <small className="au-optional">{t('Managed by workspace administrator')}</small>
                 </div>
                 <span className="input-icon">
                   <svg aria-hidden="true" className="icon">
@@ -241,40 +243,40 @@ export default function ProfilePage() {
                     className="form-input"
                     value={profile.email}
                     readOnly
-                    aria-label="Work email"
+                    aria-label={t('Work email')}
                   />
                 </span>
                 <span className="au-hint">
-                  Contact your administrator to change your sign-in email.
+                  {t('Contact your administrator to change your sign-in email.')}
                 </span>
-                {errors.email && <span className="set-error">{errors.email}</span>}
+                {errors.email && <span className="set-error">{t(errors.email)}</span>}
               </div>
 
               <div className="au-field">
-                <span className="au-label">Role Assignment</span>
+                <span className="au-label">{t('Role Assignment')}</span>
                 <span className="input-icon">
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-briefcase" />
                   </svg>
-                  <input className="form-input" value={roleName} readOnly aria-label="Role assignment" />
+                  <input className="form-input" value={t(roleName)} readOnly aria-label={t('Role assignment')} />
                 </span>
-                <span className="au-hint">Assigned by your workspace administrator.</span>
+                <span className="au-hint">{t('Assigned by your workspace administrator.')}</span>
               </div>
 
               <div className="au-field">
-                <span className="au-label">Assigned Squad</span>
+                <span className="au-label">{t('Assigned Squad')}</span>
                 <span className="input-icon">
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-layers" />
                   </svg>
                   <input
                     className="form-input"
-                    value="Brand Strategy & Growth"
+                    value={t('Brand Strategy & Growth')}
                     readOnly
-                    aria-label="Assigned squad"
+                    aria-label={t('Assigned squad')}
                   />
                 </span>
-                <span className="au-hint">Squad membership follows your team assignments.</span>
+                <span className="au-hint">{t('Squad membership follows your team assignments.')}</span>
               </div>
             </div>
           </section>
@@ -283,11 +285,11 @@ export default function ProfilePage() {
         <div className={`au-savebar${isDirty ? ' is-dirty' : ''}`}>
           <p className="au-savebar__note">
             <i className="au-savebar__dot" aria-hidden="true" />
-            {isDirty ? 'Unsaved changes' : 'All changes saved'}
+            {isDirty ? t('Unsaved changes') : t('All changes saved')}
           </p>
           <div className="au-savebar__actions">
             <button type="button" className="button button--ghost button--sm" onClick={handleDiscard}>
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="button"
@@ -298,7 +300,7 @@ export default function ProfilePage() {
               <svg aria-hidden="true" className="icon">
                 <use href="#i-check" />
               </svg>
-              {saving ? 'Saving…' : 'Save changes'}
+              {saving ? t('Saving…') : t('Save changes')}
             </button>
           </div>
         </div>

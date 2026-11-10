@@ -26,12 +26,15 @@ export function isTaskOverdue(deadline, status) {
   return due < new Date();
 }
 
-export function formatDateTime(isoString) {
+export function formatDateTime(isoString, locale) {
   if (!isoString) return '—';
   try {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;
-    return d.toLocaleString('en-US', {
+    const isAr =
+      locale === 'ar' ||
+      (typeof document !== 'undefined' && document.documentElement.lang === 'ar');
+    return d.toLocaleString(isAr ? 'ar-EG' : 'en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -198,4 +201,17 @@ export const TASKS_ARABIC = {
   'Select Content Item': 'اختر عنصر المحتوى',
   'Optional link to content item': 'ربط اختياري بعنصر محتوى',
   'Due date & time': 'تاريخ ووقت الاستحقاق',
+  'Design Q1 Launch Reel for Instagram': 'تصميم فيديو ريلز لإطلاق الربع الأول على إنستغرام',
+  'Create high-tempo 15s vertical video showcasing core product features and motion graphics.': 'إنشاء فيديو رأسي مدته 15 ثانية يعرض ميزات المنتج الأساسية ورسومات متحركة.',
+  'Spring Product Reveal Video': 'فيديو الكشف عن منتجات الربيع',
+  'Write Thought Leadership Article for LinkedIn': 'كتابة مقال ريادة فكرية لمنصة لينكد إن',
+  'Long-form commentary on regenerative agriculture and sustainability milestones.': 'تعليق مطول ومقال تفصيلي حول الزراعة المتجددة ومحطات الاستدامة.',
+  'Founder Manifesto on Sustainability': 'بيان المؤسس حول الاستدامة',
+  'Develop Brand Voice Matrix and Style Guide': 'تطوير مصفوفة نبرة صوت البراند ودليل الأسلوب',
+  'Comprehensive documentation detailing tone of voice, dos and don’ts across social touchpoints.': 'توثيق شامل يوضح نبرة الصوت والمحاذير والتوجيهات عبر كافة نقاط التماس.',
+  'Render 3D Product Explainer Animation': 'رندرة رسوم متحركة ثلاثية الأبعاد لشرح المنتج',
+  'Detailed 3D motion graphic highlighting modular robotic joints and industrial use cases.': 'موشن جرافيك ثلاثي الأبعاد تفصيلي يوضح المفاصل الروبوتية وحالات الاستخدام الصناعي.',
+  'Editorial Copy for Product Launch Newsletter': 'صياغة نصوص تحريرية للنشرة الإخبارية لإطلاق المنتج',
+  'Engaging email copy with clear CTA for VIP early-access community.': 'نص بريد إلكتروني جذاب مع دعوة واضحة لاتخاذ إجراء لمجتمع الوصول المبكر.',
+  'VIP Early Access Drop': 'إطلاق الوصول المبكر الحصري',
 };

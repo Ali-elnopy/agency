@@ -3,6 +3,7 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
+import { useSprint3 } from '../context/sprint3Store';
 import {
   ACCESS_LEVELS,
   ACCESS_LEVEL_BY_ID,
@@ -27,6 +28,7 @@ function emptyForm(user) {
 }
 
 export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQuery }) {
+  const { t } = useSprint3();
   const { users, teams, updateUser, deleteUser } = useWorkspace();
   const [editingId, setEditingId] = useState(null);
   const [availableJobTitles, setAvailableJobTitles] = useState([]);
@@ -178,8 +180,8 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
     <div className="ws-page">
       <section className="ws-page-head">
         <div>
-          <h1 className="ws-page-title">Users</h1>
-          <p className="ws-page-sub">Edit roles, permissions and account status.</p>
+          <h1 className="ws-page-title">{t('Users')}</h1>
+          <p className="ws-page-sub">{t('Edit roles, permissions and account status.')}</p>
         </div>
 
         <button
@@ -190,21 +192,21 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
           <svg aria-hidden="true" className="icon">
             <use href="#i-plus" />
           </svg>
-          Add User
+          {t('Add User')} +
         </button>
       </section>
 
       <div className="ws-kpis">
         <article className="ws-kpi">
-          <span className="ws-kpi__label">Users</span>
+          <span className="ws-kpi__label">{t('Users')}</span>
           <strong className="ws-kpi__value">{total}</strong>
         </article>
         <article className="ws-kpi">
-          <span className="ws-kpi__label">Active</span>
+          <span className="ws-kpi__label">{t('Active')}</span>
           <strong className="ws-kpi__value">{active}</strong>
         </article>
         <article className="ws-kpi">
-          <span className="ws-kpi__label">Inactive</span>
+          <span className="ws-kpi__label">{t('Inactive')}</span>
           <strong className="ws-kpi__value">{inactive}</strong>
         </article>
       </div>
@@ -231,32 +233,32 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                 <div className="ws-user-row__main">
                   <div>
                     <div className="ws-name-line">
-                      <strong className="ws-user-name">{user.fullName}</strong>
+                      <strong className="ws-user-name">{t(user.fullName)}</strong>
                       <span
                         className={`ws-badge ${user.active ? 'ws-badge--active' : 'ws-badge--inactive'}`}
                       >
-                        {user.active ? 'Active' : 'Inactive'}
+                        {user.active ? t('Active') : t('Inactive')}
                       </span>
-                      <span className="ws-badge ws-badge--role">{access.short}</span>
+                      <span className="ws-badge ws-badge--role">{t(access.short)}</span>
                     </div>
                     <p className="ws-user-meta">
                       {user.systemAccess === 'admin'
                         ? user.email
-                        : `${user.jobTitle ? `${user.jobTitle} • ` : ''}${user.email}`}
+                        : `${user.jobTitle ? `${t(user.jobTitle)} • ` : ''}${user.email}`}
                     </p>
-                    <p className="ws-user-team">Team: {teamName(user.teamId)}</p>
+                    <p className="ws-user-team">{t('Team')}: {t(teamName(user.teamId))}</p>
                   </div>
 
                   <div className="ws-row-actions">
                     <button type="button" className="ws-btn ws-btn--ghost" onClick={closeEditor}>
-                      Close
+                      {t('Close')}
                     </button>
                     <button
                       type="button"
                       className="ws-btn ws-btn--danger-ghost"
                       onClick={() => setDeleteTarget(user)}
                     >
-                      Delete
+                      {t('Delete')}
                     </button>
                   </div>
                 </div>
@@ -417,32 +419,32 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
               <div className="ws-user-row__main">
                 <div>
                   <div className="ws-name-line">
-                    <strong className="ws-user-name">{user.fullName}</strong>
+                    <strong className="ws-user-name">{t(user.fullName)}</strong>
                     <span
                       className={`ws-badge ${user.active ? 'ws-badge--active' : 'ws-badge--inactive'}`}
                     >
-                      {user.active ? 'Active' : 'Inactive'}
+                      {user.active ? t('Active') : t('Inactive')}
                     </span>
-                    <span className="ws-badge ws-badge--role">{access.short}</span>
+                    <span className="ws-badge ws-badge--role">{t(access.short)}</span>
                   </div>
                   <p className="ws-user-meta">
                     {user.systemAccess === 'admin'
                       ? user.email
-                      : `${user.jobTitle ? `${user.jobTitle} • ` : ''}${user.email}`}
+                      : `${user.jobTitle ? `${t(user.jobTitle)} • ` : ''}${user.email}`}
                   </p>
-                  <p className="ws-user-team">Team: {teamName(user.teamId)}</p>
+                  <p className="ws-user-team">{t('Team')}: {t(teamName(user.teamId))}</p>
                 </div>
 
                 <div className="ws-row-actions">
                   <button type="button" className="ws-btn ws-btn--ghost" onClick={() => openEditor(user)}>
-                    Edit User
+                    {t('Edit User')}
                   </button>
                   <button
                     type="button"
                     className="ws-btn ws-btn--danger-ghost"
                     onClick={() => setDeleteTarget(user)}
                   >
-                    Delete
+                    {t('Delete')}
                   </button>
                 </div>
               </div>

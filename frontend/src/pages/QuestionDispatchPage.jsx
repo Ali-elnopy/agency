@@ -202,7 +202,7 @@ export default function QuestionDispatchPage() {
                 <option value="">{t('Select a template')}</option>
                 {templates.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} · {item.industry}
+                    {t(item.name)} · {t(item.industry)}
                   </option>
                 ))}
               </select>
@@ -248,13 +248,13 @@ export default function QuestionDispatchPage() {
           {template ? (
             <div className="s3-preview-box">
               <div className="s3-preview-box__head">
-                <strong>{template.name}</strong>
+                <strong>{t(template.name)}</strong>
                 <span>{template.questions?.length ?? 0} {t('questions')}</span>
               </div>
               <ol className="s3-preview-questions">
                 {(template.questions ?? []).map((question) => (
                   <li key={question.id}>
-                    <span>{question.label}</span>
+                    <span>{t(question.label)}</span>
                     <em>
                       {t(QUESTION_TYPE_LABEL[question.type] ?? question.type)}
                       {question.required ? ` · ${t('Required')}` : ''}
@@ -346,9 +346,9 @@ export default function QuestionDispatchPage() {
                 <article className="s3-request" key={dispatch.id}>
                   <div className="s3-request__top">
                     <div>
-                      <strong>{dispatch.templateName}</strong>
+                      <strong>{t(dispatch.templateName)}</strong>
                       <small>
-                        {dispatch.industry} · {t('sent')} {formatStamp(dispatch.sentAt)}
+                        {t(dispatch.industry)} · {t('sent')} {formatStamp(dispatch.sentAt)}
                       </small>
                     </div>
                     <StatusPill
@@ -357,7 +357,7 @@ export default function QuestionDispatchPage() {
                     />
                   </div>
 
-                  {dispatch.note ? <p className="s3-request__note">{dispatch.note}</p> : null}
+                  {dispatch.note ? <p className="s3-request__note">{t(dispatch.note)}</p> : null}
 
                   {dispatch.submittedAt ? (
                     <span className="s3-muted">

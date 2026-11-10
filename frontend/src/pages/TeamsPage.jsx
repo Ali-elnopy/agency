@@ -4,10 +4,12 @@ import TeamMembersModal from '../components/teams/TeamMembersModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import { useWorkspace } from '../context/workspaceStore';
+import { useSprint3 } from '../context/sprint3Store';
 
 const TONES = ['tone-orange', 'tone-purple', 'tone-blue', 'tone-green', 'tone-amber'];
 
 export default function TeamsPage({ onOpenTeam }) {
+  const { t } = useSprint3();
   const { users, teams, addTeam } = useWorkspace();
   const { toast, showToast } = useToast(3500);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -76,16 +78,16 @@ export default function TeamsPage({ onOpenTeam }) {
     <div className="ws-page">
       <section className="ws-page-head">
         <div>
-          <span className="ws-eyebrow">Team Management</span>
-          <h1 className="ws-page-title">Teams</h1>
-          <p className="ws-page-sub">Organize members and assign brands to each team.</p>
+          <span className="ws-eyebrow">{t('Team Management')}</span>
+          <h1 className="ws-page-title">{t('Teams')}</h1>
+          <p className="ws-page-sub">{t('Organize members and assign brands to each team.')}</p>
         </div>
 
         <button type="button" className="ws-btn ws-btn--primary" onClick={openCreate}>
           <svg aria-hidden="true" className="icon">
             <use href="#i-plus" />
           </svg>
-          Add Team
+          {t('Add Team')}
         </button>
       </section>
 
@@ -97,12 +99,12 @@ export default function TeamsPage({ onOpenTeam }) {
                 <span className={`ws-team-mark ${TONES[index % TONES.length]}`}>
                   {team.name.charAt(0).toUpperCase()}
                 </span>
-                <span className="ws-badge ws-badge--active">Active</span>
+                <span className="ws-badge ws-badge--active">{t('Active')}</span>
               </div>
 
-              <h2 className="ws-team-card__name">{team.name}</h2>
+              <h2 className="ws-team-card__name">{t(team.name)}</h2>
               <p className="ws-team-card__text">
-                {team.description?.trim() || 'No description added.'}
+                {t(team.description?.trim() || 'No description added.')}
               </p>
 
               <div className="ws-team-card__leader">
@@ -111,16 +113,16 @@ export default function TeamsPage({ onOpenTeam }) {
                 </svg>
                 {team.teamLead ? (
                   <span>
-                    <strong>Team leader:</strong> {team.teamLead.fullName}
+                    <strong>{t('Team leader:')}</strong> {t(team.teamLead.fullName)}
                   </span>
                 ) : (
-                  <span className="is-muted">No team leader assigned</span>
+                  <span className="is-muted">{t('No team leader assigned')}</span>
                 )}
               </div>
 
               <div className="ws-team-card__foot">
                 <button type="button" className="ws-open-team" onClick={() => onOpenTeam(team.name)}>
-                  Open Team
+                  {t('Open Team')}
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-arrow" />
                   </svg>
@@ -133,7 +135,7 @@ export default function TeamsPage({ onOpenTeam }) {
                   <svg aria-hidden="true" className="icon">
                     <use href="#i-users" />
                   </svg>
-                  Edit Team
+                  {t('Edit Team')}
                 </button>
               </div>
             </article>
@@ -141,25 +143,25 @@ export default function TeamsPage({ onOpenTeam }) {
         </div>
       ) : (
         <div className="ws-empty ws-empty--panel">
-          <strong>No teams yet.</strong>
-          <p>Create a team to start assigning members and brands.</p>
+          <strong>{t('No teams yet.')}</strong>
+          <p>{t('Create a team to start assigning members and brands.')}</p>
         </div>
       )}
 
       <Modal
         isOpen={isCreateOpen}
         onClose={closeCreate}
-        title="Add Team"
-        subtitle="Create a new team for your workspace."
+        title={t('Add Team')}
+        subtitle={t('Create a new team for your workspace.')}
         icon="#i-layers"
         maxWidth="520px"
         footer={
           <>
             <button type="button" className="ws-btn ws-btn--ghost" onClick={closeCreate}>
-              Cancel
+              {t('Cancel')}
             </button>
             <button type="button" className="ws-btn ws-btn--primary" onClick={createTeam}>
-              Create Team
+              {t('Create Team')}
             </button>
           </>
         }

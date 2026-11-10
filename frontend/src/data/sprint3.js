@@ -1,4 +1,4 @@
-import { TASKS_ARABIC } from './tasksData';
+import { TASKS_ARABIC } from './tasksData.js';
 /* ==========================================================================
    Sprint 3 — Strategy & content lifecycle fixtures.
 
@@ -1229,6 +1229,412 @@ export const ARABIC = {
   'sport': 'رياضة',
   'Industrial Automation': 'أتمتة صناعية',
 
+  // Navigation & Sections
+  'Execution & Review': 'التنفيذ والمراجعة',
+  'Tasks Management': 'إدارة المهام',
+  'My Work': 'أعمالي',
+  'System Admin': 'مدير النظام',
+
+  // Notification channels
+  'Notification channels': 'قنوات الإشعارات',
+  'WhatsApp': 'واتساب',
+  'whatsapp': 'واتساب',
+  'Email': 'البريد الإلكتروني',
+  'email': 'البريد الإلكتروني',
+  'In-App': 'داخل التطبيق',
+  'In-app': 'داخل التطبيق',
+  'in_app': 'داخل التطبيق',
+  'Bell notifications inside ORVIA.': 'إشعارات التنبيهات داخل أورفيا.',
+  'Transactional email to the client contact.': 'رسائل البريد الإلكتروني المباشرة لجهة اتصال العميل.',
+  'WhatsApp Business template message.': 'رسائل قوالب واتساب للأعمال.',
+
+  // Question Dispatch & Templates
+  'Template': 'القالب',
+  'E-commerce Brand Discovery': 'استكشاف علامة التجارة الإلكترونية',
+  'Healthcare Content Brief': 'بريف محتوى الرعاية الصحية',
+  'What do you sell, and what is the hero product?': 'ماذا تبيع، وما هو منتجك الرئيسي؟',
+  'Who is the core customer?': 'من هو عميلك الأساسي؟',
+  'Which channels drive most of your revenue today?': 'ما هي القنوات التي تحقق معظم إيراداتك اليوم؟',
+  'Primary goal for the next quarter': 'الهدف الأساسي للربع القادم',
+  'Upload the current catalogue or product sheet.': 'ارفع الكتالوج الحالي أو ورقة المنتج.',
+  'Upload the current catalogue or product sheet': 'ارفع الكتالوج الحالي أو ورقة المنتج',
+  'Which services should the content focus on?': 'ما هي الخدمات التي يجب أن يركز عليها المحتوى؟',
+  'Describe the patient you want to reach.': 'صف المريض أو الفئة المستهدفة التي ترغب في الوصول إليها.',
+  'Please complete before our strategy session on Monday': 'يرجى الإكمال قبل جلسة الاستراتيجية يوم الاثنين',
+  'Please complete before our strategy session on Monday.': 'يرجى الإكمال قبل جلسة الاستراتيجية يوم الاثنين.',
+  'Grow revenue': 'زيادة الإيرادات',
+  'Launch a product': 'إطلاق منتج',
+  'Improve retention': 'تحسين الاحتفاظ بالعملاء',
+  'Enter a new market': 'دخول سوق جديدة',
+  'Instagram': 'إنستغرام',
+  'TikTok': 'تيك توك',
+  'Google Shopping': 'جوجل للتسوق',
+  'Marketplace': 'المتجر الإلكتروني',
+  'Retail': 'تجارة التجزئة',
+
+  // Brands Page & Brand Cards
+  'Brands': 'البراندات',
+  'Brand': 'البراند',
+  'brands': 'براندات',
+  'brand': 'براند',
+  'Add Brand': 'إضافة براند',
+  'Add Brand +': 'إضافة براند +',
+  'Search brands by name, industry, country or manager…': 'ابحث عن البراندات بالاسم، المجال، الدولة أو المدير…',
+  'Search brands by name, industry, country or manager': 'ابحث عن البراندات بالاسم، المجال، الدولة أو المدير',
+  'Search brands by name, industry, country or manager...': 'ابحث عن البراندات بالاسم، المجال، الدولة أو المدير...',
+  '...Search brands by name, industry, country or manager': 'ابحث عن البراندات بالاسم، المجال، الدولة أو المدير...',
+  'Search brands': 'البحث في البراندات',
+  'Filter brands by status': 'تصفية البراندات حسب الحالة',
+  'All statuses': 'جميع الحالات',
+  'Open Brand': 'فتح البراند',
+  'Awaiting manager assignment': 'بانتظار تعيين مدير',
+  'Verified brand': 'براند موثق',
+  'Country not set': 'الدولة غير محددة',
+  'Timezone not set': 'المنطقة الزمنية غير محددة',
+  'No team assigned': 'بدون فريق مسند',
+  'No monthly plan yet': 'لا توجد خطة شهرية بعد',
+  'No brands yet': 'لا توجد براندات بعد',
+  'No brands match those filters': 'لا توجد براندات تطابق هذه الفلاتر',
+  'Create your first brand workspace to start building monthly content plans.': 'أنشئ أول مساحة عمل لبراند للبدء في بناء خطط المحتوى الشهرية.',
+  'Try a different name, industry, country or status.': 'جرب اسماً أو مجالاً أو دولة أو حالة مختلفة.',
+  'Clear filters': 'مسح الفلاتر',
+  'Uncategorized': 'غير مصنف',
+
+  // Statuses
+  'Active': 'نشط',
+  'active': 'نشط',
+  'Onboarding': 'قيد الإعداد',
+  'onboarding': 'قيد الإعداد',
+  'Archived': 'مؤرشف',
+  'archived': 'مؤرشف',
+  'Paused': 'متوقف مؤقتاً',
+  'paused': 'متوقف مؤقتاً',
+
+  // Countries
+  'United States': 'الولايات المتحدة',
+  'United Kingdom': 'المملكة المتحدة',
+  'Germany': 'ألمانيا',
+  'France': 'فرنسا',
+  'Spain': 'إسبانيا',
+  'United Arab Emirates': 'الإمارات العربية المتحدة',
+  'Saudi Arabia': 'المملكة العربية السعودية',
+  'Egypt': 'مصر',
+  'Japan': 'اليابان',
+  'Singapore': 'سنغافورة',
+  'Canada': 'كندا',
+  'Australia': 'أستراليا',
+
+  // Industries
+  'HealthTech & Telehealth': 'تكنولوجيا صحية ورعاية عن بعد',
+  'EV Automotive & Fleet': 'سيارات كهربائية وأساطيل',
+  'Organic Cosmetics': 'مستحضرات تجميل عضوية',
+  'Enterprise AI SaaS': 'برمجيات الذكاء الاصطناعي للشركات',
+  'Hospitality Franchise': 'امتياز ضيافة ورعاية',
+  'Renewable Energy': 'طاقة متجددة',
+  'Aerospace Engineering': 'هندسة الطيران والفضاء',
+  'Fashion & Apparel': 'الأزياء والملابس',
+  'Food & Beverage': 'الأغذية والمشروبات',
+  'Fintech & Payments': 'التكنولوجيا المالية والمدفوعات',
+  'Real Estate & PropTech': 'العقارات والتكنولوجيا العقارية',
+  'Education & Learning': 'التعليم والتدريب',
+  'Travel & Leisure': 'السياحة والترفيه',
+  'Media & Entertainment': 'الإعلام والترفيه',
+  'Retail & E-commerce': 'التجزئة والتجارة الإلكترونية',
+  'E-commerce': 'تجارة إلكترونية',
+  'Healthcare': 'رعاية صحية',
+  'SaaS': 'برمجيات خدمية',
+  'B2B': 'أعمال لأعمال (B2B)',
+
+  // People & Squads
+  'Marcus Vance': 'ماركوس فانس',
+  'Sarah Jenkins': 'سارة جنكينز',
+  'Maya Lin': 'مايا لين',
+  'Sarah Lin': 'سارة لين',
+  'Creative Direction & Motion': 'الإخراج الإبداعي والتحريك',
+  'Performance Ops': 'عمليات الأداء',
+  'Brand Strategy Squad': 'فريق استراتيجية البراند',
+  'Brand Strategy & Growth Squad': 'فريق استراتيجية البراند والنمو',
+  'Performance Content Squad': 'فريق محتوى الأداء',
+  'Creative & Motion Studio': 'استوديو الإبداع والتحريك',
+  'Editorial & Brand Voice': 'التحرير ونبرة البراند',
+
+  // Brand Workspace Hub & Brand Details
+  'Brand Brief': 'بريف البراند',
+  'Content Strategy': 'استراتيجية المحتوى',
+  'Monthly Plans': 'الخطط الشهرية',
+  'Files & Assets': 'الملفات والأصول',
+  'Social Media Platforms': 'منصات التواصل الاجتماعي',
+  'Brand Workspace': 'مساحة عمل البراند',
+  'Client data, the collected Q&A and every brief file version.': 'بيانات العميل، والأسئلة والأجوبة المجمعة، وكل نسخ ملفات البريف.',
+  'The approved strategy, drafted by the creator and reviewed by the account manager.': 'الاستراتيجية المعتمدة، المصاغة بواسطة المنشئ والمراجعة من مدير الحسابات.',
+  'Platform and month selectors, plan directions and the content plan.': 'محددات المنصة والشهر، وتوجيهات الخطة، وخطة المحتوى.',
+  'Logo, visual identity, videos, designs and the rest of the library.': 'الشعار، الهوية البصرية، الفيديوهات، التصاميم، وباقي المكتبة.',
+  'Every channel the brand publishes on, with its goals and content types.': 'كل قناة ينشر عليها البراند مع أهدافها وأنواع المحتوى.',
+  'Edit Brand': 'تعديل البراند',
+  'Update Monthly Plan': 'تحديث الخطة الشهرية',
+  'Create Monthly Plan': 'إنشاء خطة شهرية',
+  'Add Content': 'إضافة محتوى',
+  'Restore Brand': 'استعادة البراند',
+  'Archive Brand': 'أرشفة البراند',
+  'Delete Brand': 'حذف البراند',
+  'Add Platform': 'إضافة منصة',
+  'Monthly Content Plan': 'خطة المحتوى الشهرية',
+  'Targets, delivery health and content output for this brand.': 'الأهداف، صحة التسليم، ومخرجات المحتوى لهذا البراند.',
+  'Brand details updated successfully.': 'تم تحديث بيانات البراند بنجاح.',
+  'Team Management': 'إدارة الفِرق',
+  'Organize members and assign brands to each team.': 'تنظيم الأعضاء وتعيين البراندات لكل فريق.',
+  'Add Team': 'إضافة فريق',
+  'Team created successfully.': 'تم إنشاء الفريق بنجاح.',
+  'Assigned Brands': 'البراندات المسندة',
+  'Team Lead': 'قائد الفريق',
+  'Members': 'الأعضاء',
+  'Active': 'نشط',
+  'Team leader:': 'قائد الفريق:',
+  'No team leader assigned': 'لم يتم تعيين قائد للفريق',
+  'Open Team': 'فتح الفريق',
+  'Edit Team': 'تعديل الفريق',
+  'No description added.': 'لم تتم إضافة وصف.',
+  'Create a team to start assigning members and brands.': 'أنشئ فريقاً للبدء في تعيين الأعضاء والبراندات.',
+  'Create a new team for your workspace.': 'إنشاء فريق جديد لمساحة عملك.',
+  'Create Team': 'إنشاء الفريق',
+  'Team leader': 'قائد الفريق',
+  'Select team leader (optional)': 'اختر قائد الفريق (اختياري)',
+  'Team Name': 'اسم الفريق',
+  'e.g., Performance Creative': 'مثال: الإبداع الأدائي',
+  'Describe the team’s focus or responsibilities.': 'صف اختصاص الفريق ومسؤولياته.',
+
+  // Content Items & Empty State (Image 1)
+  'No items for this month': 'لا توجد عناصر لهذا الشهر',
+  'Open the plan sheet to add posts and reels, then link them to the strategy.': 'افتح جدول الخطة لإضافة المنشورات والريلز، ثم اربطها بالاستراتيجية.',
+
+  // Tasks & My Work (Image 2)
+  'Write Thought Leadership Article for LinkedIn': 'كتابة مقال قيادة فكرية لمنصة لينكد إن',
+  'Long-form commentary on regenerative agriculture and sustainability milestones.': 'تعليق تفصيلي مطول حول الزراعة التجديدية ومحطات الاستدامة الرئيسية.',
+  'Founder Manifesto on Sustainability': 'بيان المؤسس حول الاستدامة',
+  'Create Carousel Visuals on Hydration Science': 'تصميم شرائح بصرية حول علوم الترطيب',
+  '3D renders and nutritional breakdown carousel for wellness consumer launch.': 'تصاميم ثلاثية الأبعاد وشرائح تفصيلية غذائية لإطلاق منتج العافية.',
+  'Science Behind Automation Carousel': 'شرائح العلم وراء الأتمتة',
+  'Please adjust color palette to match brand guideline hex codes and clarify slide 4 typography.': 'يرجى ضبط لوحة الألوان لتطابق رموز الهوية البصرية وتوضيح الخط في الشريحة الرابعة.',
+  'Motion Teaser for TikTok Launch': 'فيديو تشويقي متحرك لإطلاق تيك توك',
+  'Fast-paced hook video formatted in 9:16 with dynamic sound sync.': 'فيديو خاطف سريع بصيغة 9:16 مع مزامنة صوتية ديناميكية.',
+  'Behind the Scenes Athlete Interview': 'مقابلة مع الرياضي خلف الكواليس',
+  'Editorial Copy for Product Launch Newsletter': 'نص تحريري للنشرة الإخبارية لإطلاق المنتج',
+  'Engaging email copy with clear CTA for VIP early-access community.': 'نص بريد إلكتروني تفاعلي مع دعوة واضحة لاتخاذ إجراء لمجتمع الوصول المبكر للعملاء المميزين.',
+  'VIP Early Access Drop': 'إطلاق الوصول المبكر للعملاء المميزين',
+  'Spring Product Reveal Video': 'فيديو الكشف عن منتجات الربيع',
+  'VIP Early Access Drop Announcement': 'إعلان إطلاق الوصول المبكر للعملاء المميزين',
+  'Motion Designer': 'مصمم موشن',
+  'Copywriter & Editor': 'كاتب نصوص ومحرر',
+  'Waiting for manager review': 'بانتظار مراجعة المدير',
+  'Task updated successfully!': 'تم تحديث المهمة بنجاح!',
+  'Task deadline has passed!': 'فات الموعد النهائي للمهمة!',
+  'Scheduled deadline': 'الموعد المحدد',
+  'No description provided.': 'لا يوجد وصف مدخل.',
+
+  // Client Portal & Questions (Images 3 & 4)
+  'Answer these questions so the ORVIA team can build your brief, strategy and content plan.': 'أجب عن هذه الأسئلة حتى يتمكن فريق أورفيا من بناء البريف والاستراتيجية وخطة المحتوى.',
+  'Please complete before our strategy session on Monday.': 'يرجى الإكمال قبل جلسة الاستراتيجية يوم الاثنين.',
+  'Please complete before our strategy session on Monday': 'يرجى الإكمال قبل جلسة الاستراتيجية يوم الاثنين',
+  'Which services should the content focus on?': 'ما هي الخدمات التي يجب أن يركز عليها المحتوى؟',
+  'Which services should the content focus on': 'ما هي الخدمات التي يجب أن يركز عليها المحتوى؟',
+  'Primary care, dermatology and mental health visits — all delivered through same-day video appointments.': 'زيارات الرعاية الأولية، والأمراض الجلدية، والصحة النفسية — تُقدَّم جميعها عبر مواعيد فيديو في نفس اليوم.',
+  'Primary care, dermatology and mental health visits — all delivered through same-day video appointments': 'زيارات الرعاية الأولية، والأمراض الجلدية، والصحة النفسية — تُقدَّم جميعها عبر مواعيد فيديو في نفس اليوم',
+  'Describe the patient you want to reach.': 'صف المريض أو الفئة المستهدفة التي ترغب في الوصول إليها.',
+  'Describe the patient you want to reach': 'صف المريض أو الفئة المستهدفة التي ترغب في الوصول إليها',
+  'Working parents aged 28–45 who manage the healthcare of the whole household and have little time to spare.': 'الآباء والأمهات العاملون الذين تتراوح أعمارهم بين 28 و45 عاماً والذين يديرون الرعاية الصحية لجميع أفراد الأسرة ولديهم القليل من وقت الفراغ.',
+  'Are there claims the content must avoid?': 'هل هناك ادعاءات يجب أن يتجنبها المحتوى؟',
+  'Are there claims the content must avoid': 'هل هناك ادعاءات يجب أن يتجنبها المحتوى؟',
+  'No guarantees of diagnosis or treatment outcomes. No fear-based messaging.': 'لا ضمانات لنتائج التشخيص أو العلاج. تجنب الرسائل القائمة على التخويف.',
+  'What builds trust with your patients?': 'ما الذي يبني الثقة مع مرضاك؟',
+  'What builds trust with your patients': 'ما الذي يبني الثقة مع مرضاك؟',
+  'Real clinicians': 'أطباء معتمدون وحقيقيون',
+  'Patient stories': 'قصص وتجارب المرضى',
+  'Clear pricing': 'تسعير واضح وشفاف',
+  'Privacy': 'الخصوصية التامة',
+  'Same-day care': 'رعاية في نفس اليوم',
+  'Upload brand guidelines or disclaimers': 'ارفع إرشادات الهوية أو إخلاء المسؤولية',
+  'Editing after submission is only possible through your account manager. Tell them what needs to change.': 'التعديل بعد الإرسال ممكن فقط من خلال مدير حسابك. أخبره بالتعديلات المطلوبة.',
+  'lumina-brand-guidelines.pdf': 'دليل-هوية-لومينا.pdf',
+
+  // Additional Seeds (Briefs, Templates, Strategies)
+  'Clean skincare with refillable packaging. The hero product is the Barrier Repair Serum.': 'عناية نظيفة بالبشرة بعبوات قابلة لإعادة التعبئة. المنتج البطل هو سيروم إصلاح حاجز البشرة.',
+  'Women aged 25–40 who care about ingredients and want a calmer routine.': 'النساء من سن 25 إلى 40 عاماً اللاتي يهتممن بالمكونات ويرغبن في روتين أكثر هدوءاً.',
+  'Launch-ready discovery for online stores: catalogue, offer and customer journey.': 'استكشاف جاهز للإطلاق للمتاجر الإلكترونية: الكتالوج، العرض ورحلة العميل.',
+  'The refill ritual is the focus this quarter.': 'طقوس إعادة التعبئة هي محور التركيز لهذا الربع.',
+  'Adapted for the fleet launch — ignore the unit-mix questions.': 'معدّل لإطلاق الأسطول — تجاهل أسئلة مزيج الوحدات.',
+  'Project launch intake: unit mix, location story and buyer profile.': 'استيعاب إطلاق المشروع: مزيج الوحدات، قصة الموقع وملف المشتري.',
+  'Real Estate Launch Brief': 'بريف إطلاق العقارات',
+  'Q4 Everyday Care Strategy': 'استراتيجية الرعاية اليومية للربع الرابع',
+  'K5 Fleet Launch Strategy': 'استراتيجية إطلاق أسطول K5',
+  'Strong. Tightened the measurement section before sending to the client.': 'ممتاز. تم تحسين قسم قياس الأداء بدقة قبل إرساله للعميل.',
+
+  // AI Brief Hints & Sections
+  'One paragraph describing the brand and its promise.': 'فقرة واحدة تصف البراند ووعده للجمهور.',
+  'What the content must achieve this quarter.': 'ما يجب أن يحققه المحتوى خلال هذا الربع.',
+  'Who we are speaking to and what they care about.': 'من نخاطبهم وما الذي يهتمون لأجله.',
+  'The brands we are measured against and the gap we can own.': 'العلامات التي نقارن بها والفرصة الفريدة التي يمكننا امتلاكها.',
+  'How the brand sounds across every channel.': 'كيف تبدو نبرة البراند عبر جميع القنوات.',
+  'The ideas every deliverable should reinforce.': 'الأفكار التي يجب أن يرسخها كل محتوى أو مخرج إبداعي.',
+  'Read the client’s answers, generate a brief, fill the gaps and approve it with an auditable signature.': 'اقرأ إجابات العميل، وقم بتوليد البريف، واستكمل النواقص واعتمده بتوثيق رسمي.',
+  'Read the client\'s answers, generate a brief, fill the gaps and approve it with an auditable signature.': 'اقرأ إجابات العميل، وقم بتوليد البريف، واستكمل النواقص واعتمده بتوثيق رسمي.',
+  'Ready for AI processing': 'جاهزة للمعالجة بالذكاء الاصطناعي',
+  'AI brief': 'البريف الذكي',
+
+  // AI Brief Bodies (Lumina Health)
+  'Lumina is a same-day telehealth platform for primary care, dermatology and mental health, built around the family routine rather than the clinic schedule.': 'لومينا هي منصة رعاية صحية عن بعد في نفس اليوم لخدمات الطب العام، والأمراض الجلدية، والصحة النفسية، صُممت لتلائم روتين العائلة بدلاً من جدول العيادة التقليدي.',
+  'Grow qualified first-time video visits by 20% this quarter and make same-day care feel like the obvious choice for busy households.': 'زيادة زيارات الفيديو المؤهلة لأول مرة بنسبة 20% هذا الربع وجعل الرعاية في نفس اليوم الخيار البديهي للأسر المشغولة.',
+  'Working parents aged 28–45 who carry the healthcare admin for the whole family. They are time-poor, research-led and quietly anxious about getting care right.': 'الآباء والأمهات العاملون من سن 28 إلى 45 عاماً الذين يتحملون إدارة الرعاية الصحية لجميع أفراد الأسرة. وقتهم ضيق، ويعتمدون على البحث الذاتي ولديهم قلق دفين بشأن الحصول على الرعاية المناسبة.',
+  'BetterHelp owns the mental-health conversation, Teladoc owns insurance-led trust. Lumina can win by owning the everyday family care moment — not the crisis moment.': 'بيتر هيلب تستحوذ على حوار الصحة النفسية، وتيلادوك تمتلك ثقة التأمين. يمكن للومينا الفوز من خلال الاستحواذ على لحظات الرعاية الأسرية اليومية — وليس فقط لحظات الأزمات.',
+  'Warm, plain-spoken and reassuring. Lead with relief, never fear. Clinicians are real people; privacy is a promise, not a feature.': 'دافئة، واضحة ومطمئنة. ابدأ بتقديم مشاعر الارتياح، ولا تلجأ للتخويف أبداً. الأطباء أشخاص حقيقيون، والخصوصية عهد وليست مجرد ميزة.',
+  'Care that fits your day. Doctors you can reach in minutes. Your data stays yours.': 'رعاية تلائم يومك. أطباء تصل إليهم في دقائق. بياناتك تظل ملكك دائماً.',
+
+  // Strategy Bodies & Pillars
+  'Lumina is the family’s front door to care — same-day video visits that fit around school runs, commutes and bedtime.': 'لومينا هي الباب الأول للعائلة نحو الرعاية — مواعيد فيديو في نفس اليوم تتلاءم مع توصيل المدارس والتنقل ومواعيد النوم.',
+  'Lumina is the family\'s front door to care — same-day video visits that fit around school runs, commutes and bedtime.': 'لومينا هي الباب الأول للعائلة نحو الرعاية — مواعيد فيديو في نفس اليوم تتلاءم مع توصيل المدارس والتنقل ومواعيد النوم.',
+  'Time-poor parents who manage everyone else’s health. They want a plan, not a phone tree.': 'أولياء الأمور المشغولون الذين يديرون صحة الجميع. يريدون خطة واضحة ومباشرة دون تعقيدات هاتفية.',
+  'Time-poor parents who manage everyone else\'s health. They want a plan, not a phone tree.': 'أولياء الأمور المشغولون الذين يديرون صحة الجميع. يريدون خطة واضحة ومباشرة دون تعقيدات هاتفية.',
+  'Everyday care\nTrust & privacy\nReal patient stories\nCare from anywhere': 'رعاية يومية\nالثقة والخصوصية\nقصص مرضى حقيقية\nرعاية من أي مكان',
+  'Instagram — daily care rituals and reach\nTikTok — clinician explainers\nLinkedIn — employer benefit story': 'إنستغرام — عادات الرعاية اليومية والوصول\nتيك توك — شروحات الأطباء التوعوية\nلينكد إن — قصة مزايا أصحاب العمل',
+  'Warm, plain-spoken, never clinical. Lead with relief.': 'دافئة، بسيطة وواضحة، غير معقدة طبياً. ابدأ بتقديم الارتياح والاطمئنان.',
+  'Qualified first visits, saves, care-plan starts, engagement rate.': 'الزيارات الأولى المؤهلة، الحفظ، بدء خطط الرعاية، ومعدل التفاعل.',
+  'LinkedIn': 'لينكد إن',
+  'TikTok': 'تيك توك',
+  'Instagram': 'إنستغرام',
+
+  // Team Descriptions
+  'Paid social, performance creative and reporting for high-velocity acquisition accounts.': 'إعلانات وسائل التواصل المدفوعة، والإبداع الأدائي، والتقارير لحسابات الاستحواذ سريعة النمو.',
+  'Art direction, content production and motion design across every campaign channel.': 'الإخراج الفني، وإنتاج المحتوى، وتصميم الرسوم المتحركة عبر كافة قنوات الحملات.',
+  'Brand positioning, market strategy and growth programs for the studio’s flagship accounts.': 'تموضع البراند، واستراتيجية السوق، وبرامج النمو للحسابات الرائدة في الاستوديو.',
+  'Brand positioning, market strategy and growth programs for the studio\'s flagship accounts.': 'تموضع البراند، واستراتيجية السوق، وبرامج النمو للحسابات الرائدة في الاستوديو.',
+  'Editorial systems, long-form content and brand voice guidelines for enterprise teams.': 'الأنظمة التحريرية، والمحتوى المطول، وإرشادات نبرة صوت البراند لفِرق الشركات.',
+  'Always-on social operations, publishing and community management for retained brands.': 'عمليات التواصل المستمرة، والنشر، وإدارة المجتمعات التفاعلية للبراندات المستمرة معنا.',
+
+  // Users Page
+  'Edit roles, permissions and account status.': 'تعديل الأدوار والصلاحيات وحالة الحساب.',
+  'Add User': 'إضافة مستخدم',
+  'Add User +': 'إضافة مستخدم +',
+  'USERS': 'المستخدمين',
+  'ACTIVE': 'النشطين',
+  'INACTIVE': 'غير النشطين',
+  'Inactive': 'غير نشط',
+  'ADMIN': 'مدير النظام',
+  'ACCOUNT MANAGER': 'مدير حسابات',
+  'EMPLOYEE': 'موظف',
+  'TEAM LEADER': 'قائد فريق',
+  'Brand Director': 'مدير البراند',
+  'Community Manager': 'مدير مجتمع',
+  'Content Creator': 'صانع محتوى',
+  'Copywriter': 'كاتب نصوص',
+  'Designer': 'مصمم',
+  'Motion Designer': 'مصمم موشن',
+  'Team': 'الفريق',
+  'Edit User': 'تعديل المستخدم',
+  'Delete': 'حذف',
+  'Full Name': 'الاسم الكامل',
+  'Job Title': 'المسمى الوظيفي',
+  'Save User': 'حفظ المستخدم',
+  'Team: Brand Strategy & Growth': 'الفريق: استراتيجية البراند والنمو',
+  'Team: Creative Production': 'الفريق: الإنتاج الإبداعي',
+  'Team: Performance & Growth': 'الفريق: الأداء والنمو',
+  'Team: Editorial & Content': 'الفريق: التحرير والمحتوى',
+  'Team: Social & Community': 'الفريق: التواصل والمجتمع',
+
+  // Profile Page
+  'Profile': 'الملف الشخصي',
+  'PROFILE': 'الملف الشخصي',
+  'My details': 'بياناتي الشخصية',
+  'Personal identification and role assignment within the agency.': 'البيانات الشخصية وتعيين الدور الوظيفي داخل الوكالة.',
+  'Profile Photo': 'صورة الملف الشخصي',
+  'PNG, JPG, or WEBP up to 5MB. Circular display across Kanban & avatars.': 'صيغ PNG أو JPG أو WEBP حتى 5 ميجابايت. تظهر بشكل دائري عبر لوحة كانبان والصور الرمزية.',
+  'Upload photo': 'رفع صورة',
+  'Upload profile photo': 'رفع صورة الملف الشخصي',
+  'Crop': 'قص',
+  'Remove': 'إزالة',
+  'Phone Number': 'رقم الهاتف',
+  'Used strictly for two-factor security alerts.': 'يُستخدم حصرياً لتنبيهات الأمان والمصادقة الثنائية.',
+  'Work Email': 'البريد الإلكتروني للعمل',
+  'Work email': 'البريد الإلكتروني للعمل',
+  'Managed by workspace administrator': 'مُدار بواسطة مسؤول مساحة العمل',
+  'Contact your administrator to change your sign-in email.': 'تواصل مع مسؤول النظام لتغيير بريد تسجيل الدخول.',
+  'Role Assignment': 'الدور الوظيفي',
+  'Role assignment': 'الدور الوظيفي',
+  'Assigned by your workspace administrator.': 'مُعين بواسطة مسؤول مساحة العمل.',
+  'Assigned Squad': 'الفريق المسند',
+  'Assigned squad': 'الفريق المسند',
+  'Squad membership follows your team assignments.': 'تتبع عضوية الفريق تعييناتك في الفِرق.',
+  'Studio Lead / Account Manager': 'قائد استوديو / مدير حسابات',
+  'Account Manager / Ops': 'مدير حسابات / عمليات',
+  'All changes saved': 'تم حفظ جميع التغييرات',
+  'Unsaved changes': 'تغييرات غير محفوظة',
+  'Save changes': 'حفظ التغييرات',
+  'Profile photo updated.': 'تم تحديث صورة الملف الشخصي.',
+  'Crop tool opened.': 'تم فتح أداة القص.',
+  'Profile photo removed.': 'تمت إزالة صورة الملف الشخصي.',
+  'Profile changes saved successfully.': 'تم حفظ تغييرات الملف الشخصي بنجاح.',
+  'Changes discarded.': 'تم تجاهل التغييرات.',
+
+  // Settings Page
+  'Admin Settings': 'إعدادات الإدارة',
+  'ADMIN SETTINGS': 'إعدادات الإدارة',
+  'Settings': 'الإعدادات',
+  'Control default workflow deadlines and keep your account secure.': 'تحكم في المواعيد النهائية الافتراضية لسير العمل وحافظ على أمان حسابك.',
+  'Workflow Settings': 'إعدادات سير العمل',
+  'Control the default deadline rules used when an Account Manager assigns a new content workflow. Existing tasks keep their current due dates.': 'تحكم في قواعد المواعيد النهائية الافتراضية المستخدمة عندما يسند مدير الحساب سير عمل محتوى جديد. تحتفظ المهام الحالية بمواعيد استحقاقها الحالية.',
+  'Deadline Rules': 'قواعد المواعيد النهائية',
+  'Example: 48 hours means the task is due 48 hours before publish_at.': 'مثال: 48 ساعة تعني أن موعد استحقاق المهمة قبل 48 ساعة من وقت النشر.',
+  'Production': 'الإنتاج والتنفيذ',
+  'Review': 'المراجعة',
+  'Publish': 'النشر',
+  'Deadline is calculated this many hours before the content publish time.': 'يتم احتساب الموعد النهائي بهذا العدد من الساعات قبل موعد نشر المحتوى.',
+  'Hours before publish': 'ساعات قبل النشر',
+  'HOURS BEFORE PUBLISH': 'ساعات قبل النشر',
+  'deadline saved.': 'تم حفظ الموعد النهائي.',
+  'Security': 'الأمان والحماية',
+  'Update password and session preferences.': 'تحديث كلمة المرور وتفضيلات الجلسات النشطة.',
+  'Current Password': 'كلمة المرور الحالية',
+  'New Password': 'كلمة المرور الجديدة',
+  'Enter fresh passphrase': 'أدخل كلمة مرور جديدة',
+  'Security strength:': 'قوة كلمة المرور:',
+  'Weak': 'ضعيفة',
+  'Fair': 'مقبولة',
+  'Good': 'جيدة',
+  'Strong': 'قوية',
+  '16+ characters': '16+ حرفاً',
+  'Characters >16': '16+ حرفاً',
+  'Uppercase (A-Z)': 'أحرف كبيرة (A-Z)',
+  'Numbers (0-9)': 'أرقام (0-9)',
+  'Special symbol (!@#)': 'رمز خاص (!@#)',
+  'Special symbol': 'رمز خاص',
+  '#!@%?! Special symbol': 'رمز خاص (!@#)',
+  'Confirm New Password': 'تأكيد كلمة المرور الجديدة',
+  'Re-type new passphrase': 'أعد إدخال كلمة المرور الجديدة',
+  'Passwords match correctly': 'كلمتا المرور متطابقتان تماماً',
+  'Update password': 'تحديث كلمة المرور',
+  'Log out': 'تسجيل الخروج',
+  'Active Sessions': 'الجلسات النشطة',
+  'Logged in on 3 devices': 'مسجل الدخول على 3 أجهزة',
+  'Log out all devices': 'تسجيل الخروج من جميع الأجهزة',
+  'Workspace Admin': 'مسؤول مساحة العمل',
+  'Enter a whole number between 0 and 720.': 'أدخل رقماً صحيحاً بين 0 و 720.',
+  'Use 16+ characters with an uppercase letter, a number and a special symbol.': 'استخدم 16+ حرفاً مع حرف كبير ورقم ورمز خاص.',
+  'Choose a password that differs from your current one.': 'اختر كلمة مرور مختلفة عن كلمة مرورك الحالية.',
+  'Password changed successfully.': 'تم تغيير كلمة المرور بنجاح.',
+  'Signed out of all other devices.': 'تم تسجيل الخروج من كافة الأجهزة الأخرى.',
+};
+
+const AR_MONTHS = {
+  jan: 'يناير', january: 'يناير',
+  feb: 'فبراير', february: 'فبراير',
+  mar: 'مارس', march: 'مارس',
+  apr: 'أبريل', april: 'أبريل',
+  may: 'مايو',
+  jun: 'يونيو', june: 'يونيو',
+  jul: 'يوليو', july: 'يوليو',
+  aug: 'أغسطس', august: 'أغسطس',
+  sep: 'سبتمبر', september: 'سبتمبر',
+  oct: 'أكتوبر', october: 'أكتوبر',
+  nov: 'نوفمبر', november: 'نوفمبر',
+  dec: 'ديسمبر', december: 'ديسمبر',
 };
 
 export function translate(lang, text) {
@@ -1246,8 +1652,48 @@ export function translate(lang, text) {
     if (key.toLowerCase() === lower) return value;
   }
 
+  // Punctuation-stripped lookup (handles trailing/leading dots and question marks)
+  const clean = str.replace(/^[?؟.,!]+|[?؟.,!]+$/g, '').trim();
+  if (clean && clean !== str) {
+    if (ARABIC[clean]) return ARABIC[clean];
+    const cleanLower = clean.toLowerCase();
+    for (const [key, value] of Object.entries(ARABIC)) {
+      if (key.toLowerCase() === cleanLower) return value;
+    }
+  }
+
   // Regex patterns for dynamic formatted strings
-  let match = str.match(/^(\d+)\s+assigned$/i);
+  let match = str.match(/^([a-z]+)\s+(\d{4})\s+plan\s*[·•-]\s*(\d+)\s+items?$/i);
+  if (match) {
+    const m = AR_MONTHS[match[1].toLowerCase()] || match[1];
+    const n = parseInt(match[3], 10);
+    const itemWord = n === 1 ? 'عنصر' : (n >= 2 && n <= 10 ? 'عناصر' : 'عنصر');
+    return `خطة ${m} ${match[2]} · ${match[3]} ${itemWord}`;
+  }
+
+  match = str.match(/^([a-z]+)\s+(\d{4})$/i);
+  if (match && AR_MONTHS[match[1].toLowerCase()]) {
+    return `${AR_MONTHS[match[1].toLowerCase()]} ${match[2]}`;
+  }
+
+  match = str.match(/^All statuses\s*\((\d+)\)$/i);
+  if (match) {
+    return `جميع الحالات (${match[1]})`;
+  }
+
+  match = str.match(/^([A-Za-z]+)\s*\((\d+)\)$/i);
+  if (match) {
+    const tr = ARABIC[match[1]] || match[1];
+    return `${tr} (${match[2]})`;
+  }
+
+  match = str.match(/^(\d+)\s+items?$/i);
+  if (match) {
+    const n = parseInt(match[1], 10);
+    return `${match[1]} ${n === 1 ? 'عنصر' : (n >= 2 && n <= 10 ? 'عناصر' : 'عنصر')}`;
+  }
+
+  match = str.match(/^(\d+)\s+assigned$/i);
   if (match) return `${match[1]} مسندة`;
 
   match = str.match(/^(\d+)\s+active$/i);
