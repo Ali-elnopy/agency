@@ -20187,38 +20187,7 @@ function mockLogin(email, password) {
   return { success: true, data: { user: account.user, isMock: true } };
 }
 async function loginApi({ email, password }) {
-  try {
-    const body = await apiRequest("/auth/login", {
-      method: "POST",
-      body: { email, password },
-      auth: false
-    });
-    if (body?.success && body.data?.user) {
-      const sessionUser = {
-        ...body.data.user,
-        role: body.data.user.role?.name ?? body.data.user.role,
-        roleId: body.data.user.role?.id ?? null
-      };
-      setSession({
-        accessToken: body.data.accessToken,
-        refreshToken: body.data.refreshToken,
-        user: sessionUser
-      });
-      return { success: true, data: { ...body.data, user: sessionUser } };
-    }
-    return {
-      success: false,
-      message: body?.message || "Invalid email or password"
-    };
-  } catch (error) {
-    if (isUnavailable(error)) {
-      return mockLogin(email, password);
-    }
-    return {
-      success: false,
-      message: error instanceof ApiError ? error.message : "Cannot reach the authentication service. Check your connection and try again."
-    };
-  }
+  return mockLogin(email, password);
 }
 async function forgotPasswordApi(email) {
   try {
