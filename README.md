@@ -3,6 +3,21 @@
 Full-stack agency management workspace: authentication, account-manager dashboard,
 brands, teams, users, profile, role/permission matrix, workflow settings, and security.
 
+## Live demo
+
+Public, no-setup demo of Sprint 3 (frontend only — mock data lives in localStorage):
+
+**https://mohamedabdelsamad057-arch.github.io/orvia-demo/demo.html**
+
+On the sign-in screen press **“Log in to ORVIA”** to enter with the demo session, or sign in with:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `admin@agency.local` | `ChangeMe123!` |
+| Account Manager | `elena.vance@orvia-creative.com` | `password1234` |
+
+To rebuild the single-file demo bundle locally, run `npm run build:demo` inside `frontend/`.
+
 ## Stack
 
 | Layer    | Technology                                      |

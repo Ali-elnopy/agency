@@ -71,6 +71,8 @@ model User {
   auditLogs            AuditLog[]
   createdContentPlans  ContentPlan[] @relation("ContentPlanCreator")
   assignedContentPlans ContentPlan[] @relation("ContentPlanAssignee")
+  createdCampaigns    Campaign[]    @relation("CampaignCreator")
+  createdContentItems ContentItem[] @relation("ContentItemCreator")
 
   @@index([roleId])
   @@index([jobTitleId])
@@ -275,10 +277,66 @@ model ContentPlan {
   creator         User            @relation("ContentPlanCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   assignedTo      User?           @relation("ContentPlanAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  campaigns    Campaign[]
+  contentItems ContentItem[]
+
+  // Prevent duplicate monthly plans for the same platform account.
+  @@unique([brandId, platformAccountId, year, month])
   @@index([brandId])
   @@index([platformAccountId])
   @@index([createdBy])
   @@index([assignedToId])
   @@index([year, month])
   @@map("content_plans")
+}
+
+model Campaign {
+  id            Int      @id @default(autoincrement())
+  contentPlanId Int      @map("content_plan_id")
+  name          String   @db.VarChar(200)
+  objective     String?  @db.Text
+  startDate     DateTime @map("start_date") @db.Timestamptz(6)
+  endDate       DateTime @map("end_date") @db.Timestamptz(6)
+  createdBy     Int      @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  contentPlan ContentPlan @relation(fields: [contentPlanId], references: [id], onDelete: Cascade)
+  creator     User        @relation("CampaignCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  contentItems ContentItem[]
+
+  @@index([contentPlanId])
+  @@index([createdBy])
+  @@index([startDate, endDate])
+  @@map("campaigns")
+}
+
+model ContentItem {
+  id            Int  @id @default(autoincrement())
+  contentPlanId Int  @map("content_plan_id")
+  campaignId    Int? @map("campaign_id")
+  createdBy     Int  @map("created_by")
+
+  scheduledDate DateTime @map("scheduled_date") @db.Timestamptz(6)
+  type          String   @db.VarChar(50)
+  title         String   @db.VarChar(200)
+
+  reference   String? @db.Text
+  toneOfVoice String? @map("tone_of_voice") @db.Text
+  caption     String? @db.Text
+  notes       String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  contentPlan ContentPlan @relation(fields: [contentPlanId], references: [id], onDelete: Cascade)
+  campaign    Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  creator     User        @relation("ContentItemCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([contentPlanId])
+  @@index([campaignId])
+  @@index([createdBy])
+  @@index([scheduledDate])
+  @@map("content_items")
 }

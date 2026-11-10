@@ -299,11 +299,13 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
               </div>
             ) : (
               <div className="ws-empty">
-                <strong>{hasTeamData ? 'No teams yet.' : 'Team data is unavailable.'}</strong>
+                <strong>{t(hasTeamData ? 'No teams yet.' : 'Team data is unavailable.')}</strong>
                 <p>
-                  {hasTeamData
-                    ? 'Create a team to start distributing brands across the studio.'
-                    : 'Sign in with an administrator account to see team distribution.'}
+                  {t(
+                    hasTeamData
+                      ? 'Create a team to start distributing brands across the studio.'
+                      : 'Sign in with an administrator account to see team distribution.',
+                  )}
                 </p>
               </div>
             )}
@@ -353,14 +355,18 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
                       <td colSpan={4}>
                         <div className="ws-empty">
                           <strong>
-                            {hasPeopleData
-                              ? 'No account managers yet.'
-                              : 'Workload data is unavailable.'}
+                            {t(
+                              hasPeopleData
+                                ? 'No account managers yet.'
+                                : 'Workload data is unavailable.',
+                            )}
                           </strong>
                           <p>
-                            {hasPeopleData
-                              ? 'Add an account manager to start tracking brand capacity.'
-                              : 'Sign in with an administrator account to see workload.'}
+                            {t(
+                              hasPeopleData
+                                ? 'Add an account manager to start tracking brand capacity.'
+                                : 'Sign in with an administrator account to see workload.',
+                            )}
                           </p>
                         </div>
                       </td>
@@ -390,9 +396,11 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
 
             {alerts.length === 0 ? (
               <p className="cl-card__sub">
-                {hasBrandData
-                  ? 'Every brand has a team assigned.'
-                  : 'Alerts are unavailable for this account.'}
+                {t(
+                  hasBrandData
+                    ? 'Every brand has a team assigned.'
+                    : 'Alerts are unavailable for this account.',
+                )}
               </p>
             ) : null}
 

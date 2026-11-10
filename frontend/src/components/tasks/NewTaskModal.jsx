@@ -4,7 +4,7 @@ import { useBrands } from '../../context/brandsStore';
 import { REGISTERED_EMPLOYEES, TASK_PRIORITIES } from '../../data/tasksData';
 
 export default function NewTaskModal({ isOpen, onClose, onCreated }) {
-  const { addTask, campaigns = [], t } = useSprint3();
+  const { addTask, t } = useSprint3();
   const { brands = [] } = useBrands();
 
   const [title, setTitle] = useState('');

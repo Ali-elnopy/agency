@@ -6,7 +6,7 @@ import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 
 export default function MyWorkPage() {
-  const { tasks = [], changeTaskStatus, role, t } = useSprint3();
+  const { tasks = [], changeTaskStatus, t } = useSprint3();
   const { toast, showToast } = useToast(4000);
 
   const [activeTab, setActiveTab] = useState('today'); // 'today' | 'upcoming' | 'overdue' | 'high_priority' | 'revisions'
@@ -14,10 +14,7 @@ export default function MyWorkPage() {
 
   // Consider tasks for employee (or all active creative tasks if testing/previewing)
   const employeeTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      // In creative mode, or by default show Sarah Lin / employee assigned tasks
-      return true;
-    });
+    return tasks.filter(() => true);
   }, [tasks]);
 
   const now = new Date();

@@ -421,7 +421,7 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               type="button"
               className="button button--ghost button--sm"
               onClick={() => {
-                const count = autoConvertContentToTasks(filtered, brandId, brand?.name);
+                const count = autoConvertContentToTasks(items, brandId, brand?.name);
                 showToast(
                   count > 0
                     ? `${count} ${t('Convert Content to Tasks')} ✓`

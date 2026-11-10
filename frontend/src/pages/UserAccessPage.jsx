@@ -214,10 +214,10 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
       {needle && (
         <div className="ws-filter-note">
           <span>
-            Showing matches for <strong>{query}</strong>
+            {t('Showing matches for')} <strong>{query}</strong>
           </span>
           <button type="button" className="ws-link" onClick={() => setQuery('')}>
-            Clear
+            {t('Clear')}
           </button>
         </div>
       )}
@@ -266,7 +266,7 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                 <div className="ws-editor">
                   <div className="ws-form-grid">
                     <label className={`ws-field${errors.fullName ? ' is-invalid' : ''}`}>
-                      <span>Full Name</span>
+                      <span>{t('Full Name')}</span>
                       <input
                         className="ws-input"
                         value={form.fullName}
@@ -282,20 +282,20 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                           errors.jobTitle || errors.customJobTitle ? ' is-invalid' : ''
                         }`}
                       >
-                        <span>Job Title</span>
+                        <span>{t('Job Title')}</span>
                         <span className="ws-select-wrap">
                           <select
                             className="ws-select"
                             value={form.jobTitle}
                             onChange={updateJobTitle}
                           >
-                            <option value="">Select a job title</option>
+                            <option value="">{t('Select a job title')}</option>
                             {jobTitleChoices.map((item) => (
                               <option key={item.id} value={item.name}>
                                 {item.name}
                               </option>
                             ))}
-                            <option value={OTHER_JOB_TITLE}>Other</option>
+                            <option value={OTHER_JOB_TITLE}>{t('Other')}</option>
                           </select>
                           <svg aria-hidden="true" className="icon">
                             <use href="#i-chevron" />
@@ -304,7 +304,7 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                         {isOtherJobTitle(form.jobTitle) && (
                           <input
                             className="ws-input"
-                            placeholder="Enter the job title"
+                            placeholder={t('Enter the job title')}
                             value={form.customJobTitle}
                             onChange={updateField('customJobTitle')}
                           />
@@ -319,7 +319,7 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
 
                   <div className="ws-access-row">
                     <label className="ws-field">
-                      <span>Access Level</span>
+                      <span>{t('Access Level')}</span>
                       <span className="ws-select-wrap">
                         <select
                           className="ws-select"
@@ -328,7 +328,7 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                         >
                           {ACCESS_LEVELS.map((level) => (
                             <option key={level.id} value={level.id}>
-                              {level.label}
+                              {t(level.label)}
                             </option>
                           ))}
                         </select>
@@ -339,17 +339,17 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                     </label>
 
                     <label className="ws-field">
-                      <span>Assigned Team</span>
+                      <span>{t('Assigned Team')}</span>
                       <span className="ws-select-wrap">
                         <select
                           className="ws-select"
                           value={form.teamId}
                           onChange={updateField('teamId')}
                         >
-                          <option value="">No team assigned</option>
+                          <option value="">{t('No team assigned')}</option>
                           {teams.map((team) => (
                             <option key={team.id} value={team.id}>
-                              {team.name}
+                              {t(team.name)}
                             </option>
                           ))}
                         </select>
@@ -365,12 +365,12 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                         checked={form.active}
                         onChange={updateField('active')}
                       />
-                      Active account
+                      {t('Active account')}
                     </label>
                   </div>
 
                   <fieldset className="ws-permissions">
-                    <legend>Work Permissions</legend>
+                    <legend>{t('Work Permissions')}</legend>
                     <div className="ws-permission-grid">
                       {PERMISSION_OPTIONS.map((permission) => {
                         const checked = form.permissions.includes(permission.id);
@@ -387,7 +387,7 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                               onChange={() => togglePermission(permission.id)}
                               disabled={locked}
                             />
-                            <span>{permission.shortLabel ?? permission.label}</span>
+                            <span>{t(permission.shortLabel ?? permission.label)}</span>
                           </label>
                         );
                       })}
@@ -395,18 +395,18 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                   </fieldset>
 
                   <p className="ws-permission-note">
-                    {form.systemAccess === 'admin'
+                    {t(form.systemAccess === 'admin'
                       ? 'Admin always receives all permissions across the entire workspace.'
                       : form.systemAccess === 'team_leader'
                         ? 'Team Leader has full management and review access over their assigned team.'
                         : form.systemAccess === 'account_manager'
                           ? 'Account Manager receives Review + Publish permissions.'
-                          : 'Configure individual work permissions for this team member.'}
+                          : 'Configure individual work permissions for this team member.')}
                   </p>
 
                   <footer className="ws-editor__foot">
                     <button type="button" className="ws-btn ws-btn--primary" onClick={saveUser}>
-                      Save User
+                      {t('Save User')}
                     </button>
                   </footer>
                 </div>
@@ -454,8 +454,8 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
 
         {!visibleUsers.length && (
           <div className="ws-empty">
-            <strong>No users found.</strong>
-            <p>Try a different name or email.</p>
+            <strong>{t('No users found.')}</strong>
+            <p>{t('Try a different name or email.')}</p>
           </div>
         )}
       </section>
@@ -463,10 +463,10 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
       <ConfirmModal
         isOpen={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
-        title="Delete user?"
-        subtitle="This action cannot be undone."
+        title={t('Delete user?')}
+        subtitle={t('This action cannot be undone.')}
         icon="#i-trash"
-        confirmText="Delete User"
+        confirmText={t('Delete User')}
         onConfirm={confirmDelete}
       >
         <p className="ws-modal-copy">

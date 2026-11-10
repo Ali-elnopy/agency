@@ -46,7 +46,7 @@ function readStore(key, fallback) {
     if (!raw) return fallback;
 
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : fallback;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallback;
   } catch {
     return fallback;
   }
@@ -135,54 +135,62 @@ export function WorkspaceProvider({ children }) {
   const demo = isLocalDemo();
 
   const [users, setUsers] = useState(() =>
-    demo ? readStore(STORAGE_KEYS.users, SEED_USERS) : [],
+    readStore(STORAGE_KEYS.users, SEED_USERS),
   );
   const [teams, setTeams] = useState(() =>
-    demo ? readStore(STORAGE_KEYS.teams, SEED_TEAMS) : [],
+    readStore(STORAGE_KEYS.teams, SEED_TEAMS),
   );
   const [brandLinks, setBrandLinks] = useState([]);
-  const [loading, setLoading] = useState(!demo);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!demo) return;
     writeStore(STORAGE_KEYS.users, users);
-  }, [demo, users]);
+  }, [users]);
 
   useEffect(() => {
-    if (!demo) return;
     writeStore(STORAGE_KEYS.teams, teams);
-  }, [demo, teams]);
+  }, [teams]);
 
   const refresh = useCallback(async () => {
-    const [usersBody, teamsBody, brandsBody] = await Promise.all([
-      apiRequest('/users'),
-      apiRequest('/teams'),
-      apiRequest('/brands'),
-    ]);
+    try {
+      const [usersBody, teamsBody, brandsBody] = await Promise.all([
+        apiRequest('/users'),
+        apiRequest('/teams'),
+        apiRequest('/brands'),
+      ]);
 
-    const userData = unwrap(usersBody);
-    const teamData = unwrap(teamsBody);
-    const brandData = unwrap(brandsBody);
+      const userData = unwrap(usersBody);
+      const teamData = unwrap(teamsBody);
+      const brandData = unwrap(brandsBody);
 
-    const nextUsers = (Array.isArray(userData?.users) ? userData.users : []).map(mapApiUser);
+      const nextUsers = (Array.isArray(userData?.users) ? userData.users : []).map(mapApiUser);
 
-    const nextLinks = (Array.isArray(brandData?.brands) ? brandData.brands : []).map((brand) => ({
-      id: brand.id,
-      name: brand.name,
-      industry: brand.industry ?? '',
-      teamId: brand.teamId ?? null,
-      accountManagerId: brand.accountManagerId ?? null,
-    }));
+      const nextLinks = (Array.isArray(brandData?.brands) ? brandData.brands : []).map((brand) => ({
+        id: brand.id,
+        name: brand.name,
+        industry: brand.industry ?? '',
+        teamId: brand.teamId ?? null,
+        accountManagerId: brand.accountManagerId ?? null,
+      }));
 
-    const nextTeams = applyBrandLinks(
-      (Array.isArray(teamData) ? teamData : []).map(mapApiTeam),
-      nextLinks,
-    );
+      const apiTeams = (Array.isArray(teamData) ? teamData : []).map(mapApiTeam);
+      const nextTeams = applyBrandLinks(
+        apiTeams,
+        nextLinks,
+      );
 
-    setUsers(nextUsers);
-    setTeams(nextTeams);
-    setBrandLinks(nextLinks);
+      if (nextUsers.length > 0) {
+        setUsers(nextUsers);
+      }
+      if (nextTeams.length > 0) {
+        setTeams(nextTeams);
+      }
+      setBrandLinks(nextLinks);
+    } catch (err) {
+      // Backend not running / offline: keep seeded workspace
+      console.warn('WorkspaceContext: using local offline store', err);
+    }
   }, []);
 
   useEffect(() => {

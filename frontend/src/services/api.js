@@ -78,6 +78,12 @@ function mockLogin(email, password) {
 }
 
 export async function loginApi({ email, password }) {
+  // The public demo build has no API behind it. Resolve mock accounts locally
+  // instead of waiting for a network failure, because a static host answers
+  // unknown POST routes with 405 rather than a 5xx. `MOCK_ENABLED` is a
+  // compile-time false in production builds, so this branch is dropped there.
+  if (MOCK_ENABLED) return mockLogin(email, password);
+
   try {
     const body = await apiRequest('/auth/login', {
       method: 'POST',

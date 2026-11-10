@@ -52,7 +52,7 @@ function defaultDateFor(month) {
 }
 
 export default function AddContentPage({ brandId, initialMonth, initialPlatformId, onBack }) {
-  const { getBrand, plans, content, addContent, savePlan, getPlatforms, updateContent } =
+  const { brands = [], getBrand, plans, content, addContent, savePlan, getPlatforms, updateContent } =
     useBrands();
   const {
     getApprovedStrategy,
@@ -63,9 +63,10 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
   } = useSprint3();
   const { toast, showToast } = useToast(5000);
 
-  const brand = getBrand(brandId);
+  const brand = getBrand(brandId) || brands[0] || null;
+  const effectiveBrandId = brand?.id ?? brandId;
   const platforms = useMemo(() => (brand ? getPlatforms(brand.id) : []), [brand, getPlatforms]);
-  const strategy = getApprovedStrategy(brandId);
+  const strategy = getApprovedStrategy(effectiveBrandId);
   const campaigns = useMemo(
     () => (brand ? getCampaigns(brand.id) : []),
     [brand, getCampaigns],
@@ -291,7 +292,7 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
     return (
       <div className="page-screen">
         <section className="page-head">
-          <h1 className="page-head__title">Content Plan</h1>
+          <h1 className="page-head__title">{t('Content Plan')}</h1>
         </section>
         <section className="brand-empty brand-empty--page">
           <span className="brand-empty__icon">
@@ -299,10 +300,10 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
               <use href="#i-file" />
             </svg>
           </span>
-          <h2>Brand not found</h2>
-          <p>Return to the Brands workspace and open a brand before planning content.</p>
+          <h2>{t('Brand not found')}</h2>
+          <p>{t('Return to the Brands workspace and open a brand before planning content.')}</p>
           <button type="button" className="button button--primary" onClick={onBack}>
-            Back to Brands
+            {t('Back to Brands')}
           </button>
         </section>
       </div>

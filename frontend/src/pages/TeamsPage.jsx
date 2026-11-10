@@ -167,37 +167,37 @@ export default function TeamsPage({ onOpenTeam }) {
         }
       >
         <label className={`ws-field${errors.name ? ' is-invalid' : ''}`}>
-          <span>Team Name</span>
+          <span>{t('Team Name')}</span>
           <input
             className="ws-input"
             value={form.name}
             onChange={updateField('name')}
-            placeholder="Example: Brand Strategy & Growth"
+            placeholder={t('Example: Brand Strategy & Growth')}
             autoFocus
           />
           {errors.name && <small className="ws-error">{errors.name}</small>}
         </label>
 
         <label className="ws-field">
-          <span>Description</span>
+          <span>{t('Description')}</span>
           <textarea
             className="ws-textarea"
             rows={3}
             value={form.description}
             onChange={updateField('description')}
-            placeholder="What does this team own?"
+            placeholder={t('What does this team own?')}
           />
         </label>
 
         <label className="ws-field">
-          <span>Team Leader (Optional)</span>
+          <span>{t('Team Leader (Optional)')}</span>
           <span className="ws-select-wrap">
             <select
               className="ws-select"
               value={form.teamLeadId}
               onChange={updateField('teamLeadId')}
             >
-              <option value="">No leader assigned</option>
+              <option value="">{t('No leader assigned')}</option>
               {leaderCandidates.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.fullName} {user.systemAccess === 'team_leader' ? '⭐ (Team Leader)' : ''} — {user.jobTitle || user.systemAccess}

@@ -184,18 +184,6 @@ export default function TemplateLibraryPage() {
         description={t(
           'Build the questionnaire library once, then dispatch the right template to every brand.',
         )}
-        actions={
-          canManage ? (
-            <button type="button" className="button button--primary" onClick={openCreate}>
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-plus" />
-              </svg>
-              {t('New template')}
-            </button>
-          ) : (
-            <StatusPill label={t('Read only for this role')} tone="is-amber" />
-          )
-        }
       />
 
       <div className="s3-stats">

@@ -8,7 +8,7 @@ import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 
 export default function TasksPage() {
-  const { tasks = [], campaigns = [], autoConvertContentToTasks, changeTaskStatus, t } = useSprint3();
+  const { tasks = [], autoConvertContentToTasks, t } = useSprint3();
   const { brands = [] } = useBrands();
   const { toast, showToast } = useToast(4000);
 
