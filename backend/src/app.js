@@ -13,6 +13,10 @@ import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { platformAccountsRouter } from './modules/platform-accounts/platform-accounts.routes.js';
 import { contentPlansRouter } from './modules/content-plans/content-plans.routes.js';
 import { filesRouter } from './modules/files/files.routes.js';
+import { campaignsRouter } from './modules/campaigns/campaigns.routes.js';
+import {
+  contentItemsRouter,
+} from './modules/content-items/content-items.routes.js';
 const app = express();
 
 app.disable('x-powered-by');
@@ -83,6 +87,10 @@ app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/platform-accounts', platformAccountsRouter);
 app.use('/api/v1/content-plans', contentPlansRouter);
 app.use('/api/v1/files', filesRouter);
+app.use('/api/campaigns', campaignsRouter);
+app.use('/api/v1/campaigns', campaignsRouter);
+app.use('/api/content-items',contentItemsRouter,);
+app.use('/api/v1/content-items',contentItemsRouter,);
 app.use(notFound);
 app.use(errorHandler);
 
