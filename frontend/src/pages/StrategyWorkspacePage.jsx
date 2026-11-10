@@ -32,8 +32,8 @@ const emptyDraft = (brand, brief) => ({
   brandId: brand?.id,
   brandName: brand?.name,
   briefId: brief?.id ?? '',
-  title: '',
-  platforms: [],
+  title: brand?.name ? `${brand.name} Content Strategy` : 'New Content Strategy',
+  platforms: ['Instagram', 'TikTok', 'LinkedIn'],
   sections: STRATEGY_SECTIONS.reduce((sections, section) => {
     sections[section.id] = { body: '', briefSection: '' };
     return sections;
@@ -106,8 +106,9 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
   }, [brand, getPlatforms, strategy]);
 
   const startNew = () => {
-    if (!brand) return;
-    setEditor(emptyDraft(brand, approvedBrief));
+    const targetBrand = brand || brands[0];
+    if (!targetBrand) return;
+    setEditor(emptyDraft(targetBrand, approvedBrief));
     setSelectedId(null);
     setReviewNote('');
     setClientReason('');
@@ -320,73 +321,34 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
         }
       />
 
-      {!approvedBrief ? (
-        <EmptyState
-          icon="#i-file"
-          title={t('No approved brief')}
-          text={t(
-            'The strategy editor needs an approved brief. Generate and approve the AI brief for this brand first.',
-          )}
-          action={
-            <button type="button" className="button button--primary" onClick={() => onOpenBriefs?.()}>
-              {t('Open AI Briefs')}
-            </button>
-          }
-        />
-      ) : (
-        <>
-          {strategies.length ? (
-            <div className="s3-strategy-tabs">
-              {strategies.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`s3-strategy-tab${strategy?.id === item.id && !isEditing ? ' is-active' : ''}`}
-                  onClick={() => {
-                    setSelectedId(item.id);
-                    setEditor(null);
-                    setReviewNote('');
-                    setClientReason('');
-                    setClientError('');
-                  }}
-                >
-                  <span>{t(item.title)}</span>
-                  <StatusPill
-                    label={t(STRATEGY_FLOW_LABEL[item.status] ?? item.status)}
-                    tone={STRATEGY_FLOW_TONE[item.status] ?? 'is-gray'}
-                  />
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {editor ? (
-            <div className="s3-strategy-layout">
-              <aside className="s3-card s3-brief-side">
-                <header className="s3-card__head">
-                  <div>
-                    <span className="s3-eyebrow">{t('Approved brief')}</span>
-                    <h2>{approvedBrief.brandName}</h2>
-                    <p className="s3-muted">
-                      {t('Approved by')} {approvedBrief.approverName} ·{' '}
-                      {formatStamp(approvedBrief.approvedAt)}
-                    </p>
-                  </div>
-                </header>
-
-                <p className="s3-muted s3-brief-side__hint">
-                  {t(
-                    'Use the link selector on each strategy section to connect it to a brief section.',
-                  )}
+      {editor ? (
+        <div className="s3-strategy-layout">
+          <aside className="s3-card s3-brief-side">
+            <header className="s3-card__head">
+              <div>
+                <span className="s3-eyebrow">{t('Approved brief')}</span>
+                <h2>{approvedBrief ? t(approvedBrief.brandName) : (brand?.name || t('Brand Strategy'))}</h2>
+                <p className="s3-muted">
+                  {approvedBrief
+                    ? `${t('Approved by')} ${t(approvedBrief.approverName)} · ${formatStamp(approvedBrief.approvedAt)}`
+                    : t('Exploratory Draft')}
                 </p>
+              </div>
+            </header>
 
-                {Object.keys(BRIEF_SECTION_LABEL).map((key) => (
-                  <div className="s3-brief-snippet" key={key}>
-                    <strong>{t(BRIEF_SECTION_LABEL[key])}</strong>
-                    <p>{approvedBrief.sections?.[key] || t('Not provided.')}</p>
-                  </div>
-                ))}
-              </aside>
+            <p className="s3-muted s3-brief-side__hint">
+              {t(
+                'Use the link selector on each strategy section to connect it to a brief section.',
+              )}
+            </p>
+
+            {Object.keys(BRIEF_SECTION_LABEL).map((key) => (
+              <div className="s3-brief-snippet" key={key}>
+                <strong>{t(BRIEF_SECTION_LABEL[key])}</strong>
+                <p>{approvedBrief?.sections?.[key] ? t(approvedBrief.sections[key]) : t('Not provided.')}</p>
+              </div>
+            ))}
+          </aside>
 
               <section className="s3-card s3-strategy-editor">
                 <header className="s3-card__head">
@@ -462,7 +424,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                         <div className="s3-linked-snippet">
                           <span>{t('From the brief')}</span>
                           <p>
-                            {approvedBrief.sections?.[
+                            {approvedBrief?.sections?.[
                               editor.sections[section.id].briefSection
                             ] || t('This brief section is empty.')}
                           </p>
@@ -485,7 +447,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                         className={`s3-choice-chip${editor.platforms.includes(name) ? ' is-on' : ''}`}
                         onClick={() => togglePlatform(name)}
                       >
-                        {name}
+                        {t(name)}
                       </button>
                     ))}
                   </div>
@@ -513,7 +475,52 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                 </footer>
               </section>
             </div>
-          ) : strategy ? (
+          ) : !approvedBrief && !strategies.length ? (
+            <EmptyState
+              icon="#i-file"
+              title={t('No approved brief')}
+              text={t(
+                'The strategy editor needs an approved brief. Generate and approve the AI brief for this brand first.',
+              )}
+              action={
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button type="button" className="button button--primary" onClick={() => onOpenBriefs?.()}>
+                    {t('Open AI Briefs')}
+                  </button>
+                  <button type="button" className="button button--ghost" onClick={startNew}>
+                    {t('New strategy')}
+                  </button>
+                </div>
+              }
+            />
+          ) : (
+            <>
+              {strategies.length ? (
+                <div className="s3-strategy-tabs">
+                  {strategies.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`s3-strategy-tab${strategy?.id === item.id ? ' is-active' : ''}`}
+                      onClick={() => {
+                        setSelectedId(item.id);
+                        setEditor(null);
+                        setReviewNote('');
+                        setClientReason('');
+                        setClientError('');
+                      }}
+                    >
+                      <span>{t(item.title)}</span>
+                      <StatusPill
+                        label={t(STRATEGY_FLOW_LABEL[item.status] ?? item.status)}
+                        tone={STRATEGY_FLOW_TONE[item.status] ?? 'is-gray'}
+                      />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {strategy ? (
             <section className="s3-card s3-strategy-view">
               <header className="s3-card__head">
                 <div>

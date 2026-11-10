@@ -408,10 +408,10 @@ export default function AiBriefPage({ onOpenStrategy }) {
                     </header>
                     {draft.clarifying.map((item) => (
                       <label className="s3-clarify" key={item.id}>
-                        <span>{item.question}</span>
+                        <span>{t(item.question)}</span>
                         <input
                           className="form-input"
-                          value={item.answer ?? ''}
+                          value={t(item.answer) ?? item.answer ?? ''}
                           onChange={(event) => updateClarifying(item.id, event.target.value)}
                           placeholder={t('Client answer…')}
                           disabled={!canEdit}

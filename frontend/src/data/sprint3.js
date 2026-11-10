@@ -1701,6 +1701,27 @@ export const ARABIC = {
   'Create team for this brand': 'إنشاء فريق لهذا البراند',
   'Team name': 'اسم الفريق',
 
+  // Clarifying Questions & Answers (AI Brief)
+  'Which service line should lead the campaign — primary care or dermatology?': 'ما هو خط الخدمة الذي يجب أن يقود الحملة — الرعاية الأولية أم الأمراض الجلدية؟',
+  'Which service line should lead the campaign — primary care or dermatology': 'ما هو خط الخدمة الذي يجب أن يقود الحملة — الرعاية الأولية أم الأمراض الجلدية؟',
+  'Primary care first, dermatology as the second wave.': 'الرعاية الأولية أولاً، تليها الأمراض الجلدية كموجة ثانية.',
+  'Primary care first, dermatology as the second wave': 'الرعاية الأولية أولاً، تليها الأمراض الجلدية كموجة ثانية.',
+  'Do we have permission to use the patient story from the Q3 report?': 'هل لدينا إذن باستخدام قصة المريض من تقرير الربع الثالث؟',
+  'Do we have permission to use the patient story from the Q3 report': 'هل لدينا إذن باستخدام قصة المريض من تقرير الربع الثالث؟',
+  'Yes — written consent is on file.': 'نعم — الموافقة الخطية محفوظة في الملف.',
+  'Yes — written consent is on file': 'نعم — الموافقة الخطية محفوظة في الملف.',
+
+  // Content Plan & Strategy View Helpers
+  'Brand not found': 'البراند غير موجود',
+  'Return to the Brands workspace and open a brand before planning content.': 'عد إلى مساحة البراندات وافتح برانداً قبل تخطيط المحتوى.',
+  'Return to the Brands workspace and open a brand before planning content': 'عد إلى مساحة البراندات وافتح برانداً قبل تخطيط المحتوى.',
+  'Back to Brands': 'العودة إلى البراندات',
+  'Content Plan': 'خطة المحتوى',
+  'No strategy yet for this brand': 'لا توجد استراتيجية لهذا البراند بعد',
+  'Start from the approved brief and draft the first strategy version.': 'ابدأ من البريف المعتمد واكتب المسودة الأولى للاستراتيجية.',
+  'Exploratory Draft': 'مسودة استكشافية',
+  'No approved brief linked': 'لا يوجد بريف معتمد مرتبط',
+
   // Strategy Extra Pillars & Lines
   'Strong. Tightened the measurement section before sending to the client': 'ممتاز. تم تدقيق وتحديد قسم قياس الأداء بدقة قبل الإرسال للعميل.',
   'Strong. Tightened the measurement section before sending to the client.': 'ممتاز. تم تدقيق وتحديد قسم قياس الأداء بدقة قبل الإرسال للعميل.',
