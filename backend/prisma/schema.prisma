@@ -1,3 +1,4 @@
+
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
@@ -75,6 +76,7 @@ model User {
   createdContentItems  ContentItem[] @relation("ContentItemCreator")
 
   generatedBriefs BrandBrief[] @relation("BriefGenerator")
+  notifications   Notification[] @relation("NotificationRecipient")
 
   uploadedStrategyVersions StrategyVersion[]  @relation("StrategyUploader")
   strategyFeedbacks        StrategyFeedback[] @relation("StrategyFeedbackRequester")
@@ -83,6 +85,23 @@ model User {
   @@index([roleId])
   @@index([jobTitleId])
   @@map("users")
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  recipientId Int       @map("recipient_id")
+  type        String    @db.VarChar(60)
+  title       String    @db.VarChar(150)
+  message     String    @db.Text
+  data        Json?
+  isRead      Boolean   @default(false) @map("is_read")
+  readAt      DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  recipient User @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, isRead, createdAt])
+  @@map("notifications")
 }
 
 model AuditLog {

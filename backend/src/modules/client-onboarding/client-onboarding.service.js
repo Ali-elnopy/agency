@@ -357,9 +357,40 @@ export const ClientOnboardingService = {
             );
         }
 
-        return ClientOnboardingModel.updateStatus(
-            onboarding.id,
-            'SUBMITTED',
-        );
+        // Every client brand is expected to have an assigned Account Manager.
+        // Keep this guard so a configuration/data issue cannot silently lose
+        // the submission notification.
+        if (!brand.accountManagerId) {
+            throw new ApiError(
+                500,
+                'No account manager is assigned to this brand',
+            );
+        }
+
+        const notification = {
+            title: 'New onboarding submitted',
+            message: `${user.fullName || 'A client'} submitted the onboarding form for ${brand.name}.`,
+        };
+
+        const submittedOnboarding =
+            await ClientOnboardingModel.submitWithNotification({
+                onboardingId: onboarding.id,
+                recipientId: brand.accountManagerId,
+                title: notification.title,
+                message: notification.message,
+                data: {
+                    brandId: brand.id,
+                    brandName: brand.name,
+                    onboardingId: onboarding.id,
+                    clientId: user.id,
+                    clientName: user.fullName || null,
+                },
+            });
+
+        if (!submittedOnboarding) {
+            throw new ApiError(409, 'Onboarding has already been submitted');
+        }
+
+        return submittedOnboarding;
     },
 };
