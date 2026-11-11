@@ -71,8 +71,10 @@ model User {
   auditLogs            AuditLog[]
   createdContentPlans  ContentPlan[] @relation("ContentPlanCreator")
   assignedContentPlans ContentPlan[] @relation("ContentPlanAssignee")
-  createdCampaigns    Campaign[]    @relation("CampaignCreator")
-  createdContentItems ContentItem[] @relation("ContentItemCreator")
+  createdCampaigns     Campaign[]    @relation("CampaignCreator")
+  createdContentItems  ContentItem[] @relation("ContentItemCreator")
+
+  generatedBriefs BrandBrief[] @relation("BriefGenerator")
 
   @@index([roleId])
   @@index([jobTitleId])
@@ -170,6 +172,7 @@ model ClientOnboarding {
 
   brand   Brand              @relation(fields: [brandId], references: [id], onDelete: Cascade)
   answers OnboardingAnswer[]
+  briefs  BrandBrief[]
 
   @@index([status])
   @@map("client_onboardings")
@@ -187,6 +190,32 @@ model OnboardingAnswer {
 
   @@unique([onboardingId, questionCode])
   @@map("onboarding_answers")
+}
+
+model BrandBrief {
+  id            Int    @id @default(autoincrement())
+  onboardingId  Int    @map("onboarding_id")
+  generatedById Int    @map("generated_by_id")
+  version       Int    @default(1)
+  status        String @default("GENERATING") @db.VarChar(20)
+
+  content        Json?
+  sourceSnapshot Json?   @map("source_snapshot")
+  modelName      String? @map("model_name") @db.VarChar(100)
+  promptVersion  String  @map("prompt_version") @db.VarChar(20)
+  errorMessage   String? @map("error_message")
+
+  generatedAt DateTime? @map("generated_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  onboarding  ClientOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  generatedBy User             @relation("BriefGenerator", fields: [generatedById], references: [id], onDelete: Restrict)
+
+  @@unique([onboardingId, version])
+  @@index([status])
+  @@index([generatedById])
+  @@map("brand_briefs")
 }
 
 model Permission {
