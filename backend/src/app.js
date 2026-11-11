@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-
+import { strategiesRouter } from './modules/strategies/strategies.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import { notFound, errorHandler } from './middlewares/error.js';
@@ -117,7 +117,8 @@ app.use('/api/v1/campaigns', campaignsRouter);
 
 app.use('/api/content-items', contentItemsRouter);
 app.use('/api/v1/content-items', contentItemsRouter);
-
+app.use('/api/strategies', strategiesRouter);
+app.use('/api/v1/strategies', strategiesRouter);
 app.use(notFound);
 app.use(errorHandler);
 
