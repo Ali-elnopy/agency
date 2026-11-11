@@ -76,6 +76,10 @@ model User {
 
   generatedBriefs BrandBrief[] @relation("BriefGenerator")
 
+  uploadedStrategyVersions StrategyVersion[]  @relation("StrategyUploader")
+  strategyFeedbacks        StrategyFeedback[] @relation("StrategyFeedbackRequester")
+  strategyApprovals        StrategyApproval[] @relation("StrategyApprover")
+
   @@index([roleId])
   @@index([jobTitleId])
   @@map("users")
@@ -153,6 +157,7 @@ model Brand {
   contentPlans     ContentPlan[]
 
   onboarding ClientOnboarding?
+  strategies Strategy[]
 
   @@index([accountManagerId])
   @@index([teamId])
@@ -309,7 +314,6 @@ model ContentPlan {
   campaigns    Campaign[]
   contentItems ContentItem[]
 
-  // Prevent duplicate monthly plans for the same platform account.
   @@unique([brandId, platformAccountId, year, month])
   @@index([brandId])
   @@index([platformAccountId])
@@ -368,4 +372,78 @@ model ContentItem {
   @@index([createdBy])
   @@index([scheduledDate])
   @@map("content_items")
+}
+
+// Strategy Module
+
+model Strategy {
+  id        Int      @id @default(autoincrement())
+  brandId   Int      @map("brand_id")
+  title     String   @db.VarChar(200)
+  status    String   @default("DRAFT") @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  brand    Brand             @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  versions StrategyVersion[]
+
+  @@index([brandId])
+  @@index([status])
+  @@map("strategies")
+}
+
+model StrategyVersion {
+  id           Int      @id @default(autoincrement())
+  strategyId   Int      @map("strategy_id")
+  version      Int
+  storageKey   String   @map("storage_key") @db.VarChar(500)
+  fileName     String   @map("file_name") @db.VarChar(255)
+  mimeType     String   @default("application/pdf") @map("mime_type") @db.VarChar(100)
+  fileSize     Int      @map("file_size")
+  uploadedById Int      @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  strategy   Strategy           @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  uploadedBy User               @relation("StrategyUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  feedback   StrategyFeedback[]
+  approvals  StrategyApproval[]
+
+  @@unique([strategyId, version])
+  @@index([uploadedById])
+  @@map("strategy_versions")
+}
+
+model StrategyFeedback {
+  id          Int       @id @default(autoincrement())
+  versionId   Int       @map("version_id")
+  requestedBy Int       @map("requested_by")
+  message     String    @db.Text
+  status      String    @default("OPEN") @db.VarChar(20)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt  DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  version   StrategyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  requester User            @relation("StrategyFeedbackRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+
+  @@index([versionId])
+  @@index([requestedBy])
+  @@index([status])
+  @@map("strategy_feedback")
+}
+
+model StrategyApproval {
+  id           Int      @id @default(autoincrement())
+  versionId    Int      @map("version_id")
+  approverId   Int      @map("approver_id")
+  approverType String   @map("approver_type") @db.VarChar(30)
+  decision     String   @db.VarChar(20)
+  comment      String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  version  StrategyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  approver User            @relation("StrategyApprover", fields: [approverId], references: [id], onDelete: Restrict)
+
+  @@unique([versionId, approverType])
+  @@index([approverId])
+  @@map("strategy_approvals")
 }
