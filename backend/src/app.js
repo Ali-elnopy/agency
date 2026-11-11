@@ -15,11 +15,13 @@ import { platformAccountsRouter } from './modules/platform-accounts/platform-acc
 import { contentPlansRouter } from './modules/content-plans/content-plans.routes.js';
 import { filesRouter } from './modules/files/files.routes.js';
 import { clientOnboardingRouter } from './modules/client-onboarding/client-onboarding.routes.js';
+import { brandBriefsRouter } from './modules/brand-briefs/brand-briefs.routes.js';
 
 import { campaignsRouter } from './modules/campaigns/campaigns.routes.js';
 import {
   contentItemsRouter,
 } from './modules/content-items/content-items.routes.js';
+
 const app = express();
 
 app.disable('x-powered-by');
@@ -76,6 +78,9 @@ const apiIndex = (_req, res) => {
         saveAnswers: 'PUT /api/client-onboarding/answers',
         submit: 'POST /api/client-onboarding/submit',
       },
+      brandBriefs: {
+        generate: 'POST /api/brand-briefs/:brandId/generate',
+      },
     },
   });
 };
@@ -93,6 +98,7 @@ app.use('/api/platform-accounts', platformAccountsRouter);
 app.use('/api/content-plans', contentPlansRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/client-onboarding', clientOnboardingRouter);
+app.use('/api/brand-briefs', brandBriefsRouter);
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
@@ -104,11 +110,14 @@ app.use('/api/v1/platform-accounts', platformAccountsRouter);
 app.use('/api/v1/content-plans', contentPlansRouter);
 app.use('/api/v1/files', filesRouter);
 app.use('/api/v1/client-onboarding', clientOnboardingRouter);
+app.use('/api/v1/brand-briefs', brandBriefsRouter);
 
 app.use('/api/campaigns', campaignsRouter);
 app.use('/api/v1/campaigns', campaignsRouter);
-app.use('/api/content-items',contentItemsRouter,);
-app.use('/api/v1/content-items',contentItemsRouter,);
+
+app.use('/api/content-items', contentItemsRouter);
+app.use('/api/v1/content-items', contentItemsRouter);
+
 app.use(notFound);
 app.use(errorHandler);
 
