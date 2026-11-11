@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+
 import { strategiesRouter } from './modules/strategies/strategies.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
@@ -16,6 +17,7 @@ import { contentPlansRouter } from './modules/content-plans/content-plans.routes
 import { filesRouter } from './modules/files/files.routes.js';
 import { clientOnboardingRouter } from './modules/client-onboarding/client-onboarding.routes.js';
 import { brandBriefsRouter } from './modules/brand-briefs/brand-briefs.routes.js';
+import { notificationsRouter } from './modules/notifications/notifications.routes.js';
 
 import { campaignsRouter } from './modules/campaigns/campaigns.routes.js';
 import {
@@ -70,6 +72,7 @@ const apiIndex = (_req, res) => {
       dashboard: 'GET /api/dashboard',
       roles: 'GET /api/meta/roles',
       jobTitles: 'GET /api/meta/job-titles',
+
       clientOnboarding: {
         categories: 'GET /api/client-onboarding/categories',
         template: 'GET /api/client-onboarding/template',
@@ -78,8 +81,16 @@ const apiIndex = (_req, res) => {
         saveAnswers: 'PUT /api/client-onboarding/answers',
         submit: 'POST /api/client-onboarding/submit',
       },
+
       brandBriefs: {
         generate: 'POST /api/brand-briefs/:brandId/generate',
+      },
+
+      notifications: {
+        list: 'GET /api/notifications',
+        unreadCount: 'GET /api/notifications/unread-count',
+        markAsRead: 'PATCH /api/notifications/:id/read',
+        markAllAsRead: 'PATCH /api/notifications/read-all',
       },
     },
   });
@@ -99,6 +110,7 @@ app.use('/api/content-plans', contentPlansRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/client-onboarding', clientOnboardingRouter);
 app.use('/api/brand-briefs', brandBriefsRouter);
+app.use('/api/notifications', notificationsRouter);
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
@@ -111,14 +123,17 @@ app.use('/api/v1/content-plans', contentPlansRouter);
 app.use('/api/v1/files', filesRouter);
 app.use('/api/v1/client-onboarding', clientOnboardingRouter);
 app.use('/api/v1/brand-briefs', brandBriefsRouter);
+app.use('/api/v1/notifications', notificationsRouter);
 
 app.use('/api/campaigns', campaignsRouter);
 app.use('/api/v1/campaigns', campaignsRouter);
 
 app.use('/api/content-items', contentItemsRouter);
 app.use('/api/v1/content-items', contentItemsRouter);
+
 app.use('/api/strategies', strategiesRouter);
 app.use('/api/v1/strategies', strategiesRouter);
+
 app.use(notFound);
 app.use(errorHandler);
 

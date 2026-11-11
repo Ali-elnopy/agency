@@ -9,6 +9,7 @@ export const ClientOnboardingModel = {
                 id: true,
                 name: true,
                 clientId: true,
+                accountManagerId: true,
                 onboarding: {
                     include: {
                         answers: true,
@@ -102,6 +103,50 @@ export const ClientOnboardingModel = {
             include: {
                 answers: true,
             },
+        });
+    },
+
+    submitWithNotification({
+        onboardingId,
+        recipientId,
+        title,
+        message,
+        data,
+    }) {
+        return prisma.$transaction(async (tx) => {
+            // Prevent duplicate submissions and duplicate notifications
+            // if two submit requests arrive at the same time.
+            const updateResult = await tx.clientOnboarding.updateMany({
+                where: {
+                    id: onboardingId,
+                    status: { not: 'SUBMITTED' },
+                },
+                data: {
+                    status: 'SUBMITTED',
+                    submittedAt: new Date(),
+                },
+            });
+
+            if (updateResult.count !== 1) {
+                return null;
+            }
+
+            const onboarding = await tx.clientOnboarding.findUnique({
+                where: { id: onboardingId },
+                include: { answers: true },
+            });
+
+            await tx.notification.create({
+                data: {
+                    recipientId,
+                    type: 'ONBOARDING_SUBMITTED',
+                    title,
+                    message,
+                    data,
+                },
+            });
+
+            return onboarding;
         });
     },
 };
