@@ -1,4 +1,3 @@
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
@@ -75,12 +74,15 @@ model User {
   createdCampaigns     Campaign[]    @relation("CampaignCreator")
   createdContentItems  ContentItem[] @relation("ContentItemCreator")
 
-  generatedBriefs BrandBrief[] @relation("BriefGenerator")
+  generatedBriefs BrandBrief[]   @relation("BriefGenerator")
   notifications   Notification[] @relation("NotificationRecipient")
 
   uploadedStrategyVersions StrategyVersion[]  @relation("StrategyUploader")
   strategyFeedbacks        StrategyFeedback[] @relation("StrategyFeedbackRequester")
   strategyApprovals        StrategyApproval[] @relation("StrategyApprover")
+  assignedTasks            Task[]             @relation("TaskAssignee")
+
+  createdTasks Task[] @relation("TaskCreator")
 
   @@index([roleId])
   @@index([jobTitleId])
@@ -379,6 +381,8 @@ model ContentItem {
   caption     String? @db.Text
   notes       String? @db.Text
 
+  tasks Task[]
+
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -465,4 +469,62 @@ model StrategyApproval {
   @@unique([versionId, approverType])
   @@index([approverId])
   @@map("strategy_approvals")
+}
+
+model Task {
+  id            Int  @id @default(autoincrement())
+  contentItemId Int? @map("content_item_id")
+
+  type        String  @db.VarChar(30)
+  title       String  @db.VarChar(200)
+  description String? @db.Text
+
+  assignedTo Int @map("assigned_to")
+  createdBy  Int @map("created_by")
+
+  status   String @default("TODO") @db.VarChar(30)
+  priority String @default("MEDIUM") @db.VarChar(30)
+
+  plannedDeadline   DateTime  @map("planned_deadline") @db.Timestamptz(6)
+  effectiveDeadline DateTime? @map("effective_deadline") @db.Timestamptz(6)
+
+  startedAt   DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  dependsOnTaskId Int? @map("depends_on_task_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  contentItem    ContentItem? @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  assignee       User         @relation("TaskAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
+  creator        User         @relation("TaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  dependsOn      Task?        @relation("TaskDependency", fields: [dependsOnTaskId], references: [id], onDelete: SetNull)
+  dependentTasks Task[]       @relation("TaskDependency")
+
+  @@index([contentItemId])
+  @@index([assignedTo])
+  @@index([createdBy])
+  @@index([status])
+  @@index([priority])
+  @@index([plannedDeadline])
+  @@index([effectiveDeadline])
+  @@index([dependsOnTaskId])
+  @@map("tasks")
+}
+
+model TaskDeadlineRule {
+  id            Int     @id @default(autoincrement())
+  contentType   String  @map("content_type") @db.VarChar(50)
+  taskType      String  @map("task_type") @db.VarChar(30)
+  offsetMinutes Int     @map("offset_minutes")
+  isActive      Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([contentType, taskType])
+  @@index([contentType])
+  @@index([taskType])
+  @@map("task_deadline_rules")
 }
