@@ -23,6 +23,7 @@ import { campaignsRouter } from './modules/campaigns/campaigns.routes.js';
 import {
   contentItemsRouter,
 } from './modules/content-items/content-items.routes.js';
+import { tasksRouter } from './modules/tasks/tasks.routes.js';
 
 const app = express();
 
@@ -133,6 +134,7 @@ app.use('/api/v1/content-items', contentItemsRouter);
 
 app.use('/api/strategies', strategiesRouter);
 app.use('/api/v1/strategies', strategiesRouter);
+app.use('/api/tasks', tasksRouter);
 
 app.use(notFound);
 app.use(errorHandler);
