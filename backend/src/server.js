@@ -15,7 +15,14 @@ if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET.length < 32)
 let server;
 
 async function startServer() {
-  await prisma.$connect();
+  try {
+    await prisma.$connect();
+    console.log('Connected to PostgreSQL database');
+  } catch (error) {
+    console.warn(
+      'Warning: PostgreSQL is unavailable on localhost:5432. Server is starting in API fallback mode.',
+    );
+  }
 
   server = app.listen(PORT, () => {
     console.log(`Orvia API running on port ${PORT}`);

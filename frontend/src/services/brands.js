@@ -1,4 +1,5 @@
 import { apiRequest } from './http';
+import { isMockApiEnabled } from './api';
 
 /**
  * Brand workspace service. The Express API is the source of truth for brand
@@ -81,10 +82,16 @@ function unwrap(body) {
 }
 
 export async function listBrands() {
-  const data = unwrap(await apiRequest('/brands'));
-  const records = Array.isArray(data?.brands) ? data.brands : [];
+  if (isMockApiEnabled()) return [];
 
-  return records.map(mapBrand);
+  try {
+    const data = unwrap(await apiRequest('/brands'));
+    const records = Array.isArray(data?.brands) ? data.brands : [];
+
+    return records.map(mapBrand);
+  } catch {
+    return [];
+  }
 }
 
 export async function createBrand(input) {

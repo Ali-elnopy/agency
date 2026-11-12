@@ -45,7 +45,7 @@ function canUseMock(error) {
  * the bundle never fires failing requests (which would clutter the console).
  */
 async function request(path, options) {
-  if (isDevSession()) throw new ApiError('Local demo mode', 0);
+  if (isDevSession() || isMockApiEnabled()) throw new ApiError('Local demo mode', 0);
 
   return apiRequest(path, options);
 }
@@ -152,7 +152,7 @@ function mapMember(membership, index) {
         ? 'Admin / Lead'
         : roleName === 'ACCOUNT_MANAGER'
           ? 'Account Manager'
-          : jobTitle || 'Content Creator',
+          : jobTitle || 'Employee',
     roleTone: ROLE_TONES[index % ROLE_TONES.length],
     discipline: jobTitle || (roleName === 'ACCOUNT_MANAGER' ? 'Account Manager' : 'Production'),
     joined: monthsBetween(membership?.joinedAt),

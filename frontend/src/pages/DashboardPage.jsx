@@ -57,8 +57,8 @@ const SECTION_LABELS = {
   briefs: 'AI Briefs',
   strategy: 'Strategy',
   content: 'Content Items',
-  tasks: 'Tasks Management',
-  myWork: 'My Work',
+  tasks: 'Tasks',
+  myWork: 'Tasks',
   decisions: 'Decision Settings',
   portal: 'Client Portal',
 };
@@ -86,10 +86,15 @@ export default function DashboardPage({
   onNavigate,
 }) {
   const { user } = useAuth();
-  const { t } = useSprint3();
+  const { role, t } = useSprint3();
+  const isAdmin = role === 'admin' || user?.role === 'ADMIN' || user?.systemAccess === 'admin';
   const { toast, showToast, clearToast } = useToast(8000);
 
-  const [section, setSection] = useState('dashboard');
+  const [section, setSection] = useState(() => {
+    if (role === 'creator') return 'content';
+    if (role === 'employee') return 'strategy';
+    return 'dashboard';
+  });
   const [activeBrandId, setActiveBrandId] = useState('brand-1');
   const [activePlanMonth, setActivePlanMonth] = useState(() => monthKey());
   const [activePlatformId, setActivePlatformId] = useState(null);
@@ -100,6 +105,24 @@ export default function DashboardPage({
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSignOutOpen, setIsSignOutOpen] = useState(false);
   const [usersSearch, setUsersSearch] = useState(null);
+
+  useEffect(() => {
+    // Only administrators can access the Add Brand form
+    if (!isAdmin && section === 'addBrand') {
+      setSection('clients');
+      return;
+    }
+    // Creator and Employee do not have access to Dashboard & admin-only sections (Sprint 3 Permissions Matrix)
+    if (role === 'creator') {
+      if (['dashboard', 'users', 'addUser', 'roles', 'templates', 'decisions'].includes(section)) {
+        setSection('content');
+      }
+    } else if (role === 'employee') {
+      if (['dashboard', 'users', 'addUser', 'roles', 'templates', 'decisions'].includes(section)) {
+        setSection('strategy');
+      }
+    }
+  }, [role, section, isAdmin]);
 
   useEffect(() => {
     let alive = true;
@@ -126,6 +149,15 @@ export default function DashboardPage({
   };
 
   const handleSelect = (id) => {
+    if (!isAdmin && ['addBrand', 'users', 'addUser', 'roles', 'templates', 'decisions'].includes(id)) {
+      showToast(t('Access restricted: You do not have permission to view this section.'), 'danger');
+      return;
+    }
+    if (['creator', 'employee'].includes(role) && ['dashboard', 'dispatch'].includes(id)) {
+      showToast(t('Access restricted: You do not have permission to view this section.'), 'danger');
+      return;
+    }
+
     if (SECTION_LABELS[id]) {
       if (id === 'users') setUsersSearch({ query: '', nonce: Date.now() });
       go(id);
@@ -203,7 +235,7 @@ export default function DashboardPage({
           />
         );
       case 'clients':
-        return <BrandsPage onOpenBrand={openBrand} onAddBrand={() => go('addBrand')} />;
+        return <BrandsPage onOpenBrand={openBrand} onAddBrand={isAdmin ? () => go('addBrand') : null} />;
       case 'brandDetail':
         return (
           <BrandDetailPage
@@ -301,9 +333,9 @@ export default function DashboardPage({
           />
         );
       case 'tasks':
-        return <TasksPage />;
+        return <TasksPage initialTab="management" />;
       case 'myWork':
-        return <MyWorkPage />;
+        return <TasksPage initialTab="my_work" />;
       case 'portal':
         return <ClientPortalPage />;
       case 'decisions':
@@ -355,7 +387,7 @@ export default function DashboardPage({
 
   const handleAction = () => {
     if (section === 'clients') {
-      go('addBrand');
+      if (isAdmin) go('addBrand');
     } else if (section === 'brandDetail') {
       openAddContent();
     } else if (section === 'roles') {
@@ -366,10 +398,7 @@ export default function DashboardPage({
   };
 
   return (
-    <WorkspaceProvider>
-      <BrandsProvider>
-
-        <div className="app" data-collapsed={isCollapsed ? 'true' : 'false'}>
+    <div className="app" data-collapsed={isCollapsed ? 'true' : 'false'}>
         <Sidebar
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggleCollapse}
@@ -463,8 +492,5 @@ export default function DashboardPage({
           {/* Floating Toast Notification */}
           <Toast message={toast?.message} tone={toast?.tone} />
         </div>
-
-      </BrandsProvider>
-    </WorkspaceProvider>
   );
 }

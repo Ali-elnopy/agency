@@ -40,7 +40,7 @@ function isDevSession() {
  * the bundle never fires failing requests (which would clutter the console).
  */
 async function request(path, options) {
-  if (isDevSession()) throw new ApiError('Local demo mode', 0);
+  if (isDevSession() || isMockApiEnabled()) throw new ApiError('Local demo mode', 0);
 
   return apiRequest(path, options);
 }

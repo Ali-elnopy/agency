@@ -3,19 +3,21 @@ import React from 'react';
 const ROLE_LABEL = {
   admin: 'Admin',
   account_manager: 'Account Manager',
-  creative: 'Content Creator',
+  employee: 'Employee',
+  creative: 'Employee',
+  creator: 'Employee',
   client: 'Client',
 };
 
 export const ROLE_OPTIONS = [
   { id: 'admin', label: 'Admin' },
   { id: 'account_manager', label: 'Account Manager' },
-  { id: 'creative', label: 'Content Creator' },
+  { id: 'employee', label: 'Employee' },
   { id: 'client', label: 'Client' },
 ];
 
 export function roleLabel(role) {
-  return ROLE_LABEL[role] ?? 'Admin';
+  return ROLE_LABEL[role] ?? 'Employee';
 }
 
 export function PageHeader({ eyebrow, title, description, actions }) {

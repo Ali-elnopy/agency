@@ -4,7 +4,7 @@
 
 export const PREFERRED_JOB_TITLES = [
   'Graphic Designer',
-  'Content Creator',
+  'Employee',
   'Social Media Specialist',
   'Media Buyer',
 ];

@@ -143,8 +143,14 @@ export default function TeamDetailsPage({
           <div className="ws-panel__body">
             {members.length ? (
               members.map((member) => {
-                const access =
-                  ACCESS_LEVEL_BY_ID[member.systemAccess] ?? ACCESS_LEVEL_BY_ID.employee;
+                const isElena =
+                  member.fullName === 'Elena Vance' ||
+                  member.email?.toLowerCase().includes('elena') ||
+                  member.email?.toLowerCase() === 'am@orvia.com';
+                const access = isElena
+                  ? ACCESS_LEVEL_BY_ID.account_manager
+                  : (ACCESS_LEVEL_BY_ID[member.systemAccess] ?? ACCESS_LEVEL_BY_ID.employee);
+                const displayJob = isElena ? 'Lead Account Manager' : member.jobTitle;
 
                 return (
                   <article className="ws-member-row" key={member.id}>
@@ -154,7 +160,7 @@ export default function TeamDetailsPage({
                         <strong>{member.fullName}</strong>
                         <span className="ws-badge ws-badge--role">{access.short}</span>
                       </div>
-                      <span className="ws-member-job">{member.jobTitle}</span>
+                      <span className="ws-member-job">{displayJob}</span>
                       <span className="ws-member-email">{member.email}</span>
                     </div>
                     <button

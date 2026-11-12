@@ -1,77 +1,87 @@
 /* ==========================================================================
-   Tokens
+   Tokens — Sprint 3 Color Palette matching Design PDF
    ========================================================================== */
 :root {
   /* Theme: light (default) */
-  --surface: #fff8f3;
+  --surface: #F8F7F3;
   --field: #ffffff;
-  --ink: #1d1b2e;
-  --muted: #6b7287;
-  --label: #4a4f63;
-  --faint: #9aa0b2;
-  --line: #e9e2dc;
-  --check-border: #d6cdc5;
-  --accent-text: #d9531f;
+  --ink: #111111;
+  --muted: #555555;
+  --label: #333333;
+  --faint: #9ca3af;
+  --line: #e5e7eb;
+  --check-border: #d1d5db;
+  --accent-text: #f26a3d;
   --badge-bg: #ffe9de;
   --badge-line: #fbd3bf;
 
   /* Dashboard surfaces */
-  --app-bg: #f7f3ee;
+  --app-bg: #F8F7F3;
   --card: #ffffff;
-  --soft: #f6f2ed;
-  --shadow: 0 1px 2px rgba(29, 27, 46, 0.04), 0 10px 24px -14px rgba(29, 27, 46, 0.12);
-  --sidebar-bg: #1d2160;
-  --sidebar-ink: #b9bce0;
-  --sidebar-active-bg: rgba(255, 255, 255, 0.12);
-  --sidebar-active-ink: #ffffff;
-  --sidebar-line: transparent;
+  --soft: #F1EFEA;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --sidebar-bg: #F8F7F3;
+  --sidebar-ink: #555555;
+  --sidebar-active-bg: #EDEAE4;
+  --sidebar-active-ink: #111111;
+  --sidebar-line: #E8E5DF;
 
-  /* Brand */
-  --bg-dark: #100d1f;
+  /* PDF Signature Pastels */
+  --pastel-lilac: #EAE7FC;
+  --pastel-blue: #DBEBFC;
+  --pastel-peach: #FDE2D8;
+  --pastel-pink: #FDE2D8;
+
+  --accent-purple: #6C5CE7;
+  --primary: #f26a3d;
+  --primary-hover: #d9531f;
+
+  /* Brand overrides */
+  --bg-dark: #F8F7F3;
   --white: #ffffff;
 
   --orange: #f26a3d;
   --orange-dark: #d9531f;
   --orange-soft: #ffe9de;
-  --green: #2f9e6b;
-  --amber: #d98a0b;
-  --red: #e5484d;
-  --purple: #6d5ce8;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --purple: #6C5CE7;
 
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-serif: 'Playfair Display', Georgia, serif;
 
-  --radius: 12px;
+  --radius: 14px;
 }
 
-/* Theme: dark */
+/* Theme: dark - high contrast and deep modern palette */
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --surface: #13111d;
-  --field: #1b1928;
-  --ink: #f4f2fa;
-  --muted: #9b98b2;
-  --label: #cfcbe0;
-  --faint: #6f6c88;
-  --line: #2b2840;
-  --check-border: #3a3752;
-  --accent-text: #ff7a45;
-  --badge-bg: rgba(242, 106, 61, 0.14);
-  --badge-line: rgba(242, 106, 61, 0.3);
+  --surface: #121520;
+  --field: #191d2c;
+  --ink: #f8fafc;
+  --muted: #94a3b8;
+  --label: #cbd5e1;
+  --faint: #64748b;
+  --line: #262c3f;
+  --check-border: #475569;
+  --accent-text: #ffffff;
+  --badge-bg: #1e2436;
+  --badge-line: #333d59;
 
-  --app-bg: #0e0c16;
-  --card: #16141f;
-  --soft: #1d1a29;
+  --app-bg: #0a0c13;
+  --card: #141724;
+  --soft: #191d2c;
   --shadow: none;
-  --sidebar-bg: #0c0b13;
-  --sidebar-ink: #9a97b0;
-  --sidebar-active-bg: rgba(242, 106, 61, 0.14);
-  --sidebar-active-ink: #ff8a5b;
-  --sidebar-line: #2b2840;
+  --sidebar-bg: #0f121d;
+  --sidebar-ink: #94a3b8;
+  --sidebar-active-bg: #22283d;
+  --sidebar-active-ink: #ffffff;
+  --sidebar-line: #1e2335;
 
-  --green: #3ecf8e;
-  --amber: #f5b942;
-  --red: #ff6b6b;
-  --purple: #a393ff;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --purple: #8b5cf6;
 }

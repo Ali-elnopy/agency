@@ -55,6 +55,13 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
 
   const activeBrands = brands.filter((brand) => brand.status !== 'archived');
   const [brandId, setBrandId] = useState(initialBrandId || activeBrands[0]?.id || '');
+
+  React.useEffect(() => {
+    if (activeBrands.length && !brands.some((b) => String(b.id) === String(brandId))) {
+      setBrandId(activeBrands[0]?.id || '');
+    }
+  }, [brands, activeBrands, brandId]);
+
   const [editor, setEditor] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [reviewNote, setReviewNote] = useState('');
@@ -83,17 +90,19 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
 
   const strategy = strategies.find((item) => item.id === selectedId) ?? strategies[0] ?? null;
 
-  const canCreate = role === 'creative' || role === 'admin' || role === 'account_manager';
+  const canCreate = role === 'employee' || role === 'content_creator';
   const isEditing = Boolean(editor);
   const strategyStatus = strategy?.status ?? 'draft';
   const canEditStrategy =
     isEditing ||
-    ((role === 'creative' || role === 'admin') &&
+    ((role === 'employee' || role === 'content_creator') &&
       (strategyStatus === 'draft' || strategyStatus === 'changes_requested'));
   const canReview =
-    (role === 'account_manager' || role === 'admin') && strategyStatus === 'in_review';
+    role === 'account_manager' && strategyStatus === 'in_review';
   const canClientReview =
-    (role === 'client' || role === 'admin') && strategyStatus === 'client_review';
+    role === 'client' && strategyStatus === 'client_review';
+  const canFinalApprove =
+    (role === 'account_manager' || role === 'admin') && strategyStatus === 'client_approved';
   const isApproved = strategyStatus === 'approved';
 
   const platformOptions = useMemo(() => {
@@ -172,7 +181,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
       status,
       authorName: editor.id
         ? undefined
-        : user?.fullName || 'Content Creator',
+        : user?.fullName || 'Employee',
     };
 
     const saved = saveStrategy(payload);
@@ -209,7 +218,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
       reviewerName: user?.fullName || 'Account Manager',
     });
     setReviewNote('');
-    showToast(t('Strategy returned to the content creator.'), 'info');
+    showToast(t('Strategy returned to the employee.'), 'info');
   };
 
   const handleSendToClient = () => {
@@ -224,12 +233,25 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
 
   const handleClientApprove = () => {
     if (!strategy) return;
-    setStrategyStatus(strategy.id, 'approved', {
+    setStrategyStatus(strategy.id, 'client_approved', {
       clientName: user?.fullName || 'Client',
       clientReason: '',
+      actor: user?.fullName || 'Client',
+      note: 'Client approved the strategy. Awaiting final sign-off from Account Manager.',
       approvedAt: new Date().toISOString(),
     });
-    showToast(t('Strategy approved. The content plan is now linked.'), 'success');
+    showToast(t('Strategy approval recorded. Awaiting final sign-off from Account Manager.'), 'success');
+  };
+
+  const handleFinalApprove = () => {
+    if (!strategy) return;
+    setStrategyStatus(strategy.id, 'approved', {
+      actor: user?.fullName || 'Account Manager',
+      reviewerName: user?.fullName || 'Account Manager',
+      note: 'Final sign-off by Account Manager. Content plans unlocked.',
+      approvedAt: new Date().toISOString(),
+    });
+    showToast(t('Final sign-off complete. The content plan is now unlocked!'), 'success');
   };
 
   const handleClientChanges = () => {
@@ -562,8 +584,8 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
               </header>
 
               <ol className="s3-flow">
-                {['draft', 'in_review', 'client_review', 'approved'].map((step, index) => {
-                  const currentIndex = ['draft', 'in_review', 'client_review', 'approved'].indexOf(
+                {['draft', 'in_review', 'client_review', 'client_approved', 'approved'].map((step, index) => {
+                  const currentIndex = ['draft', 'in_review', 'client_review', 'client_approved', 'approved'].indexOf(
                     strategy.status === 'changes_requested' ? 'draft' : strategy.status,
                   );
                   return (
@@ -686,6 +708,35 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
                     </button>
                   </div>
                 </div>
+              ) : null}
+
+              {canFinalApprove ? (
+                <div className="s3-review-panel" style={{ background: '#EAE7FC', border: '2px solid #6C5CE7', borderRadius: '12px', padding: '16px', marginTop: '16px' }}>
+                  <h3 style={{ color: '#111111', margin: '0 0 8px 0', fontSize: '15px', fontWeight: '800' }}>
+                    {t('Account Manager Final Sign-off')}
+                  </h3>
+                  <p style={{ color: '#374151', fontSize: '13px', margin: '0 0 14px 0' }}>
+                    {t('The client has approved this strategy. Review the approved document and register the final approval to unlock monthly content planning.')}
+                  </p>
+                  <div className="s3-form-actions">
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={handleFinalApprove}
+                    >
+                      <svg aria-hidden="true" className="icon">
+                        <use href="#i-check" />
+                      </svg>
+                      {t('Register Final Approval & Unlock Plans')}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {strategyStatus === 'client_approved' && !canFinalApprove ? (
+                <p className="s3-muted s3-waiting" style={{ color: '#2563EB', fontWeight: '600' }}>
+                  {t('Client approved this strategy. Awaiting final sign-off from the Account Manager to unlock content plans.')}
+                </p>
               ) : null}
 
               {strategyStatus === 'in_review' && !canReview ? (

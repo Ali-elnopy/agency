@@ -32,7 +32,24 @@ export default function Showcase() {
       </header>
 
       <div className="showcase__hero">
-        <Logo className="showcase__art" title="" />
+        <div
+          style={{
+            width: 84,
+            height: 84,
+            borderRadius: 22,
+            background: '#111111',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          <svg width="46" height="46" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="#ffffff" strokeWidth="2.2" />
+            <circle cx="12" cy="12" r="4" fill="#ffffff" />
+          </svg>
+        </div>
 
         <blockquote className="showcase__quote">
           <span className="showcase__quote-mark" aria-hidden="true">

@@ -111,6 +111,7 @@ export const INDUSTRIES = [
 export const CONTENT_TYPES = [
   { id: 'post', label: 'Post', icon: '#i-file' },
   { id: 'reel', label: 'Reel', icon: '#i-camera' },
+  { id: 'story', label: 'Story', icon: '#i-image' },
 ];
 
 export const CONTENT_TYPE_LABEL = CONTENT_TYPES.reduce((labels, type) => {

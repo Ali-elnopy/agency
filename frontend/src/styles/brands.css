@@ -322,12 +322,13 @@
 .brand-empty__icon {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  margin-bottom: 3px;
-  color: var(--accent-text);
-  background: var(--badge-bg);
-  border-radius: 13px;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 12px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #f26a3d, #6c5ce7);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(242, 106, 61, 0.25);
 }
 
 .brand-empty__icon .icon {

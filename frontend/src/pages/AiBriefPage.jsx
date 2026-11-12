@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import useAuth from '../hooks/useAuth';
+import { useBrands } from '../context/brandsStore';
 import { useSprint3 } from '../context/sprint3Store';
 import {
   BRIEF_STATUSES,
@@ -15,22 +16,24 @@ import {
   StatusPill,
 } from '../components/sprint3/Sprint3UI';
 
-const SECTION_ORDER = ['overview', 'goals', 'audience', 'competitors', 'tone', 'messages'];
+const SECTION_ORDER = ['overview', 'audience', 'goals', 'competitors', 'tone', 'strategy', 'messages'];
 const SECTION_LABEL = {
   overview: 'Brand overview',
-  goals: 'Goals',
-  audience: 'Audience',
-  competitors: 'Competitors',
-  tone: 'Tone of voice',
-  messages: 'Key messages',
+  audience: 'Target audience',
+  goals: 'Brand goals',
+  competitors: 'Competitive advantage & competitors',
+  tone: 'Brand communication & tone',
+  strategy: 'Marketing strategy & objectives',
+  messages: 'Content direction & key messages',
 };
 const SECTION_HINT = {
-  overview: 'One paragraph describing the brand and its promise.',
-  goals: 'What the content must achieve this quarter.',
-  audience: 'Who we are speaking to and what they care about.',
-  competitors: 'The brands we are measured against and the gap we can own.',
-  tone: 'How the brand sounds across every channel.',
-  messages: 'The ideas every deliverable should reinforce.',
+  overview: 'One paragraph describing the brand, nature of business, and its core promise.',
+  audience: 'Detailed description of the ideal customer, demographics, and customer pain points.',
+  goals: 'Short and long-term marketing and business growth objectives.',
+  competitors: 'Direct & indirect market competitors and what uniquely sets the brand apart.',
+  tone: 'Brand personality, communication style, and voice across touchpoints.',
+  strategy: 'High-level marketing strategy, campaign directions, and channels.',
+  messages: 'Key value propositions, messaging pillars, and core themes to communicate.',
 };
 
 function answerText(value, t = (s) => s) {
@@ -56,9 +59,12 @@ export default function AiBriefPage({ onOpenStrategy }) {
   } = useSprint3();
   const { toast, showToast } = useToast(5000);
 
+  const { brands = [] } = useBrands();
+  const accessibleBrandIds = useMemo(() => new Set(brands.map((b) => b.id)), [brands]);
+
   const submitted = useMemo(
-    () => dispatches.filter((dispatch) => dispatch.status === 'submitted'),
-    [dispatches],
+    () => dispatches.filter((dispatch) => dispatch.status === 'submitted' && (!brands.length || accessibleBrandIds.has(dispatch.brandId))),
+    [dispatches, accessibleBrandIds, brands.length],
   );
 
   const [dispatchId, setDispatchId] = useState(submitted[0]?.id ?? '');

@@ -209,22 +209,43 @@ export default function Topbar({
   const { user } = useAuth();
   const { brands } = useBrands();
   const { users, teams } = useWorkspace();
-  const { role, setRole, lang, setLang, t } = useSprint3();
+  const {
+    role,
+    lang,
+    setLang,
+    t,
+    notifications = [],
+    unreadCount = 0,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+  } = useSprint3();
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
+  const notifRef = useRef(null);
 
-  const displayName = user?.fullName || 'Studio Lead';
-  const roleDisplay = `${t(roleLabel(role))} · ${t('Preview')}`;
+  const displayName = user?.fullName || 'User';
+  const roleDisplay = t(roleLabel(role));
   const initials = displayName
     .split(' ')
     .map((n) => n[0])
     .join('')
     .substring(0, 2)
     .toUpperCase();
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const closeSearch = useCallback(() => {
     setOpen(false);
@@ -524,26 +545,148 @@ export default function Topbar({
       </div>
 
       <div className="topbar__right">
-        <label className="s3-role-switch" title={t('Role preview')}>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-users" />
-          </svg>
-          <span className="s3-role-switch__label">{t('Previewing as')}</span>
-          <select
-            value={role}
-            onChange={(event) => setRole(event.target.value)}
-            aria-label={t('Role preview')}
+        {/* Notification Bell with Badge & Dropdown (Account Manager & Admin only, strictly hidden for Employee, Creator & Client per Permissions Matrix) */}
+        {(role === 'account_manager' || role === 'admin' || user?.role === 'ACCOUNT_MANAGER' || user?.role === 'ADMIN') &&
+          role !== 'employee' &&
+          role !== 'creator' &&
+          role !== 'client' &&
+          user?.role !== 'CONTENT_CREATOR' &&
+          user?.role !== 'EMPLOYEE' &&
+          user?.role !== 'CREATOR' &&
+          user?.role !== 'CLIENT' && (
+        <div className="topbar__notif-wrap" ref={notifRef} style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Notifications"
+            onClick={() => setNotifOpen(!notifOpen)}
+            title={t('Notifications')}
+            style={{ position: 'relative' }}
           >
-            {ROLE_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {t(option.label)}
-              </option>
-            ))}
-          </select>
-          <svg aria-hidden="true" className="icon s3-role-switch__chevron">
-            <use href="#i-chevron" />
-          </svg>
-        </label>
+            <svg aria-hidden="true" className="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  borderRadius: '10px',
+                  minWidth: '18px',
+                  height: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 4px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                }}
+              >
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
+          {notifOpen && (
+            <div
+              className="topbar__notif-dropdown"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: lang === 'ar' ? 'auto' : 0,
+                left: lang === 'ar' ? 0 : 'auto',
+                width: '320px',
+                background: 'var(--panel-bg, #ffffff)',
+                border: '1px solid var(--panel-line, #e2e8f0)',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                zIndex: 1000,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  borderBottom: '1px solid var(--panel-line, #e2e8f0)',
+                  background: 'var(--panel-subtle, #f8fafc)',
+                }}
+              >
+                <div style={{ fontWeight: '700', fontSize: '14px' }}>
+                  {t('Notifications')} {unreadCount > 0 && `(${unreadCount})`}
+                </div>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllNotificationsAsRead}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--primary, #ea580c)',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {t('Mark all as read')}
+                  </button>
+                )}
+              </div>
+
+              <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+                {notifications.length === 0 ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                    {t('No notifications')}
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      onClick={() => markNotificationAsRead(n.id)}
+                      style={{
+                        padding: '12px 16px',
+                        borderBottom: '1px solid var(--panel-line, #f1f5f9)',
+                        background: n.isRead ? 'transparent' : 'var(--panel-highlight, rgba(234, 88, 12, 0.05))',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: n.isRead ? '#cbd5e1' : '#ea580c',
+                          marginTop: '6px',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: n.isRead ? '600' : '700', fontSize: '13px', color: 'var(--ink, #0f172a)' }}>
+                          {lang === 'ar' ? n.titleAr || n.title : n.title}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', lineHeight: '1.4' }}>
+                          {lang === 'ar' ? n.messageAr || n.message : n.message}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        )}
 
         <button
           type="button"

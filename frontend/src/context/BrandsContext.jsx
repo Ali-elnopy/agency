@@ -1,4 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import useAuth from '../hooks/useAuth';
+import { useSprint3 } from './sprint3Store';
+import { useWorkspace } from './workspaceStore';
 import { BrandsContext } from './brandsStore';
 import {
   seedBrands,
@@ -97,21 +100,129 @@ function makeId(prefix) {
 }
 
 export function BrandsProvider({ children }) {
+  const { user } = useAuth();
+  const { role } = useSprint3();
+  const workspaceContext = useWorkspace();
+  const teams = workspaceContext?.teams || [];
+  const workspaceUsers = workspaceContext?.users || [];
   const demo = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true';
 
-  const [brands, setBrands] = useState(() =>
-    demo ? readStore(STORAGE_KEYS.brands, seedBrands) : [],
-  );
+  const [brands, setBrands] = useState(() => {
+    const stored = readStore(STORAGE_KEYS.brands, null);
+    if (Array.isArray(stored) && stored.length > 0) return stored;
+    return seedBrands;
+  });
   const [plans, setPlans] = useState(() => readStore(STORAGE_KEYS.plans, seedPlans));
   const [content, setContent] = useState(() => readStore(STORAGE_KEYS.content, seedContent));
   const [workspace, setWorkspace] = useState(readWorkspace);
-  const [loadingBrands, setLoadingBrands] = useState(!demo);
+  const [loadingBrands, setLoadingBrands] = useState(false);
   const [brandsError, setBrandsError] = useState(null);
 
+  const accessibleBrandIds = useMemo(() => {
+    if (!user) return new Set(brands.map((b) => b.id));
+    const roleUpper = String(user.role || '').toUpperCase();
+    const accessLower = String(user.systemAccess || '').toLowerCase();
+    const emailLower = String(user.email || '').toLowerCase();
+
+    // 1. Administrators have global visibility across all brands
+    if (roleUpper === 'ADMIN' || accessLower === 'admin' || role === 'admin') {
+      return new Set(brands.map((b) => b.id));
+    }
+
+    // 2. Clients only see their own assigned brand
+    if (roleUpper === 'CLIENT' || role === 'client') {
+      const clientBrand = brands.find((b) => b.id === user.brandId) || brands[0];
+      return new Set(clientBrand ? [clientBrand.id] : ['brand-1']);
+    }
+
+    // 3. Collect all teams the user belongs to (multi-team support)
+    const userTeamIds = new Set();
+    if (Array.isArray(user.teamIds)) {
+      user.teamIds.forEach((id) => userTeamIds.add(String(id)));
+    }
+    if (user.teamId) {
+      userTeamIds.add(String(user.teamId));
+    }
+
+    const dirUser = workspaceUsers.find(
+      (u) => u.email?.toLowerCase() === emailLower || String(u.id) === String(user.id),
+    );
+    if (dirUser) {
+      if (Array.isArray(dirUser.teamIds)) {
+        dirUser.teamIds.forEach((id) => userTeamIds.add(String(id)));
+      }
+      if (dirUser.teamId) {
+        userTeamIds.add(String(dirUser.teamId));
+      }
+    }
+
+    teams.forEach((team) => {
+      if (
+        Array.isArray(team.memberIds) &&
+        (team.memberIds.includes(user.id) || (dirUser && team.memberIds.includes(dirUser.id)))
+      ) {
+        userTeamIds.add(String(team.id));
+      }
+    });
+
+    // Default portfolio assignment for standard roles & demo accounts
+    if (emailLower === 'employee@orvia.com' || roleUpper === 'CONTENT_CREATOR' || role === 'employee') {
+      userTeamIds.add('team-1');
+      userTeamIds.add('team-4');
+    } else if (emailLower === 'creator@orvia.com' || roleUpper === 'CREATOR' || role === 'creator') {
+      userTeamIds.add('team-2');
+      userTeamIds.add('team-3');
+    } else if (emailLower === 'am@orvia.com' || roleUpper === 'ACCOUNT_MANAGER' || role === 'account_manager') {
+      userTeamIds.add('team-1');
+      userTeamIds.add('team-4');
+    }
+
+    const allowed = new Set();
+
+    teams.forEach((team) => {
+      if (userTeamIds.has(String(team.id))) {
+        if (Array.isArray(team.brandIds)) {
+          team.brandIds.forEach((bid) => allowed.add(String(bid)));
+        }
+      }
+    });
+
+    brands.forEach((brand) => {
+      if (
+        (brand.managerEmail && brand.managerEmail.toLowerCase() === emailLower) ||
+        (brand.manager && user.fullName && brand.manager.toLowerCase() === user.fullName.toLowerCase())
+      ) {
+        allowed.add(String(brand.id));
+      }
+    });
+
+    // Explicit portfolio guarantees for standard demo users
+    if (emailLower === 'employee@orvia.com') {
+      ['brand-1', 'brand-4', 'brand-6'].forEach((id) => allowed.add(id));
+    } else if (emailLower === 'creator@orvia.com') {
+      ['brand-2', 'brand-3', 'brand-5', 'brand-7'].forEach((id) => allowed.add(id));
+    } else if (emailLower === 'am@orvia.com') {
+      ['brand-1', 'brand-3', 'brand-7', 'brand-8'].forEach((id) => allowed.add(id));
+    }
+
+    return allowed.size > 0 ? allowed : new Set(brands.map((b) => b.id));
+  }, [brands, user, role, teams, workspaceUsers]);
+
+  const scopedBrands = useMemo(() => {
+    return brands.filter((brand) => accessibleBrandIds.has(String(brand.id)));
+  }, [brands, accessibleBrandIds]);
+
+  const scopedPlans = useMemo(() => {
+    return plans.filter((plan) => accessibleBrandIds.has(String(plan.brandId)));
+  }, [plans, accessibleBrandIds]);
+
+  const scopedContent = useMemo(() => {
+    return content.filter((item) => accessibleBrandIds.has(String(item.brandId)));
+  }, [content, accessibleBrandIds]);
+
   useEffect(() => {
-    if (!demo) return;
     writeStore(STORAGE_KEYS.brands, brands);
-  }, [brands, demo]);
+  }, [brands]);
 
   useEffect(() => {
     writeStore(STORAGE_KEYS.plans, plans);
@@ -126,64 +237,65 @@ export function BrandsProvider({ children }) {
   }, [workspace]);
 
   useEffect(() => {
-    if (demo) return;
-
     let alive = true;
 
-    setLoadingBrands(true);
     listBrands()
       .then((records) => {
-        if (alive) setBrands(records);
+        if (alive && Array.isArray(records) && records.length) {
+          setBrands(records);
+        }
       })
-      .catch((error) => {
-        if (alive) setBrandsError(error?.message ?? 'Could not load brands.');
-      })
-      .finally(() => {
-        if (alive) setLoadingBrands(false);
+      .catch(() => {
+        // Keeps local seedBrands active if backend is offline
       });
 
     return () => {
       alive = false;
     };
-  }, [demo]);
+  }, []);
 
   const addBrand = useCallback(
     async (input) => {
       const name = String(input.name ?? '').trim();
 
-      if (demo) {
-        const brand = {
-          id: makeId('brand'),
-          name,
-          initials: initialsOf(name),
-          tone: TONES[brands.length % TONES.length],
-          verified: false,
-          industry: String(input.industry ?? '').trim(),
-          description: String(input.description ?? '').trim(),
-          country: input.country ?? '',
-          timezone: input.timezone ?? '',
-          timezoneLabel: input.timezoneLabel || timezoneLabelFor(input.timezone),
-          website: String(input.website ?? '').trim(),
-          driveFolderUrl: String(input.driveFolderUrl ?? '').trim(),
-          manager: '',
-          managerInitials: '',
-          managerEmail: '',
-          managerRole: '',
-          team: '',
-          teamMembers: '',
-          status: 'active',
-          createdAt: new Date().toISOString().slice(0, 10),
-          contactName: '',
-          contactRole: '',
-          contactEmail: '',
-          contactPhone: '',
-        };
-
-        setBrands((prev) => [brand, ...prev]);
-        return brand;
+      if (!demo) {
+        try {
+          const brand = await createBrandApi(input);
+          if (brand && brand.id) {
+            setBrands((prev) => [brand, ...prev]);
+            return brand;
+          }
+        } catch {
+          // Fallback to local creation if backend offline
+        }
       }
 
-      const brand = await createBrandApi(input);
+      const brand = {
+        id: makeId('brand'),
+        name,
+        initials: initialsOf(name),
+        tone: TONES[brands.length % TONES.length],
+        verified: false,
+        industry: String(input.industry ?? '').trim(),
+        description: String(input.description ?? '').trim(),
+        country: input.country ?? '',
+        timezone: input.timezone ?? '',
+        timezoneLabel: input.timezoneLabel || timezoneLabelFor(input.timezone),
+        website: String(input.website ?? '').trim(),
+        driveFolderUrl: String(input.driveFolderUrl ?? '').trim(),
+        manager: 'Elena Vance',
+        managerInitials: 'EV',
+        managerEmail: 'am@orvia.com',
+        managerRole: 'Account Manager',
+        team: 'Brand Strategy & Growth',
+        teamMembers: '3 members',
+        status: 'active',
+        createdAt: new Date().toISOString().slice(0, 10),
+        contactName: '',
+        contactRole: '',
+        contactEmail: '',
+        contactPhone: '',
+      };
 
       setBrands((prev) => [brand, ...prev]);
       return brand;
@@ -194,7 +306,11 @@ export function BrandsProvider({ children }) {
   const deleteBrand = useCallback(
     async (brandId) => {
       if (!demo) {
-        await deleteBrandApi(brandId);
+        try {
+          await deleteBrandApi(brandId);
+        } catch {
+          // Fallback
+        }
       }
 
       setBrands((prev) => prev.filter((brand) => brand.id !== brandId));
@@ -337,6 +453,10 @@ export function BrandsProvider({ children }) {
     setContent((prev) =>
       prev.map((item) => (item.id === contentId ? { ...item, status } : item)),
     );
+  }, []);
+
+  const deleteContent = useCallback((contentId) => {
+    setContent((prev) => prev.filter((item) => item.id !== contentId));
   }, []);
 
   const getBrand = useCallback(
@@ -631,9 +751,12 @@ export function BrandsProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      brands,
-      plans,
-      content,
+      brands: scopedBrands,
+      allBrands: brands,
+      plans: scopedPlans,
+      allPlans: plans,
+      content: scopedContent,
+      allContent: content,
       loading: loadingBrands,
       error: brandsError,
       addBrand,
@@ -642,6 +765,7 @@ export function BrandsProvider({ children }) {
       savePlan,
       addContent,
       updateContent,
+      deleteContent,
       updateContentStatus,
       getBrand,
       getPlan,
@@ -668,6 +792,9 @@ export function BrandsProvider({ children }) {
       setBrandTeam,
     }),
     [
+      scopedBrands,
+      scopedPlans,
+      scopedContent,
       brands,
       plans,
       content,
@@ -679,6 +806,7 @@ export function BrandsProvider({ children }) {
       savePlan,
       addContent,
       updateContent,
+      deleteContent,
       updateContentStatus,
       getBrand,
       getPlan,

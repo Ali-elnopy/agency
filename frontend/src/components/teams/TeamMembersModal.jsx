@@ -6,11 +6,6 @@ import { initialsOf, teamMemberIds } from '../../data/workspace';
 
 const ELIGIBLE_ACCESS = new Set(['employee', 'account_manager', 'team_leader']);
 
-/* A person can only belong to one team. */
-function belongsToAnotherTeam(user, teamId) {
-  return user.teamId != null && String(user.teamId) !== String(teamId);
-}
-
 export default function TeamMembersModal({ team, onClose, onSaved }) {
   const { t } = useSprint3();
   const { users, teams, updateTeam, addTeamMember, removeTeamMember } = useWorkspace();
@@ -18,12 +13,20 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
   const [name, setName] = useState(team.name || '');
   const [description, setDescription] = useState(team.description || '');
 
-  /* Demo records only carry a team id, so fall back to the teams list to name
-     the team a person is already in. */
-  const teamNameOf = (user) =>
-    user.teamName ||
-    teams.find((item) => String(item.id) === String(user.teamId))?.name ||
-    'another team';
+  /* Resolves all teams a user belongs to */
+  const teamNamesOf = (user) => {
+    const ids = Array.isArray(user.teamIds) && user.teamIds.length
+      ? user.teamIds
+      : user.teamId
+        ? [user.teamId]
+        : [];
+    if (!ids.length) return t('No team assigned');
+    return ids
+      .map((id) => teams.find((item) => String(item.id) === String(id))?.name)
+      .filter(Boolean)
+      .map(t)
+      .join(', ');
+  };
 
   const eligible = useMemo(
     () =>
@@ -46,8 +49,7 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
 
   const currentTeamId = String(team.id);
 
-  // Team Leader options: team leaders or people already in this team. Admins
-  // cannot lead a team, so they are never offered as a candidate.
+  // Team Leader options: team leaders or people in this team.
   const leaderCandidates = useMemo(
     () =>
       users
@@ -55,11 +57,10 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
           (user) =>
             user.active !== false &&
             user.systemAccess !== 'admin' &&
-            !belongsToAnotherTeam(user, currentTeamId) &&
             (user.systemAccess === 'team_leader' || selected.has(String(user.id))),
         )
         .sort((a, b) => String(a.fullName).localeCompare(String(b.fullName))),
-    [users, selected, currentTeamId],
+    [users, selected],
   );
 
   const visible = eligible.filter((user) => {
@@ -75,13 +76,6 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
 
   const toggle = (user) => {
     const strId = String(user.id);
-
-    if (!selected.has(strId) && belongsToAnotherTeam(user, currentTeamId)) {
-      setError(
-        `${user.fullName} already belongs to ${teamNameOf(user)}. Remove them from that team first.`,
-      );
-      return;
-    }
 
     setSelected((prev) => {
       const next = new Set(prev);
@@ -273,20 +267,15 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
               {visible.map((user) => {
                 const checked = selected.has(String(user.id));
                 const isLeader = String(user.id) === leaderId;
-                const inAnotherTeam = belongsToAnotherTeam(user, currentTeamId);
-                const locked = inAnotherTeam && !checked;
 
                 return (
                   <li key={user.id}>
                     <button
                       type="button"
-                      className={`bw-team-row${checked ? ' is-selected' : ''}${
-                        locked ? ' is-locked' : ''
-                      }`}
+                      className={`bw-team-row${checked ? ' is-selected' : ''}`}
                       onClick={() => toggle(user)}
                       aria-pressed={checked}
-                      aria-disabled={locked}
-                      disabled={busy || locked}
+                      disabled={busy}
                     >
                       <span className="bw-team-avatar">{initialsOf(user.fullName)}</span>
                       <span className="bw-team-copy">
@@ -311,11 +300,7 @@ export default function TeamMembersModal({ team, onClose, onSaved }) {
                         </div>
                         <small>
                           {user.jobTitle || user.systemAccess}
-                          {inAnotherTeam
-                            ? ` · Already in ${teamNameOf(user)}`
-                            : user.teamName
-                              ? ` · ${user.teamName}`
-                              : ''}
+                          {` · ${t('Teams')}: ${teamNamesOf(user)}`}
                         </small>
                         <small>{user.email}</small>
                       </span>

@@ -30,8 +30,8 @@ const ROLE_BY_ACCESS = {
 };
 
 const STORAGE_KEYS = {
-  users: 'orvia_workspace_users_v1',
-  teams: 'orvia_workspace_teams_v1',
+  users: 'orvia_workspace_users_v2',
+  teams: 'orvia_workspace_teams_v2',
 };
 
 function isLocalDemo() {
@@ -134,9 +134,24 @@ function applyBrandLinks(teams, brandLinks) {
 export function WorkspaceProvider({ children }) {
   const demo = isLocalDemo();
 
-  const [users, setUsers] = useState(() =>
-    readStore(STORAGE_KEYS.users, SEED_USERS),
-  );
+  const [users, setUsers] = useState(() => {
+    const raw = readStore(STORAGE_KEYS.users, SEED_USERS);
+    return raw.map((u) => {
+      if (
+        u.fullName === 'Elena Vance' ||
+        u.email?.toLowerCase().includes('elena') ||
+        u.email?.toLowerCase() === 'am@orvia.com'
+      ) {
+        return {
+          ...u,
+          jobTitle: 'Lead Account Manager',
+          systemAccess: 'account_manager',
+          permissions: permissionsForAccess('account_manager'),
+        };
+      }
+      return u;
+    });
+  });
   const [teams, setTeams] = useState(() =>
     readStore(STORAGE_KEYS.teams, SEED_TEAMS),
   );
@@ -409,11 +424,20 @@ export function WorkspaceProvider({ children }) {
         ),
       );
       setUsers((prev) =>
-        prev.map((user) =>
-          String(user.id) === String(userId) && String(user.teamId) === String(teamId)
-            ? { ...user, teamId: null, teamName: '' }
-            : user,
-        ),
+        prev.map((user) => {
+          if (String(user.id) !== String(userId)) return user;
+          const currentTeams = Array.isArray(user.teamIds)
+            ? user.teamIds
+            : user.teamId
+              ? [user.teamId]
+              : [];
+          const nextTeams = currentTeams.filter((id) => String(id) !== String(teamId));
+          return {
+            ...user,
+            teamId: nextTeams[0] || null,
+            teamIds: nextTeams,
+          };
+        }),
       );
 
       if (!demo) {
@@ -434,19 +458,26 @@ export function WorkspaceProvider({ children }) {
 
       setTeams((prev) =>
         prev.map((team) => {
-          const base = teamMemberIds(team, users);
-          const nextIds =
-            String(team.id) === String(teamId)
-              ? Array.from(new Set([...base, String(userId)]))
-              : base.filter((id) => id !== String(userId));
-
-          return { ...team, memberIds: nextIds };
+          if (String(team.id) !== String(teamId)) return team;
+          const base = team.memberIds || teamMemberIds(team, users);
+          return { ...team, memberIds: Array.from(new Set([...base, String(userId)])) };
         }),
       );
       setUsers((prev) =>
-        prev.map((user) =>
-          String(user.id) === String(userId) ? { ...user, teamId, teamName: '' } : user,
-        ),
+        prev.map((user) => {
+          if (String(user.id) !== String(userId)) return user;
+          const currentTeams = Array.isArray(user.teamIds)
+            ? user.teamIds
+            : user.teamId
+              ? [user.teamId]
+              : [];
+          const nextTeams = Array.from(new Set([...currentTeams, String(teamId)]));
+          return {
+            ...user,
+            teamId: nextTeams[0] || teamId,
+            teamIds: nextTeams,
+          };
+        }),
       );
 
       if (!demo) {

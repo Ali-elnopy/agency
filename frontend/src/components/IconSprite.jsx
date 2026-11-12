@@ -119,7 +119,7 @@ export default function IconSprite() {
         <rect x="3" y="4" width="18" height="16" rx="2" />
         <path d="M3 10h18M9 10v10M15 10v10" />
       </symbol>
-      <symbol id="i-logout" viewBox="0 0 24 24">
+      <symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 21H5.5A2.5 2.5 0 0 1 3 18.5v-13A2.5 2.5 0 0 1 5.5 3H9" />
         <path d="M16 16.5 20.5 12 16 7.5M20.5 12H9" />
       </symbol>

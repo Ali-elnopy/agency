@@ -1,21 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import { useSprint3 } from '../context/sprint3Store';
+import { useBrands } from '../context/brandsStore';
 import { isTaskOverdue, formatDateTime, TASK_PRIORITIES } from '../data/tasksData';
 import TaskDetailModal from '../components/tasks/TaskDetailModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 
-export default function MyWorkPage() {
+export default function MyWorkPage({ embedded = false }) {
   const { tasks = [], changeTaskStatus, t } = useSprint3();
+  const { brands = [] } = useBrands();
   const { toast, showToast } = useToast(4000);
 
   const [activeTab, setActiveTab] = useState('today'); // 'today' | 'upcoming' | 'overdue' | 'high_priority' | 'revisions'
   const [activeTask, setActiveTask] = useState(null);
 
-  // Consider tasks for employee (or all active creative tasks if testing/previewing)
+  const accessibleBrandIds = useMemo(() => new Set(brands.map((b) => b.id)), [brands]);
+
+  // Tasks scoped to the brands the employee belongs to
   const employeeTasks = useMemo(() => {
-    return tasks.filter(() => true);
-  }, [tasks]);
+    return tasks.filter((task) => !task.brandId || accessibleBrandIds.has(task.brandId));
+  }, [tasks, accessibleBrandIds]);
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -79,8 +83,8 @@ export default function MyWorkPage() {
   };
 
   return (
-    <div className="page-screen s3-page">
-      <header className="page-head">
+    <div className={embedded ? 's3-embedded-mywork' : 'page-screen s3-page'} style={embedded ? { width: '100%' } : undefined}>
+      <header className="page-head" style={embedded ? { marginTop: 0 } : undefined}>
         <div>
           <span className="s3-eyebrow">{t('My Work')}</span>
           <h1 className="page-head__title">{t('My Work')}</h1>

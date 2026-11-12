@@ -228,19 +228,24 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
             </button>
 
             {demoAccounts.length > 0 && (
-              <div className="quick-login">
-                <span>{t('Demo login:')}</span>
-                {demoAccounts.map((account) => (
-                  <button
-                    key={account.email}
-                    type="button"
-                    className="quick-login__btn"
-                    onClick={() => applyDemoAccount(account)}
-                    title={account.email}
-                  >
-                    {t(account.label)}
-                  </button>
-                ))}
+              <div className="quick-login" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>
+                  {lang === 'ar' ? 'تسجيل دخول تجريبي سريع بحسب الدور:' : 'Quick Demo Sign-In by Role:'}
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                  {demoAccounts.map((account) => (
+                    <button
+                      key={account.email}
+                      type="button"
+                      className="quick-login__btn"
+                      onClick={() => applyDemoAccount(account)}
+                      title={`${account.email} · Password123!`}
+                      style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'center' }}
+                    >
+                      {account.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </form>

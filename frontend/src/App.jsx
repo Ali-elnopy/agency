@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import ForgotPage from './pages/ForgotPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
-import Showcase from './components/Showcase';
 import DashboardPage from './pages/DashboardPage';
 import ClientPortalPage from './pages/ClientPortalPage';
 import IconSprite from './components/IconSprite';
 import useAuth from './hooks/useAuth';
 import { Sprint3Provider } from './context/Sprint3Context';
+import { BrandsProvider } from './context/BrandsContext';
+import { WorkspaceProvider } from './context/WorkspaceContext';
 import { hasStoredSession } from './services/tokenStorage';
 
 const TITLES = {
@@ -119,8 +120,16 @@ export default function App() {
   // brief render between setUser() and the login redirect.
   useEffect(() => {
     if (user && view !== 'dashboard' && view !== 'portal' && !resetToken) {
-      replaceHashView('dashboard');
-      setView('dashboard');
+      if (user.role === 'CLIENT') {
+        replaceHashView('portal');
+        setView('portal');
+      } else {
+        replaceHashView('dashboard');
+        setView('dashboard');
+      }
+    } else if (user && user.role === 'CLIENT' && view === 'dashboard') {
+      replaceHashView('portal');
+      setView('portal');
     }
   }, [view, user, resetToken]);
 
@@ -198,42 +207,45 @@ export default function App() {
 
   return (
     <Sprint3Provider>
-      <IconSprite />
+      <WorkspaceProvider>
+        <BrandsProvider>
+          <IconSprite />
 
-      {view === 'portal' ? (
-        <ClientPortalPage token={portalToken} />
-      ) : showDashboard ? (
-        <DashboardPage
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          isCollapsed={isCollapsed}
-          onToggleCollapse={toggleSidebar}
-          onSignOut={handleSignOut}
-          onNavigate={navigateTo}
-        />
-      ) : (
-        <main className="page">
-          {view === 'forgot' ? (
-            <ForgotPage
-              onNavigate={navigateTo}
+          {view === 'portal' || user?.role === 'CLIENT' ? (
+            <ClientPortalPage token={portalToken} onSignOut={handleSignOut} />
+          ) : showDashboard ? (
+            <DashboardPage
               theme={theme}
               onToggleTheme={toggleTheme}
-              onEmailSubmit={setResetEmail}
-            />
-          ) : view === 'reset' ? (
-            <ResetPasswordPage
+              isCollapsed={isCollapsed}
+              onToggleCollapse={toggleSidebar}
+              onSignOut={handleSignOut}
               onNavigate={navigateTo}
-              theme={theme}
-              onToggleTheme={toggleTheme}
-              email={resetEmail}
-              token={resetToken}
             />
           ) : (
-            <LoginPage onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />
+            <main className="page">
+              {view === 'forgot' ? (
+                <ForgotPage
+                  onNavigate={navigateTo}
+                  theme={theme}
+                  onToggleTheme={toggleTheme}
+                  onEmailSubmit={setResetEmail}
+                />
+              ) : view === 'reset' ? (
+                <ResetPasswordPage
+                  onNavigate={navigateTo}
+                  theme={theme}
+                  onToggleTheme={toggleTheme}
+                  email={resetEmail}
+                  token={resetToken}
+                />
+              ) : (
+                <LoginPage onNavigate={navigateTo} theme={theme} onToggleTheme={toggleTheme} />
+              )}
+            </main>
           )}
-          <Showcase />
-        </main>
-      )}
+        </BrandsProvider>
+      </WorkspaceProvider>
     </Sprint3Provider>
   );
 }

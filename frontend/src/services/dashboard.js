@@ -1,5 +1,6 @@
 import { apiRequest } from './http';
 import { getAccessToken } from './tokenStorage';
+import { isMockApiEnabled } from './api';
 
 /**
  * Dashboard statistics.
@@ -21,10 +22,12 @@ function isDevSession() {
 }
 
 export async function getDashboardStats() {
-  // The single-file demo build has no API; the page keeps its static KPIs.
-  if (isDevSession()) return null;
+  if (isDevSession() || isMockApiEnabled()) return null;
 
-  const body = await apiRequest('/dashboard');
-
-  return body?.data ?? body;
+  try {
+    const body = await apiRequest('/dashboard');
+    return body?.data ?? body;
+  } catch {
+    return null;
+  }
 }

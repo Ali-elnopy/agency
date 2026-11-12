@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import useAuth from '../hooks/useAuth';
 import { useBrands } from '../context/brandsStore';
 import { useSprint3 } from '../context/sprint3Store';
 import {
@@ -15,8 +16,10 @@ function normalize(value) {
 }
 
 export default function BrandsPage({ onOpenBrand, onAddBrand }) {
+  const { user } = useAuth();
+  const { role, t } = useSprint3();
   const { brands, plans, content } = useBrands();
-  const { t } = useSprint3();
+  const isAdmin = role === 'admin' || user?.role === 'ADMIN' || user?.systemAccess === 'admin';
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState(ALL_STATUSES);
 
@@ -85,14 +88,16 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
     <div className="page-screen brands-page">
       <section className="page-head page-head--actions">
         <h1 className="page-head__title">{t('Brands')}</h1>
-        <div className="page-head__actions">
-          <button type="button" className="button button--primary" onClick={onAddBrand}>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            {t('Add Brand')}
-          </button>
-        </div>
+        {isAdmin && onAddBrand ? (
+          <div className="page-head__actions">
+            <button type="button" className="button button--primary" onClick={onAddBrand}>
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-plus" />
+              </svg>
+              {t('Add Brand')}
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <div className="filters brands-filters">
@@ -248,12 +253,14 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
                 {t('Clear filters')}
               </button>
             ) : null}
-            <button type="button" className="button button--primary" onClick={onAddBrand}>
-              <svg aria-hidden="true" className="icon">
-                <use href="#i-plus" />
-              </svg>
-              {t('Add Brand')}
-            </button>
+            {isAdmin && onAddBrand ? (
+              <button type="button" className="button button--primary" onClick={onAddBrand}>
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-plus" />
+                </svg>
+                {t('Add Brand')}
+              </button>
+            ) : null}
           </div>
         </section>
       )}

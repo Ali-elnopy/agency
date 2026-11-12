@@ -22,6 +22,11 @@ function emptyForm(user) {
     customJobTitle: '',
     systemAccess: user?.systemAccess ?? 'employee',
     teamId: user?.teamId ?? '',
+    teamIds: Array.isArray(user?.teamIds) && user.teamIds.length
+      ? [...user.teamIds]
+      : user?.teamId
+        ? [user.teamId]
+        : [],
     active: user?.active !== false,
     permissions: [...(user?.permissions ?? [])],
   };
@@ -65,6 +70,20 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
   });
 
   const teamName = (teamId) => teams.find((team) => team.id === teamId)?.name ?? 'Not assigned';
+
+  const userTeamNames = (targetUser) => {
+    const ids = Array.isArray(targetUser?.teamIds) && targetUser.teamIds.length
+      ? targetUser.teamIds
+      : targetUser?.teamId
+        ? [targetUser.teamId]
+        : [];
+    if (!ids.length) return t('Not assigned');
+    return ids
+      .map((id) => teams.find((team) => String(team.id) === String(id))?.name)
+      .filter(Boolean)
+      .map(t)
+      .join(', ');
+  };
 
   const openEditor = (user) => {
     setEditingId(user.id);
@@ -149,7 +168,8 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
         fullName: form.fullName.trim(),
         jobTitle: resolvedJobTitle,
         systemAccess: form.systemAccess,
-        teamId: form.teamId ? form.teamId : null,
+        teamId: (form.teamIds && form.teamIds[0]) || (form.teamId ? form.teamId : null),
+        teamIds: form.teamIds && form.teamIds.length ? form.teamIds : form.teamId ? [form.teamId] : [],
         permissions: permissionsForAccess(form.systemAccess, form.permissions),
         active: form.active,
       });
@@ -246,7 +266,7 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                         ? user.email
                         : `${user.jobTitle ? `${t(user.jobTitle)} • ` : ''}${user.email}`}
                     </p>
-                    <p className="ws-user-team">{t('Team')}: {t(teamName(user.teamId))}</p>
+                    <p className="ws-user-team">{t('Teams')}: {userTeamNames(user)}</p>
                   </div>
 
                   <div className="ws-row-actions">
@@ -338,26 +358,52 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                       </span>
                     </label>
 
-                    <label className="ws-field">
-                      <span>{t('Assigned Team')}</span>
-                      <span className="ws-select-wrap">
-                        <select
-                          className="ws-select"
-                          value={form.teamId}
-                          onChange={updateField('teamId')}
-                        >
-                          <option value="">{t('No team assigned')}</option>
-                          {teams.map((team) => (
-                            <option key={team.id} value={team.id}>
-                              {t(team.name)}
-                            </option>
-                          ))}
-                        </select>
-                        <svg aria-hidden="true" className="icon">
-                          <use href="#i-chevron" />
-                        </svg>
+                    <div className="ws-field" style={{ gridColumn: 'span 2' }}>
+                      <span style={{ fontWeight: 600, fontSize: '13px', marginBottom: '6px', display: 'block' }}>
+                        {t('Assigned Teams')}
                       </span>
-                    </label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {teams.map((team) => {
+                          const isMember = (form.teamIds || (form.teamId ? [form.teamId] : [])).map(String).includes(String(team.id));
+                          return (
+                            <label
+                              key={team.id}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '12.5px',
+                                cursor: 'pointer',
+                                padding: '5px 12px',
+                                borderRadius: '8px',
+                                background: isMember ? 'rgba(242, 106, 61, 0.12)' : '#f8f9fa',
+                                color: isMember ? '#f26a3d' : '#334155',
+                                border: `1px solid ${isMember ? '#f26a3d' : '#e2e8f0'}`,
+                                fontWeight: isMember ? '600' : '400',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isMember}
+                                onChange={(e) => {
+                                  const current = (form.teamIds || (form.teamId ? [form.teamId] : [])).map(String);
+                                  const updated = e.target.checked
+                                    ? Array.from(new Set([...current, String(team.id)]))
+                                    : current.filter((id) => id !== String(team.id));
+                                  setForm((prev) => ({
+                                    ...prev,
+                                    teamId: updated[0] || '',
+                                    teamIds: updated,
+                                  }));
+                                }}
+                              />
+                              {t(team.name)}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                     <label className="ws-inline-check">
                       <input
@@ -432,7 +478,7 @@ export default function UserAccessPage({ onAddUser, onAddMemberViaTeam, initialQ
                       ? user.email
                       : `${user.jobTitle ? `${t(user.jobTitle)} • ` : ''}${user.email}`}
                   </p>
-                  <p className="ws-user-team">{t('Team')}: {t(teamName(user.teamId))}</p>
+                  <p className="ws-user-team">{t('Teams')}: {userTeamNames(user)}</p>
                 </div>
 
                 <div className="ws-row-actions">

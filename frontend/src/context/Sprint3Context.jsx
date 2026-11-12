@@ -1,5 +1,6 @@
 import { seedTasks } from '../data/tasksData';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import useAuth from '../hooks/useAuth';
 import { Sprint3Context } from './sprint3Store';
 import {
   BRIEF_STATUSES,
@@ -15,6 +16,12 @@ import {
   stamp,
   translate,
 } from '../data/sprint3';
+import {
+  fetchUnreadNotificationCountApi,
+  fetchNotificationsApi,
+  markNotificationAsReadApi,
+  markAllNotificationsAsReadApi,
+} from '../services/contentManagementApi';
 
 /* Sprint 3 workflow state lives entirely in the browser. Each section of the
    page chain reads the same records, so a submitted portal answer is visible
@@ -30,7 +37,44 @@ const KEYS = {
   settings: 'orvia_s3_settings_v1',
   prefs: 'orvia_s3_prefs_v1',
   tasks: 'orvia_tasks_v1',
+  notifications: 'orvia_s3_notifications_v1',
 };
+
+const defaultNotifications = [
+  {
+    id: 'notif-1',
+    type: 'onboarding_submitted',
+    title: 'New Client Onboarding Submitted',
+    titleAr: 'تم استلام استمارة عميل جديدة',
+    message: 'Lumina Health submitted onboarding questionnaire.',
+    messageAr: 'قام براند Lumina Health بإرسال استمارة الأسئلة بنجاح.',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    link: 'dispatch',
+  },
+  {
+    id: 'notif-2',
+    type: 'strategy_uploaded',
+    title: 'Strategy Uploaded for Review',
+    titleAr: 'تم رفع استراتيجية جديدة للمراجعة',
+    message: 'Alex Rivera uploaded Lumina Health Content Strategy v1.0.',
+    messageAr: 'قام الموظف برفع استراتيجية Lumina Health للمراجعة الداخلية.',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    link: 'strategy',
+  },
+  {
+    id: 'notif-3',
+    type: 'brief_generated',
+    title: 'AI Brief Generated',
+    titleAr: 'تم توليد ملخص البراند بالذكاء الاصطناعي',
+    message: 'AI Brand Brief for Aura Skincare is ready.',
+    messageAr: 'ملخص البريف الذكي لبراند Aura Skincare جاهز للاطلاع.',
+    isRead: true,
+    createdAt: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
+    link: 'briefs',
+  },
+];
 
 function readArray(key, fallback) {
   if (typeof window === 'undefined') return fallback;
@@ -66,6 +110,7 @@ function write(key, value) {
 }
 
 export function Sprint3Provider({ children }) {
+  const { user } = useAuth();
   const [templates, setTemplates] = useState(() =>
     readArray(KEYS.templates, seedTemplates),
   );
@@ -86,6 +131,34 @@ export function Sprint3Provider({ children }) {
     readObject(KEYS.settings, seedSettings),
   );
   const [tasks, setTasks] = useState(() => readArray(KEYS.tasks, seedTasks));
+  const [notifications, setNotifications] = useState(() =>
+    readArray(KEYS.notifications, defaultNotifications),
+  );
+
+  const technicalRole = useMemo(() => {
+    if (!user) return 'EMPLOYEE';
+    const r = String(user.role || '').toUpperCase();
+    if (r === 'ADMIN') return 'ADMIN';
+    if (r === 'ACCOUNT_MANAGER') return 'ACCOUNT_MANAGER';
+    if (r === 'CONTENT_CREATOR' || r === 'EMPLOYEE' || r === 'CREATIVE' || r === 'CREATOR') return 'EMPLOYEE';
+    if (r === 'CLIENT') return 'CLIENT';
+    return r;
+  }, [user]);
+
+  const isAdmin = technicalRole === 'ADMIN';
+  const isAccountManager = technicalRole === 'ACCOUNT_MANAGER';
+  const isEmployee = technicalRole === 'EMPLOYEE' || technicalRole === 'CONTENT_CREATOR';
+  const isClient = technicalRole === 'CLIENT';
+  // Creator = Employee per user requirements
+  const isCreator = isEmployee;
+
+  const effectiveRole = useMemo(() => {
+    if (isAdmin) return 'admin';
+    if (isAccountManager) return 'account_manager';
+    if (isEmployee) return 'employee';
+    if (isClient) return 'client';
+    return 'employee';
+  }, [isAdmin, isAccountManager, isEmployee, isClient]);
 
   const [prefs, setPrefs] = useState(() => {
     const saved = readObject(KEYS.prefs, {});
@@ -104,6 +177,7 @@ export function Sprint3Provider({ children }) {
   useEffect(() => write(KEYS.settings, settings), [settings]);
   useEffect(() => write(KEYS.prefs, prefs), [prefs]);
   useEffect(() => write(KEYS.tasks, tasks), [tasks]);
+  useEffect(() => write(KEYS.notifications, notifications), [notifications]);
 
   // The client portal is usually opened in its own tab, so a submission there
   // must reach the account-manager dashboard without a manual reload. The
@@ -139,6 +213,9 @@ export function Sprint3Provider({ children }) {
           break;
         case KEYS.tasks:
           setTasks(readArray(KEYS.tasks, seedTasks));
+          break;
+        case KEYS.notifications:
+          setNotifications(readArray(KEYS.notifications, defaultNotifications));
           break;
         default:
           break;
@@ -525,7 +602,7 @@ export function Sprint3Provider({ children }) {
     (brandId) =>
       strategies.find(
         (s) =>
-          s.brandId === String(brandId) && s.status === 'client_approved',
+          s.brandId === String(brandId) && s.status === 'approved',
       ) || null,
     [strategies],
   );
@@ -614,7 +691,7 @@ export function Sprint3Provider({ children }) {
       deadline: taskInput.deadline || new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
       assigneeId: taskInput.assigneeId || 'emp-1',
       assigneeName: taskInput.assigneeName || 'Sarah Lin',
-      assigneeRole: taskInput.assigneeRole || 'Content Creator',
+      assigneeRole: taskInput.assigneeRole || 'Employee',
       assigneeAvatar: (taskInput.assigneeName || 'SL').split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase(),
       revisionNote: taskInput.revisionNote || '',
       createdAt: nowIso,
@@ -677,7 +754,7 @@ export function Sprint3Provider({ children }) {
           deadline: deadlineDate,
           assigneeId: 'emp-1',
           assigneeName: 'Sarah Lin',
-          assigneeRole: 'Content Creator',
+          assigneeRole: 'Employee',
           assigneeAvatar: 'SL',
           revisionNote: '',
           createdAt: nowIso,
@@ -693,6 +770,75 @@ export function Sprint3Provider({ children }) {
   }, [tasks]);
 
 
+  const [serverUnreadCount, setServerUnreadCount] = useState(null);
+
+  const unreadCount = useMemo(() => {
+    if (serverUnreadCount !== null) return serverUnreadCount;
+    return notifications.filter((n) => !n.isRead).length;
+  }, [serverUnreadCount, notifications]);
+
+  // Periodic polling for unread notifications (every 30-45 seconds)
+  useEffect(() => {
+    if (!user) return;
+
+    let isMounted = true;
+    const pollUnreadCount = async () => {
+      try {
+        const res = await fetchUnreadNotificationCountApi();
+        if (!isMounted) return;
+        if (typeof res?.data === 'number') {
+          setServerUnreadCount(res.data);
+        } else if (typeof res?.data?.unreadCount === 'number') {
+          setServerUnreadCount(res.data.unreadCount);
+        }
+      } catch {
+        // Fallback to local count if server endpoint is offline or mock mode
+      }
+    };
+
+    pollUnreadCount();
+    const interval = setInterval(pollUnreadCount, 35000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user]);
+
+  const markNotificationAsRead = useCallback(async (notificationId) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)),
+    );
+    setServerUnreadCount((prev) => (prev !== null && prev > 0 ? prev - 1 : null));
+
+    try {
+      await markNotificationAsReadApi(notificationId);
+    } catch {
+      // Mock mode or offline fallback
+    }
+  }, []);
+
+  const markAllNotificationsAsRead = useCallback(async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setServerUnreadCount(0);
+
+    try {
+      await markAllNotificationsAsReadApi();
+    } catch {
+      // Mock mode or offline fallback
+    }
+  }, []);
+
+  const addNotification = useCallback((notification) => {
+    const item = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      ...notification,
+    };
+    setNotifications((prev) => [item, ...prev]);
+  }, []);
+
   const value = useMemo(
     () => ({
       templates,
@@ -702,11 +848,22 @@ export function Sprint3Provider({ children }) {
       campaigns,
       contentMeta,
       settings,
-      role: prefs.role,
+      role: effectiveRole,
+      technicalRole,
+      isCreator,
+      isAdmin,
+      isAccountManager,
+      isEmployee,
+      isClient,
       lang: prefs.lang,
       t,
       setRole,
       setLang,
+      notifications,
+      unreadCount,
+      markNotificationAsRead,
+      markAllNotificationsAsRead,
+      addNotification,
       saveTemplate,
       deleteTemplate,
       getTemplate,
@@ -750,11 +907,22 @@ export function Sprint3Provider({ children }) {
       campaigns,
       contentMeta,
       settings,
-      prefs.role,
+      effectiveRole,
+      technicalRole,
+      isCreator,
+      isAdmin,
+      isAccountManager,
+      isEmployee,
+      isClient,
       prefs.lang,
       t,
       setRole,
       setLang,
+      notifications,
+      unreadCount,
+      markNotificationAsRead,
+      markAllNotificationsAsRead,
+      addNotification,
       saveTemplate,
       deleteTemplate,
       getTemplate,

@@ -8,6 +8,7 @@ import {
 } from './campaigns.validation.js';
 
 import { authenticate } from '../../middlewares/auth.js';
+import { requireCreator } from '../../middlewares/requireCreator.js';
 import { validate } from '../../middlewares/validate.js';
 
 export const campaignsRouter = Router();
@@ -21,6 +22,7 @@ campaignsRouter.get(
 
 campaignsRouter.post(
   '/',
+  requireCreator,
   validate(createCampaignSchema),
   CampaignsController.create,
 );
@@ -32,11 +34,13 @@ campaignsRouter.get(
 
 campaignsRouter.patch(
   '/:id',
+  requireCreator,
   validate(updateCampaignSchema),
   CampaignsController.update,
 );
 
 campaignsRouter.delete(
   '/:id',
+  requireCreator,
   CampaignsController.remove,
 );

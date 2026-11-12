@@ -125,9 +125,9 @@ export const SEED_USERS = [
     id: 'user-1',
     fullName: 'Elena Vance',
     email: 'elena.vance@orvia-creative.com',
-    jobTitle: 'Studio Lead',
-    systemAccess: 'admin',
-    permissions: ADMIN_PERMISSIONS,
+    jobTitle: 'Lead Account Manager',
+    systemAccess: 'account_manager',
+    permissions: MANAGER_PERMISSIONS,
     active: true,
     teamId: 'team-1',
     createdAt: '2025-01-14',
@@ -158,7 +158,7 @@ export const SEED_USERS = [
     id: 'user-4',
     fullName: 'Sarah Lin',
     email: 'sarah.lin@orvia-creative.com',
-    jobTitle: 'Content Creator',
+    jobTitle: 'Employee',
     systemAccess: 'employee',
     permissions: ['createContent', 'reviewContent'],
     active: true,
@@ -284,22 +284,80 @@ export const SEED_USERS = [
     permissions: ['createContent'],
     active: false,
     teamId: null,
+    teamIds: [],
     createdAt: '2025-07-19',
+  },
+  {
+    id: 'user-emp-alex',
+    fullName: 'Alex Rivera',
+    email: 'employee@orvia.com',
+    jobTitle: 'Content Specialist & Strategy',
+    systemAccess: 'employee',
+    permissions: ['createContent', 'managePlans'],
+    active: true,
+    teamId: 'team-1',
+    teamIds: ['team-1', 'team-4'],
+    createdAt: '2025-01-10',
+  },
+  {
+    id: 'user-creator-jordan',
+    fullName: 'Jordan Taylor',
+    email: 'creator@orvia.com',
+    jobTitle: 'Senior Content Creator',
+    systemAccess: 'employee',
+    permissions: ['createContent', 'managePlans', 'publishContent'],
+    active: true,
+    teamId: 'team-2',
+    teamIds: ['team-2', 'team-3'],
+    createdAt: '2025-01-12',
+  },
+  {
+    id: 'user-am-elena',
+    fullName: 'Elena Vance',
+    email: 'am@orvia.com',
+    jobTitle: 'Lead Account Manager',
+    systemAccess: 'account_manager',
+    permissions: MANAGER_PERMISSIONS,
+    active: true,
+    teamId: 'team-1',
+    teamIds: ['team-1', 'team-4'],
+    createdAt: '2025-01-05',
+  },
+  {
+    id: 'user-admin-sarah',
+    fullName: 'System Admin',
+    email: 'admin@orvia.com',
+    jobTitle: 'Administrator',
+    systemAccess: 'admin',
+    permissions: ADMIN_PERMISSIONS,
+    active: true,
+    teamId: 'team-1',
+    teamIds: ['team-1', 'team-2', 'team-3', 'team-4', 'team-5'],
+    createdAt: '2025-01-01',
   },
 ];
 
-export function teamMembers(users, teamId) {
-  return users.filter((user) => user.teamId === teamId);
+export function teamMembers(users = [], teamId) {
+  return (users || []).filter((user) => {
+    if (Array.isArray(user.teamIds) && user.teamIds.length) {
+      return user.teamIds.map(String).includes(String(teamId));
+    }
+    return String(user.teamId) === String(teamId);
+  });
 }
 
 /* Resolves a team's member ids from its stored membership list, falling back to
    the directory for teams that only track membership on the user record. */
 export function teamMemberIds(team, users = []) {
-  if (Array.isArray(team?.memberIds) && team.memberIds.length) {
-    return team.memberIds.map((id) => String(id));
-  }
-
-  return users
-    .filter((user) => String(user.teamId) === String(team?.id))
+  const fromTeam = Array.isArray(team?.memberIds) ? team.memberIds.map(String) : [];
+  const fromUsers = (users || [])
+    .filter((user) => {
+      if (Array.isArray(user.teamIds) && user.teamIds.length) {
+        return user.teamIds.map(String).includes(String(team?.id));
+      }
+      return String(user.teamId) === String(team?.id);
+    })
     .map((user) => String(user.id));
+
+  return Array.from(new Set([...fromTeam, ...fromUsers]));
 }

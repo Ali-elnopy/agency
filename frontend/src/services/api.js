@@ -5,23 +5,73 @@ const MOCK_ENABLED = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API ==
 
 const MOCK_ACCOUNTS = [
   {
-    email: import.meta.env.VITE_MOCK_EMAIL || 'elena.vance@orvia-creative.com',
-    password: import.meta.env.VITE_MOCK_PASSWORD || '',
+    email: 'admin@orvia.com',
+    password: 'Password123!',
     user: {
-      id: 'usr_mock_member',
-      fullName: import.meta.env.VITE_MOCK_NAME || 'Elena Vance',
-      email: import.meta.env.VITE_MOCK_EMAIL || 'elena.vance@orvia-creative.com',
+      id: 'usr_mock_admin',
+      fullName: 'System Admin',
+      email: 'admin@orvia.com',
+      role: 'ADMIN',
+    },
+  },
+  {
+    email: 'admin@agency.local',
+    password: 'Password123!',
+    user: {
+      id: 'usr_mock_admin_legacy',
+      fullName: 'System Admin',
+      email: 'admin@agency.local',
+      role: 'ADMIN',
+    },
+  },
+  {
+    email: 'am@orvia.com',
+    password: 'Password123!',
+    user: {
+      id: 'usr_mock_am',
+      fullName: 'Elena Vance',
+      email: 'am@orvia.com',
       role: 'ACCOUNT_MANAGER',
     },
   },
   {
-    email: import.meta.env.VITE_MOCK_ADMIN_EMAIL || 'admin@agency.local',
-    password: import.meta.env.VITE_MOCK_ADMIN_PASSWORD || '',
+    email: 'employee@orvia.com',
+    password: 'Password123!',
     user: {
-      id: 'usr_mock_admin',
-      fullName: 'System Admin',
-      email: import.meta.env.VITE_MOCK_ADMIN_EMAIL || 'admin@agency.local',
-      role: 'ADMIN',
+      id: 'usr_mock_employee',
+      fullName: 'Alex Rivera (Employee)',
+      email: 'employee@orvia.com',
+      role: 'CONTENT_CREATOR',
+    },
+  },
+  {
+    email: 'creator@orvia.com',
+    password: 'Password123!',
+    user: {
+      id: 'usr_mock_employee',
+      fullName: 'Alex Rivera (Employee)',
+      email: 'employee@orvia.com',
+      role: 'CONTENT_CREATOR',
+    },
+  },
+  {
+    email: 'elena.vance@orvia-creative.com',
+    password: 'Password123!',
+    user: {
+      id: 'usr_mock_am_legacy',
+      fullName: 'Elena Vance',
+      email: 'elena.vance@orvia-creative.com',
+      role: 'ACCOUNT_MANAGER',
+    },
+  },
+  {
+    email: 'client@orvia.com',
+    password: 'Password123!',
+    user: {
+      id: 'usr_mock_client',
+      fullName: 'Sarah Jenkins',
+      email: 'client@orvia.com',
+      role: 'CLIENT',
     },
   },
 ];
@@ -39,13 +89,12 @@ export function isDevBypassEnabled() {
 }
 
 export function getMockCredentials() {
-  if (!MOCK_ENABLED) return [];
-
-  return MOCK_ACCOUNTS.filter((account) => account.password).map((account) => ({
-    email: account.email,
-    password: account.password,
-    label: account.user.role === 'ADMIN' ? 'Admin' : 'Studio Lead',
-  }));
+  return [
+    { email: 'admin@orvia.com', password: 'Password123!', label: 'Admin (مدير النظام)' },
+    { email: 'am@orvia.com', password: 'Password123!', label: 'Account Manager (مدير الحسابات)' },
+    { email: 'employee@orvia.com', password: 'Password123!', label: 'Employee (صانع المحتوى / الموظف)' },
+    { email: 'client@orvia.com', password: 'Password123!', label: 'Client (العميل)' },
+  ];
 }
 
 function isUnavailable(error) {
@@ -64,7 +113,7 @@ function mockLogin(email, password) {
     return {
       success: false,
       message:
-        'Invalid demo credentials. Use one of the demo accounts configured in .env.local (VITE_MOCK_EMAIL / VITE_MOCK_PASSWORD).',
+        'Invalid credentials. Please use one of the accounts: admin@orvia.com, am@orvia.com, employee@orvia.com, client@orvia.com (Password: Password123!)',
     };
   }
 

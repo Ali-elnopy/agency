@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSprint3 } from '../context/sprint3Store';
 import { useBrands } from '../context/brandsStore';
 import { isTaskOverdue, formatDateTime, TASK_STATUSES, TASK_PRIORITIES } from '../data/tasksData';
@@ -6,11 +6,18 @@ import NewTaskModal from '../components/tasks/NewTaskModal';
 import TaskDetailModal from '../components/tasks/TaskDetailModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
+import MyWorkPage from './MyWorkPage';
 
-export default function TasksPage() {
+export default function TasksPage({ initialTab = 'management' }) {
   const { tasks = [], autoConvertContentToTasks, t } = useSprint3();
   const { brands = [] } = useBrands();
   const { toast, showToast } = useToast(4000);
+
+  const [categoryTab, setCategoryTab] = useState(initialTab || 'management'); // 'management' | 'my_work'
+
+  useEffect(() => {
+    if (initialTab) setCategoryTab(initialTab);
+  }, [initialTab]);
 
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
   const [selectedBrand, setSelectedBrand] = useState('all');
@@ -20,10 +27,28 @@ export default function TasksPage() {
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [activeTask, setActiveTask] = useState(null);
 
+  const accessibleBrandIds = useMemo(() => new Set(brands.map((b) => b.id)), [brands]);
+  const myWorkCount = useMemo(() => {
+    return tasks.filter((task) => !task.brandId || accessibleBrandIds.has(task.brandId)).length;
+  }, [tasks, accessibleBrandIds]);
+
   // Filter tasks
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
-      if (selectedBrand !== 'all' && task.brandId !== selectedBrand) return false;
+      if (task.brandId && brands.length > 0) {
+        const tid = String(task.brandId);
+        const bareId = tid.replace(/^brand-/, '');
+        const hasAccess =
+          accessibleBrandIds.has(tid) ||
+          accessibleBrandIds.has(`brand-${bareId}`) ||
+          accessibleBrandIds.has(bareId);
+        if (!hasAccess) return false;
+      }
+      if (selectedBrand !== 'all') {
+        const sBare = String(selectedBrand).replace(/^brand-/, '');
+        const tBare = String(task.brandId || '').replace(/^brand-/, '');
+        if (task.brandId !== selectedBrand && tBare !== sBare) return false;
+      }
       if (selectedPriority !== 'all' && task.priority !== selectedPriority) return false;
       if (search.trim()) {
         const query = search.toLowerCase();
@@ -34,7 +59,7 @@ export default function TasksPage() {
       }
       return true;
     });
-  }, [tasks, selectedBrand, selectedPriority, search]);
+  }, [tasks, accessibleBrandIds, brands, selectedBrand, selectedPriority, search]);
 
   const handleConvertContent = () => {
     // Generate tasks from campaigns / items
@@ -56,43 +81,135 @@ export default function TasksPage() {
 
   return (
     <div className="page-screen s3-page">
-      <header className="page-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-        <div>
-          <span className="s3-eyebrow">{t('Tasks Management')}</span>
-          <h1 className="page-head__title">{t('Executive Tasks')}</h1>
-          <p className="page-head__sub">
-            {t('Manage, distribute and track creative execution across your team')}
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+      {/* Unified Tasks Category Switcher: Tasks Management vs My Work */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div
+          style={{
+            display: 'inline-flex',
+            padding: '4px',
+            background: 'var(--soft, #EDEAE4)',
+            borderRadius: 14,
+            gap: 6,
+            border: '1px solid var(--line, #E8E5DF)',
+          }}
+        >
           <button
             type="button"
-            className="button button--ghost"
-            onClick={handleConvertContent}
-            title={t('Convert Content to Tasks')}
+            onClick={() => setCategoryTab('management')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 20px',
+              borderRadius: 10,
+              border: 'none',
+              background: categoryTab === 'management' ? '#111111' : 'transparent',
+              color: categoryTab === 'management' ? '#FFFFFF' : 'var(--muted, #555555)',
+              fontWeight: 700,
+              fontSize: 13.5,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
           >
-            <svg aria-hidden="true" className="icon" width="16" height="16">
-              <use href="#i-zap" />
+            <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
             </svg>
-            {t('Convert Content to Tasks')}
+            <span>{t('Tasks Management')}</span>
+            <span
+              style={{
+                fontSize: 11,
+                padding: '2px 7px',
+                borderRadius: 999,
+                background: categoryTab === 'management' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.06)',
+                color: 'inherit',
+              }}
+            >
+              {tasks.length}
+            </span>
           </button>
 
           <button
             type="button"
-            className="button button--primary"
-            onClick={() => setIsNewTaskOpen(true)}
+            onClick={() => setCategoryTab('my_work')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 20px',
+              borderRadius: 10,
+              border: 'none',
+              background: categoryTab === 'my_work' ? '#111111' : 'transparent',
+              color: categoryTab === 'my_work' ? '#FFFFFF' : 'var(--muted, #555555)',
+              fontWeight: 700,
+              fontSize: 13.5,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
           >
-            <svg aria-hidden="true" className="icon" width="16" height="16">
-              <use href="#i-plus" />
+            <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
             </svg>
-            {t('New Task')}
+            <span>{t('My Work')}</span>
+            <span
+              style={{
+                fontSize: 11,
+                padding: '2px 7px',
+                borderRadius: 999,
+                background: categoryTab === 'my_work' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.06)',
+                color: 'inherit',
+              }}
+            >
+              {myWorkCount}
+            </span>
           </button>
         </div>
-      </header>
+      </div>
 
-      {/* Control bar: Filters, Search, View switch */}
-      <div className="s3-card" style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      {categoryTab === 'my_work' ? (
+        <MyWorkPage embedded={true} />
+      ) : (
+        <>
+          <header className="page-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <span className="s3-eyebrow">{t('Tasks Management')}</span>
+              <h1 className="page-head__title">{t('Executive Tasks')}</h1>
+              <p className="page-head__sub">
+                {t('Manage, distribute and track creative execution across your team')}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={handleConvertContent}
+                title={t('Convert Content to Tasks')}
+              >
+                <svg aria-hidden="true" className="icon" width="16" height="16">
+                  <use href="#i-zap" />
+                </svg>
+                {t('Convert Content to Tasks')}
+              </button>
+
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => setIsNewTaskOpen(true)}
+              >
+                <svg aria-hidden="true" className="icon" width="16" height="16">
+                  <use href="#i-plus" />
+                </svg>
+                {t('New Task')}
+              </button>
+            </div>
+          </header>
+
+          {/* Control bar: Filters, Search, View switch */}
+          <div className="s3-card" style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
           <div className="search-wrap" style={{ minWidth: 220, maxWidth: 320 }}>
             <input
@@ -342,6 +459,8 @@ export default function TasksPage() {
             </tbody>
           </table>
         </div>
+      )}
+      </>
       )}
 
       {/* Modals */}

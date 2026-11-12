@@ -15,7 +15,7 @@
 }
 
 .app {
-  --sidebar-w: 232px;
+  --sidebar-w: 254px;
 
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
@@ -106,7 +106,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  color: var(--sidebar-ink);
+  color: #555555;
   background: none;
   border: 0;
   border-radius: 8px;
@@ -114,43 +114,62 @@
 }
 
 .sidebar__collapse:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.05);
+  color: #111111;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .nav__divider {
   display: block;
   height: 1px;
   margin: 14px 8px;
-  background: rgba(255, 255, 255, 0.12);
+  background: #e8e5df;
 }
 
 .nav__item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 14px;
-  font-size: 13px;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--sidebar-ink);
-  border-radius: 11px;
-  transition:
-    background 0.2s,
-    color 0.2s;
+  border-radius: 12px;
+  transition: all 0.15s ease;
+}
+
+.nav__item::before {
+  display: none !important;
+}
+
+.nav__item .nav-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
 }
 
 .nav__item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--ink);
 }
 
 .nav__item.is-active {
-  color: var(--sidebar-active-ink);
-  background: var(--sidebar-active-bg);
+  color: #111111 !important;
+  font-weight: 700 !important;
+  background: var(--sidebar-active-bg) !important;
+}
+
+.nav__item.is-active .nav-dot {
+  background: #6c5ce7 !important;
 }
 
 .sidebar__foot {
@@ -165,8 +184,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 11px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 14px;
 }
 
@@ -180,7 +199,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #ffffff;
-  background: linear-gradient(135deg, #ff8a5b, var(--orange-dark));
+  background: linear-gradient(135deg, #f26a3d, #6c5ce7);
   border-radius: 50%;
 }
 
@@ -198,7 +217,7 @@
   overflow: hidden;
   font-size: 11.5px;
   font-weight: 700;
-  color: #ffffff;
+  color: #111111;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -209,10 +228,10 @@
   overflow: hidden;
   font-size: 9px;
   font-weight: 600;
-  color: #2c2752;
+  color: #111111;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: #d5cffa;
+  background: #edeae4;
   border-radius: 999px;
 }
 
@@ -259,8 +278,8 @@
   justify-content: space-between;
   gap: 16px;
   padding: 14px 24px;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
+  background: var(--app-bg);
+  border-bottom: 1px solid var(--sidebar-line);
 }
 
 .search {
@@ -755,24 +774,30 @@
 }
 
 .button--primary {
-  color: #ffffff;
-  background: linear-gradient(90deg, #f7743f, var(--orange-dark));
-  box-shadow: 0 8px 18px -8px rgba(217, 83, 31, 0.6);
+  color: #ffffff !important;
+  background: var(--orange, #f26a3d) !important;
+  border: 1px solid var(--orange-dark, #d9531f) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 6px rgba(242, 106, 61, 0.25) !important;
 }
 
 .button--primary:hover {
+  background: var(--orange-dark, #d9531f) !important;
+  border-color: var(--orange-dark, #d9531f) !important;
   transform: translateY(-1px);
 }
 
 .button--ghost {
-  color: var(--ink);
-  background: var(--card);
-  border-color: var(--line);
+  color: #374151 !important;
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 12px !important;
 }
 
 .button--ghost:hover {
-  color: var(--accent-text);
-  border-color: var(--orange);
+  background: #f8fafc !important;
+  color: #111111 !important;
+  border-color: #9ca3af !important;
 }
 
 .button--sm {
@@ -1397,9 +1422,9 @@
   --faint: #9ba1b3;
   --field: #ffffff;
 
-  --sidebar-bg: #191d33;
-  --sidebar-ink: #9aa1c2;
-  --sidebar-line: rgba(255, 255, 255, 0.08);
+  --sidebar-bg: #F8F7F3;
+  --sidebar-ink: #555555;
+  --sidebar-line: #E8E5DF;
 
   --activity-bg: #ffffff;
   --activity-border: #efe5db;
@@ -1414,28 +1439,28 @@
 }
 
 [data-theme='dark'] .app {
-  --app-bg: #0d0f19;
-  --card: #151827;
-  --soft: #1b1f2e;
-  --line: #262b3d;
-  --ink: #f2f3f8;
-  --muted: #98a0bd;
-  --label: #ced3e4;
-  --faint: #6f7691;
-  --field: #1b1f2e;
+  --app-bg: #090b10;
+  --card: #131722;
+  --soft: #181d2b;
+  --line: #22283a;
+  --ink: #f8fafc;
+  --muted: #94a3b8;
+  --label: #cbd5e1;
+  --faint: #64748b;
+  --field: #181d2b;
 
-  --sidebar-bg: #0a0c15;
-  --sidebar-ink: #939bbb;
-  --sidebar-line: rgba(255, 255, 255, 0.06);
+  --sidebar-bg: #0f121d;
+  --sidebar-ink: #94a3b8;
+  --sidebar-line: #1e2335;
 
-  --activity-bg: #121524;
+  --activity-bg: #131722;
   --activity-border: rgba(255, 255, 255, 0.1);
   --activity-ink: #ffffff;
-  --activity-text: rgba(255, 255, 255, 0.72);
-  --activity-dim: rgba(255, 255, 255, 0.58);
+  --activity-text: rgba(255, 255, 255, 0.85);
+  --activity-dim: rgba(255, 255, 255, 0.65);
   --activity-faint: rgba(255, 255, 255, 0.45);
   --activity-accent: #ff9a6b;
-  --feed-bg: rgba(255, 255, 255, 0.07);
+  --feed-bg: rgba(255, 255, 255, 0.05);
 
   --shadow: none;
 }
@@ -1443,36 +1468,99 @@
 /* --------------------------------------------------------------------------
    2. Shell + sidebar
    -------------------------------------------------------------------------- */
-.app .sidebar {
-  gap: 28px;
-  background: linear-gradient(180deg, #1d2237 0%, #141828 100%);
+html:not([data-theme='dark']) .app .sidebar {
+  gap: 20px;
+  background: #F8F7F3 !important;
+  border-right: 1px solid #E8E5DF !important;
+  color: #111111 !important;
 }
 
 [data-theme='dark'] .app .sidebar {
-  background: linear-gradient(180deg, #10131f 0%, #080a11 100%);
+  gap: 20px;
+  background: #0f121d !important;
+  border-right: 1px solid #1e2335 !important;
+  color: #f8fafc !important;
 }
 
-.app .logo-mark {
-  width: 30px;
-}
-
-.app .brand__text strong {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+.app .logo-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #f26a3d, #6c5ce7);
   color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(242, 106, 61, 0.3);
+}
+
+html:not([data-theme='dark']) .app .brand__text strong {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #111111 !important;
+}
+
+[data-theme='dark'] .app .brand__text strong {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff !important;
 }
 
 .app .nav__item {
-  padding: 12px 14px;
-  font-size: 12.5px;
-  color: var(--sidebar-ink);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--sidebar-ink, #555555) !important;
+  border-radius: 12px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.app .nav__item.is-active {
-  color: #ffffff;
-  background: linear-gradient(135deg, #ff8a5b 0%, #dd5520 100%);
-  box-shadow: 0 14px 24px -16px rgba(221, 85, 32, 0.95);
+html:not([data-theme='dark']) .app .nav__item:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #111111 !important;
+}
+
+[data-theme='dark'] .app .nav__item:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #ffffff !important;
+}
+
+html:not([data-theme='dark']) .app .nav__item.is-active {
+  color: #111111 !important;
+  font-weight: 700 !important;
+  background: #EDEAE4 !important;
+  box-shadow: none !important;
+}
+
+[data-theme='dark'] .app .nav__item.is-active {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  background: #20263a !important;
+  box-shadow: none !important;
+}
+
+.app .nav__item .nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #D1D5DB;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.app .nav__item.is-active .nav-dot {
+  background: #6C5CE7 !important;
+}
+
+.app .s3-nav-group-label {
+  display: none !important;
 }
 
 /* --------------------------------------------------------------------------
