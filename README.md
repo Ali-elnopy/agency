@@ -13,8 +13,10 @@ On the sign-in screen press **“Log in to ORVIA”** to enter with the demo ses
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | `admin@agency.local` | `ChangeMe123!` |
-| Account Manager | `elena.vance@orvia-creative.com` | `password1234` |
+| Admin | `admin@orvia.com` | `Password123!` |
+| Account Manager | `am@orvia.com` | `Password123!` |
+| Content Creator | `employee@orvia.com` | `Password123!` |
+| Client | `client@orvia.com` | `Password123!` |
 
 To rebuild the single-file demo bundle locally, run `npm run build:demo` inside `frontend/`.
 
