@@ -26,36 +26,60 @@
 }
 
 .app[data-collapsed='true'] {
-  --sidebar-w: 76px;
+  --sidebar-w: 80px;
 }
 
 .app[data-collapsed='true'] .sb-label {
-  display: none;
+  display: none !important;
+}
+
+.app[data-collapsed='true'] .s3-nav-group-label {
+  display: none !important;
 }
 
 .app[data-collapsed='true'] .sidebar__top {
   flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 8px 8px;
 }
 
 .app[data-collapsed='true'] .nav__item {
   justify-content: center;
+  padding: 10px 0;
+  width: 44px;
+  height: 44px;
+  margin: 3px auto;
+  border-radius: 12px;
+}
+
+.app[data-collapsed='true'] .nav__item .nav-icon {
+  margin: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .app[data-collapsed='true'] .sidebar__foot {
-  gap: 8px;
+  padding: 10px 4px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .app[data-collapsed='true'] .sb-user {
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: 6px;
-  padding: 8px 6px;
+  padding: 8px 4px;
   background: none;
   border: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .app[data-collapsed='true'] .sb-user__actions {
   margin-left: 0;
+  justify-content: center;
 }
 
 /* Colors (modifier on chips, pills, tiles, bars, alerts) */

@@ -5,7 +5,8 @@ import PlanModal from '../components/brands/PlanModal';
 import EditBrandModal from '../components/brands/EditBrandModal';
 import AddPlatformModal from '../components/brands/AddPlatformModal';
 import BrandBriefSection from '../components/brands/BrandBriefSection';
-import ContentStrategySection from '../components/brands/ContentStrategySection';
+import StrategyWorkspacePage from './StrategyWorkspacePage';
+import ContentItemsPage from './ContentItemsPage';
 import PlanDirectionSection from '../components/brands/PlanDirectionSection';
 import SocialPlatformsSection from '../components/brands/SocialPlatformsSection';
 import FilesAssetsSection from '../components/brands/FilesAssetsSection';
@@ -370,6 +371,7 @@ export default function BrandDetailPage({
           counts={{
             brief: `${briefs.length} ${briefs.length === 1 ? 'file' : 'files'}`,
             strategy: `${strategies.length} ${strategies.length === 1 ? 'strategy' : 'strategies'}`,
+            content: `${brandPlans.length} ${brandPlans.length === 1 ? 'plan' : 'plans'} · ${brandContent.length} ${brandContent.length === 1 ? 'item' : 'items'}`,
             direction: `${brandDirections.length} ${
               brandDirections.length === 1 ? 'direction' : 'directions'
             }`,
@@ -892,16 +894,16 @@ export default function BrandDetailPage({
 
       {tab === 'brief' ? <BrandBriefSection brand={brand} onToast={notify} /> : null}
 
-      {tab === 'strategy' ? <ContentStrategySection brand={brand} onToast={notify} /> : null}
+      {tab === 'strategy' ? (
+        <StrategyWorkspacePage
+          initialBrandId={brand.id}
+          onOpenContent={() => setTab('content')}
+        />
+      ) : null}
 
-      {tab === 'direction' ? (
-        <PlanDirectionSection
-          brand={brand}
-          onToast={notify}
-          onAddPlatform={() => setPlatformModal({})}
-          onAddContent={(contentMonth, platformId) => onAddContent?.(contentMonth, platformId)}
-          initialPlatformId={directionsFocus?.platformId}
-          initialMonth={directionsFocus?.month}
+      {tab === 'content' || tab === 'direction' ? (
+        <ContentItemsPage
+          initialBrandId={brand.id}
         />
       ) : null}
 

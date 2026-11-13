@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
 import useAuth from '../hooks/useAuth';
@@ -39,6 +39,12 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
     const beanco = activeBrands.find((b) => b.id === 'brand-beanco');
     return beanco ? beanco.id : (activeBrands[0]?.id || '');
   });
+
+  useEffect(() => {
+    if (initialBrandId) {
+      setBrandId(String(initialBrandId));
+    }
+  }, [initialBrandId]);
 
   // Role simulation toggle for testing all views from Mostafa's PDF
   const defaultRoleView = useMemo(() => {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../components/common/Modal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
@@ -89,8 +89,15 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
 
   // Hierarchy Navigation State:
   // 'brands' -> 'brand_hub' -> 'platforms' OR 'plans' -> 'plan_details' -> 'campaign_details' -> 'item_details'
-  const [screen, setScreen] = useState('brands');
+  const [screen, setScreen] = useState(() => (initialBrandId ? 'brand_hub' : 'brands'));
   const [selectedBrandId, setSelectedBrandId] = useState(initialBrandId || activeBrands[0]?.id || '');
+
+  useEffect(() => {
+    if (initialBrandId) {
+      setSelectedBrandId(initialBrandId);
+      setScreen('brand_hub');
+    }
+  }, [initialBrandId]);
   const [selectedPlatform, setSelectedPlatform] = useState('Instagram');
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey());
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
@@ -1491,10 +1498,10 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                   <thead>
                     <tr>
                       <th>{t('Content')}</th>
+                      <th>{t('Type')}</th>
                       <th>{t('Platform')}</th>
                       <th>{t('Date')}</th>
-                      <th>{t('Pillar')}</th>
-                      <th>{t('Status')}</th>
+                      <th>{t('Tone of Voice')}</th>
                       <th>{t('Actions')}</th>
                     </tr>
                   </thead>
@@ -1512,24 +1519,25 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                               </span>
                               <span>
                                 <strong>{item.title}</strong>
-                                <small>
-                                  {t(CONTENT_TYPE_LABEL[item.type] ?? item.type)}
-                                  {item.tov ? ` · ${item.tov}` : ''}
-                                </small>
+                                {item.caption ? (
+                                  <small className="s3-nowrap" style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', color: '#6b7280' }}>
+                                    {item.caption}
+                                  </small>
+                                ) : null}
                               </span>
                             </div>
+                          </td>
+                          <td>
+                            <StatusPill
+                              label={t(CONTENT_TYPE_LABEL[item.type] ?? item.type)}
+                              tone={item.type === 'reel' ? 'is-purple' : item.type === 'story' ? 'is-amber' : 'is-blue'}
+                            />
                           </td>
                           <td>
                             <StatusPill label={meta.platform ?? item.platform ?? selectedPlatform} tone="is-blue" />
                           </td>
                           <td className="s3-nowrap">{formatDate(item.publishDate)}</td>
-                          <td>{meta.pillar || item.pillar || '—'}</td>
-                          <td>
-                            <StatusPill
-                              label={t(CONTENT_STATUS_LABEL[item.status] ?? item.status)}
-                              tone={STATUS_TONE[item.status] ?? 'is-gray'}
-                            />
-                          </td>
+                          <td>{item.tov || '—'}</td>
                           <td>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               <button
@@ -1688,9 +1696,9 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                 <thead>
                   <tr>
                     <th>{t('Content')}</th>
+                    <th>{t('Type')}</th>
                     <th>{t('Date')}</th>
-                    <th>{t('Pillar')}</th>
-                    <th>{t('Status')}</th>
+                    <th>{t('Tone of Voice')}</th>
                     <th>{t('Actions')}</th>
                   </tr>
                 </thead>
@@ -1706,18 +1714,22 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                           </span>
                           <span>
                             <strong>{item.title}</strong>
-                            <small>{t(CONTENT_TYPE_LABEL[item.type] ?? item.type)}</small>
+                            {item.caption ? (
+                              <small className="s3-nowrap" style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', color: '#6b7280' }}>
+                                {item.caption}
+                              </small>
+                            ) : null}
                           </span>
                         </div>
                       </td>
-                      <td className="s3-nowrap">{formatDate(item.publishDate)}</td>
-                      <td>{item.pillar || '—'}</td>
                       <td>
                         <StatusPill
-                          label={t(CONTENT_STATUS_LABEL[item.status] ?? item.status)}
-                          tone={STATUS_TONE[item.status] ?? 'is-gray'}
+                          label={t(CONTENT_TYPE_LABEL[item.type] ?? item.type)}
+                          tone={item.type === 'reel' ? 'is-purple' : item.type === 'story' ? 'is-amber' : 'is-blue'}
                         />
                       </td>
+                      <td className="s3-nowrap">{formatDate(item.publishDate)}</td>
+                      <td>{item.tov || '—'}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <button

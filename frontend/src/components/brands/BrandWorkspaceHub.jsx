@@ -12,14 +12,14 @@ const SECTIONS = [
   {
     id: 'strategy',
     label: 'Content Strategy',
-    description: 'The approved strategy, drafted by the creator and reviewed by the account manager.',
+    description: 'The approved strategy file, preview, upload and review workflow.',
     icon: '#i-chart',
     tone: 'is-purple',
   },
   {
-    id: 'direction',
-    label: 'Monthly Plans',
-    description: 'Platform and month selectors, plan directions and the content plan.',
+    id: 'content',
+    label: 'Content Management',
+    description: 'Monthly content plans, campaigns, platforms and content items.',
     icon: '#i-calendar',
     tone: 'is-green',
   },

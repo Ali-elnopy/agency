@@ -1197,6 +1197,7 @@ export const ARABIC = {
   Tone: 'النبرة',
   References: 'المراجع',
   Notes: 'الملاحظات',
+  Type: 'النوع',
   Attachments: 'المرفقات',
   'Add attachment': 'إضافة مرفق',
   'Details saved as draft': 'تم حفظ التفاصيل كمسودة',

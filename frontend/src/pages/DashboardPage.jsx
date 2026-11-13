@@ -75,6 +75,9 @@ const SECTION_TO_TAB = {
   manageBrands: 'teams',
   addUser: 'users',
   roles: 'users',
+  strategy: 'clients',
+  content: 'clients',
+  templates: 'clients',
 };
 
 export default function DashboardPage({
@@ -91,8 +94,7 @@ export default function DashboardPage({
   const { toast, showToast, clearToast } = useToast(8000);
 
   const [section, setSection] = useState(() => {
-    if (role === 'creator') return 'content';
-    if (role === 'employee') return 'strategy';
+    if (role === 'creator' || role === 'employee') return 'clients';
     return 'dashboard';
   });
   const [activeBrandId, setActiveBrandId] = useState('brand-1');
