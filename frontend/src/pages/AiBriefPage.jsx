@@ -87,7 +87,6 @@ export default function AiBriefPage({ onOpenStrategy }) {
     }
     setDraft({
       sections: { ...brief.sections },
-      clarifying: (brief.clarifying ?? []).map((item) => ({ ...item })),
     });
   }, [brief]);
 
@@ -117,7 +116,6 @@ export default function AiBriefPage({ onOpenStrategy }) {
       });
       setDraft({
         sections: { ...generated.sections },
-        clarifying: generated.clarifying.map((item) => ({ ...item })),
       });
       setGenerating(false);
       showToast(t('Draft brief generated. Review each section before approving.'), 'success');
@@ -132,18 +130,9 @@ export default function AiBriefPage({ onOpenStrategy }) {
     setErrors((prev) => ({ ...prev, [key]: '' }));
   };
 
-  const updateClarifying = (id, answer) => {
-    setDraft((prev) => ({
-      ...prev,
-      clarifying: prev.clarifying.map((item) =>
-        item.id === id ? { ...item, answer } : item,
-      ),
-    }));
-  };
-
   const handleSave = () => {
     if (!brief || !draft) return;
-    saveBrief(brief.id, { sections: draft.sections, clarifying: draft.clarifying });
+    saveBrief(brief.id, { sections: draft.sections });
     showToast(t('Brief saved as a draft.'), 'success');
   };
 
@@ -163,7 +152,7 @@ export default function AiBriefPage({ onOpenStrategy }) {
       return;
     }
 
-    saveBrief(brief.id, { sections: draft.sections, clarifying: draft.clarifying });
+    saveBrief(brief.id, { sections: draft.sections });
     approveBrief(brief.id, user?.fullName || 'Account Manager');
     setApproveOpen(false);
     showToast(t('Brief approved and locked.'), 'success');
@@ -206,11 +195,9 @@ export default function AiBriefPage({ onOpenStrategy }) {
           note={`${briefs.filter((item) => item.status === 'approved').length} ${t('approved')}`}
         />
         <Stat
-          label={t('Clarifications open')}
-          value={draft
-            ? draft.clarifying.filter((item) => !item.answer?.trim()).length
-            : 0}
-          note={t('Questions the client still owes us')}
+          label={t('Briefs approved')}
+          value={briefs.filter((item) => item.status === 'approved').length}
+          note={t('Approved by Account Manager')}
         />
       </div>
 
@@ -401,31 +388,6 @@ export default function AiBriefPage({ onOpenStrategy }) {
                     </label>
                   ))}
                 </div>
-
-                {draft.clarifying.length ? (
-                  <div className="s3-clarifying">
-                    <header>
-                      <h3>{t('Clarifying questions')}</h3>
-                      <p>
-                        {t(
-                          'The AI flagged missing data. Record the client’s answers so the strategy can use them.',
-                        )}
-                      </p>
-                    </header>
-                    {draft.clarifying.map((item) => (
-                      <label className="s3-clarify" key={item.id}>
-                        <span>{t(item.question)}</span>
-                        <input
-                          className="form-input"
-                          value={t(item.answer) ?? item.answer ?? ''}
-                          onChange={(event) => updateClarifying(item.id, event.target.value)}
-                          placeholder={t('Client answer…')}
-                          disabled={!canEdit}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                ) : null}
 
                 {canEdit && !isApproved ? (
                   <footer className="s3-form-actions s3-form-actions--between">
