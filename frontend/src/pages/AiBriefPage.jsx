@@ -255,7 +255,6 @@ export default function AiBriefPage({ onOpenStrategy }) {
                   <div className="s3-answer" key={question.id}>
                     <span className="s3-answer__label">
                       {t(question.label)}
-                      <em>{t(QUESTION_TYPE_LABEL[question.type] ?? question.type)}</em>
                     </span>
                     <p className={value ? undefined : 'is-muted'}>
                       {value ? answerText(value, t) : t('Not answered')}
@@ -264,24 +263,6 @@ export default function AiBriefPage({ onOpenStrategy }) {
                 );
               })}
             </div>
-
-            {canEdit ? (
-              <button
-                type="button"
-                className="button button--primary s3-generate"
-                onClick={handleGenerate}
-                disabled={generating}
-              >
-                <svg aria-hidden="true" className="icon">
-                  <use href="#i-zap" />
-                </svg>
-                {generating
-                  ? t('Generating…')
-                  : brief
-                    ? t('Regenerate brief with AI')
-                    : t('Generate brief with AI')}
-              </button>
-            ) : null}
 
             {generating ? (
               <div className="s3-ai-loading">
