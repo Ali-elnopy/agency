@@ -33,6 +33,8 @@ export default function AddBrandPage({ onBack, onSaved }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [createdResult, setCreatedResult] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const selectedTimezone = useMemo(
     () => TIMEZONES.find((timezone) => timezone.value === form.timezone),
@@ -99,7 +101,7 @@ export default function AddBrandPage({ onBack, onSaved }) {
     setSubmitError('');
 
     try {
-      const brand = await addBrand({
+      const created = await addBrand({
         name,
         industry,
         country: form.country,
@@ -110,7 +112,8 @@ export default function AddBrandPage({ onBack, onSaved }) {
         clientEmail,
       });
 
-      let notice = 'Brand created successfully.';
+      const brand = created?.brand ?? created;
+      const clientPassword = created?.clientTemporaryPassword ?? null;
 
       // Sprint 3: a brand usually needs a squad before strategy work starts.
       // The team is created after the brand so it can be linked immediately.
@@ -124,20 +127,116 @@ export default function AddBrandPage({ onBack, onSaved }) {
           if (team?.id !== undefined && team?.id !== null) {
             await setTeamBrands(team.id, [brand.id]);
           }
-
-          notice = `Brand created and its team “${team?.name || teamName.trim() || `${name} Team`}” is ready.`;
         } catch {
-          notice = 'Brand created, but the team could not be created. You can add it from Teams.';
+          // The brand exists; the team can be created later from Teams.
         }
       }
 
-      onSaved?.(brand, notice);
+      // Keep the user on this screen with the one-time client credentials.
+      // The temporary password is never shown again and no email is sent yet.
+      setCreatedResult({ brand, clientEmail, clientPassword });
     } catch (error) {
       setSubmitError(error?.message ?? 'Could not create the brand.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleCopyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(createdResult?.clientPassword ?? '');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Clipboard unavailable: the password stays visible for manual copy.
+    }
+  };
+
+  if (createdResult) {
+    const { brand, clientEmail: createdEmail, clientPassword } = createdResult;
+
+    return (
+      <div className="page-screen brand-form-page">
+        <section className="page-head">
+          <h1 className="page-head__title">{t('Add Brand')}</h1>
+        </section>
+
+        <div className="brand-form-card">
+          <h2 style={{ marginTop: 0 }}>✅ {t('Brand created successfully')}</h2>
+          <p style={{ color: '#555' }}>
+            {t('Brand')} <strong>{brand?.name}</strong> — {createdEmail}
+          </p>
+
+          {clientPassword ? (
+            <div
+              style={{
+                border: '1px solid #F0A882',
+                background: '#FFF4EC',
+                borderRadius: 12,
+                padding: '16px 20px',
+                marginTop: 16,
+              }}
+            >
+              <strong style={{ display: 'block', marginBottom: 8 }}>
+                🔑 {t('Client portal login credentials')} ({t('shown only once')}):
+              </strong>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <code
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                    background: '#fff',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #E5D5C8',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {createdEmail} / {clientPassword}
+                </code>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={handleCopyPassword}
+                >
+                  {copied ? t('Copied!') : t('Copy password')}
+                </button>
+              </div>
+              <p style={{ marginBottom: 0, color: '#8a5a3b', fontSize: 13 }}>
+                ⚠️ {t('Save this password and share it with the client securely. It cannot be recovered later.')}
+              </p>
+            </div>
+          ) : (
+            <p style={{ color: '#8a5a3b' }}>
+              ⚠️ {t('No client account was created for this brand (offline mode).')}
+            </p>
+          )}
+
+          <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => onSaved?.(brand, t('Brand created successfully.'))}
+            >
+              {t('Open brand workspace')} →
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                setCreatedResult(null);
+                setForm(EMPTY_FORM);
+                setCreateTeam(false);
+                setTeamName('');
+              }}
+            >
+              + {t('Create another brand')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-screen brand-form-page">

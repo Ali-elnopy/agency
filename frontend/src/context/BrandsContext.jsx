@@ -446,10 +446,12 @@ export function BrandsProvider({ children }) {
 
       if (!demo) {
         try {
-          const brand = await createBrandApi(input);
+          const created = await createBrandApi(input);
+          const brand = created?.brand ?? created;
+
           if (brand && brand.id) {
             setBrands((prev) => [brand, ...prev]);
-            return brand;
+            return created;
           }
         } catch {
           // Fallback to local creation if backend offline

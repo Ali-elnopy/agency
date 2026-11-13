@@ -129,7 +129,12 @@ export async function createBrand(input) {
   const data = unwrap(body);
 
   // The endpoint answers with `{ brand, clientTemporaryPassword }`.
-  return mapBrand(data?.brand ?? data);
+  // The password is shown once to the admin (there is no email delivery yet),
+  // so it must reach the caller instead of being dropped here.
+  return {
+    brand: mapBrand(data?.brand ?? data),
+    clientTemporaryPassword: data?.clientTemporaryPassword ?? null,
+  };
 }
 
 export async function updateBrand(id, patch) {
