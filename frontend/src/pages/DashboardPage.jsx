@@ -56,7 +56,7 @@ const SECTION_LABELS = {
   dispatch: 'Question Dispatch',
   briefs: 'AI Briefs',
   strategy: 'Strategy',
-  content: 'Content Items',
+  content: 'Content Management',
   tasks: 'Tasks',
   myWork: 'Tasks',
   decisions: 'Decision Settings',
@@ -325,7 +325,7 @@ export default function DashboardPage({
         return (
           <ContentItemsPage
             key={`content-${activeBrandId}`}
-            initialBrandId={activeBrandId}
+            initialBrandId={null}
             onOpenPlan={(brandId, month) => {
               if (brandId) setActiveBrandId(brandId);
               openAddContent(month);

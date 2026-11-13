@@ -44,10 +44,11 @@ const defaultNotifications = [
   {
     id: 'notif-1',
     type: 'onboarding_submitted',
+    targetRoles: ['ACCOUNT_MANAGER', 'ADMIN'],
     title: 'New Client Onboarding Submitted',
     titleAr: 'تم استلام استمارة عميل جديدة',
-    message: 'Lumina Health submitted onboarding questionnaire.',
-    messageAr: 'قام براند Lumina Health بإرسال استمارة الأسئلة بنجاح.',
+    message: 'Bean & Co Cafe submitted onboarding questionnaire.',
+    messageAr: 'قام براند Bean & Co Cafe بإرسال استمارة الأسئلة بنجاح.',
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
     link: 'dispatch',
@@ -55,24 +56,62 @@ const defaultNotifications = [
   {
     id: 'notif-2',
     type: 'strategy_uploaded',
-    title: 'Strategy Uploaded for Review',
-    titleAr: 'تم رفع استراتيجية جديدة للمراجعة',
-    message: 'Alex Rivera uploaded Lumina Health Content Strategy v1.0.',
-    messageAr: 'قام الموظف برفع استراتيجية Lumina Health للمراجعة الداخلية.',
+    targetRoles: ['ACCOUNT_MANAGER', 'ADMIN'],
+    title: 'Strategy Uploaded for Internal Review',
+    titleAr: 'تم رفع استراتيجية جديدة للمراجعة الداخلية',
+    message: 'Noah Reed uploaded Bean & Co Cafe Brand Strategy v2.0.',
+    messageAr: 'قام صانع المحتوى برفع استراتيجية Bean & Co Cafe للمراجعة الداخلية.',
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
     link: 'strategy',
   },
   {
     id: 'notif-3',
-    type: 'brief_generated',
-    title: 'AI Brief Generated',
-    titleAr: 'تم توليد ملخص البراند بالذكاء الاصطناعي',
-    message: 'AI Brand Brief for Aura Skincare is ready.',
-    messageAr: 'ملخص البريف الذكي لبراند Aura Skincare جاهز للاطلاع.',
+    type: 'brief_review_needed',
+    targetRoles: ['ACCOUNT_MANAGER', 'ADMIN'],
+    title: 'AI Brief Review Required',
+    titleAr: 'مطلوب مراجعة واعتماد البريف الذكي',
+    message: 'AI Brand Brief for Bean & Co Cafe is ready for Account Manager sign-off.',
+    messageAr: 'ملخص البريف الذكي لبراند Bean & Co Cafe جاهز لاعتماد مدير الحسابات.',
     isRead: true,
     createdAt: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
     link: 'briefs',
+  },
+  {
+    id: 'notif-4',
+    type: 'client_approved_strategy',
+    targetRoles: ['ACCOUNT_MANAGER', 'ADMIN'],
+    title: 'Client Approved Strategy',
+    titleAr: 'العميل اعتمد الاستراتيجية',
+    message: 'Sarah Jenkins approved the strategy. Final sign-off required to unlock content plans.',
+    messageAr: 'قام العميل باعتماد الاستراتيجية. مطلوب تسجيل الاعتماد النهائي لفتح خطط المحتوى.',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
+    link: 'strategy',
+  },
+  {
+    id: 'notif-5',
+    type: 'strategy_changes_requested',
+    targetRoles: ['EMPLOYEE', 'CONTENT_CREATOR', 'CREATOR'],
+    title: 'Strategy Revision Requested',
+    titleAr: 'مطلوب تعديلات على الاستراتيجية',
+    message: 'Account Manager requested revisions on BeanCo-Strategy.pdf: Please add a content calendar outline.',
+    messageAr: 'طلب مدير الحسابات تعديلات على ملف الاستراتيجية: يرجى إضافة تفاصيل تقويم المحتوى.',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+    link: 'strategy',
+  },
+  {
+    id: 'notif-6',
+    type: 'content_task_assigned',
+    targetRoles: ['EMPLOYEE', 'CONTENT_CREATOR', 'CREATOR'],
+    title: 'New Content Item Assigned',
+    titleAr: 'تم تعيين عنصر محتوى جديد',
+    message: 'You have been assigned to produce "Behind the bar" Reel for Bean & Co Cafe.',
+    messageAr: 'تم تعيينك لإنتاج فيديو ريلز "Behind the bar" لبراند Bean & Co Cafe.',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+    link: 'content',
   },
 ];
 
@@ -117,10 +156,25 @@ export function Sprint3Provider({ children }) {
   const [dispatches, setDispatches] = useState(() =>
     readArray(KEYS.dispatches, seedDispatches),
   );
-  const [briefs, setBriefs] = useState(() => readArray(KEYS.briefs, seedBriefs));
-  const [strategies, setStrategies] = useState(() =>
-    readArray(KEYS.strategies, seedStrategies),
-  );
+  const [briefs, setBriefs] = useState(() => {
+    const loaded = readArray(KEYS.briefs, seedBriefs);
+    const hasBeanco = loaded.some((b) => b.brandId === 'brand-beanco' || b.id === 'brief-beanco');
+    return hasBeanco ? loaded : [seedBriefs[0], ...loaded];
+  });
+  const [strategies, setStrategies] = useState(() => {
+    const loaded = readArray(KEYS.strategies, seedStrategies);
+    const hasBeanco = loaded.some((s) => s.brandId === 'brand-beanco' || s.id === 'str-beanco');
+    const base = hasBeanco ? loaded : [seedStrategies[0], ...loaded];
+    return base.map((s) => ({
+      ...s,
+      fileName: s.fileName || `${(s.brandName || s.title || 'Brand').replace(/[^a-zA-Z0-9]/g, '_')}_Strategy.pdf`,
+      fileSize: s.fileSize || '3.5 MB',
+      fileType: s.fileType || 'application/pdf',
+      version: s.version || '1',
+      uploadDate: s.uploadDate || (s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '14 Nov 2026'),
+      associatedBrief: s.associatedBrief || 'Brief v1',
+    }));
+  });
   const [campaigns, setCampaigns] = useState(() =>
     readArray(KEYS.campaigns, seedCampaigns),
   );
@@ -772,10 +826,18 @@ export function Sprint3Provider({ children }) {
 
   const [serverUnreadCount, setServerUnreadCount] = useState(null);
 
+  const roleFilteredNotifications = useMemo(() => {
+    if (!technicalRole || technicalRole === 'ADMIN') return notifications;
+    return notifications.filter((n) => {
+      if (!n.targetRoles) return true;
+      return n.targetRoles.includes(technicalRole);
+    });
+  }, [notifications, technicalRole]);
+
   const unreadCount = useMemo(() => {
     if (serverUnreadCount !== null) return serverUnreadCount;
-    return notifications.filter((n) => !n.isRead).length;
-  }, [serverUnreadCount, notifications]);
+    return roleFilteredNotifications.filter((n) => !n.isRead).length;
+  }, [serverUnreadCount, roleFilteredNotifications]);
 
   // Periodic polling for unread notifications (every 30-45 seconds)
   useEffect(() => {
@@ -859,7 +921,7 @@ export function Sprint3Provider({ children }) {
       t,
       setRole,
       setLang,
-      notifications,
+      roleFilteredNotifications,
       unreadCount,
       markNotificationAsRead,
       markAllNotificationsAsRead,
@@ -918,7 +980,7 @@ export function Sprint3Provider({ children }) {
       t,
       setRole,
       setLang,
-      notifications,
+      roleFilteredNotifications,
       unreadCount,
       markNotificationAsRead,
       markAllNotificationsAsRead,

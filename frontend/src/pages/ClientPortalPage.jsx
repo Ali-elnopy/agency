@@ -852,36 +852,29 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         </div>
       </div>
 
-      <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 18, padding: '18px 24px', marginBottom: 24, maxWidth: 500 }}>
-        <span style={{ display: 'block', color: '#DC2626', fontSize: 13, marginBottom: 12, fontWeight: 600 }}>
-          Generation failed. Please try again.
-        </span>
-        <button
-          type="button"
-          onClick={() => showToast(t('Retrying AI brief generation…'), 'info')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 20px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Retry
-        </button>
+      <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 18, padding: '16px 20px', marginBottom: 24, maxWidth: 560 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#166534', fontWeight: 700, fontSize: 13.5 }}>
+          <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, stroke: '#16A34A', strokeWidth: 2.5, fill: 'none' }}>
+            <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {lang === 'ar'
+            ? 'تم استلام وتوثيق إجاباتكم بنجاح.'
+            : 'Answers submitted and documented successfully.'}
+        </div>
+        <p style={{ margin: '6px 0 0', fontSize: 12.5, color: '#15803D', lineHeight: 1.5 }}>
+          {lang === 'ar'
+            ? 'سيقوم مدير الحسابات بمراجعة هذه الإجابات وتوليد ملخص البراند (Brand Brief) بالذكاء الاصطناعي لفريق صُنّاع المحتوى.'
+            : 'Your Account Manager will review these answers and generate the AI Brand Brief for the creative team.'}
+        </p>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
         <button
           type="button"
           onClick={() => setBriefViewMode('summary')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
         >
-          Back to Brief
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setBriefViewMode('summary');
-            showToast(t('Brief generated successfully.'), 'success');
-          }}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 26px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Generate Brief
+          {lang === 'ar' ? 'العودة للملخص الإبداعي' : 'Back to Brief'}
         </button>
       </div>
     </div>
@@ -1135,11 +1128,11 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
     </div>
   );
 
-  // PAGE 17: Brands List
+  // PAGE 17: Brands List (Strictly scoped to Client's associated Brand)
   const renderPage17Brands = () => (
     <div style={{ maxWidth: 960 }}>
       <div className="portal-page-header">
-        <h1>Brands</h1>
+        <h1>{lang === 'ar' ? 'العلامة التجارية الخاصة بي' : 'My Brand'}</h1>
         <div className="portal-breadcrumb">Orvia / Brands</div>
       </div>
 
@@ -1147,27 +1140,59 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <input
           type="search"
           className="form-input"
-          placeholder="Search brands"
+          placeholder={lang === 'ar' ? 'بحث في البراند...' : 'Search brand…'}
           style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
         />
       </div>
 
+      {/* Strictly show only the Client's associated Brand */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
-        {['Bean & Co Cafe', 'Fresh Bakes', 'City Dental Care'].map((b) => (
-          <div
-            key={b}
-            style={{ background: '#DBEBFC', borderRadius: 20, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}
-          >
-            <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>{b}</strong>
-            <button
-              type="button"
-              onClick={() => setBrandSubScreen('platforms')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 'auto', width: '100%' }}
+        <div
+          style={{
+            background: '#DBEBFC',
+            borderRadius: 20,
+            padding: '24px 28px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            border: '1.5px solid #BFDBFE',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>{brandName}</strong>
+            <span
+              style={{
+                background: '#2563EB',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '3px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+              }}
             >
-              View Brand
-            </button>
+              {lang === 'ar' ? 'حسابك النشط' : 'Your Account'}
+            </span>
           </div>
-        ))}
+          <span style={{ fontSize: 12.5, color: '#4B5563' }}>Food & Beverage · Specialty Cafe</span>
+          <button
+            type="button"
+            onClick={() => setBrandSubScreen('platforms')}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1.5px solid #111111',
+              borderRadius: 12,
+              padding: '10px 20px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              marginTop: 'auto',
+              width: '100%',
+            }}
+          >
+            {lang === 'ar' ? 'عرض تفاصيل البراند والمنصات' : 'View Brand & Platforms'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1283,21 +1308,7 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               onClick={() => setContentPlanSubScreen('monthly')}
               style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
             >
-              View Plan
-            </button>
-            <button
-              type="button"
-              onClick={() => setContentPlanSubScreen('create')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={() => setContentPlanSubScreen('delete')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-            >
-              Delete
+              {lang === 'ar' ? 'عرض تفاصيل الخطة' : 'View Plan'}
             </button>
           </div>
         </div>
@@ -1317,20 +1328,10 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               onClick={() => setContentPlanSubScreen('monthly')}
               style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
             >
-              View Plan
+              {lang === 'ar' ? 'عرض تفاصيل الخطة' : 'View Plan'}
             </button>
           </div>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          type="button"
-          onClick={() => setContentPlanSubScreen('create')}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Create Plan
-        </button>
       </div>
     </div>
   );

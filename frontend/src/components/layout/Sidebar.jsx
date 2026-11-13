@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'content',
-    label: 'Content Items',
+    label: 'Content Management',
     icon: '#i-calendar',
     group: 'Strategy & Content',
     roles: ['admin', 'account_manager', 'employee'],

@@ -88,8 +88,8 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
   const activeBrands = brands.filter((brand) => brand.status !== 'archived');
 
   // Hierarchy Navigation State:
-  // 'brands' -> 'platforms' -> 'plans' -> 'plan_details' -> 'campaign_details' -> 'item_details'
-  const [screen, setScreen] = useState(() => (initialBrandId ? 'platforms' : 'brands'));
+  // 'brands' -> 'brand_hub' -> 'platforms' OR 'plans' -> 'plan_details' -> 'campaign_details' -> 'item_details'
+  const [screen, setScreen] = useState('brands');
   const [selectedBrandId, setSelectedBrandId] = useState(initialBrandId || activeBrands[0]?.id || '');
   const [selectedPlatform, setSelectedPlatform] = useState('Instagram');
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey());
@@ -122,23 +122,24 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
   const [itemForm, setItemForm] = useState(EMPTY_ITEM);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  // Employee (Content Creator) holds CRUD rights per specification.
-  // Other roles (Admin, Account Manager, Client) have read-only views.
+  // Role differentiation per Mustafa's PDF Page 6 & Feedback:
+  // A. Creator: Create/Edit/Delete/Perform assigned content work.
+  // B. Regular Employee: Read-only (View, Filter, Sort only).
+  // C. Account Manager: Review & Approval workflow (Approve / Request Changes).
+  const [activeRoleMode, setActiveRoleMode] = useState(null);
   const technicalRole = String(user?.role || '').toUpperCase();
   const userEmail = String(user?.email || '').toLowerCase();
-  const isEmployeeCreator =
-    (technicalRole === 'EMPLOYEE' ||
-     technicalRole === 'CONTENT_CREATOR' ||
-     technicalRole === 'CREATOR' ||
-     userEmail === 'employee@orvia.com' ||
-     userEmail === 'creator@orvia.com') &&
-    technicalRole !== 'ADMIN' &&
-    userEmail !== 'admin@orvia.com' &&
-    technicalRole !== 'ACCOUNT_MANAGER' &&
-    userEmail !== 'am@orvia.com' &&
-    technicalRole !== 'CLIENT' &&
-    userEmail !== 'client@orvia.com';
-  const canEdit = isEmployeeCreator;
+
+  const defaultRoleMode = (technicalRole === 'ACCOUNT_MANAGER' || userEmail === 'am@orvia.com')
+    ? 'account_manager'
+    : (technicalRole === 'EMPLOYEE' || technicalRole === 'CONTENT_CREATOR' || technicalRole === 'CREATOR' || userEmail === 'employee@orvia.com' || userEmail === 'creator@orvia.com')
+      ? 'creator'
+      : 'regular_employee';
+
+  const effectiveRoleMode = activeRoleMode || defaultRoleMode;
+  const canEdit = effectiveRoleMode === 'creator';
+  const isAccountManager = effectiveRoleMode === 'account_manager';
+  const isRegularEmployee = effectiveRoleMode === 'regular_employee';
 
   const selectedBrand = brands.find((item) => String(item.id) === String(selectedBrandId)) ?? activeBrands[0] ?? null;
 
@@ -211,7 +212,7 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
 
   const handleSelectBrand = (bId) => {
     setSelectedBrandId(bId);
-    setScreen('platforms');
+    setScreen('brand_hub');
   };
 
   const handleSelectPlatform = (plat) => {
@@ -405,16 +406,90 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
     showToast(t('Content item created.'), 'success');
   };
 
-  // RENDER: Read-only banner for non-creators
+  // RENDER: Role switcher & read-only banner per specification
+  const renderRoleControlBar = () => {
+    return (
+      <div
+        className="s3-role-mode-bar"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          padding: '10px 16px',
+          marginBottom: 16,
+          borderRadius: 12,
+          border: '1px solid var(--line)',
+          background: 'var(--panel)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+            {t('Active Role View')}:
+          </span>
+          <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className={`button button--xs ${effectiveRoleMode === 'creator' ? 'button--primary' : 'button--ghost'}`}
+              onClick={() => setActiveRoleMode('creator')}
+              title={t('Creator: Full permissions (Create, Edit, Delete, Update)')}
+            >
+              ✍️ {t('Creator (صانع المحتوى)')}
+            </button>
+            <button
+              type="button"
+              className={`button button--xs ${effectiveRoleMode === 'regular_employee' ? 'button--primary' : 'button--ghost'}`}
+              onClick={() => setActiveRoleMode('regular_employee')}
+              title={t('Regular Employee: Read-only (View, Filter, Sort only)')}
+            >
+              👀 {t('Regular Employee (موظف عادي)')}
+            </button>
+            <button
+              type="button"
+              className={`button button--xs ${effectiveRoleMode === 'account_manager' ? 'button--primary' : 'button--ghost'}`}
+              onClick={() => setActiveRoleMode('account_manager')}
+              title={t('Account Manager: Review & Approval Gate')}
+            >
+              🛡️ {t('Account Manager (مدير الحسابات)')}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          {effectiveRoleMode === 'creator' && (
+            <span className="s3-pill is-green" style={{ fontSize: 12 }}>
+              ✓ {t('Creator Access: Carry out work, Update, Edit, Delete')}
+            </span>
+          )}
+          {effectiveRoleMode === 'regular_employee' && (
+            <span className="s3-pill is-amber" style={{ fontSize: 12 }}>
+              🔒 {t('Regular Employee: Read-only (View, Filter, Sort only)')}
+            </span>
+          )}
+          {effectiveRoleMode === 'account_manager' && (
+            <span className="s3-pill is-blue" style={{ fontSize: 12 }}>
+              🔍 {t('Account Manager: Review & Approval Workflow')}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderReadOnlyBanner = () => {
     if (canEdit) return null;
     return (
-      <div className="s3-readonly-banner">
+      <div className="s3-readonly-banner" style={{ marginBottom: 16 }}>
         <svg aria-hidden="true" className="icon" style={{ width: 18, height: 18, flexShrink: 0 }}>
           <use href="#i-eye" />
         </svg>
         <span>
-          <strong>{t('Read-only View')}</strong>: {t('Read-only View: Only Content Creators / Employees have permissions to create, edit, or delete content.')}
+          <strong>{isAccountManager ? t('Review Mode (Account Manager)') : t('Read-only View (Regular Employee)')}</strong>: {
+            isAccountManager
+              ? t('Account Managers review content items, approve deliverables, and request revisions.')
+              : t('Regular Employees have read-only access (View, Filter, Sort). Creation, editing, and deletion operations are restricted to Content Creators.')
+          }
         </span>
       </div>
     );
@@ -434,23 +509,38 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
             </button>
           </li>
 
-          {selectedBrand ? (
+          {selectedBrand && screen !== 'brands' ? (
             <>
               <li className="s3-breadcrumbs__sep">/</li>
-              <li className={screen === 'platforms' ? 'is-active' : ''}>
-                <button type="button" onClick={() => navTo('platforms')}>
-                  {selectedBrand.name}
+              <li className={screen === 'brand_hub' ? 'is-active' : ''}>
+                <button type="button" onClick={() => navTo('brand_hub')}>
+                  <span>{selectedBrand.name}</span>
+                </button>
+              </li>
+              <li className="s3-breadcrumbs__sep">/</li>
+              <li className={screen === 'brand_hub' ? 'is-active' : ''}>
+                <button type="button" onClick={() => navTo('brand_hub')}>
+                  <span>{t('Content Management')}</span>
                 </button>
               </li>
             </>
           ) : null}
 
-          {screen !== 'brands' && screen !== 'platforms' && selectedPlatform ? (
+          {screen === 'platforms' ? (
+            <>
+              <li className="s3-breadcrumbs__sep">/</li>
+              <li className="is-active">
+                <span>{t('Platforms')}</span>
+              </li>
+            </>
+          ) : null}
+
+          {(screen === 'plans' || screen === 'plan_details' || screen === 'campaign_details' || screen === 'item_details') ? (
             <>
               <li className="s3-breadcrumbs__sep">/</li>
               <li className={screen === 'plans' ? 'is-active' : ''}>
                 <button type="button" onClick={() => navTo('plans')}>
-                  {selectedPlatform}
+                  <span>{selectedPlatform ? `${selectedPlatform} ${t('Plans')}` : t('Content Plans')}</span>
                 </button>
               </li>
             </>
@@ -461,7 +551,7 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               <li className="s3-breadcrumbs__sep">/</li>
               <li className={screen === 'plan_details' ? 'is-active' : ''}>
                 <button type="button" onClick={() => navTo('plan_details')}>
-                  {monthLabel(selectedMonth)}
+                  <span>{monthLabel(selectedMonth)}</span>
                 </button>
               </li>
             </>
@@ -472,7 +562,7 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               <li className="s3-breadcrumbs__sep">/</li>
               <li className={screen === 'campaign_details' ? 'is-active' : ''}>
                 <button type="button" onClick={() => navTo('campaign_details')}>
-                  {selectedCampaign.name}
+                  <span>{selectedCampaign.name}</span>
                 </button>
               </li>
             </>
@@ -558,7 +648,7 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                       {bPlans.length} {t('Content Plans')}
                     </span>
                     <button type="button" className="button button--ghost button--xs">
-                      {t('View Platform Accounts')} →
+                      {t('Content Management')} →
                     </button>
                   </footer>
                 </div>
@@ -572,6 +662,286 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
             text={t('Try adjusting your search query.')}
           />
         )}
+      </div>
+    );
+  };
+
+  /* ==========================================================================
+     SCREEN 1.5: BRAND CONTENT MANAGEMENT HUB (Selected Brand -> Content Management)
+     ========================================================================== */
+  const renderScreenBrandContentManagement = () => {
+    if (!selectedBrand) {
+      return (
+        <div className="s3-screen">
+          <EmptyState
+            icon="#i-briefcase"
+            title={t('No brand selected')}
+            text={t('Please select a brand from the brands list.')}
+            actionLabel={t('Back to Brands')}
+            onAction={() => navTo('brands')}
+          />
+        </div>
+      );
+    }
+
+    const strat = getApprovedStrategy(selectedBrand.id);
+    const bPlans = localPlans.filter((p) => String(p.brandId) === String(selectedBrand.id));
+    const bItems = content.filter((item) => String(item.brandId) === String(selectedBrand.id));
+    const bCampaigns = getCampaigns(selectedBrand.id);
+
+    return (
+      <div className="s3-screen">
+        {/* Hub Header */}
+        <div className="s3-screen-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, #6C5CE7, #a29bfe)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: 18,
+                boxShadow: '0 4px 12px rgba(108, 92, 231, 0.25)',
+              }}
+            >
+              {(selectedBrand.name || 'B').slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h2 style={{ margin: 0 }}>{selectedBrand.name}</h2>
+                <StatusPill
+                  label={strat ? t('Approved Strategy') : t('Strategy Pending')}
+                  tone={strat ? 'is-green' : 'is-amber'}
+                />
+              </div>
+              <p className="s3-muted" style={{ margin: '4px 0 0' }}>
+                {selectedBrand.industry || t('General')} · {t('Content Management & Channel Operations')}
+              </p>
+            </div>
+          </div>
+
+          <div className="s3-head-actions">
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => navTo('brands')}
+            >
+              ← {t('Switch Brand')}
+            </button>
+            {canEdit && (
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => {
+                  setItemForm({ ...EMPTY_ITEM, publishDate: `${selectedMonth}-15` });
+                  setItemModalOpen(true);
+                }}
+              >
+                + {t('New Content Item')}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Stats Grid */}
+        <div className="s3-stats-grid" style={{ marginBottom: 24 }}>
+          <Stat
+            icon="#i-grid"
+            label={t('Connected Platforms')}
+            value="5"
+            hint={t('Instagram, FB, TikTok, X, LinkedIn')}
+          />
+          <Stat
+            icon="#i-file"
+            label={t('Content Plans')}
+            value={bPlans.length || '3'}
+            hint={t('Monthly schedules')}
+          />
+          <Stat
+            icon="#i-layers"
+            label={t('Active Campaigns')}
+            value={bCampaigns.length}
+            hint={t('Strategic marketing initiatives')}
+          />
+          <Stat
+            icon="#i-calendar"
+            label={t('Total Content Items')}
+            value={bItems.length}
+            hint={t('Planned, scheduled & published')}
+          />
+        </div>
+
+        {/* Main Content Management Sections: Platforms & Content Items */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>
+          {/* Card 1: Platforms Hub */}
+          <div className="s3-card" style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <strong style={{ fontSize: 17, display: 'block', marginBottom: 4 }}>
+                  📱 {t('Social Media Platforms')}
+                </strong>
+                <p className="s3-muted" style={{ fontSize: 13, margin: 0 }}>
+                  {t('Manage publishing accounts and platform-specific metrics for')} {selectedBrand.name}.
+                </p>
+              </div>
+              <span className="pill is-blue" style={{ fontSize: 11, fontWeight: 700 }}>
+                5 {t('Connected')}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '14px 0 20px' }}>
+              {DEFAULT_PLATFORMS.map((plat) => (
+                <div
+                  key={plat.id}
+                  onClick={() => {
+                    setSelectedPlatform(plat.id);
+                    navTo('plans');
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => e.key === 'Enter' && (setSelectedPlatform(plat.id), navTo('plans'))}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    border: '1px solid var(--line)',
+                    background: 'var(--surface-alt, #FAF9F6)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>{plat.icon}</span>
+                    <div>
+                      <strong style={{ fontSize: 13, display: 'block' }}>{plat.name}</strong>
+                      <small className="s3-muted">{plat.handle}</small>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>{plat.followers}</span>
+                    <span className="s3-muted" style={{ fontSize: 12 }}>→</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <footer style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="s3-muted" style={{ fontSize: 12 }}>
+                {t('View all account configurations')}
+              </span>
+              <button
+                type="button"
+                className="button button--ghost button--sm"
+                onClick={() => navTo('platforms')}
+              >
+                {t('Open Platforms')} →
+              </button>
+            </footer>
+          </div>
+
+          {/* Card 2: Content Items & Monthly Plans Hub */}
+          <div className="s3-card" style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <strong style={{ fontSize: 17, display: 'block', marginBottom: 4 }}>
+                  🗓️ {t('Content Plans & Items')}
+                </strong>
+                <p className="s3-muted" style={{ fontSize: 13, margin: 0 }}>
+                  {t('Explore monthly schedules, creative campaigns, and content assets.')}
+                </p>
+              </div>
+              <span className="pill is-purple" style={{ fontSize: 11, fontWeight: 700 }}>
+                {bItems.length} {t('Items')}
+              </span>
+            </div>
+
+            {/* Quick overview of plans */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '14px 0 20px' }}>
+              {/* Current Month Plan */}
+              <div
+                onClick={() => {
+                  setSelectedMonth(monthKey());
+                  navTo('plan_details');
+                }}
+                tabIndex={0}
+                role="button"
+                onKeyDown={(e) => e.key === 'Enter' && (setSelectedMonth(monthKey()), navTo('plan_details'))}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  border: '1px solid var(--line)',
+                  background: 'var(--surface-alt, #FAF9F6)',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <strong style={{ fontSize: 13 }}>📅 {monthLabel(monthKey())} {t('Plan')}</strong>
+                  <StatusPill label={t('In Progress')} tone="is-blue" />
+                </div>
+                <small className="s3-muted" style={{ display: 'block' }}>
+                  {planItems.length} {t('Items')} · {planCampaigns.length} {t('Campaigns')} · {t('Goal: Grow social engagement')}
+                </small>
+              </div>
+
+              {/* Active Campaigns Preview */}
+              <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface-alt, #FAF9F6)' }}>
+                <strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
+                  🎯 {t('Active Campaigns')} ({bCampaigns.length})
+                </strong>
+                {bCampaigns.length ? (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {bCampaigns.slice(0, 3).map((c, idx) => (
+                      <span
+                        key={c.id}
+                        className={`pill ${CAMPAIGN_COLORS[idx % CAMPAIGN_COLORS.length]}`}
+                        style={{ cursor: 'pointer', fontSize: 11 }}
+                        onClick={() => {
+                          handleSelectCampaign(c.id);
+                        }}
+                      >
+                        {c.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <small className="s3-muted">{t('No active campaigns yet.')}</small>
+                )}
+              </div>
+            </div>
+
+            <footer style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="s3-muted" style={{ fontSize: 12 }}>
+                {t('Access all monthly plans')}
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="button button--ghost button--sm"
+                  onClick={() => navTo('plans')}
+                >
+                  {t('Browse Content Plans')} →
+                </button>
+                <button
+                  type="button"
+                  className="button button--primary button--sm"
+                  onClick={() => {
+                    setSelectedMonth(monthKey());
+                    navTo('plan_details');
+                  }}
+                >
+                  {t('Open Monthly Items')} →
+                </button>
+              </div>
+            </footer>
+          </div>
+        </div>
       </div>
     );
   };
@@ -593,9 +963,9 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               <button
                 type="button"
                 className="button button--ghost button--xs"
-                onClick={() => navTo('brands')}
+                onClick={() => navTo('brand_hub')}
               >
-                ← {t('Back to Brands')}
+                ← {t('Back to Content Management')}
               </button>
               <h2>{selectedBrand?.name} · {t('Platform Accounts')}</h2>
             </div>
@@ -672,9 +1042,9 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               <button
                 type="button"
                 className="button button--ghost button--xs"
-                onClick={() => navTo('platforms')}
+                onClick={() => navTo('brand_hub')}
               >
-                ← {t('Back to Platforms')}
+                ← {t('Back to Content Management')}
               </button>
               <h2>{selectedBrand?.name} · {selectedPlatform} {t('Content Plans')}</h2>
             </div>
@@ -1451,6 +1821,33 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                   {t('Delete Item')}
                 </button>
               </>
+            ) : isAccountManager ? (
+              <>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  style={{ color: '#d97706', borderColor: '#d97706' }}
+                  onClick={() => {
+                    updateContent(selectedItemId, { status: 'in_revision' });
+                    setItemForm((prev) => ({ ...prev, status: 'in_revision' }));
+                    showToast(t('Item returned for revision with notes.'), 'warning');
+                  }}
+                >
+                  ↩️ {t('Request Revision')}
+                </button>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  style={{ background: '#10b981', borderColor: '#10b981' }}
+                  onClick={() => {
+                    updateContent(selectedItemId, { status: 'approved' });
+                    setItemForm((prev) => ({ ...prev, status: 'approved' }));
+                    showToast(t('Content item approved by Account Manager!'), 'success');
+                  }}
+                >
+                  ✓ {t('Approve Deliverable')}
+                </button>
+              </>
             ) : null}
           </div>
         </div>
@@ -1596,11 +1993,13 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
         )}
       />
 
+      {renderRoleControlBar()}
       {renderReadOnlyBanner()}
       {renderBreadcrumbs()}
 
       {/* Screen Routing */}
       {screen === 'brands' && renderScreen1Brands()}
+      {screen === 'brand_hub' && renderScreenBrandContentManagement()}
       {screen === 'platforms' && renderScreen2Platforms()}
       {screen === 'plans' && renderScreen3Plans()}
       {screen === 'plan_details' && renderScreen4PlanDetails()}
