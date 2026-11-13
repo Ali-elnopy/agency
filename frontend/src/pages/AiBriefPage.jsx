@@ -16,25 +16,106 @@ import {
   StatusPill,
 } from '../components/sprint3/Sprint3UI';
 
-const SECTION_ORDER = ['overview', 'audience', 'goals', 'competitors', 'tone', 'strategy', 'messages'];
-const SECTION_LABEL = {
-  overview: 'Brand overview',
-  audience: 'Target audience',
-  goals: 'Brand goals',
-  competitors: 'Competitive advantage & competitors',
-  tone: 'Brand communication & tone',
-  strategy: 'Marketing strategy & objectives',
-  messages: 'Content direction & key messages',
-};
-const SECTION_HINT = {
-  overview: 'One paragraph describing the brand, nature of business, and its core promise.',
-  audience: 'Detailed description of the ideal customer, demographics, and customer pain points.',
-  goals: 'Short and long-term marketing and business growth objectives.',
-  competitors: 'Direct & indirect market competitors and what uniquely sets the brand apart.',
-  tone: 'Brand personality, communication style, and voice across touchpoints.',
-  strategy: 'High-level marketing strategy, campaign directions, and channels.',
-  messages: 'Key value propositions, messaging pillars, and core themes to communicate.',
-};
+export const BRIEF_SECTIONS_SPEC = [
+  {
+    key: 'brandOverview',
+    legacyKey: 'overview',
+    number: '01',
+    title: 'Brand Overview',
+    titleAr: 'نظرة عامة على البراند',
+    desc: 'نظرة عامة على البراند والنشاط والمنتجات والخدمات.',
+  },
+  {
+    key: 'targetAudience',
+    legacyKey: 'audience',
+    number: '02',
+    title: 'Target Audience',
+    titleAr: 'الجمهور المستهدف',
+    desc: 'الجمهور المستهدف والمناطق الجغرافية.',
+  },
+  {
+    key: 'brandGoals',
+    legacyKey: 'goals',
+    number: '03',
+    title: 'Brand Goals',
+    titleAr: 'أهداف البراند',
+    desc: 'أهداف البراند التسويقية والتجارية.',
+  },
+  {
+    key: 'competitiveAdvantage',
+    legacyKey: 'competitors',
+    number: '04',
+    title: 'Competitive Advantage',
+    titleAr: 'نقاط التميز والمنافسة',
+    desc: 'نقاط التميز والمنافسة.',
+  },
+  {
+    key: 'brandCommunication',
+    legacyKey: 'tone',
+    number: '05',
+    title: 'Brand Communication',
+    titleAr: 'شخصية البراند ونبرة الصوت',
+    desc: 'شخصية البراند وطريقة التواصل ونبرة الصوت.',
+  },
+  {
+    key: 'marketingStrategy',
+    legacyKey: 'strategy',
+    number: '06',
+    title: 'Marketing Strategy',
+    titleAr: 'الاستراتيجية التسويقية',
+    desc: 'الاتجاهات والاستراتيجيات التسويقية المقترحة.',
+  },
+  {
+    key: 'contentDirection',
+    legacyKey: 'messages',
+    number: '07',
+    title: 'Content Direction',
+    titleAr: 'اتجاه المحتوى',
+    desc: 'اتجاه المحتوى وأفكار التصوير وأنواعه.',
+  },
+];
+
+function arrayToText(arr) {
+  if (!arr) return '';
+  if (Array.isArray(arr)) return arr.join('\n');
+  return String(arr);
+}
+
+function textToArray(text) {
+  if (!text) return [];
+  return text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function getSectionContent(sections, spec) {
+  if (!sections) {
+    return { clientInformation: [], aiAnalysis: [], recommendations: [] };
+  }
+  const raw = sections[spec.key] ?? (spec.legacyKey ? sections[spec.legacyKey] : null);
+  if (!raw) {
+    return { clientInformation: [], aiAnalysis: [], recommendations: [] };
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return {
+      clientInformation: Array.isArray(raw.clientInformation)
+        ? raw.clientInformation
+        : raw.clientInformation ? [String(raw.clientInformation)] : [],
+      aiAnalysis: Array.isArray(raw.aiAnalysis)
+        ? raw.aiAnalysis
+        : raw.aiAnalysis ? [String(raw.aiAnalysis)] : [],
+      recommendations: Array.isArray(raw.recommendations)
+        ? raw.recommendations
+        : raw.recommendations ? [String(raw.recommendations)] : [],
+    };
+  }
+  return {
+    clientInformation: [String(raw)],
+    aiAnalysis: ['تحليل استراتيجي مستخلص من المعطيات الأولية.'],
+    recommendations: ['تنفيذ الخطة التشغيلية وفق المحاور المحددة.'],
+  };
+}
 
 function answerText(value, t = (s) => s) {
   if (Array.isArray(value)) return value.map((v) => t(v)).join('، ');
@@ -99,7 +180,10 @@ export default function AiBriefPage({ onOpenStrategy }) {
   }).length;
 
   const missingSections = draft
-    ? SECTION_ORDER.filter((key) => !String(draft.sections[key] ?? '').trim())
+    ? BRIEF_SECTIONS_SPEC.filter((spec) => {
+        const sec = getSectionContent(draft.sections, spec);
+        return !sec.clientInformation.length && !sec.aiAnalysis.length && !sec.recommendations.length;
+      })
     : [];
 
   const handleGenerate = () => {
@@ -122,12 +206,23 @@ export default function AiBriefPage({ onOpenStrategy }) {
     }, 1300);
   };
 
-  const updateSection = (key, value) => {
-    setDraft((prev) => ({
-      ...prev,
-      sections: { ...prev.sections, [key]: value },
-    }));
-    setErrors((prev) => ({ ...prev, [key]: '' }));
+  const updateSectionArray = (sectionKey, arrayKey, textValue) => {
+    const items = textToArray(textValue);
+    setDraft((prev) => {
+      const spec = BRIEF_SECTIONS_SPEC.find((s) => s.key === sectionKey);
+      const current = getSectionContent(prev?.sections, spec);
+      return {
+        ...prev,
+        sections: {
+          ...prev?.sections,
+          [sectionKey]: {
+            ...current,
+            [arrayKey]: items,
+          },
+        },
+      };
+    });
+    setErrors((prev) => ({ ...prev, [sectionKey]: '' }));
   };
 
   const handleSave = () => {
@@ -140,9 +235,10 @@ export default function AiBriefPage({ onOpenStrategy }) {
     if (!brief || !draft) return;
 
     const nextErrors = {};
-    SECTION_ORDER.forEach((key) => {
-      if (!String(draft.sections[key] ?? '').trim()) {
-        nextErrors[key] = t('This section is required before approval.');
+    BRIEF_SECTIONS_SPEC.forEach((spec) => {
+      const sec = getSectionContent(draft.sections, spec);
+      if (!sec.clientInformation.length && !sec.aiAnalysis.length && !sec.recommendations.length) {
+        nextErrors[spec.key] = t('This section is required before approval.');
       }
     });
     setErrors(nextErrors);
@@ -351,23 +447,130 @@ export default function AiBriefPage({ onOpenStrategy }) {
                 ) : null}
 
                 <div className="s3-brief-sections">
-                  {SECTION_ORDER.map((key) => (
-                    <label className="s3-brief-section" key={key}>
-                      <span className="s3-brief-section__head">
-                        <strong>{t(SECTION_LABEL[key])}</strong>
-                        <small>{t(SECTION_HINT[key])}</small>
-                      </span>
-                      <textarea
-                        className="form-textarea"
-                        rows={key === 'overview' ? 3 : 4}
-                        value={t(draft.sections[key]) || draft.sections[key] || ''}
-                        onChange={(event) => updateSection(key, event.target.value)}
-                        disabled={!canEdit || isApproved}
-                        placeholder={t(SECTION_HINT[key])}
-                      />
-                      {errors[key] ? <span className="set-error">{errors[key]}</span> : null}
-                    </label>
-                  ))}
+                  {BRIEF_SECTIONS_SPEC.map((spec) => {
+                    const content = getSectionContent(draft.sections, spec);
+                    return (
+                      <div
+                        key={spec.key}
+                        className="s3-brief-section-card"
+                        style={{
+                          background: 'var(--panel)',
+                          border: '1px solid var(--line)',
+                          borderRadius: 16,
+                          padding: '16px 20px',
+                          marginBottom: 16,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: 14,
+                            paddingBottom: 10,
+                            borderBottom: '1px solid var(--line)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 32,
+                                height: 32,
+                                borderRadius: 8,
+                                background: '#111827',
+                                color: '#FFFFFF',
+                                fontSize: 12.5,
+                                fontWeight: 800,
+                              }}
+                            >
+                              {spec.number}
+                            </span>
+                            <div>
+                              <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>
+                                {spec.title}
+                                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--faint)', marginInlineStart: 8 }}>
+                                  ({spec.titleAr})
+                                </span>
+                              </h3>
+                              <p style={{ margin: '2px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>
+                                {spec.desc}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3 Arrays Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+                          {/* Array 1: clientInformation */}
+                          <div style={{ background: 'var(--card-bg, #FFFFFF)', border: '1px solid var(--line)', borderRadius: 12, padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                                clientInformation
+                              </span>
+                              <small style={{ color: 'var(--faint)', fontSize: 10.5 }}>
+                                {t('Client Facts (Onboarding)')}
+                              </small>
+                            </div>
+                            <textarea
+                              className="form-textarea"
+                              rows={4}
+                              value={arrayToText(content.clientInformation)}
+                              onChange={(e) => updateSectionArray(spec.key, 'clientInformation', e.target.value)}
+                              disabled={!canEdit || isApproved}
+                              placeholder={t('Facts provided by client in onboarding…')}
+                              style={{ fontSize: 12, lineHeight: 1.5 }}
+                            />
+                          </div>
+
+                          {/* Array 2: aiAnalysis */}
+                          <div style={{ background: 'var(--card-bg, #FFFFFF)', border: '1px solid var(--line)', borderRadius: 12, padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <span style={{ background: '#FAF5FF', color: '#7E22CE', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                                aiAnalysis
+                              </span>
+                              <small style={{ color: 'var(--faint)', fontSize: 10.5 }}>
+                                {t('AI Strategic Analysis')}
+                              </small>
+                            </div>
+                            <textarea
+                              className="form-textarea"
+                              rows={4}
+                              value={arrayToText(content.aiAnalysis)}
+                              onChange={(e) => updateSectionArray(spec.key, 'aiAnalysis', e.target.value)}
+                              disabled={!canEdit || isApproved}
+                              placeholder={t('AI analytical insights…')}
+                              style={{ fontSize: 12, lineHeight: 1.5 }}
+                            />
+                          </div>
+
+                          {/* Array 3: recommendations */}
+                          <div style={{ background: 'var(--card-bg, #FFFFFF)', border: '1px solid var(--line)', borderRadius: 12, padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <span style={{ background: '#F0FDF4', color: '#15803D', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
+                                recommendations
+                              </span>
+                              <small style={{ color: 'var(--faint)', fontSize: 10.5 }}>
+                                {t('AI Recommendations')}
+                              </small>
+                            </div>
+                            <textarea
+                              className="form-textarea"
+                              rows={4}
+                              value={arrayToText(content.recommendations)}
+                              onChange={(e) => updateSectionArray(spec.key, 'recommendations', e.target.value)}
+                              disabled={!canEdit || isApproved}
+                              placeholder={t('Actionable recommendations…')}
+                              style={{ fontSize: 12, lineHeight: 1.5 }}
+                            />
+                          </div>
+                        </div>
+                        {errors[spec.key] ? <span className="set-error" style={{ marginTop: 6, display: 'block' }}>{errors[spec.key]}</span> : null}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {canEdit && !isApproved ? (

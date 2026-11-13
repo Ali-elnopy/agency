@@ -381,12 +381,41 @@ export const seedBriefs = [
     status: 'approved',
     provider: 'openai',
     sections: {
-      goals: 'Grow foot traffic and local digital orders by 35% and position Bean & Co as the neighbourhood hub for remote work and specialty roasts.',
-      audience: 'Students, young professionals and remote workers aged 18–35 who value specialty brew quality and cozy ambiance.',
-      competitors: 'Starbucks, local boutique roasters, and specialty coffee houses.',
-      tone: 'Warm, friendly, creative, and community-rooted. Lead with craft and hospitality.',
-      overview: 'A neighborhood specialty coffee shop and artisanal bakery serving single-origin brews, specialty lattes, and fresh organic pastries.',
-      messages: 'Crafted with care, poured for community. Specialty coffee that powers your best work.',
+      brandOverview: {
+        clientInformation: ['A neighborhood specialty coffee shop and artisanal bakery serving single-origin brews, specialty lattes, and fresh organic pastries.'],
+        aiAnalysis: ['High community appeal with strong local loyalty potential and daytime remote-work traffic.'],
+        recommendations: ['Highlight bean sourcing ethics, fresh morning baking, and comfortable afternoon co-working spaces.'],
+      },
+      targetAudience: {
+        clientInformation: ['Students, young professionals and remote workers aged 18–35 who value specialty brew quality and cozy ambiance.'],
+        aiAnalysis: ['Aesthetics-driven demographic responsive to specialty beverage craft on Instagram and TikTok.'],
+        recommendations: ['Position cafe as a third-place neighborhood sanctuary with high-speed Wi-Fi and artisan hospitality.'],
+      },
+      brandGoals: {
+        clientInformation: ['Grow foot traffic and local digital orders by 35% within 90 days.'],
+        aiAnalysis: ['Requires balancing fast morning takeaway pickups with afternoon dine-in ticket size.'],
+        recommendations: ['Introduce digital pre-orders and a seamless recurring visit loyalty program.'],
+      },
+      competitiveAdvantage: {
+        clientInformation: ['Micro-lot beans roasted weekly and organic pastries prepared in-house daily.'],
+        aiAnalysis: ['Higher craft quality than commercial franchises and warmer neighborhood accessibility than niche roasteries.'],
+        recommendations: ['Spotlight weekly roasting schedules and barista pour-over techniques in social reels.'],
+      },
+      brandCommunication: {
+        clientInformation: ['Warm, friendly, creative, and community-rooted. Lead with craft and hospitality.'],
+        aiAnalysis: ['Approachable voice lowers barrier for casual coffee drinkers exploring specialty roast profiles.'],
+        recommendations: ['Demystify tasting notes through playful educational carousels and friendly staff tips.'],
+      },
+      marketingStrategy: {
+        clientInformation: ['Local community engagement, geo-targeted Instagram stories, and neighborhood event partnerships.'],
+        aiAnalysis: ['Hyper-local presence drives strong word-of-mouth conversion in specialty food & beverage retail.'],
+        recommendations: ['Launch a morning commuter coffee club and weekend barista workshop series.'],
+      },
+      contentDirection: {
+        clientInformation: ['Crafted with care, poured for community. Specialty coffee that powers your best work.'],
+        aiAnalysis: ['Latte art aesthetics, steaming morning croissants, and sunlit work corners drive top engagement.'],
+        recommendations: ['Alternate daily coffee-craft reels with customer community spotlight photos.'],
+      },
     },
     clarifying: [
       {
@@ -409,18 +438,41 @@ export const seedBriefs = [
     status: 'approved',
     provider: 'openai',
     sections: {
-      goals:
-        'Grow qualified first-time video visits by 20% this quarter and make same-day care feel like the obvious choice for busy households.',
-      audience:
-        'Working parents aged 28–45 who carry the healthcare admin for the whole family. They are time-poor, research-led and quietly anxious about getting care right.',
-      competitors:
-        'BetterHelp owns the mental-health conversation, Teladoc owns insurance-led trust. Lumina can win by owning the everyday family care moment — not the crisis moment.',
-      tone:
-        'Warm, plain-spoken and reassuring. Lead with relief, never fear. Clinicians are real people; privacy is a promise, not a feature.',
-      overview:
-        'Lumina is a same-day telehealth platform for primary care, dermatology and mental health, built around the family routine rather than the clinic schedule.',
-      messages:
-        'Care that fits your day. Doctors you can reach in minutes. Your data stays yours.',
+      brandOverview: {
+        clientInformation: ['Lumina is a same-day telehealth platform for primary care, dermatology and mental health, built around the family routine.'],
+        aiAnalysis: ['Bridges the convenience gap between slow in-person clinic wait times and impersonal chatbots.'],
+        recommendations: ['Lead with same-day video availability and board-certified clinician credentials.'],
+      },
+      targetAudience: {
+        clientInformation: ['Working parents aged 28–45 who carry the healthcare admin for the whole family, time-poor and research-led.'],
+        aiAnalysis: ['High-stress cohort seeking reassurance, zero logistical friction, and data confidentiality.'],
+        recommendations: ['Focus campaign messaging on evening appointment availability and instant pediatric advice.'],
+      },
+      brandGoals: {
+        clientInformation: ['Grow qualified first-time video visits by 20% this quarter and make same-day care an obvious choice.'],
+        aiAnalysis: ['Conversion relies on removing fear of hidden medical fees and insurance complexity.'],
+        recommendations: ['Emphasize upfront transparent pricing and instant insurance eligibility verification.'],
+      },
+      competitiveAdvantage: {
+        clientInformation: ['Integrated primary, skin, and mental care with continuous physician follow-ups in one portal.'],
+        aiAnalysis: ['Differentiates from Teladoc through personalized doctor continuity and from single-focus apps through comprehensive family care.'],
+        recommendations: ['Highlight the all-in-one family medical chart and dedicated clinician messaging.'],
+      },
+      brandCommunication: {
+        clientInformation: ['Warm, plain-spoken and reassuring. Lead with relief, never fear. Clinicians are real people; privacy is a promise.'],
+        aiAnalysis: ['Calming, empathetic bedside manner online immediately reduces patient healthcare anxiety.'],
+        recommendations: ['Feature real clinician video introductions and compassionate health explainers.'],
+      },
+      marketingStrategy: {
+        clientInformation: ['Search intent marketing and parenting community partnerships across digital touchpoints.'],
+        aiAnalysis: ['Acute healthcare needs (e.g. fever, rashes) produce the highest immediate intent for telehealth booking.'],
+        recommendations: ['Combine high-intent search ads with trustworthy pediatric care reels on Meta.'],
+      },
+      contentDirection: {
+        clientInformation: ['Care that fits your day. Doctors you can reach in minutes. Your data stays yours.'],
+        aiAnalysis: ['Relatable parent healthcare scenarios drive significantly higher click-through than generic stock medical imagery.'],
+        recommendations: ['Produce short-form symptom-checker reels and clinician myth-busting sessions.'],
+      },
     },
     clarifying: [
       {
@@ -448,13 +500,41 @@ export const seedBriefs = [
     status: 'draft',
     provider: 'anthropic',
     sections: {
-      goals: 'Launch the Barrier Repair Serum to the existing community and lift refill attach-rate.',
-      audience:
-        'Women aged 25–40 who read ingredient lists and want a calmer, lighter routine that still performs.',
-      competitors: '',
-      tone: 'Quiet, premium and tactile. Slow beauty, not loud beauty.',
-      overview: '',
-      messages: 'A quieter routine, a lighter footprint.',
+      brandOverview: {
+        clientInformation: ['Clean, minimalist skincare brand formulating barrier-restoring serums with sustainable botanical actives.'],
+        aiAnalysis: ['High alignment with conscious beauty consumers seeking transparent, fragrance-free formulations.'],
+        recommendations: ['Emphasize active ingredient percentages and eco-certified glass packaging.'],
+      },
+      targetAudience: {
+        clientInformation: ['Women aged 25–40 who scrutinize ingredient lists and want gentle yet effective daily rituals.'],
+        aiAnalysis: ['Education-seeking demographic skeptical of aggressive clinical claims or miracle trends.'],
+        recommendations: ['Focus on clinical dermatological trials and dermatologically tested badges.'],
+      },
+      brandGoals: {
+        clientInformation: ['Launch the Barrier Repair Serum to the community and increase refill attach-rate by 25%.'],
+        aiAnalysis: ['Refill subscription models require clear cost savings and recurring skincare habit loops.'],
+        recommendations: ['Introduce refill bundles and automated subscription delivery incentives.'],
+      },
+      competitiveAdvantage: {
+        clientInformation: ['Bio-compatible ceramides and fermented soothing botanicals with zero synthetic fillers.'],
+        aiAnalysis: ['Stands out against harsh acid exfoliants by prioritizing skin barrier resilience.'],
+        recommendations: ['Highlight barrier-restoring microscopy and before-and-after hydration tests.'],
+      },
+      brandCommunication: {
+        clientInformation: ['Quiet, premium and tactile. Slow beauty, not loud beauty. Transparent and calming.'],
+        aiAnalysis: ['Understated aesthetic conveys luxury and scientific integrity.'],
+        recommendations: ['Use serene aesthetic product reels with close-up texture and droplet macro videography.'],
+      },
+      marketingStrategy: {
+        clientInformation: ['Community sampling, aesthetic organic TikTok tutorials, and clean beauty editorial features.'],
+        aiAnalysis: ['Organic micro-influencer product routine demonstrations drive high conversion.'],
+        recommendations: ['Seed product to dermatologists and aesthetic estheticians for authentic testimonials.'],
+      },
+      contentDirection: {
+        clientInformation: ['A quieter routine, a lighter footprint. Barrier care made simple.'],
+        aiAnalysis: ['ASMR unboxing, texture spreads, and ingredient breakdown carousels outperform static ads.'],
+        recommendations: ['Produce calming skin routine tutorials and ingredient educational carousels.'],
+      },
     },
     clarifying: [
       {
