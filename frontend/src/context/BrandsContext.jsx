@@ -18,9 +18,15 @@ import {
   updateBrand as updateBrandApi,
 } from '../services/brands';
 import { apiRequest } from '../services/http';
+import {
+  createContentItemApi,
+  deleteContentItemApi,
+  updateContentItemApi,
+} from '../services/contentManagementApi';
 
-/* Brand records live in the API. Plans and content are still workspace-local
-   until their endpoints land, so they stay in localStorage for now. */
+/* Brand records, platform accounts, content plans and content items live in the
+   API. Local state keeps the UI responsive and is reconciled with the server
+   response; only genuinely local fields (targets, pipeline status) stay local. */
 
 const STORAGE_KEYS = {
   brands: 'orvia_brands_v1',
@@ -115,8 +121,8 @@ export function BrandsProvider({ children }) {
   const [plans, setPlans] = useState(() => readStore(STORAGE_KEYS.plans, seedPlans));
   const [content, setContent] = useState(() => readStore(STORAGE_KEYS.content, seedContent));
   const [workspace, setWorkspace] = useState(readWorkspace);
-  const [loadingBrands, setLoadingBrands] = useState(false);
-  const [brandsError, setBrandsError] = useState(null);
+  const [loadingBrands] = useState(false);
+  const [brandsError] = useState(null);
 
   const accessibleBrandIds = useMemo(() => {
     if (!user) return new Set(brands.map((b) => b.id));
@@ -254,6 +260,157 @@ export function BrandsProvider({ children }) {
     };
   }, []);
 
+  // Platform accounts are owned by the API. Hydrate them once so every brand
+  // workspace shows the server records; local-only records (created while the
+  // API was unreachable) are kept instead of being dropped.
+  useEffect(() => {
+    if (demo) return undefined;
+
+    let alive = true;
+
+    apiRequest('/platform-accounts')
+      .then((res) => {
+        const records = res?.data?.accounts;
+        if (!alive || !Array.isArray(records)) return;
+
+        setWorkspace((prev) => {
+          const server = records.map((item) => ({
+            id: String(item.id),
+            serverId: item.id,
+            brandId: String(item.brandId),
+            name: item.platform,
+            short: String(item.platform || '').slice(0, 2).toUpperCase(),
+            tone: TONES[Number(item.id) % TONES.length],
+            handle: item.accountName,
+            url: item.accountUrl ?? '',
+            goal: '',
+            monthlyTarget: 0,
+            contentTypes: [],
+            notes: '',
+            createdAt: item.createdAt,
+          }));
+
+          const serverIds = new Set(server.map((item) => item.id));
+          const localOnly = (prev.platforms || []).filter(
+            (item) => !serverIds.has(String(item.id)),
+          );
+
+          return { ...prev, platforms: [...server, ...localOnly] };
+        });
+      })
+      .catch(() => {
+        // Offline demo: keep the locally stored platforms.
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [demo]);
+
+  // Content plans and their items are stored by the API. Hydrate them for the
+  // real brands; anything created locally (offline) is kept alongside.
+  useEffect(() => {
+    if (demo) return undefined;
+
+    let alive = true;
+
+    Promise.all([
+      apiRequest('/content-plans').catch(() => null),
+      apiRequest('/content-items').catch(() => null),
+    ]).then(([plansRes, itemsRes]) => {
+      if (!alive) return;
+
+      const serverPlans = plansRes?.data?.plans;
+      const serverItems = itemsRes?.data?.items;
+
+      if (Array.isArray(serverPlans) && serverPlans.length) {
+        setPlans((prev) => {
+          const mapped = serverPlans.map((plan) => {
+            const notes = String(plan.notes || '');
+            const posts = Number(notes.match(/Posts target:\s*(\d+)/i)?.[1] || 0);
+            const reels = Number(notes.match(/Reels target:\s*(\d+)/i)?.[1] || 0);
+
+            return {
+              id: `plan-${plan.brandId}-${plan.year}-${String(plan.month).padStart(2, '0')}`,
+              serverId: plan.id,
+              brandId: String(plan.brandId),
+              month: `${plan.year}-${String(plan.month).padStart(2, '0')}`,
+              postsTarget: posts,
+              reelsTarget: reels,
+              status: plan.status,
+              title: plan.title,
+              createdAt: plan.createdAt,
+            };
+          });
+
+          const localOnly = prev.filter(
+            (plan) => !mapped.some((item) => item.id === plan.id),
+          );
+
+          return [...mapped, ...localOnly];
+        });
+      }
+
+      if (Array.isArray(serverItems) && serverItems.length && Array.isArray(serverPlans)) {
+        const planIndex = new Map(serverPlans.map((plan) => [plan.id, plan]));
+
+        const mapped = serverItems.reduce((rows, item) => {
+          const plan = planIndex.get(item.contentPlanId);
+          if (!plan) return rows;
+
+          const scheduled = item.scheduledDate ? new Date(item.scheduledDate) : null;
+          const iso = scheduled && !Number.isNaN(scheduled.getTime())
+            ? scheduled.toISOString()
+            : '';
+
+          rows.push({
+            id: `content-${item.id}`,
+            serverId: item.id,
+            brandId: String(plan.brandId),
+            month: `${plan.year}-${String(plan.month).padStart(2, '0')}`,
+            platformId: null,
+            planDirectionId: null,
+            type: item.type,
+            title: item.title,
+            publishDate: iso.slice(0, 10),
+            publishTime: iso ? iso.slice(11, 16) : '',
+            tov: item.toneOfVoice ?? '',
+            caption: item.caption ?? '',
+            notes: item.notes ?? '',
+            designDirection: '',
+            referenceUrl:
+              typeof item.reference === 'string' && /^https?:\/\//i.test(item.reference)
+                ? item.reference
+                : '',
+            materialUrl: '',
+            pillar: '',
+            campaignId: item.campaignId ? String(item.campaignId) : '',
+            platform: '',
+            keyMessage: '',
+            references: [],
+            attachments: [],
+            detailsStatus: 'draft',
+            status: 'planned',
+            createdAt: iso || item.createdAt,
+          });
+
+          return rows;
+        }, []);
+
+        if (mapped.length) {
+          setContent((prev) => {
+            const serverIds = new Set(mapped.map((row) => row.id));
+            return [...mapped, ...prev.filter((row) => !serverIds.has(row.id))];
+          });
+        }
+      }
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [demo]);
+
   const addBrand = useCallback(
     async (input) => {
       const name = String(input.name ?? '').trim();
@@ -361,6 +518,7 @@ export function BrandsProvider({ children }) {
       const brandId = input.brandId;
       const month = input.month || monthKey();
       const numericBrandId = Number(brandId);
+      let serverPlanId = null;
 
       if (!demo && Number.isSafeInteger(numericBrandId) && numericBrandId > 0) {
         try {
@@ -371,24 +529,61 @@ export function BrandsProvider({ children }) {
           const plansRes = await apiRequest(
             `/content-plans?brandId=${numericBrandId}&year=${parsedYear}&month=${parsedMonth}`,
           ).catch(() => null);
-          const existingPlans = plansRes?.data ?? plansRes;
+
+          // The endpoint answers with `{ plans, total }`, not a bare array.
+          const existingPlans = plansRes?.data?.plans;
+
+          const notes = `Posts target: ${input.postsTarget || 0}, Reels target: ${input.reelsTarget || 0}`;
+
           if (Array.isArray(existingPlans) && existingPlans.length > 0) {
             const planId = existingPlans[0].id;
+            serverPlanId = planId;
             await apiRequest(`/content-plans/${planId}`, {
               method: 'PATCH',
-              body: {
-                title: `${month} Content Plan`,
-                notes: `Posts target: ${input.postsTarget || 0}, Reels target: ${input.reelsTarget || 0}`,
-              },
-            }).catch(() => {});
+              body: { title: `${month} Content Plan`, notes },
+            }).catch((error) => {
+              console.warn('Content plan update was not saved:', error?.message || error);
+            });
+          } else {
+            // A plan needs a platform account; use the brand's first one.
+            const accountsRes = await apiRequest(
+              `/platform-accounts?brandId=${numericBrandId}`,
+            ).catch(() => null);
+            const accounts = accountsRes?.data?.accounts;
+            const platformAccountId = accounts?.[0]?.id;
+
+            if (platformAccountId) {
+              const createdPlan = await apiRequest('/content-plans', {
+                method: 'POST',
+                body: {
+                  brandId: numericBrandId,
+                  platformAccountId,
+                  title: `${month} Content Plan`,
+                  year: parsedYear,
+                  month: parsedMonth,
+                  notes,
+                },
+              }).catch((error) => {
+                console.warn('Content plan creation was not saved:', error?.message || error);
+                return null;
+              });
+
+              const created = createdPlan?.data ?? createdPlan;
+              serverPlanId = created?.id ?? created?.plan?.id ?? null;
+            } else {
+              console.warn(
+                'Content plan stays local: this brand has no platform account yet.',
+              );
+            }
           }
         } catch (err) {
-          console.warn('Backend plan sync note:', err);
+          console.warn('Backend plan sync note:', err?.message || err);
         }
       }
 
       const plan = {
         id: `plan-${brandId}-${month}`,
+        serverId: serverPlanId,
         brandId,
         month,
         postsTarget: Math.max(0, Number(input.postsTarget) || 0),
@@ -440,15 +635,90 @@ export function BrandsProvider({ children }) {
     };
 
     setContent((prev) => [item, ...prev]);
+
+    // Content items belong to a content plan on the server. When this month's
+    // plan has no server id yet (no platform account / offline) the item stays
+    // local instead of failing loudly in the middle of the form.
+    const planServerId = plans.find(
+      (plan) => plan.brandId === item.brandId && plan.month === item.month,
+    )?.serverId;
+
+    if (!demo && planServerId) {
+      const payload = {
+        contentPlanId: planServerId,
+        type: item.type,
+        title: item.title,
+        scheduledDate: item.publishDate
+          ? `${item.publishDate}T${item.publishTime || '09:00'}:00`
+          : new Date().toISOString(),
+        reference: item.referenceUrl || null,
+        toneOfVoice: item.tov || null,
+        caption: item.caption || null,
+        notes: item.notes || null,
+      };
+
+      const numericCampaignId = Number(item.campaignId);
+      if (Number.isSafeInteger(numericCampaignId) && numericCampaignId > 0) {
+        payload.campaignId = numericCampaignId;
+      }
+
+      createContentItemApi(payload)
+        .then((response) => {
+          const created = response?.data ?? response;
+          if (!created?.id) return;
+          setContent((prev) =>
+            prev.map((row) => (row.id === item.id ? { ...row, serverId: created.id } : row)),
+          );
+        })
+        .catch((error) => {
+          console.warn('Content item was saved locally only:', error?.message || error);
+        });
+    }
+
     return item;
-  }, []);
+  }, [demo, plans]);
 
   const updateContent = useCallback((contentId, patch) => {
     setContent((prev) =>
       prev.map((item) => (item.id === contentId ? { ...item, ...patch } : item)),
     );
-  }, []);
 
+    if (demo) return;
+
+    const current = content.find((item) => item.id === contentId);
+    if (!current?.serverId) return;
+
+    // Only the columns the API owns are sent; pipeline status and targets are
+    // workspace-local fields that the content items table does not store.
+    const payload = {};
+    if (patch.title !== undefined) payload.title = String(patch.title).trim();
+    if (patch.type !== undefined) payload.type = patch.type;
+    if (patch.caption !== undefined) payload.caption = patch.caption || null;
+    if (patch.notes !== undefined) payload.notes = patch.notes || null;
+    if (patch.tov !== undefined) payload.toneOfVoice = patch.tov || null;
+    if (patch.referenceUrl !== undefined) payload.reference = patch.referenceUrl || null;
+    if (patch.publishDate !== undefined || patch.publishTime !== undefined) {
+      const date = patch.publishDate ?? current.publishDate;
+      const time = patch.publishTime ?? current.publishTime;
+      if (date) payload.scheduledDate = `${date}T${time || '09:00'}:00`;
+    }
+    if (patch.campaignId !== undefined) {
+      const numericCampaignId = Number(patch.campaignId);
+      payload.campaignId =
+        Number.isSafeInteger(numericCampaignId) && numericCampaignId > 0
+          ? numericCampaignId
+          : null;
+    }
+
+    if (Object.keys(payload).length === 0) return;
+
+    updateContentItemApi(current.serverId, payload).catch((error) => {
+      console.warn('Content item update was not saved:', error?.message || error);
+    });
+  }, [content, demo]);
+
+  // The content items table has no workflow status column (status lives on the
+  // generated tasks), so this stays a local pipeline state.
   const updateContentStatus = useCallback((contentId, status) => {
     setContent((prev) =>
       prev.map((item) => (item.id === contentId ? { ...item, status } : item)),
@@ -456,8 +726,16 @@ export function BrandsProvider({ children }) {
   }, []);
 
   const deleteContent = useCallback((contentId) => {
+    const current = content.find((item) => item.id === contentId);
+
     setContent((prev) => prev.filter((item) => item.id !== contentId));
-  }, []);
+
+    if (!demo && current?.serverId) {
+      deleteContentItemApi(current.serverId).catch((error) => {
+        console.warn('Content item was only removed locally:', error?.message || error);
+      });
+    }
+  }, [content, demo]);
 
   const getBrand = useCallback(
     (brandId) => brands.find((brand) => brand.id === brandId) ?? null,
@@ -517,21 +795,29 @@ export function BrandsProvider({ children }) {
       const numericBrandId = Number(brandId);
       if (!demo && Number.isSafeInteger(numericBrandId) && numericBrandId > 0) {
         try {
+          const accountName =
+            String(input.handle ?? '').trim() ||
+            String(input.name ?? '').trim() ||
+            'Account';
+
+          const payload = {
+            brandId: numericBrandId,
+            platform: String(input.name ?? '').trim().slice(0, 30) || 'Instagram',
+            accountName: accountName.slice(0, 200),
+          };
+
+          const url = String(input.url ?? '').trim();
+          if (url && /^https?:\/\//i.test(url)) {
+            payload.accountUrl = url;
+          }
+
           const res = await apiRequest('/platform-accounts', {
             method: 'POST',
-            body: {
-              brandId: numericBrandId,
-              platformName: String(input.name ?? '').trim(),
-              accountHandle:
-                String(input.handle ?? '').trim() ||
-                `@${String(input.name ?? '').trim().toLowerCase()}`,
-              profileUrl: input.url ? String(input.url).trim() : null,
-              brandTone: input.tone ?? 'is-orange',
-            },
+            body: payload,
           });
           serverPlatform = res?.data ?? res;
         } catch (e) {
-          console.warn('Backend platform sync note:', e);
+          console.warn('Backend platform sync note:', e?.message || e);
         }
       }
 
@@ -561,15 +847,21 @@ export function BrandsProvider({ children }) {
       const numericId = Number(platformId);
       if (!demo && Number.isSafeInteger(numericId) && numericId > 0) {
         const body = {};
-        if (patch.name) body.platformName = String(patch.name).trim();
-        if (patch.handle) body.accountHandle = String(patch.handle).trim();
-        if (patch.url !== undefined) body.profileUrl = patch.url || null;
-        if (patch.tone) body.brandTone = patch.tone;
+        if (patch.name) body.platform = String(patch.name).trim().slice(0, 30);
+        if (patch.handle) body.accountName = String(patch.handle).trim().slice(0, 200);
+
+        if (patch.url !== undefined) {
+          const url = String(patch.url ?? '').trim();
+          body.accountUrl = /^https?:\/\//i.test(url) ? url : null;
+        }
+
         if (Object.keys(body).length) {
           await apiRequest(`/platform-accounts/${numericId}`, {
             method: 'PATCH',
             body,
-          }).catch(() => {});
+          }).catch((error) => {
+            console.warn('Platform account update was not saved:', error?.message || error);
+          });
         }
       }
 

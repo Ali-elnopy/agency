@@ -399,4 +399,30 @@ export const StrategiesService = {
             comment: data.comment,
         });
     },
+
+    async remove(strategyId, user) {
+        const strategy = await StrategiesModel.findById(
+            Number(strategyId),
+        );
+
+        if (!strategy) {
+            throw new ApiError(404, 'Strategy not found');
+        }
+
+        const canDelete =
+            user?.role?.name === 'ADMIN' ||
+            (user?.role?.name === 'ACCOUNT_MANAGER' &&
+                strategy.brand?.accountManagerId === user.id);
+
+        if (!canDelete) {
+            throw new ApiError(
+                403,
+                'Only administrators and the assigned account manager can delete a strategy',
+            );
+        }
+
+        await StrategiesModel.remove(strategy.id);
+
+        return { id: strategy.id };
+    },
 };

@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
 import Toast from '../components/ui/Toast';
 import { useSprint3 } from '../context/sprint3Store';
-import { useBrands } from '../context/brandsStore';
+import { isMockApiEnabled } from '../services/api';
 
 const CATEGORY_OPTIONS = [
   { id: 'Food', label: 'Food', labelAr: 'طعام ومشروبات' },
@@ -132,10 +132,11 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
     dispatches = [],
     strategies = [],
     saveAnswers,
-    submitAnswers,
     setStrategyStatus,
-    addNotification,
     getDispatchByToken,
+    roleFilteredNotifications = [],
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
     lang,
     setLang,
     t,
@@ -230,7 +231,47 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
     [clientNotifications],
   );
 
+  // Replace the showcase notifications with the signed-in client's real feed as
+  // soon as the API returns records. Demo builds keep the fixtures.
+  useEffect(() => {
+    if (isMockApiEnabled() || roleFilteredNotifications.length === 0) return;
+
+    const navFor = (link) => {
+      if (link === 'strategy') return { actionNav: 'strategy', actionSubScreen: 'approval' };
+      if (link === 'content_plans') return { actionNav: 'content_plans', actionSubScreen: 'monthly' };
+      return { actionNav: 'onboarding', actionStep: 'confirmation' };
+    };
+
+    setClientNotifications(
+      roleFilteredNotifications.map((item) => {
+        const nav = navFor(item.link);
+        const time = item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+            })
+          : '';
+
+        return {
+          id: `portal-${item.id}`,
+          contextId: item.id,
+          title: item.title,
+          titleAr: item.titleAr ?? item.title,
+          message: item.message,
+          messageAr: item.messageAr ?? item.message,
+          time,
+          timeAr: time,
+          unread: !item.isRead,
+          category: item.link || 'onboarding',
+          ...nav,
+        };
+      }),
+    );
+  }, [roleFilteredNotifications]);
+
   const handleToggleRead = (id, forceState) => {
+    const target = clientNotifications.find((n) => n.id === id);
+
     setClientNotifications((prev) =>
       prev.map((n) => {
         if (n.id === id) {
@@ -240,11 +281,17 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         return n;
       }),
     );
+
+    if (target?.contextId && target.unread) {
+      markNotificationAsRead?.(target.contextId);
+    }
+
     showToast(t('Notification updated'), 'info');
   };
 
   const handleMarkAllAsRead = () => {
     setClientNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    markAllNotificationsAsRead?.();
     showToast(t('All notifications marked as read.'), 'success');
   };
 

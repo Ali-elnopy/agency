@@ -2,9 +2,9 @@ import { getAccessToken, getRefreshToken, setSession } from './tokenStorage';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
-// The Express API mounts its routers directly on `/api` and currently exposes
-// no token-refresh route. Keep the retry plumbing in place for when it lands.
-const REFRESH_ENDPOINT_AVAILABLE = false;
+// The Express API exposes `POST /api/auth/refresh` and rotates the refresh
+// token on every call, so a 401 can be recovered without a re-login.
+const REFRESH_ENDPOINT_AVAILABLE = true;
 
 export const SESSION_EXPIRED_EVENT = 'orvia:session-expired';
 

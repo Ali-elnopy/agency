@@ -83,44 +83,46 @@ export async function deleteContentItemApi(itemId) {
 
 export async function fetchUnreadNotificationCountApi() {
   if (isMockApiEnabled()) {
-    return { success: true, data: { unreadCount: 2 } };
+    return { success: false, data: null };
   }
   try {
     return await apiRequest('/notifications/unread-count', { method: 'GET' });
   } catch {
-    return { success: true, data: { unreadCount: 2 } };
+    // Offline: let the provider fall back to its local unread count instead of
+    // displaying a made-up number.
+    return { success: false, data: null };
   }
 }
 
 export async function fetchNotificationsApi() {
   if (isMockApiEnabled()) {
-    return { success: true, data: [] };
+    return { success: false, data: [] };
   }
   try {
     return await apiRequest('/notifications', { method: 'GET' });
   } catch {
-    return { success: true, data: [] };
+    return { success: false, data: [] };
   }
 }
 
 export async function markNotificationAsReadApi(notificationId) {
   if (isMockApiEnabled()) {
-    return { success: true };
+    return { success: false };
   }
   try {
     return await apiRequest(`/notifications/${notificationId}/read`, { method: 'PATCH' });
   } catch {
-    return { success: true };
+    return { success: false };
   }
 }
 
 export async function markAllNotificationsAsReadApi() {
   if (isMockApiEnabled()) {
-    return { success: true };
+    return { success: false };
   }
   try {
     return await apiRequest('/notifications/read-all', { method: 'PATCH' });
   } catch {
-    return { success: true };
+    return { success: false };
   }
 }

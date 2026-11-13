@@ -5,10 +5,8 @@ import useAuth from '../hooks/useAuth';
 import { useBrands } from '../context/brandsStore';
 import { useSprint3 } from '../context/sprint3Store';
 import {
-  STRATEGY_FLOW,
   STRATEGY_FLOW_LABEL,
   STRATEGY_FLOW_TONE,
-  formatStamp,
 } from '../data/sprint3';
 import {
   EmptyState,
@@ -25,7 +23,6 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
     saveStrategy,
     setStrategyStatus,
     deleteStrategy,
-    role: systemRole,
     lang,
     t,
   } = useSprint3();
@@ -97,9 +94,6 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
   const [selectedId, setSelectedId] = useState(null);
   const strategy = strategies.find((item) => item.id === selectedId) || strategies[0] || null;
 
-  const strategyStatus = strategy?.status || 'draft';
-  const isApproved = strategyStatus === 'approved';
-
   // Format date helper
   const formatDateStr = (dateVal) => {
     if (!dateVal) return '14 Nov 2026';
@@ -146,6 +140,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
       fileName: newFileName,
       fileSize: uploadFile ? `${(uploadFile.size / (1024 * 1024)).toFixed(1)} MB` : '3.8 MB',
       fileType: 'application/pdf',
+      file: uploadFile || null,
       version: newVersion,
       uploadDate: formatDateStr(new Date()),
       status: asPendingReview ? 'in_review' : 'draft',
@@ -187,6 +182,7 @@ export default function StrategyWorkspacePage({ initialBrandId, onOpenBriefs, on
       ...strategy,
       fileName: newFileName,
       fileSize: uploadFile ? `${(uploadFile.size / (1024 * 1024)).toFixed(1)} MB` : '4.2 MB',
+      file: uploadFile || null,
       version: newVersion,
       uploadDate: formatDateStr(new Date()),
       status: 'in_review', // reset to Pending Internal Review when new version uploaded

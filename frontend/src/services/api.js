@@ -238,6 +238,23 @@ export async function resetPasswordApi({ token, newPassword }) {
   }
 }
 
+export async function fetchCurrentUserApi() {
+  if (MOCK_ENABLED) return null;
+
+  const body = await apiRequest('/auth/me');
+  const user = body?.data?.user;
+
+  if (!user) return null;
+
+  // Keep the same normalised shape that login stores: `role` is the role name
+  // string and `roleId` the numeric id, because the shell compares strings.
+  return {
+    ...user,
+    role: user.role?.name ?? user.role,
+    roleId: user.role?.id ?? null,
+  };
+}
+
 export function logout() {
   const token = getAccessToken();
   const isLocalSession =

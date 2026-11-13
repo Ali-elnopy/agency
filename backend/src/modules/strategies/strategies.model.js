@@ -133,6 +133,12 @@ export const StrategiesModel = {
         });
     },
 
+    async remove(id) {
+        return prisma.strategy.delete({
+            where: { id },
+        });
+    },
+
     async findLatestVersion(strategyId) {
         return prisma.strategyVersion.findFirst({
             where: { strategyId },

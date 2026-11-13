@@ -63,6 +63,11 @@ strategiesRouter.patch(
     StrategiesController.update,
 );
 
+strategiesRouter.delete(
+    '/:id',
+    StrategiesController.remove,
+);
+
 strategiesRouter.post(
     '/:id/versions',
     requireContentCreator,

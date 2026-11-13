@@ -55,11 +55,11 @@ export function mapBrand(brand) {
     verified: Boolean(manager),
     industry: brand.industry ?? '',
     description: brand.description ?? '',
-    country: '',
-    timezone: '',
-    timezoneLabel: '',
+    country: brand.country ?? '',
+    timezone: brand.timezone ?? '',
+    timezoneLabel: brand.timezone ?? '',
     website: brand.websiteUrl ?? '',
-    driveFolderUrl: '',
+    driveFolderUrl: brand.driveFolderUrl ?? '',
     manager: manager?.fullName ?? '',
     managerInitials: manager ? initialsOf(manager.fullName) : '',
     managerEmail: manager?.email ?? '',
@@ -105,10 +105,33 @@ export async function createBrand(input) {
 
   if (website) payload.websiteUrl = website;
 
+  if (input.country) payload.country = String(input.country).trim();
+  if (input.timezone) payload.timezone = String(input.timezone).trim();
+
+  const driveFolderUrl = String(input.driveFolderUrl ?? '').trim();
+  if (driveFolderUrl) payload.driveFolderUrl = driveFolderUrl;
+
   if (input.accountManagerId) payload.accountManagerId = Number(input.accountManagerId);
   if (input.teamId) payload.teamId = Number(input.teamId);
 
-  return mapBrand(unwrap(await apiRequest('/brands', { method: 'POST', body: payload })));
+  // POST /brands creates the client portal account in the same transaction and
+  // rejects the request without `client`, so the form collects both values.
+  const clientName = String(input.clientName ?? '').trim();
+  const clientEmail = String(input.clientEmail ?? '').trim().toLowerCase();
+
+  if (clientName && clientEmail) {
+    payload.client = {
+      fullName: clientName,
+      email: clientEmail,
+      phone: String(input.clientPhone ?? '').trim() || null,
+    };
+  }
+
+  const body = await apiRequest('/brands', { method: 'POST', body: payload });
+  const data = unwrap(body);
+
+  // The endpoint answers with `{ brand, clientTemporaryPassword }`.
+  return mapBrand(data?.brand ?? data);
 }
 
 export async function updateBrand(id, patch) {

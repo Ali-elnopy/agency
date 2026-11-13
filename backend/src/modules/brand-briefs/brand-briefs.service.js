@@ -128,7 +128,164 @@ const assertCanGenerate = (user, brand) => {
     }
 };
 
+const BRIEF_STATUS_TO_UI = {
+    GENERATED: 'draft',
+    APPROVED: 'approved',
+    NEEDS_CHANGES: 'needs_changes',
+    REJECTED: 'rejected',
+    GENERATING: 'generating',
+    FAILED: 'failed',
+};
+
+function toBriefDto(brief) {
+    const content =
+        brief.content && typeof brief.content === 'object'
+            ? brief.content
+            : {};
+
+    return {
+        id: `brief-${brief.id}`,
+        serverId: brief.id,
+        onboardingId: brief.onboardingId,
+        brandId: String(brief.onboarding?.brandId ?? ''),
+        brandName: brief.onboarding?.brand?.name ?? '',
+        version: brief.version,
+        status: BRIEF_STATUS_TO_UI[brief.status] ?? 'draft',
+        backendStatus: brief.status,
+        objectives: Array.isArray(content.objectives)
+            ? content.objectives
+            : [],
+        targetAudience: content.targetAudience ?? '',
+        competitors: content.competitors ?? '',
+        toneOfVoice: content.toneOfVoice ?? '',
+        suggestedQuestions: Array.isArray(content.suggestedQuestions)
+            ? content.suggestedQuestions
+            : [],
+        sections: content.sections ?? null,
+        notes: content.notes ?? '',
+        approvedBy: content.approvedBy ?? null,
+        approvedAt: content.approvedAt ?? null,
+        generatedAt: brief.generatedAt ?? brief.createdAt,
+        modelName: brief.modelName ?? null,
+        generatedBy: brief.generatedBy?.fullName ?? null,
+    };
+}
+
+function canManage(user, brand) {
+    if (user?.role?.name === 'ADMIN') {
+        return true;
+    }
+
+    return (
+        user?.role?.name === 'ACCOUNT_MANAGER' &&
+        brand?.accountManagerId === user.id
+    );
+}
+
+function parseBriefId(value) {
+    const id = Number(value);
+
+    if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new ApiError(400, 'Invalid brief id.');
+    }
+
+    return id;
+}
+
 export const BrandBriefsService = {
+    async list(user, filters = {}) {
+        const accountManagerId =
+            user?.role?.name === 'ACCOUNT_MANAGER'
+                ? user.id
+                : undefined;
+
+        const briefs = await BrandBriefsModel.list({
+            ...filters,
+            accountManagerId,
+        });
+
+        return {
+            briefs: briefs.map(toBriefDto),
+            total: briefs.length,
+        };
+    },
+
+    async getById(id, user) {
+        const brief = await BrandBriefsModel.findById(
+            parseBriefId(id),
+        );
+
+        if (!brief) {
+            throw new ApiError(404, 'Brand Brief not found.');
+        }
+
+        if (
+            user?.role?.name !== 'ADMIN' &&
+            user?.role?.name !== 'ACCOUNT_MANAGER' &&
+            user?.role?.name !== 'EMPLOYEE'
+        ) {
+            throw new ApiError(403, 'You cannot read this Brand Brief.');
+        }
+
+        return toBriefDto(brief);
+    },
+
+    async update(id, payload, user) {
+        const existing = await BrandBriefsModel.findById(
+            parseBriefId(id),
+        );
+
+        if (!existing) {
+            throw new ApiError(404, 'Brand Brief not found.');
+        }
+
+        if (!canManage(user, existing.onboarding?.brand)) {
+            throw new ApiError(
+                403,
+                'Only administrators and assigned account managers can update Brand Briefs.',
+            );
+        }
+
+        const currentContent =
+            existing.content && typeof existing.content === 'object'
+                ? existing.content
+                : {};
+
+        const nextContent = payload.content
+            ? { ...currentContent, ...payload.content }
+            : { ...currentContent };
+
+        if (payload.status === 'APPROVED') {
+            nextContent.approvedBy =
+                user?.fullName ?? user?.email ?? 'Account Manager';
+            nextContent.approvedAt = new Date().toISOString();
+        }
+
+        const updated = await BrandBriefsModel.updateBrief(
+            existing.id,
+            {
+                ...(payload.status ? { status: payload.status } : {}),
+                ...(payload.content
+                    ? { content: nextContent }
+                    : {}),
+            },
+        );
+
+        return toBriefDto(updated);
+    },
+
+    async approve(id, comment, user) {
+        return this.update(
+            id,
+            {
+                status: 'APPROVED',
+                content: {
+                    ...(comment ? { notes: comment } : {}),
+                },
+            },
+            user,
+        );
+    },
     async generate(brandId, user) {
         const parsedBrandId = Number(brandId);
 

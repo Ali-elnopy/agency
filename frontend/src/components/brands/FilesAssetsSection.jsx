@@ -58,7 +58,7 @@ export default function FilesAssetsSection({ brand, onToast }) {
         const storageId = `asset-${brand.id}-${Date.now()}-${Math.random()
           .toString(36)
           .slice(2, 7)}`;
-        await saveFileBlob(storageId, file);
+        const serverFile = await saveFileBlob(storageId, file);
         addAsset(brand.id, {
           name: file.name,
           size: file.size,
@@ -66,6 +66,9 @@ export default function FilesAssetsSection({ brand, onToast }) {
           storageId,
           category: uploadCategory,
           uploadedBy: user?.fullName ?? '',
+          // Durable copy on the API; `url` lets the asset open without IndexedDB.
+          serverFileId: serverFile?.id ?? null,
+          url: serverFile?.url ?? '',
         });
       }
 
@@ -81,6 +84,12 @@ export default function FilesAssetsSection({ brand, onToast }) {
     const blob = await getFileBlob(asset.storageId);
 
     if (!blob) {
+      // The browser copy may be gone; the server copy survives a cache clear.
+      if (asset.url) {
+        window.open(asset.url, '_blank', 'noopener');
+        return;
+      }
+
       setError('This file is no longer available in this browser. Upload it again.');
       return;
     }

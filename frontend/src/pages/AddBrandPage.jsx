@@ -19,6 +19,8 @@ const EMPTY_FORM = {
   country: DEFAULT_COUNTRY.name,
   timezone: DEFAULT_COUNTRY.timezone,
   driveFolderUrl: '',
+  clientName: '',
+  clientEmail: '',
 };
 
 export default function AddBrandPage({ onBack, onSaved }) {
@@ -78,6 +80,18 @@ export default function AddBrandPage({ onBack, onSaved }) {
       nextErrors.driveFolderUrl = 'Enter a valid Drive folder URL, starting with http:// or https://.';
     }
 
+    // The API creates the client account together with the brand, so both
+    // values are required by POST /brands.
+    const clientName = form.clientName.trim();
+    const clientEmail = form.clientEmail.trim();
+
+    if (!clientName) nextErrors.clientName = 'Client contact name is required.';
+    if (!clientEmail) {
+      nextErrors.clientEmail = 'Client email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail)) {
+      nextErrors.clientEmail = 'Enter a valid client email address.';
+    }
+
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -92,6 +106,8 @@ export default function AddBrandPage({ onBack, onSaved }) {
         timezone: form.timezone,
         timezoneLabel: timezoneLabelFor(form.timezone),
         driveFolderUrl: form.driveFolderUrl.trim(),
+        clientName,
+        clientEmail,
       });
 
       let notice = 'Brand created successfully.';
@@ -251,6 +267,43 @@ export default function AddBrandPage({ onBack, onSaved }) {
             ) : (
               <span className="brand-field__hint">
                 {t('Shared folder for brand assets, references and final files.')}
+              </span>
+            )}
+          </div>
+
+          <div className="brand-field">
+            <label htmlFor="brand-client-name">
+              {t('Client Contact Name')} <span className="brand-required">*</span>
+            </label>
+            <input
+              id="brand-client-name"
+              className="form-input"
+              placeholder={t('e.g. Sarah Jenkins')}
+              value={form.clientName}
+              onChange={update('clientName')}
+              aria-invalid={Boolean(errors.clientName)}
+            />
+            {errors.clientName ? <span className="set-error">{t(errors.clientName)}</span> : null}
+          </div>
+
+          <div className="brand-field">
+            <label htmlFor="brand-client-email">
+              {t('Client Email')} <span className="brand-required">*</span>
+            </label>
+            <input
+              id="brand-client-email"
+              type="email"
+              className="form-input"
+              placeholder="client@brand.com"
+              value={form.clientEmail}
+              onChange={update('clientEmail')}
+              aria-invalid={Boolean(errors.clientEmail)}
+            />
+            {errors.clientEmail ? (
+              <span className="set-error">{t(errors.clientEmail)}</span>
+            ) : (
+              <span className="brand-field__hint">
+                {t('Used to create the client portal account for this brand.')}
               </span>
             )}
           </div>

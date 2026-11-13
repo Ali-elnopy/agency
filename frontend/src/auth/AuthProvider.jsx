@@ -1,6 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AuthContext from './AuthContext';
-import { isDevBypassEnabled, loginApi, logout as clearServerSession } from '../services/api';
+import {
+  fetchCurrentUserApi,
+  isDevBypassEnabled,
+  loginApi,
+  logout as clearServerSession,
+} from '../services/api';
 import { updateUser } from '../services/users';
 import {
   getStoredUser,
@@ -38,6 +43,29 @@ function createDevSession(setUser) {
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(() => (hasStoredSession() ? getStoredUser() : null));
+
+  // Re-hydrate the signed-in user from the API so role, job title and account
+  // status changes made by an admin are picked up without a new login. A failed
+  // call (mock session, offline demo) leaves the cached profile untouched.
+  useEffect(() => {
+    if (!hasStoredSession()) return undefined;
+
+    let alive = true;
+
+    fetchCurrentUserApi()
+      .then((fresh) => {
+        if (!alive || !fresh) return;
+        setStoredUser(fresh);
+        setUser(fresh);
+      })
+      .catch(() => {
+        // Keep the cached session; http.js already distinguishes 401s.
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const login = useCallback(async (credentials) => {
     const result = await loginApi(credentials);

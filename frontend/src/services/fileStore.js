@@ -1,10 +1,13 @@
+import { getAccessToken } from './tokenStorage';
+
 /**
  * Binary storage for brand files (briefs, logos, designs, videos…).
  *
  * Metadata (name, size, category, uploaded date) is kept with the brand
  * workspace; the bytes live in IndexedDB so large files never hit the
  * localStorage quota. When IndexedDB is unavailable the file is kept in
- * memory for the current session.
+ * memory for the current session. Every upload is also mirrored to
+ * `POST /files/upload` so the server keeps a durable copy.
  */
 
 const DB_NAME = 'orvia-brand-files';
@@ -55,11 +58,13 @@ export async function uploadFileToBackend(file) {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('orvia_access_token') : null;
+
+    const token = getAccessToken();
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch('/api/files/upload', {
+    const base = import.meta.env.VITE_API_BASE_URL || '/api';
+    const res = await fetch(`${base}/files/upload`, {
       method: 'POST',
       headers,
       body: formData,
@@ -75,16 +80,20 @@ export async function uploadFileToBackend(file) {
 }
 
 export async function saveFileBlob(id, file) {
-  uploadFileToBackend(file).catch(() => {});
+  // Mirror the bytes to the API first: the returned descriptor is stored on the
+  // asset so the file stays reachable after the browser cache is cleared.
+  const serverFile = await uploadFileToBackend(file);
 
   const db = await openDb();
 
   if (!db) {
     memory.set(id, file);
-    return;
+    return serverFile;
   }
 
   await runTransaction(db, 'readwrite', (store) => store.put(file, id));
+
+  return serverFile;
 }
 
 export async function getFileBlob(id) {

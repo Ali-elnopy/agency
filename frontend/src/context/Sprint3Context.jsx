@@ -1,9 +1,8 @@
 import { seedTasks } from '../data/tasksData';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useAuth from '../hooks/useAuth';
 import { Sprint3Context } from './sprint3Store';
 import {
-  BRIEF_STATUSES,
   portalToken,
   seedBriefs,
   seedCampaigns,
@@ -22,6 +21,31 @@ import {
   markNotificationAsReadApi,
   markAllNotificationsAsReadApi,
 } from '../services/contentManagementApi';
+import { isMockApiEnabled } from '../services/api';
+import {
+  apiEnabled,
+  toNumericId,
+  fetchStrategiesApi,
+  createStrategyApi,
+  renameStrategyApi,
+  deleteStrategyApi,
+  uploadStrategyVersionApi,
+  requestStrategyChangesApi,
+  approveStrategyApi,
+  fetchBriefsApi,
+  generateBriefApi,
+  updateBriefApi,
+  approveBriefApi,
+  fetchTasksApi,
+  createDirectTaskApi,
+  updateTaskApi,
+  updateTaskStatusApi,
+  deleteTaskApi,
+  fetchCampaignsApi,
+  createCampaignApi,
+  updateCampaignApi,
+  deleteCampaignApi,
+} from '../services/sprint3Api';
 
 /* Sprint 3 workflow state lives entirely in the browser. Each section of the
    page chain reads the same records, so a submitted portal answer is visible
@@ -146,6 +170,35 @@ function write(key, value) {
   } catch {
     // quota exceeded or blocked storage in sandboxed iframe; state remains in memory
   }
+}
+
+/* Write-through helpers never block the UI: the optimistic local record is
+   already rendered, and a failed request is reported instead of swallowed. */
+function reportSync(scope, error) {
+  if (!error) return;
+  console.warn(`[ORVIA sync] ${scope}:`, error?.message || error);
+}
+
+/* The notifications table stores a numeric id plus an optional JSON payload.
+   The UI needs a stable string id for React keys and keeps the numeric id as
+   `serverId` so mark-as-read calls the right endpoint. */
+function mapServerNotification(record) {
+  const payload =
+    record?.data && typeof record.data === 'object' ? record.data : {};
+
+  return {
+    id: `notif-${record.id}`,
+    serverId: record.id,
+    type: record.type,
+    title: record.title,
+    titleAr: record.title,
+    message: record.message,
+    messageAr: record.message,
+    isRead: Boolean(record.isRead),
+    createdAt: record.createdAt,
+    link: payload.link || 'dispatch',
+    targetRoles: Array.isArray(payload.targetRoles) ? payload.targetRoles : undefined,
+  };
 }
 
 export function Sprint3Provider({ children }) {
@@ -279,6 +332,33 @@ export function Sprint3Provider({ children }) {
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
   }, []);
+
+  // Hydrate the Sprint 3 workflow from the API. When the server has records
+  // they replace the local fixtures, so the UI shows the same data for every
+  // signed-in user instead of a browser-local copy. In demo mode this is a
+  // no-op and the fixtures stay in charge.
+  useEffect(() => {
+    if (!user || !apiEnabled()) return undefined;
+
+    let alive = true;
+
+    Promise.all([
+      fetchStrategiesApi().catch(() => null),
+      fetchBriefsApi().catch(() => null),
+      fetchTasksApi().catch(() => null),
+      fetchCampaignsApi().catch(() => null),
+    ]).then(([serverStrategies, serverBriefs, serverTasks, serverCampaigns]) => {
+      if (!alive) return;
+      if (serverStrategies?.length) setStrategies(serverStrategies);
+      if (serverBriefs?.length) setBriefs(serverBriefs);
+      if (serverTasks?.length) setTasks(serverTasks);
+      if (serverCampaigns?.length) setCampaigns(serverCampaigns);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     document.documentElement.dir = prefs.lang === 'ar' ? 'rtl' : 'ltr';
@@ -519,7 +599,7 @@ export function Sprint3Provider({ children }) {
         id: briefId,
         brandId: String(brandId),
         brandName,
-        status: BRIEF_STATUSES.DRAFT,
+        status: 'draft',
         version: (existing?.version || 0) + 1,
         objectives,
         targetAudience: audience,
@@ -538,6 +618,19 @@ export function Sprint3Provider({ children }) {
         return [newBrief, ...remaining];
       });
 
+      if (apiEnabled() && toNumericId(brandId)) {
+        generateBriefApi(brandId)
+          .then((serverBrief) => {
+            if (!serverBrief) return;
+            setBriefs((prev) =>
+              prev.map((b) =>
+                b.id === briefId ? { ...b, ...serverBrief, id: briefId } : b,
+              ),
+            );
+          })
+          .catch((error) => reportSync('generate brief', error));
+      }
+
       return newBrief;
     },
     [dispatches, briefs],
@@ -551,18 +644,32 @@ export function Sprint3Provider({ children }) {
       }
       return [briefInput, ...prev];
     });
+
+    if (apiEnabled() && toNumericId(briefInput.serverId)) {
+      updateBriefApi(briefInput.serverId, {
+        content: {
+          objectives: briefInput.objectives,
+          targetAudience: briefInput.targetAudience,
+          competitors: briefInput.competitors,
+          toneOfVoice: briefInput.toneOfVoice,
+          suggestedQuestions: briefInput.suggestedQuestions,
+          notes: briefInput.notes,
+        },
+      }).catch((error) => reportSync('save brief', error));
+    }
   }, []);
 
   const approveBrief = useCallback((briefId, approverName, notes = '') => {
     const now = stamp();
     let updated = null;
+    const current = briefs.find((b) => b.id === briefId);
 
     setBriefs((prev) =>
       prev.map((b) => {
         if (b.id !== briefId) return b;
         updated = {
           ...b,
-          status: BRIEF_STATUSES.APPROVED,
+          status: 'approved',
           approvedBy: approverName || 'Account Manager',
           approvedAt: now,
           notes,
@@ -571,8 +678,27 @@ export function Sprint3Provider({ children }) {
       }),
     );
 
+    if (apiEnabled()) {
+      const serverId = current?.serverId ?? toNumericId(briefId);
+
+      if (serverId) {
+        approveBriefApi(serverId, notes)
+          .then((serverBrief) => {
+            if (!serverBrief) return;
+            setBriefs((prev) =>
+              prev.map((b) =>
+                b.id === briefId
+                  ? { ...b, ...serverBrief, id: briefId, status: 'approved' }
+                  : b,
+              ),
+            );
+          })
+          .catch((error) => reportSync('approve brief', error));
+      }
+    }
+
     return updated;
-  }, []);
+  }, [briefs]);
 
   const getBrief = useCallback(
     (briefId) => briefs.find((b) => b.id === briefId) || null,
@@ -589,8 +715,11 @@ export function Sprint3Provider({ children }) {
   const saveStrategy = useCallback((strategyInput) => {
     const now = stamp();
     const id = strategyInput.id || sprint3Id('strat');
+    // A File cannot be serialised into localStorage, so keep it out of the
+    // record and send it to the versions endpoint instead.
+    const { file: strategyFile, ...strategyFields } = strategyInput;
     const normalized = {
-      ...strategyInput,
+      ...strategyFields,
       id,
       updatedAt: now,
       createdAt: strategyInput.createdAt || now,
@@ -604,12 +733,62 @@ export function Sprint3Provider({ children }) {
       return [normalized, ...prev];
     });
 
+    if (apiEnabled()) {
+      const attachServerId = (serverRecord) => {
+        if (!serverRecord) return;
+        setStrategies((prev) =>
+          prev.map((s) =>
+            s.id === id
+              ? {
+                  ...s,
+                  serverId: serverRecord.serverId,
+                  brandName: s.brandName || serverRecord.brandName,
+                  versionId: serverRecord.versionId ?? s.versionId ?? null,
+                }
+              : s,
+          ),
+        );
+      };
+
+      const file = strategyFile;
+
+      (async () => {
+        let serverId = strategyInput.serverId ?? null;
+
+        if (serverId) {
+          const renamed = await renameStrategyApi(serverId, normalized.title);
+          attachServerId(renamed);
+        } else if (toNumericId(normalized.brandId)) {
+          const created = await createStrategyApi({
+            brandId: normalized.brandId,
+            title: normalized.title,
+          });
+          serverId = created?.serverId ?? null;
+          attachServerId(created);
+        }
+
+        // The actual PDF lives in object storage; only the strategy metadata
+        // was covered by the create/rename call above.
+        if (serverId && file) {
+          const version = await uploadStrategyVersionApi(serverId, file);
+          if (version) {
+            setStrategies((prev) =>
+              prev.map((s) =>
+                s.id === id ? { ...s, versionId: version.id } : s,
+              ),
+            );
+          }
+        }
+      })().catch((error) => reportSync('save strategy', error));
+    }
+
     return normalized;
   }, []);
 
   const setStrategyStatus = useCallback((strategyId, status, meta = {}) => {
     const now = stamp();
     let updated = null;
+    const current = strategies.find((s) => s.id === strategyId);
 
     setStrategies((prev) =>
       prev.map((s) => {
@@ -635,12 +814,29 @@ export function Sprint3Provider({ children }) {
       }),
     );
 
+    if (apiEnabled() && current?.serverId && current?.versionId) {
+      if (status === 'approved') {
+        approveStrategyApi(current.serverId, current.versionId, meta.note)
+          .catch((error) => reportSync('approve strategy', error));
+      } else if (status === 'changes_requested' || status === 'in_review') {
+        requestStrategyChangesApi(current.serverId, current.versionId, meta.note || 'Revision requested')
+          .catch((error) => reportSync('request strategy changes', error));
+      }
+    }
+
     return updated;
-  }, []);
+  }, [strategies]);
 
   const deleteStrategy = useCallback((strategyId) => {
+    const current = strategies.find((s) => s.id === strategyId);
+
     setStrategies((prev) => prev.filter((s) => s.id !== strategyId));
-  }, []);
+
+    if (apiEnabled() && current?.serverId) {
+      deleteStrategyApi(current.serverId)
+        .catch((error) => reportSync('delete strategy', error));
+    }
+  }, [strategies]);
 
   const getStrategy = useCallback(
     (strategyId) => strategies.find((s) => s.id === strategyId) || null,
@@ -679,6 +875,35 @@ export function Sprint3Provider({ children }) {
     };
 
     setCampaigns((prev) => [record, ...prev]);
+
+    // The API needs a content plan plus a real date range; campaigns that only
+    // have a quarter label stay local until those two values exist.
+    if (
+      apiEnabled() &&
+      toNumericId(record.brandId) &&
+      record.startDate &&
+      record.endDate
+    ) {
+      createCampaignApi({
+        brandId: record.brandId,
+        name: record.name,
+        objective: campaignInput.objective || record.goal,
+        startDate: record.startDate,
+        endDate: record.endDate,
+      })
+        .then((serverCampaign) => {
+          if (!serverCampaign) return;
+          setCampaigns((prev) =>
+            prev.map((c) =>
+              c.id === id
+                ? { ...c, serverId: serverCampaign.serverId, contentPlanId: serverCampaign.contentPlanId }
+                : c,
+            ),
+          );
+        })
+        .catch((error) => reportSync('create campaign', error));
+    }
+
     return record;
   }, []);
 
@@ -686,11 +911,24 @@ export function Sprint3Provider({ children }) {
     setCampaigns((prev) =>
       prev.map((c) => (c.id === campaignId ? { ...c, ...patch } : c)),
     );
-  }, []);
+
+    const current = campaigns.find((c) => c.id === campaignId);
+    if (apiEnabled() && current?.serverId) {
+      updateCampaignApi(current.serverId, patch)
+        .catch((error) => reportSync('update campaign', error));
+    }
+  }, [campaigns]);
 
   const deleteCampaign = useCallback((campaignId) => {
+    const current = campaigns.find((c) => c.id === campaignId);
+
     setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
-  }, []);
+
+    if (apiEnabled() && current?.serverId) {
+      deleteCampaignApi(current.serverId)
+        .catch((error) => reportSync('delete campaign', error));
+    }
+  }, [campaigns]);
 
   const getCampaigns = useCallback(
     (brandId) =>
@@ -752,6 +990,32 @@ export function Sprint3Provider({ children }) {
     };
 
     setTasks((prev) => [newTask, ...prev]);
+
+    if (apiEnabled() && toNumericId(newTask.assigneeId)) {
+      createDirectTaskApi({
+        title: newTask.title,
+        description: newTask.description,
+        assignedTo: newTask.assigneeId,
+        priority: newTask.priority,
+        plannedDeadline: newTask.deadline,
+      })
+        .then((serverTask) => {
+          if (!serverTask) return;
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === newTask.id
+                ? {
+                    ...t,
+                    serverId: serverTask.serverId,
+                    contentItemId: t.contentItemId || serverTask.contentItemId,
+                  }
+                : t,
+            ),
+          );
+        })
+        .catch((error) => reportSync('create task', error));
+    }
+
     return newTask;
   }, []);
 
@@ -759,11 +1023,24 @@ export function Sprint3Provider({ children }) {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
     );
-  }, []);
+
+    const current = tasks.find((t) => t.id === taskId);
+    if (apiEnabled() && current?.serverId) {
+      updateTaskApi(current.serverId, patch)
+        .catch((error) => reportSync('update task', error));
+    }
+  }, [tasks]);
 
   const deleteTask = useCallback((taskId) => {
+    const current = tasks.find((t) => t.id === taskId);
+
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
-  }, []);
+
+    if (apiEnabled() && current?.serverId) {
+      deleteTaskApi(current.serverId)
+        .catch((error) => reportSync('delete task', error));
+    }
+  }, [tasks]);
 
   const changeTaskStatus = useCallback((taskId, newStatus, optionalNote) => {
     setTasks((prev) =>
@@ -782,7 +1059,13 @@ export function Sprint3Provider({ children }) {
         return { ...t, ...patch };
       }),
     );
-  }, []);
+
+    const current = tasks.find((t) => t.id === taskId);
+    if (apiEnabled() && current?.serverId) {
+      updateTaskStatusApi(current.serverId, newStatus)
+        .catch((error) => reportSync('update task status', error));
+    }
+  }, [tasks]);
 
   const autoConvertContentToTasks = useCallback((items, brandId, brandName) => {
     const createdTasks = [];
@@ -826,6 +1109,13 @@ export function Sprint3Provider({ children }) {
 
   const [serverUnreadCount, setServerUnreadCount] = useState(null);
 
+  // Keep the latest notifications in a ref so async handlers can resolve the
+  // numeric server id without depending on the state closure.
+  const notificationsRef = useRef(notifications);
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
+
   const roleFilteredNotifications = useMemo(() => {
     if (!technicalRole || technicalRole === 'ADMIN') return notifications;
     return notifications.filter((n) => {
@@ -839,10 +1129,35 @@ export function Sprint3Provider({ children }) {
     return roleFilteredNotifications.filter((n) => !n.isRead).length;
   }, [serverUnreadCount, roleFilteredNotifications]);
 
+  // Hydrate the notification feed from the API. Until this lands the list was
+  // entirely seeded in localStorage, so every notification was a fake record.
+  useEffect(() => {
+    if (!user || isMockApiEnabled()) return undefined;
+
+    let alive = true;
+
+    fetchNotificationsApi()
+      .then((res) => {
+        const list = Array.isArray(res?.data)
+          ? res.data
+          : res?.data?.notifications;
+
+        if (!alive || !Array.isArray(list) || list.length === 0) return;
+
+        setNotifications(list.map(mapServerNotification));
+      })
+      .catch(() => {
+        // Offline: keep the local seed so the demo keeps working.
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
   // Periodic polling for unread notifications (every 30-45 seconds)
   useEffect(() => {
-    if (!user) return;
-
+    if (!user || isMockApiEnabled()) return undefined;
     let isMounted = true;
     const pollUnreadCount = async () => {
       try {
@@ -868,13 +1183,20 @@ export function Sprint3Provider({ children }) {
   }, [user]);
 
   const markNotificationAsRead = useCallback(async (notificationId) => {
+    const target = notificationsRef.current.find((n) => n.id === notificationId);
+    const serverId = target?.serverId;
+
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)),
     );
     setServerUnreadCount((prev) => (prev !== null && prev > 0 ? prev - 1 : null));
 
+    // Seeds and locally created notifications have no numeric id, so there is
+    // nothing to persist for them.
+    if (!Number.isSafeInteger(Number(serverId)) || Number(serverId) <= 0) return;
+
     try {
-      await markNotificationAsReadApi(notificationId);
+      await markNotificationAsReadApi(serverId);
     } catch {
       // Mock mode or offline fallback
     }

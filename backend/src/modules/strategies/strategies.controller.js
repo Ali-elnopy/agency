@@ -149,4 +149,17 @@ export const StrategiesController = {
             data: result,
         });
     }),
+
+    remove: asyncHandler(async (req, res) => {
+        const result = await StrategiesService.remove(
+            req.params.id,
+            req.user,
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Strategy deleted successfully',
+            data: result,
+        });
+    }),
 };
