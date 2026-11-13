@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import useAuth from '../../hooks/useAuth';
 import { useBrands } from '../../context/brandsStore';
 import { useWorkspace } from '../../context/workspaceStore';
 import { useSprint3 } from '../../context/sprint3Store';
@@ -40,9 +41,17 @@ function workloadState(clients, max) {
 }
 
 export default function OverviewSection({ stats, onViewWorkload, onAssignTeam }) {
+  const { user } = useAuth();
   const { brands } = useBrands();
   const { users, teams: workspaceTeams } = useWorkspace();
-  const { t } = useSprint3();
+  const { t, isAdmin } = useSprint3();
+
+  const isUserAdmin = Boolean(
+    isAdmin ||
+    user?.role === 'ADMIN' ||
+    user?.role === 'admin' ||
+    user?.email === 'admin@orvia.com'
+  );
 
   const hasStats = Boolean(stats);
   const hasBrands = brands.length > 0;
@@ -311,71 +320,73 @@ export default function OverviewSection({ stats, onViewWorkload, onAssignTeam })
             )}
           </section>
 
-          <section className="cl-card">
-            <header className="cl-card__head">
-              <div>
-                <h2 className="cl-card__title">{t('Workload Allocation Matrix')}</h2>
-                <p className="cl-card__sub">
-                  {t('Account managers and the brands currently assigned to them.')}
-                </p>
-              </div>
-            </header>
+          {isUserAdmin ? (
+            <section className="cl-card">
+              <header className="cl-card__head">
+                <div>
+                  <h2 className="cl-card__title">{t('Workload Allocation Matrix')}</h2>
+                  <p className="cl-card__sub">
+                    {t('Account managers and the brands currently assigned to them.')}
+                  </p>
+                </div>
+              </header>
 
-            <div className="table-wrap">
-              <table className="table ov-table">
-                <thead>
-                  <tr>
-                    <th>{t('Account Manager')}</th>
-                    <th>{t('Assigned Team')}</th>
-                    <th>{t('Brands')}</th>
-                    <th>{t('Capacity State')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workload.length > 0 ? (
-                    workload.map((row) => (
-                      <tr key={row.id ?? row.name}>
-                        <td>
-                          <div className="ov-person">
-                            <span className="cl-avatar cl-avatar--gray">{initials(row.name)}</span>
-                            {t(row.name)}
+              <div className="table-wrap">
+                <table className="table ov-table">
+                  <thead>
+                    <tr>
+                      <th>{t('Account Manager')}</th>
+                      <th>{t('Assigned Team')}</th>
+                      <th>{t('Brands')}</th>
+                      <th>{t('Capacity State')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {workload.length > 0 ? (
+                      workload.map((row) => (
+                        <tr key={row.id ?? row.name}>
+                          <td>
+                            <div className="ov-person">
+                              <span className="cl-avatar cl-avatar--gray">{initials(row.name)}</span>
+                              {t(row.name)}
+                            </div>
+                          </td>
+                          <td>{t(row.team)}</td>
+                          <td>
+                            <strong>{row.clients}</strong>
+                          </td>
+                          <td>
+                            <span className={`pill ${row.tone}`}>{t(row.state)}</span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4}>
+                          <div className="ws-empty">
+                            <strong>
+                              {t(
+                                hasPeopleData
+                                  ? 'No account managers yet.'
+                                  : 'Workload data is unavailable.',
+                              )}
+                            </strong>
+                            <p>
+                              {t(
+                                hasPeopleData
+                                  ? 'Add an account manager to start tracking brand capacity.'
+                                  : 'Sign in with an administrator account to see workload.',
+                              )}
+                            </p>
                           </div>
                         </td>
-                        <td>{t(row.team)}</td>
-                        <td>
-                          <strong>{row.clients}</strong>
-                        </td>
-                        <td>
-                          <span className={`pill ${row.tone}`}>{t(row.state)}</span>
-                        </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4}>
-                        <div className="ws-empty">
-                          <strong>
-                            {t(
-                              hasPeopleData
-                                ? 'No account managers yet.'
-                                : 'Workload data is unavailable.',
-                            )}
-                          </strong>
-                          <p>
-                            {t(
-                              hasPeopleData
-                                ? 'Add an account manager to start tracking brand capacity.'
-                                : 'Sign in with an administrator account to see workload.',
-                            )}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
         </div>
 
         <aside className="ov-rail">
