@@ -84,14 +84,12 @@ function unwrap(body) {
 export async function listBrands() {
   if (isMockApiEnabled()) return [];
 
-  try {
-    const data = unwrap(await apiRequest('/brands'));
-    const records = Array.isArray(data?.brands) ? data.brands : [];
+  // Errors propagate to the caller so the UI can distinguish an empty
+  // portfolio (no brands assigned) from a failed/offline request.
+  const data = unwrap(await apiRequest('/brands'));
+  const records = Array.isArray(data?.brands) ? data.brands : [];
 
-    return records.map(mapBrand);
-  } catch {
-    return [];
-  }
+  return records.map(mapBrand);
 }
 
 export async function createBrand(input) {

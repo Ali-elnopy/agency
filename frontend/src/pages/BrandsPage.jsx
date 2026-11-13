@@ -18,7 +18,7 @@ function normalize(value) {
 export default function BrandsPage({ onOpenBrand, onAddBrand }) {
   const { user } = useAuth();
   const { role, t } = useSprint3();
-  const { brands, plans, content } = useBrands();
+  const { brands, plans, content, loading, error } = useBrands();
   const isAdmin = role === 'admin' || user?.role === 'ADMIN' || user?.systemAccess === 'admin';
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState(ALL_STATUSES);
@@ -99,6 +99,15 @@ export default function BrandsPage({ onOpenBrand, onAddBrand }) {
           </div>
         ) : null}
       </section>
+
+      {error ? (
+        <div className="brand-empty brand-empty--page" role="alert">
+          <h2>تعذر تحميل البراندز من السيرفر</h2>
+          <p>{error}</p>
+        </div>
+      ) : null}
+
+      {loading && !error ? <p className="brands-count">جارٍ التحميل…</p> : null}
 
       <div className="filters brands-filters">
         <label className="search">

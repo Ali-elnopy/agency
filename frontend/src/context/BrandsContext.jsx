@@ -35,6 +35,11 @@ const STORAGE_KEYS = {
   workspace: 'orvia_brand_workspace_v1',
 };
 
+/* Local seeds and localStorage caching are only for the offline demo build.
+   In every other mode the API is the single source of truth. */
+const DEMO_MODE =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true';
+
 function emptyWorkspace() {
   return {
     platforms: [],
@@ -114,17 +119,26 @@ export function BrandsProvider({ children }) {
   const demo = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true';
 
   const [brands, setBrands] = useState(() => {
+    if (!DEMO_MODE) return [];
     const stored = readStore(STORAGE_KEYS.brands, null);
     if (Array.isArray(stored) && stored.length > 0) return stored;
     return seedBrands;
   });
-  const [plans, setPlans] = useState(() => readStore(STORAGE_KEYS.plans, seedPlans));
-  const [content, setContent] = useState(() => readStore(STORAGE_KEYS.content, seedContent));
+  const [plans, setPlans] = useState(() =>
+    DEMO_MODE ? readStore(STORAGE_KEYS.plans, seedPlans) : [],
+  );
+  const [content, setContent] = useState(() =>
+    DEMO_MODE ? readStore(STORAGE_KEYS.content, seedContent) : [],
+  );
   const [workspace, setWorkspace] = useState(readWorkspace);
-  const [loadingBrands] = useState(false);
-  const [brandsError] = useState(null);
+  const [loadingBrands, setLoadingBrands] = useState(!DEMO_MODE);
+  const [brandsError, setBrandsError] = useState(null);
 
   const accessibleBrandIds = useMemo(() => {
+    // In the real mode the API already scopes GET /brands to the brands the
+    // signed-in user is allowed to see, so no client-side demo filtering.
+    if (!demo) return new Set(brands.map((b) => String(b.id)));
+
     if (!user) return new Set(brands.map((b) => b.id));
     const roleUpper = String(user.role || '').toUpperCase();
     const accessLower = String(user.systemAccess || '').toLowerCase();
@@ -212,7 +226,7 @@ export function BrandsProvider({ children }) {
     }
 
     return allowed.size > 0 ? allowed : new Set(brands.map((b) => b.id));
-  }, [brands, user, role, teams, workspaceUsers]);
+  }, [brands, user, role, teams, workspaceUsers, demo]);
 
   const scopedBrands = useMemo(() => {
     return brands.filter((brand) => accessibleBrandIds.has(String(brand.id)));
@@ -227,38 +241,53 @@ export function BrandsProvider({ children }) {
   }, [content, accessibleBrandIds]);
 
   useEffect(() => {
+    if (!DEMO_MODE) return undefined;
     writeStore(STORAGE_KEYS.brands, brands);
   }, [brands]);
 
   useEffect(() => {
+    if (!DEMO_MODE) return undefined;
     writeStore(STORAGE_KEYS.plans, plans);
   }, [plans]);
 
   useEffect(() => {
+    if (!DEMO_MODE) return undefined;
     writeStore(STORAGE_KEYS.content, content);
   }, [content]);
 
   useEffect(() => {
+    if (!DEMO_MODE) return undefined;
     writeStore(STORAGE_KEYS.workspace, workspace);
   }, [workspace]);
 
   useEffect(() => {
+    if (demo || !user) return undefined;
+
     let alive = true;
+
+    setLoadingBrands(true);
+    setBrandsError(null);
 
     listBrands()
       .then((records) => {
-        if (alive && Array.isArray(records) && records.length) {
-          setBrands(records);
-        }
+        if (!alive) return;
+        // The server response is authoritative even when it is empty:
+        // an empty list means "no brands assigned to you", not "keep the cache".
+        setBrands(records);
       })
-      .catch(() => {
-        // Keeps local seedBrands active if backend is offline
+      .catch((err) => {
+        if (!alive) return;
+        setBrands([]);
+        setBrandsError(err?.message || 'Could not load brands from the server.');
+      })
+      .finally(() => {
+        if (alive) setLoadingBrands(false);
       });
 
     return () => {
       alive = false;
     };
-  }, []);
+  }, [demo, user?.id]);
 
   // Platform accounts are owned by the API. Hydrate them once so every brand
   // workspace shows the server records; local-only records (created while the
