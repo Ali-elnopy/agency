@@ -125,8 +125,9 @@ const SECTIONS = [
   },
 ];
 
-export default function ClientPortalPage({ token, onSignOut }) {
+export default function ClientPortalPage({ token, onSignOut, theme = 'light', onToggleTheme }) {
   const { user, logout } = useAuth();
+  const isDark = theme === 'dark';
   const {
     dispatches = [],
     strategies = [],
@@ -2149,55 +2150,118 @@ export default function ClientPortalPage({ token, onSignOut }) {
 
   return (
     <div className="portal-layout" style={{ position: 'relative' }}>
-      {/* Top-Right Circular Notification Bell (Pages 1 to 24) */}
-      <button
-        type="button"
-        onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+      {/* Top Header Controls: Language Toggle, Theme Toggle (Light/Dark), Notifications Bell */}
+      <div
         style={{
           position: 'absolute',
           top: 24,
           right: lang === 'ar' ? 'auto' : 36,
           left: lang === 'ar' ? 36 : 'auto',
-          width: 44,
-          height: 44,
-          borderRadius: '50%',
-          background: '#FFFFFF',
-          border: '1px solid #E5E7EB',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+          gap: 10,
           zIndex: 60,
         }}
-        aria-label="Notifications"
       >
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-        {unreadNotifCount > 0 && (
-          <span
-            style={{
-              position: 'absolute',
-              top: -2,
-              right: -2,
-              background: '#6C5CE7',
-              color: '#FFFFFF',
-              fontSize: 10,
-              fontWeight: 800,
-              width: 18,
-              height: 18,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {unreadNotifCount}
-          </span>
-        )}
-      </button>
+        <button
+          type="button"
+          onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+          style={{
+            height: 42,
+            padding: '0 14px',
+            borderRadius: 21,
+            background: isDark ? '#141824' : '#FFFFFF',
+            border: isDark ? '1px solid #242c42' : '1px solid #E5E7EB',
+            color: isDark ? '#f8fafc' : '#111111',
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+          title={lang === 'ar' ? 'Switch to English' : 'التحويل للعربية'}
+        >
+          <span>🌐</span>
+          <span>{lang === 'ar' ? 'English' : 'عربي'}</span>
+        </button>
+
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={onToggleTheme}
+          aria-label="Toggle dark mode"
+          title={theme === 'dark' ? t('Switch to Light Mode') : t('Switch to Dark Mode')}
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: '50%',
+            background: isDark ? '#141824' : '#FFFFFF',
+            border: isDark ? '1px solid #242c42' : '1px solid #E5E7EB',
+            color: isDark ? '#f8fafc' : '#111111',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            padding: 0,
+          }}
+        >
+          <svg className="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+          </svg>
+          <svg className="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+          style={{
+            position: 'relative',
+            width: 42,
+            height: 42,
+            borderRadius: '50%',
+            background: isDark ? '#141824' : '#FFFFFF',
+            border: isDark ? '1px solid #242c42' : '1px solid #E5E7EB',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+          }}
+          aria-label="Notifications"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={isDark ? '#F8FAFC' : '#111111'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          {unreadNotifCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: -2,
+                right: -2,
+                background: '#6C5CE7',
+                color: '#FFFFFF',
+                fontSize: 10,
+                fontWeight: 800,
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {unreadNotifCount}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* Page 16: Notifications Dropdown */}
       {notifDropdownOpen && (
@@ -2208,19 +2272,19 @@ export default function ClientPortalPage({ token, onSignOut }) {
             right: lang === 'ar' ? 'auto' : 36,
             left: lang === 'ar' ? 36 : 'auto',
             width: 380,
-            background: '#FFFFFF',
+            background: isDark ? '#131722' : '#FFFFFF',
             borderRadius: 22,
-            boxShadow: '0 12px 36px rgba(0,0,0,0.12)',
-            border: '1px solid #E5E7EB',
+            boxShadow: isDark ? '0 16px 40px rgba(0,0,0,0.5)' : '0 12px 36px rgba(0,0,0,0.12)',
+            border: isDark ? '1px solid #242c42' : '1px solid #E5E7EB',
             padding: '24px',
             zIndex: 100,
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <strong style={{ fontSize: 17, fontWeight: 800, color: '#111111' }}>
+            <strong style={{ fontSize: 17, fontWeight: 800, color: isDark ? '#F8FAFC' : '#111111' }}>
               {lang === 'ar' ? 'الإشعارات' : 'Notifications'}
             </strong>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '3px 12px', fontSize: 11, fontWeight: 700 }}>
+            <span style={{ background: isDark ? '#6C5CE7' : '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '3px 12px', fontSize: 11, fontWeight: 700 }}>
               {unreadNotifCount} {lang === 'ar' ? 'جديد' : 'Unread'}
             </span>
           </div>
@@ -2234,8 +2298,9 @@ export default function ClientPortalPage({ token, onSignOut }) {
                 flex: 1,
                 fontSize: 12,
                 padding: '7px 12px',
-                background: '#FFFFFF',
-                border: '1.5px solid #111111',
+                background: isDark ? '#191F2E' : '#FFFFFF',
+                border: isDark ? '1px solid #2B354F' : '1.5px solid #111111',
+                color: isDark ? '#F8FAFC' : '#111111',
                 borderRadius: 10,
                 fontWeight: 700,
                 cursor: unreadNotifCount > 0 ? 'pointer' : 'default',
@@ -2253,7 +2318,7 @@ export default function ClientPortalPage({ token, onSignOut }) {
               style={{
                 fontSize: 12,
                 padding: '7px 12px',
-                background: '#111111',
+                background: isDark ? '#6C5CE7' : '#111111',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: 10,
@@ -2270,21 +2335,21 @@ export default function ClientPortalPage({ token, onSignOut }) {
               <div
                 key={notif.id}
                 style={{
-                  background: notif.unread ? '#EAE7FC' : '#FAF9F6',
+                  background: notif.unread ? (isDark ? '#231D45' : '#EAE7FC') : (isDark ? '#161B29' : '#FAF9F6'),
                   borderRadius: 14,
                   padding: '14px',
-                  border: notif.unread ? '1px solid #D5CFF7' : '1px solid #E5E7EB',
+                  border: notif.unread ? (isDark ? '1px solid #4C3D82' : '1px solid #D5CFF7') : (isDark ? '1px solid #242C42' : '1px solid #E5E7EB'),
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
-                  <strong style={{ fontSize: 13, color: '#111111', lineHeight: 1.35 }}>
+                  <strong style={{ fontSize: 13, color: isDark ? '#F8FAFC' : '#111111', lineHeight: 1.35 }}>
                     {lang === 'ar' ? notif.titleAr || notif.title : notif.title}
                   </strong>
                   {notif.unread && (
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6C5CE7', flexShrink: 0, marginTop: 4 }} />
                   )}
                 </div>
-                <small style={{ color: '#6B7280', display: 'block', marginBottom: 8, fontSize: 11 }}>
+                <small style={{ color: isDark ? '#94A3B8' : '#6B7280', display: 'block', marginBottom: 8, fontSize: 11 }}>
                   {lang === 'ar' ? notif.timeAr || notif.time : notif.time}
                 </small>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -2293,7 +2358,7 @@ export default function ClientPortalPage({ token, onSignOut }) {
                       type="button"
                       onClick={() => handleNavigateFromNotif(notif)}
                       style={{
-                        background: '#111111',
+                        background: isDark ? '#6C5CE7' : '#111111',
                         color: '#FFFFFF',
                         border: 'none',
                         borderRadius: 8,
@@ -2311,9 +2376,9 @@ export default function ClientPortalPage({ token, onSignOut }) {
                       type="button"
                       onClick={() => handleToggleRead(notif.id, true)}
                       style={{
-                        background: '#FFFFFF',
-                        color: '#111111',
-                        border: '1.5px solid #111111',
+                        background: isDark ? '#191F2E' : '#FFFFFF',
+                        color: isDark ? '#F8FAFC' : '#111111',
+                        border: isDark ? '1px solid #2B354F' : '1.5px solid #111111',
                         borderRadius: 8,
                         padding: '4px 10px',
                         fontSize: 11,
@@ -2339,12 +2404,12 @@ export default function ClientPortalPage({ token, onSignOut }) {
               width: '100%',
               marginTop: 14,
               padding: '8px',
-              background: '#F8F7F3',
-              border: '1px solid #E8E5DF',
+              background: isDark ? '#151927' : '#F8F7F3',
+              border: isDark ? '1px solid #242C42' : '1px solid #E8E5DF',
               borderRadius: 10,
               fontSize: 12.5,
               fontWeight: 700,
-              color: '#111111',
+              color: isDark ? '#F8FAFC' : '#111111',
               cursor: 'pointer',
               textAlign: 'center',
             }}
@@ -2355,14 +2420,14 @@ export default function ClientPortalPage({ token, onSignOut }) {
       )}
 
       {/* Sidebar matching PDF (pages 1 to 24) */}
-      <aside className="portal-sidebar" style={{ width: 230, padding: '24px 16px', background: '#F8F7F3', borderRight: '1px solid #E8E5DF' }}>
+      <aside className="portal-sidebar" style={{ width: 230, padding: '24px 16px', background: isDark ? '#0F121D' : '#F8F7F3', borderRight: isDark ? '1px solid #1E2335' : '1px solid #E8E5DF' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32, paddingLeft: 8 }}>
           <div
             style={{
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: '#111111',
+              background: isDark ? '#6C5CE7' : '#111111',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -2378,7 +2443,7 @@ export default function ClientPortalPage({ token, onSignOut }) {
               }}
             />
           </div>
-          <strong style={{ fontSize: 20, color: '#111111', fontWeight: 800, letterSpacing: '-0.02em' }}>Orvia</strong>
+          <strong style={{ fontSize: 20, color: isDark ? '#FFFFFF' : '#111111', fontWeight: 800, letterSpacing: '-0.02em' }}>Orvia</strong>
         </div>
 
         <nav className="portal-nav" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -2395,15 +2460,15 @@ export default function ClientPortalPage({ token, onSignOut }) {
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'onboarding' ? '#EDEAE4' : 'transparent',
-              color: activeNav === 'onboarding' ? '#111111' : '#555555',
+              background: activeNav === 'onboarding' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color: activeNav === 'onboarding' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
               fontWeight: activeNav === 'onboarding' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'onboarding' ? '#6C5CE7' : '#D1D5DB' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'onboarding' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
             <span>Onboarding</span>
           </button>
 
@@ -2420,15 +2485,15 @@ export default function ClientPortalPage({ token, onSignOut }) {
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'brief' ? '#EDEAE4' : 'transparent',
-              color: activeNav === 'brief' ? '#111111' : '#555555',
+              background: activeNav === 'brief' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color: activeNav === 'brief' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
               fontWeight: activeNav === 'brief' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'brief' ? '#6C5CE7' : '#D1D5DB' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'brief' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
             <span>Brief</span>
           </button>
 
@@ -2445,15 +2510,15 @@ export default function ClientPortalPage({ token, onSignOut }) {
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'strategy' ? '#EDEAE4' : 'transparent',
-              color: activeNav === 'strategy' ? '#111111' : '#555555',
+              background: activeNav === 'strategy' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color: activeNav === 'strategy' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
               fontWeight: activeNav === 'strategy' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'strategy' ? '#6C5CE7' : '#D1D5DB' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'strategy' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
             <span>Strategy</span>
           </button>
 
@@ -2467,15 +2532,15 @@ export default function ClientPortalPage({ token, onSignOut }) {
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'notifications' ? '#EDEAE4' : 'transparent',
-              color: activeNav === 'notifications' ? '#111111' : '#555555',
+              background: activeNav === 'notifications' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color: activeNav === 'notifications' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
               fontWeight: activeNav === 'notifications' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'notifications' ? '#6C5CE7' : '#D1D5DB' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'notifications' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
             <span>Notifications</span>
           </button>
 
@@ -2492,15 +2557,15 @@ export default function ClientPortalPage({ token, onSignOut }) {
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'brands' ? '#EDEAE4' : 'transparent',
-              color: activeNav === 'brands' ? '#111111' : '#555555',
+              background: activeNav === 'brands' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color: activeNav === 'brands' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
               fontWeight: activeNav === 'brands' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'brands' ? '#6C5CE7' : '#D1D5DB' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'brands' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
             <span>Brands</span>
           </button>
 
@@ -2517,25 +2582,33 @@ export default function ClientPortalPage({ token, onSignOut }) {
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'content_plans' ? '#EDEAE4' : 'transparent',
-              color: activeNav === 'content_plans' ? '#111111' : '#555555',
+              background: activeNav === 'content_plans' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color: activeNav === 'content_plans' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
               fontWeight: activeNav === 'content_plans' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'content_plans' ? '#6C5CE7' : '#D1D5DB' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'content_plans' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
             <span>Content Plans</span>
           </button>
         </nav>
 
         {/* Footer with sign out */}
-        <div style={{ marginTop: 'auto', paddingTop: 18, borderTop: '1px solid #E8E5DF', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ marginTop: 'auto', paddingTop: 18, borderTop: isDark ? '1px solid #1E2335' : '1px solid #E8E5DF', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button
             type="button"
             className="button button--ghost"
-            style={{ width: '100%', fontSize: 12, background: '#FFFFFF', border: '1px solid #D1D5DB', borderRadius: 10, padding: '8px 12px' }}
+            style={{
+              width: '100%',
+              fontSize: 12,
+              background: isDark ? '#141824' : '#FFFFFF',
+              border: isDark ? '1px solid #242C42' : '1px solid #D1D5DB',
+              color: isDark ? '#F8FAFC' : '#111111',
+              borderRadius: 10,
+              padding: '8px 12px'
+            }}
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
           >
             🌐 {lang === 'ar' ? 'English' : 'العربية'}
@@ -2544,7 +2617,16 @@ export default function ClientPortalPage({ token, onSignOut }) {
           <button
             type="button"
             className="button button--ghost"
-            style={{ width: '100%', fontSize: 12, color: '#DC2626', borderColor: '#FCA5A5', background: '#FEF2F2', borderRadius: 10, padding: '8px 12px', fontWeight: 700 }}
+            style={{
+              width: '100%',
+              fontSize: 12,
+              color: isDark ? '#F87171' : '#DC2626',
+              borderColor: isDark ? '#5C2222' : '#FCA5A5',
+              background: isDark ? '#2D1515' : '#FEF2F2',
+              borderRadius: 10,
+              padding: '8px 12px',
+              fontWeight: 700
+            }}
             onClick={handleSignOut}
           >
             {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}

@@ -4393,6 +4393,142 @@ html:not([data-theme='dark']) .portal-box-peach {
   color: #93c5fd !important;
 }
 
+/* ==========================================================================
+   CLIENT PORTAL EXHAUSTIVE HIGH-CONTRAST DARK MODE
+   ========================================================================== */
+[data-theme='dark'] .portal-layout {
+  background-color: #090b10 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme='dark'] .portal-sidebar {
+  background-color: #0f121d !important;
+  border-right-color: #1e2335 !important;
+  border-left-color: #1e2335 !important;
+}
+
+[data-theme='dark'] .portal-content {
+  background-color: #090b10 !important;
+  color: #f8fafc !important;
+}
+
+/* Headings and Breadcrumbs */
+[data-theme='dark'] .portal-layout h1,
+[data-theme='dark'] .portal-layout h2,
+[data-theme='dark'] .portal-layout h3,
+[data-theme='dark'] .portal-layout h4,
+[data-theme='dark'] .portal-page-header h1 {
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .portal-breadcrumb {
+  color: #94a3b8 !important;
+}
+
+[data-theme='dark'] .portal-layout label {
+  color: #e2e8f0 !important;
+}
+
+/* Input Fields, Select Dropdowns, and Textareas */
+[data-theme='dark'] .portal-layout input:not([type="checkbox"]):not([type="radio"]),
+[data-theme='dark'] .portal-layout select,
+[data-theme='dark'] .portal-layout textarea {
+  background-color: #151928 !important;
+  border-color: #273048 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme='dark'] .portal-layout input::placeholder,
+[data-theme='dark'] .portal-layout textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Dark Card Containers & Boxes */
+[data-theme='dark'] .portal-layout div[style*="background: #FFFFFF"],
+[data-theme='dark'] .portal-layout div[style*="background: #ffffff"],
+[data-theme='dark'] .portal-layout div[style*="background: rgb(255, 255, 255)"],
+[data-theme='dark'] .portal-layout div[style*="background: #FAF9F6"],
+[data-theme='dark'] .portal-layout div[style*="background: #F9FAFB"],
+[data-theme='dark'] .portal-layout div[style*="background: #F8F7F3"],
+[data-theme='dark'] .portal-layout div[style*="background:#FFFFFF"],
+[data-theme='dark'] .portal-layout div[style*="background:#ffffff"] {
+  background-color: #131722 !important;
+  border-color: #22283a !important;
+  color: #f8fafc !important;
+}
+
+/* Specific Pastel Containers in Dark Mode */
+[data-theme='dark'] .portal-layout div[style*="background: #DBEBFC"],
+[data-theme='dark'] .portal-layout div[style*="background:#DBEBFC"],
+[data-theme='dark'] .portal-layout div[style*="background: rgb(219, 235, 252)"] {
+  background-color: #10243d !important;
+  border: 1px solid #1e3a5f !important;
+  color: #e0f2fe !important;
+}
+
+[data-theme='dark'] .portal-layout div[style*="background: #EAE7FC"],
+[data-theme='dark'] .portal-layout div[style*="background:#EAE7FC"],
+[data-theme='dark'] .portal-layout div[style*="background: rgb(234, 231, 252)"] {
+  background-color: #1d1838 !important;
+  border: 1px solid #362c66 !important;
+  color: #ede9fe !important;
+}
+
+[data-theme='dark'] .portal-layout div[style*="background: #FDE2D8"],
+[data-theme='dark'] .portal-layout div[style*="background:#FDE2D8"],
+[data-theme='dark'] .portal-layout div[style*="background: rgb(253, 226, 216)"] {
+  background-color: #351c14 !important;
+  border: 1px solid #5a2c1e !important;
+  color: #ffedd5 !important;
+}
+
+/* Secondary Buttons in Dark Mode */
+[data-theme='dark'] .portal-layout button[style*="background: #FFFFFF"],
+[data-theme='dark'] .portal-layout button[style*="background: #ffffff"],
+[data-theme='dark'] .portal-layout button[style*="background: rgb(255, 255, 255)"],
+[data-theme='dark'] .portal-layout button[style*="background:#FFFFFF"],
+[data-theme='dark'] .portal-layout button[style*="background:#ffffff"] {
+  background-color: #191f2e !important;
+  border-color: #2b354f !important;
+  color: #f8fafc !important;
+}
+
+[data-theme='dark'] .portal-layout button[style*="background: #FFFFFF"]:hover,
+[data-theme='dark'] .portal-layout button[style*="background: #ffffff"]:hover,
+[data-theme='dark'] .portal-layout button[style*="background: rgb(255, 255, 255)"]:hover {
+  background-color: #232c40 !important;
+  border-color: #3d4a6e !important;
+  color: #ffffff !important;
+}
+
+/* Primary CTA Buttons in Dark Mode (#111111 -> #6c5ce7 Indigo) */
+[data-theme='dark'] .portal-layout button[style*="background: #111111"]:not(.theme-toggle),
+[data-theme='dark'] .portal-layout button[style*="background:#111111"]:not(.theme-toggle),
+[data-theme='dark'] .portal-layout button[style*="background: rgb(17, 17, 17)"]:not(.theme-toggle) {
+  background-color: #6c5ce7 !important;
+  color: #ffffff !important;
+}
+
+[data-theme='dark'] .portal-layout button[style*="background: #111111"]:hover:not(.theme-toggle),
+[data-theme='dark'] .portal-layout button[style*="background:#111111"]:hover:not(.theme-toggle) {
+  background-color: #5a49df !important;
+}
+
+/* Progress bar container track */
+[data-theme='dark'] .portal-layout div[style*="background: #E5E7EB"] {
+  background-color: #1f253a !important;
+}
+
+/* Muted text in portal */
+[data-theme='dark'] .portal-layout span[style*="color: #4B5563"],
+[data-theme='dark'] .portal-layout span[style*="color: #64748B"],
+[data-theme='dark'] .portal-layout span[style*="color: #555555"],
+[data-theme='dark'] .portal-layout small[style*="color: #4B5563"],
+[data-theme='dark'] .portal-layout p[style*="color: #4B5563"] {
+  color: #94a3b8 !important;
+}
+
+
 
 
 

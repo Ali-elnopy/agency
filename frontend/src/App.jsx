@@ -212,7 +212,12 @@ export default function App() {
           <IconSprite />
 
           {view === 'portal' || user?.role === 'CLIENT' ? (
-            <ClientPortalPage token={portalToken} onSignOut={handleSignOut} />
+            <ClientPortalPage
+              token={portalToken}
+              onSignOut={handleSignOut}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+            />
           ) : showDashboard ? (
             <DashboardPage
               theme={theme}
