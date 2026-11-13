@@ -1,48 +1,46 @@
-import './config/env.js';
+import { env } from './config/env.js';
 import app from './app.js';
 import { prisma } from './config/prisma.js';
 
-const PORT = Number(process.env.PORT) || 5001;
-
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET is required');
-}
-
-if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET.length < 32) {
-  throw new Error('JWT_SECRET must be at least 32 characters in production');
-}
+const PORT = env.PORT;
 
 let server;
 
 async function startServer() {
   try {
+    // Verify database connection before starting Express
     await prisma.$connect();
-    console.log('Connected to PostgreSQL database');
-  } catch (error) {
-    console.warn(
-      'Warning: PostgreSQL is unavailable on localhost:5432. Server is starting in API fallback mode.',
-    );
-  }
 
-  server = app.listen(PORT, () => {
-    console.log(`Orvia API running on port ${PORT}`);
-  });
+    // Execute a lightweight database query
+    await prisma.$queryRaw`SELECT 1`;
+
+    console.log('Connected to Supabase PostgreSQL successfully');
+
+    server = app.listen(PORT, () => {
+      console.log(`Orvia API running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to connect to PostgreSQL:');
+    console.error(error);
+
+    await prisma.$disconnect();
+    process.exit(1);
+  }
 }
 
 async function shutdown() {
+  console.log('Shutting down ORVIA API...');
+
   if (server) {
     await new Promise((resolve) => server.close(resolve));
   }
 
   await prisma.$disconnect();
+
   process.exit(0);
 }
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-startServer().catch(async (error) => {
-  console.error('Failed to start server:', error);
-  await prisma.$disconnect();
-  process.exit(1);
-});
+startServer();

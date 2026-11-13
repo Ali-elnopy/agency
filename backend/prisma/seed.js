@@ -6,13 +6,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // 1. Create the roles required by the application.
-  const roleNames = [
-    'ADMIN',
-    'ACCOUNT_MANAGER',
-    'TEAM_LEADER',
-    'EMPLOYEE',
-    'CLIENT',
-  ];
+  const roleNames = ['ADMIN', 'ACCOUNT_MANAGER', 'TEAM_LEADER', 'EMPLOYEE', 'CLIENT'];
 
   const roles = {};
 
@@ -57,32 +51,28 @@ async function main() {
   await prisma.jobTitle.updateMany({
     where: {
       name: {
-        in: [
-          'Designer',
-        ],
+        in: ['Designer'],
       },
     },
     data: { isActive: false },
   });
 
   // 4. Create the local admin account.
-  const email = (
-    process.env.SEED_ADMIN_EMAIL ?? 'admin@agency.local'
-  ).trim().toLowerCase();
+  const email = (process.env.SEED_ADMIN_EMAIL ?? 'admin@agency.local').trim().toLowerCase();
 
   const password = process.env.SEED_ADMIN_PASSWORD;
 
   if (!password) {
-    throw new Error(
-      'Set SEED_ADMIN_PASSWORD in your environment before running the seed.',
-    );
+    throw new Error('Set SEED_ADMIN_PASSWORD in your environment before running the seed.');
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
 
   await prisma.user.upsert({
     where: { email },
-    update: {},
+    update: {
+      passwordHash,
+    },
     create: {
       fullName: 'System Admin',
       email,
@@ -94,9 +84,7 @@ async function main() {
   console.log('Seed completed successfully.');
   console.log(`Admin account ready: ${email}`);
   console.log(`Roles ready: ${roleNames.join(', ')}`);
-  console.log(
-    `Job titles ready: ${[...jobTitles, 'Account Manager'].join(', ')}`,
-  );
+  console.log(`Job titles ready: ${[...jobTitles, 'Account Manager'].join(', ')}`);
 }
 
 main()
