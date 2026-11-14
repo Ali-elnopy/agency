@@ -9,10 +9,13 @@ const REFRESH_ENDPOINT_AVAILABLE = true;
 export const SESSION_EXPIRED_EVENT = 'orvia:session-expired';
 
 export class ApiError extends Error {
-  constructor(message, status = 0) {
+  constructor(message, status = 0, fieldErrors = undefined) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    // Field-level validation errors returned by the API (zod issues shape:
+    // [{ field, message }]) so forms can show the message on the right input.
+    this.fieldErrors = fieldErrors;
   }
 }
 
@@ -96,7 +99,14 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError('Network request failed. Check your connection and try again.', 0);
+    // Be honest about what happened: "offline" only when the browser really
+    // is offline, otherwise the server itself is unreachable.
+    throw new ApiError(
+      navigator.onLine === false
+        ? 'You appear to be offline. Check your connection and try again.'
+        : 'Could not reach the server. It may be down or restarting — please try again.',
+      0,
+    );
   }
 
   if (response.status === 401 && auth && retry) {
@@ -125,6 +135,7 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
     throw new ApiError(
       payload?.message || `Request failed (HTTP ${response.status}).`,
       response.status,
+      Array.isArray(payload?.errors) ? payload.errors : undefined,
     );
   }
 

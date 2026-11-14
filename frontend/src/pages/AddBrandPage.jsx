@@ -24,7 +24,7 @@ const EMPTY_FORM = {
 };
 
 export default function AddBrandPage({ onBack, onSaved }) {
-  const { brands, addBrand } = useBrands();
+  const { addBrand } = useBrands();
   const { addTeam, setTeamBrands } = useWorkspace();
   const { t } = useSprint3();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -68,11 +68,10 @@ export default function AddBrandPage({ onBack, onSaved }) {
       nextErrors.name = 'Brand name is required.';
     } else if (name.length > 150) {
       nextErrors.name = 'Brand name must not exceed 150 characters.';
-    } else if (
-      brands.some((brand) => brand.name.toLowerCase() === name.toLowerCase())
-    ) {
-      nextErrors.name = 'A brand with this name already exists.';
     }
+    // No client-side duplicate-name check: the brand name is not unique in the
+    // database, and comparing against the hydrated list caused false
+    // "already exists" errors (BUG-002). The server is the single source of truth.
 
     if (!industry) nextErrors.industry = 'Industry is required.';
     if (!form.country) nextErrors.country = 'Country is required.';
@@ -136,7 +135,37 @@ export default function AddBrandPage({ onBack, onSaved }) {
       // The temporary password is never shown again and no email is sent yet.
       setCreatedResult({ brand, clientEmail, clientPassword });
     } catch (error) {
-      setSubmitError(error?.message ?? 'Could not create the brand.');
+      // Server-side validation returns field-level issues; show each message
+      // on the field it belongs to instead of one generic line (BUG-002).
+      const fieldErrors = Array.isArray(error?.fieldErrors) ? error.fieldErrors : [];
+
+      if (fieldErrors.length > 0) {
+        const SERVER_FIELD_TO_FORM = {
+          name: 'name',
+          industry: 'industry',
+          country: 'country',
+          timezone: 'timezone',
+          driveFolderUrl: 'driveFolderUrl',
+          'client.fullName': 'clientName',
+          'client.email': 'clientEmail',
+        };
+
+        setErrors((prev) => {
+          const next = { ...prev };
+          for (const issue of fieldErrors) {
+            const formField = SERVER_FIELD_TO_FORM[issue.field];
+            if (formField) next[formField] = issue.message;
+          }
+          return next;
+        });
+      } else if (/email already exists/i.test(error?.message ?? '')) {
+        setErrors((prev) => ({
+          ...prev,
+          clientEmail: 'This email is already used by another client account.',
+        }));
+      } else {
+        setSubmitError(error?.message ?? 'Could not create the brand.');
+      }
     } finally {
       setSubmitting(false);
     }

@@ -444,49 +444,50 @@ export function BrandsProvider({ children }) {
     async (input) => {
       const name = String(input.name ?? '').trim();
 
-      if (!demo) {
-        try {
-          const created = await createBrandApi(input);
-          const brand = created?.brand ?? created;
+      // Demo mode only: create a local record so the flow keeps working
+      // without a backend. In the real mode the API is the source of truth —
+      // a server rejection must surface as an error, never become a silent
+      // local-only brand (BUG-002).
+      if (demo) {
+        const brand = {
+          id: makeId('brand'),
+          name,
+          initials: initialsOf(name),
+          tone: TONES[brands.length % TONES.length],
+          verified: false,
+          industry: String(input.industry ?? '').trim(),
+          description: String(input.description ?? '').trim(),
+          country: input.country ?? '',
+          timezone: input.timezone ?? '',
+          timezoneLabel: input.timezoneLabel || timezoneLabelFor(input.timezone),
+          website: String(input.website ?? '').trim(),
+          driveFolderUrl: String(input.driveFolderUrl ?? '').trim(),
+          manager: 'Elena Vance',
+          managerInitials: 'EV',
+          managerEmail: 'am@orvia.com',
+          managerRole: 'Account Manager',
+          team: 'Brand Strategy & Growth',
+          teamMembers: '3 members',
+          status: 'active',
+          createdAt: new Date().toISOString().slice(0, 10),
+          contactName: '',
+          contactRole: '',
+          contactEmail: '',
+          contactPhone: '',
+        };
 
-          if (brand && brand.id) {
-            setBrands((prev) => [brand, ...prev]);
-            return created;
-          }
-        } catch {
-          // Fallback to local creation if backend offline
-        }
+        setBrands((prev) => [brand, ...prev]);
+        return brand;
       }
 
-      const brand = {
-        id: makeId('brand'),
-        name,
-        initials: initialsOf(name),
-        tone: TONES[brands.length % TONES.length],
-        verified: false,
-        industry: String(input.industry ?? '').trim(),
-        description: String(input.description ?? '').trim(),
-        country: input.country ?? '',
-        timezone: input.timezone ?? '',
-        timezoneLabel: input.timezoneLabel || timezoneLabelFor(input.timezone),
-        website: String(input.website ?? '').trim(),
-        driveFolderUrl: String(input.driveFolderUrl ?? '').trim(),
-        manager: 'Elena Vance',
-        managerInitials: 'EV',
-        managerEmail: 'am@orvia.com',
-        managerRole: 'Account Manager',
-        team: 'Brand Strategy & Growth',
-        teamMembers: '3 members',
-        status: 'active',
-        createdAt: new Date().toISOString().slice(0, 10),
-        contactName: '',
-        contactRole: '',
-        contactEmail: '',
-        contactPhone: '',
-      };
+      const created = await createBrandApi(input);
+      const brand = created?.brand ?? created;
 
-      setBrands((prev) => [brand, ...prev]);
-      return brand;
+      if (brand && brand.id) {
+        setBrands((prev) => [brand, ...prev]);
+      }
+
+      return created;
     },
     [brands.length, demo],
   );
