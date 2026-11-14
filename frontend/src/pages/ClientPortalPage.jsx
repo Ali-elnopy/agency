@@ -1,139 +1,31 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
+import { fetchOnboardingCategoriesApi, saveOnboardingSelectionApi, fetchOnboardingTemplateApi, fetchMyOnboardingApi, saveOnboardingAnswersApi, submitOnboardingApi } from '../services/sprint3Api';
 import Toast from '../components/ui/Toast';
 import { useSprint3 } from '../context/sprint3Store';
 import { isMockApiEnabled } from '../services/api';
 
-const CATEGORY_OPTIONS = [
-  { id: 'Food', label: 'Food', labelAr: 'طعام ومشروبات' },
-  { id: 'Fashion', label: 'Fashion & Retail', labelAr: 'أزياء وتجزئة' },
-  { id: 'Tech', label: 'Tech & Software', labelAr: 'تكنولوجيا وبرمجيات' },
-  { id: 'Health', label: 'Health & Wellness', labelAr: 'صحة وعناية' },
-  { id: 'Automotive', label: 'Automotive', labelAr: 'سيارات ونقل' },
-];
+// Onboarding categories, activity types, sections and questions are loaded from the backend template bundle.
+const EMPTY_ANSWERS = {};
 
-const ACTIVITY_OPTIONS = {
-  Food: [
-    { id: 'Cafe', label: 'Cafe', labelAr: 'كافيه' },
-    { id: 'Restaurant', label: 'Restaurant', labelAr: 'مطعم' },
-    { id: 'Bakery', label: 'Bakery', labelAr: 'مخبز' },
-    { id: 'Fast Casual', label: 'Fast Casual', labelAr: 'وجبات سريعة' },
-  ],
-  Fashion: [
-    { id: 'Boutique', label: 'Boutique', labelAr: 'بوتيك' },
-    { id: 'Online Store', label: 'Online Store', labelAr: 'متجر إلكتروني' },
-  ],
-  Tech: [
-    { id: 'SaaS Platform', label: 'SaaS Platform', labelAr: 'منصة برمجية' },
-    { id: 'Mobile App', label: 'Mobile App', labelAr: 'تطبيق هاتف' },
-  ],
-  Health: [
-    { id: 'Clinic', label: 'Clinic', labelAr: 'عيادة' },
-    { id: 'Gym & Fitness', label: 'Gym & Fitness', labelAr: 'نادي رياضي' },
-  ],
-  Automotive: [
-    { id: 'Dealership', label: 'Dealership', labelAr: 'معرض سيارات' },
-    { id: 'Fleet Services', label: 'Fleet Services', labelAr: 'خدمات أساطيل' },
-  ],
-};
+function getAnswerValue(answer) {
+  if (answer && typeof answer === 'object' && Object.prototype.hasOwnProperty.call(answer, 'answer')) {
+    return answer.answer;
+  }
+  return answer;
+}
 
-const SECTIONS = [
-  {
-    id: 'sec_brand_info',
-    num: 1,
-    title: 'Brand Information',
-    titleAr: 'معلومات البراند',
-    progressStr: '28%',
-    questions: [
-      { id: 'q_name', label: 'What is your brand name?', labelAr: 'ما هو اسم البراند؟', required: true, type: 'text', placeholder: 'e.g. Bean & Co Cafe' },
-      { id: 'q_founded', label: 'When was the brand founded?', labelAr: 'متى تأسس البراند؟', required: true, type: 'text', placeholder: 'e.g. 2021' },
-      { id: 'q_desc', label: 'Brand description', labelAr: 'وصف البراند', required: false, type: 'textarea', placeholder: 'Describe what your brand does…' },
-    ],
-  },
-  {
-    id: 'sec_products',
-    num: 2,
-    title: 'Products & Services',
-    titleAr: 'المنتجات والخدمات',
-    progressStr: '29%',
-    questions: [
-      { id: 'q_products', label: 'What are your main products?', labelAr: 'ما هي منتجاتك الرئيسية؟', required: true, type: 'text', placeholder: 'e.g. Specialty coffee, pastries' },
-      { id: 'q_bestseller', label: 'Which is your best seller?', labelAr: 'ما هو المنتج الأكثر مبيعاً؟', required: true, type: 'text', placeholder: 'e.g. Spanish Latte' },
-      { id: 'q_services', label: 'Do you offer any services?', labelAr: 'هل تقدم أي خدمات إضافية؟', required: false, type: 'textarea', placeholder: 'e.g. Catering, venue rental…' },
-    ],
-  },
-  {
-    id: 'sec_audience',
-    num: 3,
-    title: 'Target Audience',
-    titleAr: 'الجمهور المستهدف',
-    progressStr: '43%',
-    questions: [
-      { id: 'q_audience', label: 'Who is your target audience?', labelAr: 'من هو جمهورك المستهدف؟', required: true, type: 'text', placeholder: 'e.g. Students and remote workers, 18–35' },
-      { id: 'q_age', label: 'What age range do they fall in?', labelAr: 'ما هي الفئة العمرية؟', required: true, type: 'text', placeholder: 'e.g. 18-35' },
-      { id: 'q_location', label: 'Where are your customers located?', labelAr: 'أين يتواجد عملاؤك جغرافياً؟', required: false, type: 'textarea', placeholder: 'e.g. Urban centers near universities…' },
-    ],
-  },
-  {
-    id: 'sec_goals',
-    num: 4,
-    title: 'Brand Goals',
-    titleAr: 'أهداف البراند',
-    progressStr: '57%',
-    questions: [
-      { id: 'q_goals', label: 'What are your top 3 brand goals?', labelAr: 'ما هي أهم 3 أهداف للبراند؟', required: true, type: 'text', placeholder: '1. Brand awareness 2. Foot traffic 3. Online orders' },
-      { id: 'q_success_12m', label: 'What does success look like in 12 months?', labelAr: 'كيف يبدو النجاح بعد 12 شهراً؟', required: true, type: 'text', placeholder: 'e.g. Opening second branch' },
-      { id: 'q_launch_dates', label: 'Any launch dates to plan for?', labelAr: 'هل هناك مواعيد إطلاق محددة؟', required: false, type: 'textarea', placeholder: 'e.g. Winter drinks launch in December' },
-    ],
-  },
-  {
-    id: 'sec_competitors',
-    num: 5,
-    title: 'Competitors',
-    titleAr: 'المنافسون',
-    progressStr: '71%',
-    questions: [
-      { id: 'q_competitors', label: 'Who are your top competitors?', labelAr: 'من هم أبرز المنافسين؟', required: true, type: 'text', placeholder: 'e.g. Blue Bottle, Local Roasters' },
-      { id: 'q_competitor_edge', label: 'What do they do better than you?', labelAr: 'ما الذي يتفوقون به؟', required: true, type: 'text', placeholder: 'e.g. Wider geographic presence' },
-      { id: 'q_differentiation', label: 'What makes you different?', labelAr: 'ما الذي يجعلك مميزاً عنهم؟', required: false, type: 'textarea', placeholder: 'e.g. Single-origin organic beans, cozy atmosphere' },
-    ],
-  },
-  {
-    id: 'sec_personality',
-    num: 6,
-    title: 'Brand Personality',
-    titleAr: 'شخصية البراند',
-    progressStr: '86%',
-    questions: [
-      { id: 'q_personality', label: 'Describe your brand personality', labelAr: 'صف شخصية البراند', required: true, type: 'text', placeholder: 'e.g. Warm, friendly, creative' },
-      { id: 'q_tone_words', label: 'Which 3 words describe your tone?', labelAr: '3 كلمات تصف نبرة صوتك؟', required: true, type: 'text', placeholder: 'e.g. Authentic, inviting, witty' },
-      { id: 'q_styles', label: 'Any colors or styles you prefer?', labelAr: 'أي ألوان أو أساليب تفضلها؟', required: false, type: 'textarea', placeholder: 'e.g. Earthy warm tones, clean typography' },
-    ],
-  },
-  {
-    id: 'sec_marketing',
-    num: 7,
-    title: 'Marketing Objectives',
-    titleAr: 'الأهداف التسويقية',
-    progressStr: '100%',
-    questions: [
-      { id: 'q_mkt_obj', label: 'What is your main marketing objective?', labelAr: 'ما هو هدفك التسويقي الأساسي؟', required: true, type: 'text', placeholder: 'e.g. Increase foot traffic and community engagement' },
-      { id: 'q_platforms', label: 'Which platforms matter most?', labelAr: 'ما هي أهم المنصات بالنسبة لك؟', required: true, type: 'text', placeholder: 'e.g. Instagram & TikTok' },
-      { id: 'q_content_volume', label: 'Monthly content volume you expect?', labelAr: 'حجم المحتوى الشهري المتوقع؟', required: false, type: 'textarea', placeholder: 'e.g. 12 posts and 8 reels per month' },
-    ],
-  },
-];
+function getErrorMessage(error, fallback) {
+  return error?.message || error?.response?.data?.message || fallback;
+}
 
 export default function ClientPortalPage({ token, onSignOut, theme = 'light', onToggleTheme }) {
   const { user, logout } = useAuth();
   const isDark = theme === 'dark';
   const {
-    dispatches = [],
     strategies = [],
-    saveAnswers,
     setStrategyStatus,
-    getDispatchByToken,
     roleFilteredNotifications = [],
     markNotificationAsRead,
     markAllNotificationsAsRead,
@@ -147,8 +39,14 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
   const [activeNav, setActiveNav] = useState('onboarding');
 
   // Sub-screens
-  const [onboardingStep, setOnboardingStep] = useState('category'); // 'category' | 'form' | 'sections' | 'confirmation'
+  const [onboardingStep, setOnboardingStep] = useState('category'); // 'category' | 'activity' | 'form' | 'sections' | 'confirmation'
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [categories, setCategories] = useState([]);
+  const [onboardingTemplate, setOnboardingTemplate] = useState(null);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
+  const [onboardingError, setOnboardingError] = useState('');
+  const [onboardingLoaded, setOnboardingLoaded] = useState(false);
   const [briefViewMode, setBriefViewMode] = useState('summary'); // 'summary' (p11) | 'answers' (p12)
   const [strategySubScreen, setStrategySubScreen] = useState('approval'); // 'details' (p13) | 'internal_review' (p14) | 'approval' (p15)
   const [brandSubScreen, setBrandSubScreen] = useState('list'); // 'list' (p17) | 'platforms' (p18)
@@ -234,7 +132,7 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
   // Replace the showcase notifications with the signed-in client's real feed as
   // soon as the API returns records. Demo builds keep the fixtures.
   useEffect(() => {
-    if (isMockApiEnabled() || roleFilteredNotifications.length === 0) return;
+    if (isMockApiEnabled()) return;
 
     const navFor = (link) => {
       if (link === 'strategy') return { actionNav: 'strategy', actionSubScreen: 'approval' };
@@ -247,9 +145,9 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         const nav = navFor(item.link);
         const time = item.createdAt
           ? new Date(item.createdAt).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-            })
+            day: '2-digit',
+            month: 'short',
+          })
           : '';
 
         return {
@@ -322,47 +220,133 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
     }
   };
 
-  const dispatch = useMemo(() => {
-    if (token) {
-      const found = getDispatchByToken(token);
-      if (found) return found;
-    }
-    return dispatches[0] ?? {
-      id: 'disp-default',
-      brandName: 'Bean & Co Cafe',
-      status: 'in_progress',
-      answers: {},
+  // The current onboarding flow is account-based; it must not read or write the legacy dispatch fixtures.
+  const dispatch = null;
+  const brandName = user?.brand?.name || user?.brandName || user?.fullName || 'Client';
+  const [mainCategory, setMainCategory] = useState('');
+  const [activityType, setActivityType] = useState('');
+  const [answers, setAnswers] = useState(EMPTY_ANSWERS);
+  const onboardingSections = onboardingTemplate?.sections || [];
+  const currentSection = onboardingSections[currentSectionIndex] || onboardingSections[0] || null;
+
+  const categoryOptions = categories;
+  const selectedCategory = categoryOptions.find((category) => category.code === mainCategory) || null;
+  const activityOptions = selectedCategory?.subtypes || [];
+
+  useEffect(() => {
+    let alive = true;
+    const loadOnboarding = async () => {
+      if (isMockApiEnabled()) {
+        setOnboardingError('Mock API mode is enabled. Set VITE_USE_MOCK_API=false to load the real onboarding categories and templates.');
+        setOnboardingLoaded(true);
+        return;
+      }
+      setOnboardingLoading(true);
+      setOnboardingError('');
+      try {
+        const [categoryResponse, myResponse] = await Promise.all([
+          fetchOnboardingCategoriesApi(),
+          fetchMyOnboardingApi(),
+        ]);
+        if (!alive) return;
+        const available = Array.isArray(categoryResponse?.categories)
+          ? categoryResponse.categories
+          : Array.isArray(categoryResponse?.data?.categories)
+            ? categoryResponse.data.categories
+            : [];
+        setCategories(available);
+
+        const onboarding = myResponse?.onboarding || myResponse?.data?.onboarding || null;
+        if (onboarding?.mainCategory) {
+          setMainCategory(onboarding.mainCategory);
+          setActivityType(onboarding.activityType || '');
+          const template = await fetchOnboardingTemplateApi({
+            mainCategory: onboarding.mainCategory,
+            activityType: onboarding.activityType || undefined,
+          });
+          if (!alive) return;
+          setOnboardingTemplate(template?.questions ? template : template?.data || null);
+          const saved = Array.isArray(onboarding.answers) ? onboarding.answers : [];
+          setAnswers(saved.reduce((acc, item) => {
+            if (item?.questionCode) acc[item.questionCode] = getAnswerValue(item);
+            return acc;
+          }, {}));
+          setOnboardingStep(onboarding.status === 'SUBMITTED' ? 'confirmation' : 'form');
+        }
+      } catch (error) {
+        if (alive) setOnboardingError(getErrorMessage(error, 'Could not load onboarding data.'));
+      } finally {
+        if (alive) {
+          setOnboardingLoading(false);
+          setOnboardingLoaded(true);
+        }
+      }
     };
-  }, [getDispatchByToken, token, dispatches]);
+    loadOnboarding();
+    return () => { alive = false; };
+  }, []);
 
-  const brandName = dispatch?.brandName || 'Bean & Co Cafe';
-  const [mainCategory, setMainCategory] = useState('Food');
-  const [activityType, setActivityType] = useState('Cafe');
+  const loadSelectedTemplate = async () => {
+    if (!mainCategory) {
+      showToast(t('Please select a category.'), 'error');
+      return false;
+    }
+    if (selectedCategory?.requires_subtype && !activityType) {
+      showToast(t('Please select an activity type.'), 'error');
+      return false;
+    }
+    setOnboardingLoading(true);
+    setOnboardingError('');
+    try {
+      if (!isMockApiEnabled()) {
+        await saveOnboardingSelectionApi({
+          mainCategory,
+          ...(activityType ? { activityType } : {}),
+        });
+        const response = await fetchOnboardingTemplateApi({
+          mainCategory,
+          ...(activityType ? { activityType } : {}),
+        });
+        const template = response?.questions ? response : response?.data;
+        if (!template || !Array.isArray(template.sections)) {
+          throw new Error('The selected onboarding template was not returned by the server.');
+        }
+        setOnboardingTemplate(template);
+      } else {
+        throw new Error('Onboarding requires the live API. Turn off mock API mode to use this form.');
+      }
+      setCurrentSectionIndex(0);
+      setOnboardingStep('form');
+      return true;
+    } catch (error) {
+      const message = getErrorMessage(error, 'Could not load the selected template.');
+      setOnboardingError(message);
+      showToast(message, 'error');
+      return false;
+    } finally {
+      setOnboardingLoading(false);
+    }
+  };
 
-  const [answers, setAnswers] = useState(() => ({
-    q_name: 'Bean & Co Cafe',
-    q_founded: '', // Empty initially to show validation on Section 1
-    q_desc: 'A neighborhood specialty coffee shop.',
-    q_products: 'Specialty coffee, pastries, artisan beans',
-    q_bestseller: 'Spanish Latte & Croissants',
-    q_services: 'Catering, subscriptions, venue rental',
-    q_audience: 'Students and remote workers, 18-35',
-    q_age: '18-35',
-    q_location: 'Urban center near universities and tech offices',
-    q_goals: '1. Brand awareness 2. Foot traffic 3. Online orders',
-    q_success_12m: 'Opening second branch and doubling social community',
-    q_launch_dates: 'Winter seasonal drinks launch in December',
-    q_competitors: 'Blue Bottle, Local Roasters, Costa',
-    q_competitor_edge: 'Wider geographic presence and loyalty app',
-    q_differentiation: 'Single-origin organic beans, co-working cozy vibe',
-    q_personality: 'Warm, friendly, creative',
-    q_tone_words: 'Authentic, inviting, witty',
-    q_styles: 'Earthy warm tones, minimalist layout',
-    q_mkt_obj: 'Increase foot traffic and Instagram engagement',
-    q_platforms: 'Instagram & TikTok',
-    q_content_volume: '12 posts and 8 reels per month',
-    ...(dispatch?.answers || {}),
-  }));
+  const buildAnswersPayload = () => {
+    const questions = onboardingTemplate?.questions || onboardingSections.flatMap((section) => section.questions || []);
+    return questions
+      .filter((question) => Object.prototype.hasOwnProperty.call(answers, question.code))
+      .filter((question) => {
+        const value = answers[question.code];
+        if (value === null || value === undefined || value === '') return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+      })
+      .map((question) => ({ questionCode: question.code, answer: answers[question.code] }));
+  };
+
+  const persistOnboardingAnswers = async () => {
+    if (isMockApiEnabled()) throw new Error('Onboarding requires the live API. Turn off mock API mode to save answers.');
+    if (!onboardingTemplate) throw new Error('Select an activity and load its questionnaire first.');
+    const payload = buildAnswersPayload();
+    if (payload.length > 0) await saveOnboardingAnswersApi(payload);
+  };
 
   const [fieldErrors, setFieldErrors] = useState({});
   const [strategyComment, setStrategyComment] = useState('Please focus more on Instagram Reels.');
@@ -388,41 +372,55 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
     return strategies.find((s) => String(s.brandId) === String(dispatch?.brandId)) ?? strategies[0] ?? null;
   }, [dispatch, strategies]);
 
-  const currentSection = SECTIONS[currentSectionIndex] || SECTIONS[0];
+  const handleFieldChange = (questionCode, value) => {
+    setAnswers((prev) => ({ ...prev, [questionCode]: value }));
+    if (fieldErrors[questionCode]) setFieldErrors((prev) => ({ ...prev, [questionCode]: '' }));
+  };
 
-  const handleFieldChange = (qId, val) => {
-    setAnswers((prev) => ({ ...prev, [qId]: val }));
-    if (fieldErrors[qId]) {
-      setFieldErrors((prev) => ({ ...prev, [qId]: '' }));
+  const handleSaveDraft = async () => {
+    if (!onboardingTemplate) {
+      showToast(t('Select an activity and load its questionnaire first.'), 'error');
+      return;
+    }
+    setOnboardingSaving(true);
+    try {
+      await persistOnboardingAnswers();
+      showToast(t('Draft saved successfully.'), 'success');
+    } catch (error) {
+      showToast(getErrorMessage(error, 'Could not save your draft.'), 'error');
+    } finally {
+      setOnboardingSaving(false);
     }
   };
 
-  const handleSaveDraft = () => {
-    if (dispatch?.id) saveAnswers(dispatch.id, answers);
-    showToast(t('Draft saved successfully.'), 'success');
-  };
-
-  const handleNextSection = () => {
-    // Validate current section
+  const handleNextSection = async () => {
+    if (!currentSection) return;
     const errors = {};
-    currentSection.questions.forEach((q) => {
-      if (q.required && (!answers[q.id] || !String(answers[q.id]).trim())) {
-        errors[q.id] = t('This field is required');
-      }
+    (currentSection.questions || []).forEach((question) => {
+      const value = answers[question.code];
+      const isEmpty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+      if (question.required && isEmpty) errors[question.code] = t('This field is required');
     });
-
-    if (Object.keys(errors).length > 0) {
+    if (Object.keys(errors).length) {
       setFieldErrors(errors);
       showToast(t('Please fill all required fields.'), 'error');
       return;
     }
-
-    if (currentSectionIndex < SECTIONS.length - 1) {
-      setCurrentSectionIndex((prev) => prev + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      setOnboardingStep('confirmation');
-      showToast(t('Onboarding submitted successfully!'), 'success');
+    setOnboardingSaving(true);
+    try {
+      await persistOnboardingAnswers();
+      if (currentSectionIndex < onboardingSections.length - 1) {
+        setCurrentSectionIndex((index) => index + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        await submitOnboardingApi();
+        setOnboardingStep('confirmation');
+        showToast(t('Onboarding submitted successfully!'), 'success');
+      }
+    } catch (error) {
+      showToast(getErrorMessage(error, 'Could not save or submit onboarding.'), 'error');
+    } finally {
+      setOnboardingSaving(false);
     }
   };
 
@@ -470,312 +468,134 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <h1>Select Category</h1>
         <div className="portal-breadcrumb">Orvia / Onboarding</div>
       </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 36, marginTop: 24 }}>
-        <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#111111' }}>
-            Main Category
-          </label>
-          <span className="form-select-wrap" style={{ width: '100%' }}>
-            <select
-              className="form-select"
-              value={mainCategory}
-              onChange={(e) => {
-                const cat = e.target.value;
-                setMainCategory(cat);
-                setActivityType(ACTIVITY_OPTIONS[cat]?.[0]?.id || 'Cafe');
-              }}
-              style={{ width: '100%', height: 46, borderRadius: 14, background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '0 16px', fontSize: 14 }}
-            >
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </span>
+      {onboardingLoading && <p>Loading onboarding options...</p>}
+      {onboardingError && <p role="alert" style={{ color: '#DC2626' }}>{onboardingError}</p>}
+      {!onboardingLoading && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 36, marginTop: 24 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#111111' }}>Main Category</label>
+            <span className="form-select-wrap" style={{ width: '100%' }}>
+              <select className="form-select" value={mainCategory} onChange={(event) => {
+                const nextCategory = categoryOptions.find((category) => category.code === event.target.value);
+                setMainCategory(event.target.value);
+                setActivityType(nextCategory?.subtypes?.[0]?.code || '');
+                setOnboardingTemplate(null);
+                setAnswers({});
+              }} style={{ width: '100%', height: 46, borderRadius: 14, background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '0 16px', fontSize: 14 }}>
+                <option value="">Choose a category</option>
+                {categoryOptions.map((category) => <option key={category.code} value={category.code}>{category.label}</option>)}
+              </select>
+            </span>
+          </div>
         </div>
-
-        <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#111111' }}>
-            Activity Type
-          </label>
-          <span className="form-select-wrap" style={{ width: '100%' }}>
-            <select
-              className="form-select"
-              value={activityType}
-              onChange={(e) => setActivityType(e.target.value)}
-              style={{ width: '100%', height: 46, borderRadius: 14, background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '0 16px', fontSize: 14 }}
-            >
-              {(ACTIVITY_OPTIONS[mainCategory] || []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </span>
-        </div>
-      </div>
-
+      )}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          type="button"
-          className="button"
-          onClick={() => {
-            setCurrentSectionIndex(0);
-            setOnboardingStep('form');
-          }}
-          style={{ background: '#111111', color: '#ffffff', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Continue
+        <button type="button" className="button" disabled={onboardingLoading || !mainCategory} onClick={() => selectedCategory?.requires_subtype ? setOnboardingStep('activity') : loadSelectedTemplate()} style={{ background: '#111111', color: '#ffffff', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: onboardingLoading ? 0.6 : 1 }}>
+          {onboardingLoading ? 'Loading...' : 'Continue'}
         </button>
       </div>
     </div>
   );
 
-  // PAGE 2: Onboarding Form (Section 1)
-  const renderPage2OnboardingSection1 = () => (
-    <div style={{ maxWidth: 960 }}>
-      <div className="portal-page-header">
-        <h1>Onboarding Form</h1>
-        <div className="portal-breadcrumb">Orvia / Onboarding</div>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 16 }}>
-        <span style={{ fontSize: 13, color: '#4B5563', fontWeight: 600 }}>
-          Section 1 of 7 · Brand Information · 28%
-        </span>
-        <div style={{ width: 280, height: 8, borderRadius: 9999, background: '#E5E7EB', overflow: 'hidden' }}>
-          <div style={{ width: '28%', height: '100%', background: '#6C5CE7', borderRadius: 9999 }} />
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-        <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>What is your brand name?</label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>* Required</span>
-          <input
-            type="text"
-            className="form-input"
-            value={answers.q_name}
-            onChange={(e) => handleFieldChange('q_name', e.target.value)}
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
-          />
-        </div>
-
-        <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>When was the brand founded?</label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>* Required</span>
-          <input
-            type="text"
-            className="form-input"
-            value={answers.q_founded}
-            onChange={(e) => handleFieldChange('q_founded', e.target.value)}
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1.5px solid #DC2626', padding: '0 16px', background: '#FFFFFF' }}
-          />
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginTop: 4 }}>This field is required</span>
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 28 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Brand description</label>
-        <textarea
-          className="form-textarea"
-          rows={3}
-          value={answers.q_desc}
-          onChange={(e) => handleFieldChange('q_desc', e.target.value)}
-          style={{ width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF' }}
-        />
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-        <button
-          type="button"
-          onClick={handleSaveDraft}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Save Draft
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            // Fill founded if empty to allow forward progress or set next
-            if (!answers.q_founded) {
-              setAnswers((prev) => ({ ...prev, q_founded: '2021' }));
-            }
-            setCurrentSectionIndex(1);
-          }}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 26px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Submit
-        </button>
+  const renderPageActivity = () => (
+    <div style={{ maxWidth: 900 }}>
+      <div className="portal-page-header"><h1>Select Activity Type</h1><div className="portal-breadcrumb">Orvia / Onboarding</div></div>
+      <p style={{ color: '#4B5563', margin: '18px 0 24px' }}>{selectedCategory?.label || mainCategory}</p>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#111111' }}>Activity Type</label>
+      <span className="form-select-wrap" style={{ width: '100%', maxWidth: 520 }}>
+        <select className="form-select" value={activityType} onChange={(event) => setActivityType(event.target.value)} style={{ width: '100%', height: 46, borderRadius: 14, background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '0 16px', fontSize: 14 }}>
+          <option value="">Choose an activity</option>
+          {activityOptions.map((activity) => <option key={activity.code} value={activity.code}>{activity.label}</option>)}
+        </select>
+      </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32, gap: 12 }}>
+        <button type="button" onClick={() => setOnboardingStep('category')} style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Back</button>
+        <button type="button" disabled={!activityType || onboardingLoading} onClick={loadSelectedTemplate} style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: !activityType || onboardingLoading ? 0.6 : 1 }}>{onboardingLoading ? 'Loading...' : 'Continue'}</button>
       </div>
     </div>
   );
 
-  // PAGE 3: Form Sections
+  // Dynamic section overview generated from the selected backend template.
   const renderPage3Sections = () => (
     <div style={{ maxWidth: 960 }}>
-      <div className="portal-page-header">
-        <h1>Form Sections</h1>
-        <div className="portal-breadcrumb">Orvia / Onboarding</div>
+      <div className="portal-page-header"><h1>Form Sections</h1><div className="portal-breadcrumb">Orvia / Onboarding</div></div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, margin: '24px 0 32px' }}>
+        {onboardingSections.map((section, index) => {
+          const answered = (section.questions || []).filter((question) => {
+            const value = answers[question.code];
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+          }).length;
+          return (
+            <div key={section.code} onClick={() => { setCurrentSectionIndex(index); setOnboardingStep('form'); }} tabIndex={0} role="button" onKeyDown={(event) => { if (event.key === 'Enter') { setCurrentSectionIndex(index); setOnboardingStep('form'); } }} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 16, padding: '16px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <strong style={{ fontSize: 14, fontWeight: 700, color: '#111111' }}>{section.title}</strong>
+              <span style={{ fontSize: 12, color: '#6B7280' }}>{answered}/{(section.questions || []).length}</span>
+            </div>
+          );
+        })}
       </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
-        <span style={{ fontSize: 13, color: '#4B5563', fontWeight: 600 }}>
-          Progress: 2 of 7 sections completed · 28%
-        </span>
-        <div style={{ width: 280, height: 8, borderRadius: 9999, background: '#E5E7EB', overflow: 'hidden' }}>
-          <div style={{ width: '28%', height: '100%', background: '#6C5CE7', borderRadius: 9999 }} />
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 32 }}>
-        {[
-          { title: 'Brand Information', status: 'Done', isDone: true, idx: 0 },
-          { title: 'Products & Services', status: 'Done', isDone: true, idx: 1 },
-          { title: 'Target Audience', status: 'In progress', idx: 2 },
-          { title: 'Brand Goals', status: 'Not started', idx: 3 },
-          { title: 'Competitors', status: 'Not started', idx: 4 },
-          { title: 'Brand Personality', status: 'Not started', idx: 5 },
-          { title: 'Marketing Objectives', status: 'Not started', idx: 6 },
-        ].map((sec) => (
-          <div
-            key={sec.title}
-            onClick={() => {
-              setCurrentSectionIndex(sec.idx);
-              setOnboardingStep('form');
-            }}
-            tabIndex={0}
-            role="button"
-            onKeyDown={(e) => e.key === 'Enter' && setOnboardingStep('form')}
-            style={{
-              background: '#FFFFFF',
-              border: '1px solid #E5E7EB',
-              borderRadius: 16,
-              padding: '16px 22px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-            }}
-          >
-            <strong style={{ fontSize: 14, fontWeight: 700, color: '#111111' }}>{sec.title}</strong>
-            {sec.isDone ? (
-              <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
-                Done
-              </span>
-            ) : (
-              <span style={{ fontSize: 12, color: sec.status === 'In progress' ? '#4B5563' : '#9CA3AF', fontWeight: 500 }}>
-                {sec.status}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-        <button
-          type="button"
-          onClick={handleSaveDraft}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Save Draft
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setCurrentSectionIndex(1);
-            setOnboardingStep('form');
-          }}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 26px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Submit
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+        <button type="button" onClick={() => setOnboardingStep('form')} style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Continue questionnaire</button>
+        <button type="button" onClick={handleSaveDraft} disabled={onboardingSaving} style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save Draft</button>
       </div>
     </div>
   );
 
-  // PAGES 4-9: Onboarding Sections 2 to 7
-  const renderPages4to9Section = () => {
-    const sec = currentSection;
+  const renderDynamicOnboardingSection = () => {
+    if (!currentSection) return <p>No questions were returned for this template.</p>;
+    const totalQuestions = onboardingSections.reduce((sum, section) => sum + (section.questions || []).length, 0);
+    const answeredQuestions = onboardingSections.reduce((sum, section) => sum + (section.questions || []).filter((question) => {
+      const value = answers[question.code];
+      return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+    }).length, 0);
+    const progress = totalQuestions ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
+
+    const renderQuestionInput = (question) => {
+      const value = answers[question.code] ?? (question.type === 'multi_select' ? [] : question.type === 'boolean' ? null : '');
+      const commonStyle = { width: '100%', borderRadius: 14, border: fieldErrors[question.code] ? '1.5px solid #DC2626' : '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF' };
+      if (question.type === 'boolean') {
+        return <div style={{ display: 'flex', gap: 18, padding: '10px 0' }}>
+          {[{ value: true, label: 'Yes' }, { value: false, label: 'No' }].map((option) => <label key={String(option.value)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><input type="radio" name={question.code} checked={value === option.value} onChange={() => handleFieldChange(question.code, option.value)} />{option.label}</label>)}
+        </div>;
+      }
+      if (question.type === 'single_select') {
+        return <select value={value} onChange={(event) => handleFieldChange(question.code, event.target.value)} style={{ ...commonStyle, height: 46 }}><option value="">Choose an answer</option>{(question.options || []).map((option) => <option key={option} value={option}>{option}</option>)}</select>;
+      }
+      if (question.type === 'multi_select') {
+        const selected = Array.isArray(value) ? value : [];
+        return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{(question.options || []).map((option) => <label key={option} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid #E5E7EB', borderRadius: 10, padding: '8px 12px' }}><input type="checkbox" checked={selected.includes(option)} onChange={(event) => handleFieldChange(question.code, event.target.checked ? [...selected, option] : selected.filter((item) => item !== option))} />{option}</label>)}</div>;
+      }
+      if (question.type === 'textarea') {
+        return <textarea rows={3} value={value} onChange={(event) => handleFieldChange(question.code, event.target.value)} placeholder="Your answer" style={commonStyle} />;
+      }
+      return <input type="text" value={value} onChange={(event) => handleFieldChange(question.code, event.target.value)} placeholder="Your answer" style={{ ...commonStyle, height: 46 }} />;
+    };
 
     return (
       <div style={{ maxWidth: 960 }}>
-        <div className="portal-page-header">
-          <h1>Onboarding Form</h1>
-          <div className="portal-breadcrumb">Orvia / Onboarding</div>
+        <div className="portal-page-header"><h1>Onboarding Form</h1><div className="portal-breadcrumb">Orvia / Onboarding</div></div>
+        <div style={{ background: '#DBEBFC', borderRadius: 18, padding: '22px 28px', margin: '20px 0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div><strong style={{ fontSize: 18, fontWeight: 800, color: '#111111', display: 'block', marginBottom: 4 }}>{currentSection.title}</strong><span style={{ fontSize: 13, color: '#4B5563' }}>Section {currentSectionIndex + 1} of {onboardingSections.length}</span></div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#111111' }}>{progress}% complete</span>
         </div>
-
-        {/* Light Blue Banner Card */}
-        <div style={{ background: '#DBEBFC', borderRadius: 18, padding: '22px 28px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111', display: 'block', marginBottom: 4 }}>
-              {sec.title}
-            </strong>
-            <span style={{ fontSize: 13, color: '#4B5563' }}>Section {sec.num} of 7</span>
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#111111' }}>
-            Progress: {sec.progressStr}
-          </span>
-        </div>
-
-        {/* Purple progress bar */}
-        <div style={{ width: '100%', height: 7, borderRadius: 9999, background: '#E5E7EB', marginBottom: 20, overflow: 'hidden' }}>
-          <div style={{ width: sec.progressStr, height: '100%', background: '#6C5CE7', borderRadius: 9999 }} />
-        </div>
-
-        {/* Form Fields Card */}
+        <div style={{ width: '100%', height: 7, borderRadius: 9999, background: '#E5E7EB', marginBottom: 20, overflow: 'hidden' }}><div style={{ width: `${progress}%`, height: '100%', background: '#6C5CE7', borderRadius: 9999 }} /></div>
         <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 20, padding: '28px 32px', marginBottom: 24 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {sec.questions.map((q) => {
-              const val = answers[q.id] || '';
-              return (
-                <div key={q.id}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{q.label}</label>
-                  {q.required ? (
-                    <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>* Required</span>
-                  ) : null}
-                  {q.type === 'textarea' ? (
-                    <textarea
-                      className="form-textarea"
-                      rows={3}
-                      value={val}
-                      onChange={(e) => handleFieldChange(q.id, e.target.value)}
-                      placeholder={q.placeholder || 'Your answer'}
-                      style={{ width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF' }}
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={val}
-                      onChange={(e) => handleFieldChange(q.id, e.target.value)}
-                      placeholder={q.placeholder || 'Your answer'}
-                      style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
-                    />
-                  )}
-                </div>
-              );
-            })}
+            {(currentSection.questions || []).map((question) => (
+              <div key={question.code}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{question.label}</label>
+                {question.required && <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>* Required</span>}
+                {renderQuestionInput(question)}
+                {fieldErrors[question.code] && <span role="alert" style={{ display: 'block', color: '#DC2626', fontSize: 12, marginTop: 4 }}>{fieldErrors[question.code]}</span>}
+              </div>
+            ))}
           </div>
         </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <button
-            type="button"
-            onClick={handleSaveDraft}
-            style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-          >
-            Save Draft
-          </button>
-          <button
-            type="button"
-            onClick={handleNextSection}
-            style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 26px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-          >
-            Submit
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <button type="button" onClick={() => currentSectionIndex === 0 ? setOnboardingStep('sections') : setCurrentSectionIndex((index) => index - 1)} style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Back</button>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button type="button" onClick={handleSaveDraft} disabled={onboardingSaving} style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{onboardingSaving ? 'Saving...' : 'Save Draft'}</button>
+            <button type="button" onClick={handleNextSection} disabled={onboardingSaving} style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 26px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{onboardingSaving ? 'Please wait...' : currentSectionIndex === onboardingSections.length - 1 ? 'Submit Onboarding' : 'Next Section'}</button>
+          </div>
         </div>
       </div>
     );
@@ -2055,8 +1875,8 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                 notif.category === 'strategy' || notif.category === 'brief'
                   ? { bg: '#EAE7FC', text: '#6C5CE7', border: '#D5CFF7' }
                   : notif.category === 'content_plans'
-                  ? { bg: '#FDE2D8', text: '#D9531F', border: '#F8BBA6' }
-                  : { bg: '#DBEBFC', text: '#2563EB', border: '#B8D7FA' };
+                    ? { bg: '#FDE2D8', text: '#D9531F', border: '#F8BBA6' }
+                    : { bg: '#DBEBFC', text: '#2563EB', border: '#B8D7FA' };
 
               return (
                 <div
@@ -2687,8 +2507,9 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         {activeNav === 'onboarding' && (
           <>
             {onboardingStep === 'category' && renderPage1Category()}
-            {onboardingStep === 'form' && currentSectionIndex === 0 && renderPage2OnboardingSection1()}
-            {onboardingStep === 'form' && currentSectionIndex > 0 && renderPages4to9Section()}
+            {onboardingStep === 'activity' && renderPageActivity()}
+            {onboardingStep === 'form' && renderDynamicOnboardingSection()}
+
             {onboardingStep === 'sections' && renderPage3Sections()}
             {onboardingStep === 'confirmation' && renderPage10Confirmation()}
           </>

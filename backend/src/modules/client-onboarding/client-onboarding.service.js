@@ -63,7 +63,7 @@ function buildTemplate(mainCategory, activityType) {
 
     const compositionKey = selectedActivity
         ? selectedActivity.composition
-        : category.template_code;
+        : category.code;
 
     const templateCodes = templateBundle.compositions[compositionKey];
 
@@ -309,12 +309,7 @@ export const ClientOnboardingService = {
             validateAnswer(question, item.answer);
         }
 
-        for (const item of answers) {
-            await ClientOnboardingModel.upsertAnswers(
-                onboarding.id,
-                answers,
-            );
-        }
+        await ClientOnboardingModel.upsertAnswers(onboarding.id, answers);
 
         return ClientOnboardingModel.findByBrandId(brand.id);
     },
