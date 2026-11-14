@@ -26,19 +26,23 @@ export const PlatformAccountsModel = {
     });
   },
 
-  list({ brandId, platform, isActive } = {}) {
-    const where = {};
+  list({ brandId, platform, isActive, accessWhere } = {}) {
+  const where = {};
 
-    if (brandId !== undefined) where.brandId = brandId;
-    if (platform) where.platform = platform;
-    if (isActive !== undefined) where.isActive = isActive;
+  if (brandId !== undefined) where.brandId = brandId;
+  if (platform) where.platform = platform;
+  if (isActive !== undefined) where.isActive = isActive;
 
-    return prisma.platformAccount.findMany({
-      where,
-      select: platformAccountSelect,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    });
-  },
+  if (accessWhere && Object.keys(accessWhere).length > 0) {
+    where.brand = accessWhere;
+  }
+
+  return prisma.platformAccount.findMany({
+    where,
+    select: platformAccountSelect,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+  });
+},
 
   findById(id) {
     return prisma.platformAccount.findUnique({
@@ -68,4 +72,26 @@ export const PlatformAccountsModel = {
       select: { id: true },
     });
   },
+
+  findAccessibleById(id, accessWhere) {
+  return prisma.platformAccount.findFirst({
+    where: {
+      id,
+      brand: accessWhere,
+    },
+    select: platformAccountSelect,
+  });
+},
+
+findAccessibleBrandById(id, accessWhere) {
+  return prisma.brand.findFirst({
+    where: {
+      id,
+      ...accessWhere,
+    },
+    select: {
+      id: true,
+    },
+  });
+},
 };

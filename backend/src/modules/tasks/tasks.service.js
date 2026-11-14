@@ -35,7 +35,7 @@ function parseId(value, label = 'Id') {
 }
 
 function ensureAccountManager(user) {
-  if (getRoleName(user) !== 'ACCOUNT_MANAGER') {
+  if (!ACCOUNT_MANAGER_ROLES.has(getRoleName(user))) {
     throw new ApiError(
       403,
       'Only account managers can assign or manage workflow tasks',
@@ -193,6 +193,16 @@ export const TasksService = {
       );
     }
 
+    if (
+      getRoleName(currentUser) === 'ACCOUNT_MANAGER' &&
+      contentItem.contentPlan?.brand?.accountManagerId !== currentUser.id
+    ) {
+      throw new ApiError(
+        403,
+        'You can only assign tasks to content items of your assigned brands',
+      );
+    }
+
     const existingTasks =
       await TasksModel.findExistingWorkflowTasks(
         contentItemId,
@@ -318,63 +328,104 @@ export const TasksService = {
   },
 
   async list(filters, currentUser) {
-    const where = {};
+    const roleName = getRoleName(currentUser);
 
-    if (filters.myTasks) {
-      where.assignedTo = currentUser.id;
+    if (roleName === 'CLIENT') {
+      throw new ApiError(403, 'Clients cannot access tasks');
     }
 
-    if (filters.assignedTo !== undefined) {
-      where.assignedTo = parseId(
+    let scopeWhere = null;
+
+    if (roleName === 'ADMIN') {
+      scopeWhere = null;
+    } else if (roleName === 'ACCOUNT_MANAGER') {
+      scopeWhere = {
+        OR: [
+          { assignedTo: currentUser.id },
+          { createdBy: currentUser.id },
+          {
+            contentItem: {
+              contentPlan: {
+                brand: {
+                  accountManagerId: currentUser.id,
+                },
+              },
+            },
+          },
+        ],
+      };
+    } else {
+      scopeWhere = {
+        assignedTo: currentUser.id,
+      };
+    }
+
+    const filtersWhere = {};
+
+    if ((roleName === 'ADMIN' || roleName === 'ACCOUNT_MANAGER') && filters.assignedTo !== undefined) {
+      filtersWhere.assignedTo = parseId(
         filters.assignedTo,
         'Assignee id',
       );
     }
 
+    if (filters.myTasks) {
+      filtersWhere.assignedTo = currentUser.id;
+    }
+
     if (filters.createdBy !== undefined) {
-      where.createdBy = parseId(
+      filtersWhere.createdBy = parseId(
         filters.createdBy,
         'Creator id',
       );
     }
 
     if (filters.contentItemId !== undefined) {
-      where.contentItemId = parseId(
+      filtersWhere.contentItemId = parseId(
         filters.contentItemId,
         'Content item id',
       );
     }
 
     if (filters.type) {
-      where.type = filters.type;
+      filtersWhere.type = filters.type;
     }
 
     if (filters.status) {
-      where.status = filters.status;
+      filtersWhere.status = filters.status;
     }
 
     if (filters.priority) {
-      where.priority = filters.priority;
+      filtersWhere.priority = filters.priority;
     }
 
     if (filters.needsReview) {
-      where.assignedTo = currentUser.id;
-      where.type = 'REVIEW';
-      where.status = {
+      filtersWhere.assignedTo = currentUser.id;
+      filtersWhere.type = 'REVIEW';
+      filtersWhere.status = {
         in: ['TODO', 'IN_REVIEW', 'NEEDS_CHANGES'],
       };
     }
 
     if (filters.overdue) {
-      where.assignedTo = currentUser.id;
-      where.status = {
+      filtersWhere.assignedTo = currentUser.id;
+      filtersWhere.status = {
         notIn: ['COMPLETED', 'CANCELLED'],
       };
 
-      where.effectiveDeadline = {
+      filtersWhere.effectiveDeadline = {
         lt: new Date(),
       };
     }
+
+    const where = scopeWhere
+      ? {
+          AND: [
+            filtersWhere,
+            scopeWhere,
+          ],
+        }
+      : filtersWhere;
 
     return TasksModel.list(where);
   },

@@ -1,4 +1,3 @@
-
 import { ContentPlansService } from './content-plans.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { ApiError } from '../../utils/ApiError.js';
@@ -17,7 +16,10 @@ function parseOptionalInteger(value, label) {
 
 export const ContentPlansController = {
   create: asyncHandler(async (req, res) => {
-    const plan = await ContentPlansService.create(req.body, req.user.id);
+    const plan = await ContentPlansService.create(
+      req.body,
+      req.user,
+    );
 
     res.status(201).json({
       success: true,
@@ -41,24 +43,37 @@ export const ContentPlansController = {
           : undefined,
     };
 
-    const plans = await ContentPlansService.list(filters);
+    const plans = await ContentPlansService.list(
+      filters,
+      req.user,
+    );
 
     res.status(200).json({
       success: true,
-      data: { plans, total: plans.length },
+      data: {
+        plans,
+        total: plans.length,
+      },
     });
   }),
 
   getById: asyncHandler(async (req, res) => {
-    const plan = await ContentPlansService.getById(req.params.id);
+    const plan = await ContentPlansService.getById(
+      req.params.id,
+      req.user,
+    );
 
-    res.status(200).json({ success: true, data: plan });
+    res.status(200).json({
+      success: true,
+      data: plan,
+    });
   }),
 
   update: asyncHandler(async (req, res) => {
     const plan = await ContentPlansService.update(
       req.params.id,
       req.body,
+      req.user,
     );
 
     res.status(200).json({
@@ -72,6 +87,7 @@ export const ContentPlansController = {
     const plan = await ContentPlansService.updateStatus(
       req.params.id,
       req.body.status,
+      req.user,
     );
 
     res.status(200).json({
@@ -82,7 +98,10 @@ export const ContentPlansController = {
   }),
 
   remove: asyncHandler(async (req, res) => {
-    const plan = await ContentPlansService.remove(req.params.id);
+    const plan = await ContentPlansService.remove(
+      req.params.id,
+      req.user,
+    );
 
     res.status(200).json({
       success: true,

@@ -16,14 +16,32 @@ const templateBundle = JSON.parse(
 
 const TEMPLATE_VERSION = templateBundle.schema_version;
 
+function getRoleName(user) {
+    return user?.role?.name ?? user?.role ?? '';
+}
+
 function ensureClient(user) {
-    if (user?.role?.name !== 'CLIENT') {
+    if (getRoleName(user) !== 'CLIENT') {
         throw new ApiError(403, 'Only clients can access onboarding');
     }
 
     if (!user.id) {
         throw new ApiError(401, 'Authenticated client not found');
     }
+}
+
+function ensureAuthenticated(user) {
+    if (!user?.id) {
+        throw new ApiError(401, 'Authentication required');
+    }
+}
+
+function parseBrandId(value) {
+    const id = Number(value);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new ApiError(400, 'Invalid brand ID');
+    }
+    return id;
 }
 
 function getCategory(categoryCode) {
@@ -178,7 +196,7 @@ async function getClientBrand(user) {
 
 export const ClientOnboardingService = {
     getAvailableCategories(user) {
-        ensureClient(user);
+        ensureAuthenticated(user);
 
         return {
             categories: templateBundle.onboarding_flow.main_categories,
@@ -186,9 +204,79 @@ export const ClientOnboardingService = {
     },
 
     getTemplate(user, mainCategory, activityType) {
-        ensureClient(user);
+        ensureAuthenticated(user);
 
         return buildTemplate(mainCategory, activityType);
+    },
+
+    async getBrandOnboarding(brandIdValue, user) {
+        ensureAuthenticated(user);
+        const brandId = parseBrandId(brandIdValue);
+        const brand = await ClientOnboardingModel.findBrandWithOnboarding(brandId);
+
+        if (!brand) {
+            throw new ApiError(404, 'Brand not found');
+        }
+
+        const roleName = getRoleName(user);
+
+        if (roleName === 'ADMIN') {
+            // Admin can view onboarding for any brand
+        } else if (roleName === 'ACCOUNT_MANAGER') {
+            if (brand.accountManagerId !== user.id) {
+                throw new ApiError(
+                    403,
+                    'You can only view answers for your assigned brands',
+                );
+            }
+        } else if (roleName === 'CLIENT') {
+            if (brand.clientId !== user.id) {
+                throw new ApiError(
+                    403,
+                    'You can only view answers for your own brand',
+                );
+            }
+        } else {
+            throw new ApiError(403, 'You cannot view onboarding answers');
+        }
+
+        let questionsAndAnswers = [];
+        if (brand.onboarding?.answers?.length && brand.onboarding?.mainCategory) {
+            try {
+                const template = buildTemplate(
+                    brand.onboarding.mainCategory,
+                    brand.onboarding.activityType,
+                );
+                const answersMap = new Map(
+                    brand.onboarding.answers.map((a) => [a.questionCode, a.answer]),
+                );
+                for (const section of template.sections) {
+                    for (const q of section.questions) {
+                        if (answersMap.has(q.code)) {
+                            questionsAndAnswers.push({
+                                section: section.title,
+                                question: q.label,
+                                code: q.code,
+                                answer: answersMap.get(q.code),
+                            });
+                        }
+                    }
+                }
+            } catch {
+                // Return empty questionsAndAnswers if template resolution fails
+            }
+        }
+
+        return {
+            brand: {
+                id: brand.id,
+                name: brand.name,
+                clientId: brand.clientId,
+                accountManagerId: brand.accountManagerId,
+            },
+            onboarding: brand.onboarding,
+            questionsAndAnswers,
+        };
     },
 
     async getMyOnboarding(user) {

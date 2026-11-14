@@ -40,6 +40,18 @@ export const ClientOnboardingController = {
         });
     }),
 
+    getBrandOnboarding: asyncHandler(async (req, res) => {
+        const result = await ClientOnboardingService.getBrandOnboarding(
+            req.params.brandId ?? req.params.id,
+            req.user,
+        );
+
+        res.status(200).json({
+            success: true,
+            data: result,
+        });
+    }),
+
     selectTemplate: asyncHandler(async (req, res) => {
         const onboarding = await ClientOnboardingService.selectTemplate(
             req.user,

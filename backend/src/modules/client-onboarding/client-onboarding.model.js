@@ -19,6 +19,23 @@ export const ClientOnboardingModel = {
         });
     },
 
+    findBrandWithOnboarding(brandId) {
+        return prisma.brand.findUnique({
+            where: { id: brandId },
+            select: {
+                id: true,
+                name: true,
+                clientId: true,
+                accountManagerId: true,
+                onboarding: {
+                    include: {
+                        answers: true,
+                    },
+                },
+            },
+        });
+    },
+
     findByBrandId(brandId) {
         return prisma.clientOnboarding.findUnique({
             where: { brandId },
