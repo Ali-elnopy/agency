@@ -196,6 +196,9 @@ function mapServerNotification(record) {
     messageAr: record.message,
     isRead: Boolean(record.isRead),
     createdAt: record.createdAt,
+    brandId: payload.brandId == null ? null : String(payload.brandId),
+    onboardingId: payload.onboardingId ?? null,
+    clientId: payload.clientId ?? null,
     link: payload.link || 'dispatch',
     targetRoles: Array.isArray(payload.targetRoles) ? payload.targetRoles : undefined,
   };
@@ -1129,58 +1132,32 @@ export function Sprint3Provider({ children }) {
     return roleFilteredNotifications.filter((n) => !n.isRead).length;
   }, [serverUnreadCount, roleFilteredNotifications]);
 
-  // Hydrate the notification feed from the API. Until this lands the list was
-  // entirely seeded in localStorage, so every notification was a fake record.
-  useEffect(() => {
-    if (!user || isMockApiEnabled()) return undefined;
-
-    let alive = true;
-
-    fetchNotificationsApi()
-      .then((res) => {
-        const list = Array.isArray(res?.data)
-          ? res.data
-          : res?.data?.notifications;
-
-        if (!alive || !Array.isArray(list) || list.length === 0) return;
-
-        setNotifications(list.map(mapServerNotification));
-      })
-      .catch(() => {
-        // Offline: keep the local seed so the demo keeps working.
-      });
-
-    return () => {
-      alive = false;
-    };
+  const refreshNotifications = useCallback(async () => {
+    if (!user || isMockApiEnabled()) return;
+    const [listResponse, countResponse] = await Promise.all([
+      fetchNotificationsApi(),
+      fetchUnreadNotificationCountApi(),
+    ]);
+    const list = Array.isArray(listResponse?.data)
+      ? listResponse.data
+      : listResponse?.data?.notifications;
+    if (Array.isArray(list)) setNotifications(list.map(mapServerNotification));
+    if (typeof countResponse?.data === 'number') {
+      setServerUnreadCount(countResponse.data);
+    } else if (typeof countResponse?.data?.unreadCount === 'number') {
+      setServerUnreadCount(countResponse.data.unreadCount);
+    }
   }, [user]);
 
-  // Periodic polling for unread notifications (every 30-45 seconds)
+  // Load the server feed and keep it current while the app is open.
   useEffect(() => {
     if (!user || isMockApiEnabled()) return undefined;
-    let isMounted = true;
-    const pollUnreadCount = async () => {
-      try {
-        const res = await fetchUnreadNotificationCountApi();
-        if (!isMounted) return;
-        if (typeof res?.data === 'number') {
-          setServerUnreadCount(res.data);
-        } else if (typeof res?.data?.unreadCount === 'number') {
-          setServerUnreadCount(res.data.unreadCount);
-        }
-      } catch {
-        // Fallback to local count if server endpoint is offline or mock mode
-      }
-    };
-
-    pollUnreadCount();
-    const interval = setInterval(pollUnreadCount, 35000);
-
+    refreshNotifications();
+    const interval = setInterval(refreshNotifications, 30000);
     return () => {
-      isMounted = false;
       clearInterval(interval);
     };
-  }, [user]);
+  }, [user, refreshNotifications]);
 
   const markNotificationAsRead = useCallback(async (notificationId) => {
     const target = notificationsRef.current.find((n) => n.id === notificationId);
@@ -1196,11 +1173,12 @@ export function Sprint3Provider({ children }) {
     if (!Number.isSafeInteger(Number(serverId)) || Number(serverId) <= 0) return;
 
     try {
-      await markNotificationAsReadApi(serverId);
+      const response = await markNotificationAsReadApi(serverId);
+      if (response?.success !== false) await refreshNotifications();
     } catch {
       // Mock mode or offline fallback
     }
-  }, []);
+  }, [refreshNotifications]);
 
   const markAllNotificationsAsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
@@ -1246,6 +1224,7 @@ export function Sprint3Provider({ children }) {
       roleFilteredNotifications,
       unreadCount,
       markNotificationAsRead,
+      refreshNotifications,
       markAllNotificationsAsRead,
       addNotification,
       saveTemplate,
@@ -1305,6 +1284,7 @@ export function Sprint3Provider({ children }) {
       roleFilteredNotifications,
       unreadCount,
       markNotificationAsRead,
+      refreshNotifications,
       markAllNotificationsAsRead,
       addNotification,
       saveTemplate,

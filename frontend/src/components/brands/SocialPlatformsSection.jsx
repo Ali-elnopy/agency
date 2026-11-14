@@ -1,6 +1,7 @@
 import React from 'react';
 import { useBrands } from '../../context/brandsStore';
 import { platformShort } from '../../data/brandWorkspace';
+import useAuth from '../../hooks/useAuth';
 
 export default function SocialPlatformsSection({
   brand,
@@ -9,7 +10,19 @@ export default function SocialPlatformsSection({
   onDeletePlatform,
   onOpenPlan,
 }) {
+  const { user } = useAuth();
   const { getPlatforms, getPlanDirections } = useBrands();
+  const roleName = String(user?.role?.name ?? user?.role ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[ -]+/g, '_');
+  const jobTitle = String(user?.jobTitle?.name ?? user?.jobTitle ?? '')
+    .trim()
+    .toLowerCase();
+  const canCreateContent =
+    roleName === 'CREATOR' ||
+    roleName === 'CONTENT_CREATOR' ||
+    (roleName === 'EMPLOYEE' && jobTitle === 'content creator');
   const platforms = getPlatforms(brand.id);
   const directions = getPlanDirections(brand.id);
 
@@ -22,12 +35,14 @@ export default function SocialPlatformsSection({
             Every channel the brand publishes on. Plans are kept separately for each platform.
           </p>
         </div>
-        <button type="button" className="button button--primary button--sm" onClick={onAddPlatform}>
-          <svg aria-hidden="true" className="icon">
-            <use href="#i-plus" />
-          </svg>
-          Add Platform
-        </button>
+        {canCreateContent ? (
+          <button type="button" className="button button--primary button--sm" onClick={onAddPlatform}>
+            <svg aria-hidden="true" className="icon">
+              <use href="#i-plus" />
+            </svg>
+            Add Platform
+          </button>
+        ) : null}
       </header>
 
       {platforms.length ? (
@@ -47,30 +62,32 @@ export default function SocialPlatformsSection({
                     <h3>{platform.name}</h3>
                     <p>{platform.handle || 'No handle saved'}</p>
                   </div>
-                  <span className="bw-card__actions">
-                    <button
-                      type="button"
-                      className="bw-icon-btn"
-                      title="Edit platform"
-                      aria-label={`Edit ${platform.name}`}
-                      onClick={() => onEditPlatform?.(platform)}
-                    >
-                      <svg aria-hidden="true" className="icon">
-                        <use href="#i-pencil" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="bw-icon-btn is-danger"
-                      title="Delete platform"
-                      aria-label={`Delete ${platform.name}`}
-                      onClick={() => onDeletePlatform?.(platform)}
-                    >
-                      <svg aria-hidden="true" className="icon">
-                        <use href="#i-trash" />
-                      </svg>
-                    </button>
-                  </span>
+                  {canCreateContent ? (
+                    <span className="bw-card__actions">
+                      <button
+                        type="button"
+                        className="bw-icon-btn"
+                        title="Edit platform"
+                        aria-label={`Edit ${platform.name}`}
+                        onClick={() => onEditPlatform?.(platform)}
+                      >
+                        <svg aria-hidden="true" className="icon">
+                          <use href="#i-pencil" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="bw-icon-btn is-danger"
+                        title="Delete platform"
+                        aria-label={`Delete ${platform.name}`}
+                        onClick={() => onDeletePlatform?.(platform)}
+                      >
+                        <svg aria-hidden="true" className="icon">
+                          <use href="#i-trash" />
+                        </svg>
+                      </button>
+                    </span>
+                  ) : null}
                 </header>
 
                 <p className="bw-platform-tile__goal">
@@ -125,12 +142,14 @@ export default function SocialPlatformsSection({
         <div className="bw-empty bw-empty--panel">
           <strong>No social platforms yet.</strong>
           <p>Add Instagram, Facebook, TikTok or any other channel to start planning per platform.</p>
-          <button type="button" className="button button--primary button--sm" onClick={onAddPlatform}>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            Add Platform
-          </button>
+          {canCreateContent ? (
+            <button type="button" className="button button--primary button--sm" onClick={onAddPlatform}>
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-plus" />
+              </svg>
+              Add Platform
+            </button>
+          ) : null}
         </div>
       )}
     </div>

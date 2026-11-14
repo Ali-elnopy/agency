@@ -91,6 +91,9 @@ export const AuthModel = {
         role: {
           select: { id: true, name: true },
         },
+        jobTitle: {
+          select: { id: true, name: true },
+        },
       },
     });
   },

@@ -352,9 +352,8 @@ export function BrandsProvider({ children }) {
       const serverPlans = plansRes?.data?.plans;
       const serverItems = itemsRes?.data?.items;
 
-      if (Array.isArray(serverPlans) && serverPlans.length) {
-        setPlans((prev) => {
-          const mapped = serverPlans.map((plan) => {
+      if (Array.isArray(serverPlans)) {
+        const mapped = serverPlans.map((plan) => {
             const notes = String(plan.notes || '');
             const posts = Number(notes.match(/Posts target:\s*(\d+)/i)?.[1] || 0);
             const reels = Number(notes.match(/Reels target:\s*(\d+)/i)?.[1] || 0);
@@ -363,21 +362,18 @@ export function BrandsProvider({ children }) {
               id: `plan-${plan.brandId}-${plan.year}-${String(plan.month).padStart(2, '0')}`,
               serverId: plan.id,
               brandId: String(plan.brandId),
+              platformAccountId: Number(plan.platformAccountId),
+              platformAccount: plan.platformAccount,
               month: `${plan.year}-${String(plan.month).padStart(2, '0')}`,
               postsTarget: posts,
               reelsTarget: reels,
+              monthlyGoals: plan.monthlyGoals,
               status: plan.status,
               title: plan.title,
               createdAt: plan.createdAt,
             };
-          });
-
-          const localOnly = prev.filter(
-            (plan) => !mapped.some((item) => item.id === plan.id),
-          );
-
-          return [...mapped, ...localOnly];
         });
+        setPlans(mapped);
       }
 
       if (Array.isArray(serverItems) && serverItems.length && Array.isArray(serverPlans)) {

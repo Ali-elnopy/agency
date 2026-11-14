@@ -13,6 +13,7 @@ import FilesAssetsSection from '../components/brands/FilesAssetsSection';
 import BrandWorkspaceHub from '../components/brands/BrandWorkspaceHub';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
+import useAuth from '../hooks/useAuth';
 import { useBrands } from '../context/brandsStore';
 import { useSprint3 } from '../context/sprint3Store';
 import {
@@ -44,11 +45,13 @@ function InfoRow({ label, children }) {
 
 export default function BrandDetailPage({
   brandId,
+  initialTab = 'hub',
   initialMonth,
   onBack,
   onAddContent,
   onDeleted,
 }) {
+  const { user } = useAuth();
   const { t } = useSprint3();
   const {
     getBrand,
@@ -68,6 +71,17 @@ export default function BrandDetailPage({
     getAssets,
   } = useBrands();
   const { toast, showToast } = useToast(4000);
+  const roleName = String(user?.role?.name ?? user?.role ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[ -]+/g, '_');
+  const jobTitle = String(user?.jobTitle?.name ?? user?.jobTitle ?? '')
+    .trim()
+    .toLowerCase();
+  const canCreateContent =
+    roleName === 'CREATOR' ||
+    roleName === 'CONTENT_CREATOR' ||
+    (roleName === 'EMPLOYEE' && jobTitle === 'content creator');
 
   const defaultMonth = useMemo(() => {
     const current = monthKey();
@@ -87,7 +101,7 @@ export default function BrandDetailPage({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
-  const [tab, setTab] = useState('hub');
+  const [tab, setTab] = useState(initialTab);
   const [platformModal, setPlatformModal] = useState(null);
   const [platformToDelete, setPlatformToDelete] = useState(null);
   const [directionsFocus, setDirectionsFocus] = useState(null);
@@ -297,16 +311,18 @@ export default function BrandDetailPage({
               ) : (
                 <span className="bw-muted">{t('No social platforms yet.')}</span>
               )}
-              <button
-                type="button"
-                className="bw-hero-platform is-add"
-                onClick={() => setPlatformModal({})}
-              >
-                <svg aria-hidden="true" className="icon">
-                  <use href="#i-plus" />
-                </svg>
-                {t('Add Platform')}
-              </button>
+              {canCreateContent ? (
+                <button
+                  type="button"
+                  className="bw-hero-platform is-add"
+                  onClick={() => setPlatformModal({})}
+                >
+                  <svg aria-hidden="true" className="icon">
+                    <use href="#i-plus" />
+                  </svg>
+                  {t('Add Platform')}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -322,26 +338,30 @@ export default function BrandDetailPage({
             </svg>
             {t('Edit Brand')}
           </button>
-          <button
-            type="button"
-            className="button button--dark"
-            onClick={() => setPlanOpen(true)}
-          >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-calendar" />
-            </svg>
-            {plan ? t('Update Monthly Plan') : t('Create Monthly Plan')}
-          </button>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => onAddContent?.(month)}
-          >
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            {t('Add Content')}
-          </button>
+          {canCreateContent ? (
+            <>
+              <button
+                type="button"
+                className="button button--dark"
+                onClick={() => setPlanOpen(true)}
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-calendar" />
+                </svg>
+                {plan ? t('Update Monthly Plan') : t('Create Monthly Plan')}
+              </button>
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => onAddContent?.(month)}
+              >
+                <svg aria-hidden="true" className="icon">
+                  <use href="#i-plus" />
+                </svg>
+                {t('Add Content')}
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
             className="button button--ghost"
@@ -555,16 +575,18 @@ export default function BrandDetailPage({
                 <p>
                   Set the monthly post and reel targets before adding content to this brand.
                 </p>
-                <button
-                  type="button"
-                  className="button button--primary button--sm"
-                  onClick={() => setPlanOpen(true)}
-                >
-                  <svg aria-hidden="true" className="icon">
-                    <use href="#i-plus" />
-                  </svg>
-                  Create Monthly Plan
-                </button>
+                {canCreateContent ? (
+                  <button
+                    type="button"
+                    className="button button--primary button--sm"
+                    onClick={() => setPlanOpen(true)}
+                  >
+                    <svg aria-hidden="true" className="icon">
+                      <use href="#i-plus" />
+                    </svg>
+                    Create Monthly Plan
+                  </button>
+                ) : null}
               </div>
             )}
           </section>
@@ -587,16 +609,18 @@ export default function BrandDetailPage({
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  className="button button--ghost button--sm"
-                  onClick={() => onAddContent?.(month)}
-                >
-                  <svg aria-hidden="true" className="icon">
-                    <use href="#i-plus" />
-                  </svg>
-                  Add Content
-                </button>
+                {canCreateContent ? (
+                  <button
+                    type="button"
+                    className="button button--ghost button--sm"
+                    onClick={() => onAddContent?.(month)}
+                  >
+                    <svg aria-hidden="true" className="icon">
+                      <use href="#i-plus" />
+                    </svg>
+                    Add Content
+                  </button>
+                ) : null}
               </div>
 
               {monthItems.length ? (
@@ -720,16 +744,18 @@ export default function BrandDetailPage({
                   </span>
                   <h3>No content added yet</h3>
                   <p>Start filling the {monthLabel(month)} plan with posts and reels.</p>
-                  <button
-                    type="button"
-                    className="button button--primary button--sm"
-                    onClick={() => onAddContent?.(month)}
-                  >
-                    <svg aria-hidden="true" className="icon">
-                      <use href="#i-plus" />
-                    </svg>
-                    Add Content
-                  </button>
+                  {canCreateContent ? (
+                    <button
+                      type="button"
+                      className="button button--primary button--sm"
+                      onClick={() => onAddContent?.(month)}
+                    >
+                      <svg aria-hidden="true" className="icon">
+                        <use href="#i-plus" />
+                      </svg>
+                      Add Content
+                    </button>
+                  ) : null}
                 </div>
               )}
             </section>
@@ -904,6 +930,7 @@ export default function BrandDetailPage({
       {tab === 'content' || tab === 'direction' ? (
         <ContentItemsPage
           initialBrandId={brand.id}
+          onAddPlatform={() => setPlatformModal({})}
         />
       ) : null}
 
@@ -921,7 +948,7 @@ export default function BrandDetailPage({
         </div>
       )}
 
-      {planOpen ? (
+      {canCreateContent && planOpen ? (
         <PlanModal
           brand={brand}
           initialMonth={month}

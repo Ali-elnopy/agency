@@ -17,6 +17,10 @@ const VALID_STATUSES = new Set([
   'CANCELLED',
 ]);
 
+function getRoleName(user) {
+  return user?.role?.name ?? user?.role ?? '';
+}
+
 function parseId(value, label = 'Id') {
   const id = Number(value);
 
@@ -31,7 +35,7 @@ function parseId(value, label = 'Id') {
 }
 
 function ensureAccountManager(user) {
-  if (!ACCOUNT_MANAGER_ROLES.has(user.role)) {
+  if (getRoleName(user) !== 'ACCOUNT_MANAGER') {
     throw new ApiError(
       403,
       'Only account managers can assign or manage workflow tasks',
@@ -118,7 +122,7 @@ async function validateAssignee(userId) {
 
   ensureUserExists(user);
 
-  if (user.role === 'CLIENT') {
+  if (getRoleName(user) === 'CLIENT') {
     throw new ApiError(
       400,
       'Clients cannot be assigned internal tasks',
@@ -129,8 +133,12 @@ async function validateAssignee(userId) {
 }
 
 export const TasksService = {
-  async createDirectTask(input, currentUserId) {
-    const createdBy = parseId(currentUserId, 'User id');
+  async createDirectTask(input, currentUser) {
+    if (!ACCOUNT_MANAGER_ROLES.has(getRoleName(currentUser))) {
+      throw new ApiError(403, 'Only account managers can create direct tasks');
+    }
+
+    const createdBy = parseId(currentUser.id, 'User id');
 
     const assignee = await validateAssignee(
       input.assignedTo,
@@ -162,9 +170,11 @@ export const TasksService = {
   async assignContentItemTasks(
     contentItemIdValue,
     input,
-    currentUserId,
+    currentUser,
   ) {
-    const createdBy = parseId(currentUserId, 'User id');
+    ensureAccountManager(currentUser);
+
+    const createdBy = parseId(currentUser.id, 'User id');
 
     const contentItemId = parseId(
       contentItemIdValue,
@@ -224,7 +234,7 @@ export const TasksService = {
     const reviewer =
       await validateAssignee(reviewerId);
 
-    if (!ACCOUNT_MANAGER_ROLES.has(reviewer.role)) {
+    if (!ACCOUNT_MANAGER_ROLES.has(getRoleName(reviewer))) {
       throw new ApiError(
         400,
         'Reviewer must be an account manager',
@@ -369,8 +379,18 @@ export const TasksService = {
     return TasksModel.list(where);
   },
 
-  async getById(value) {
-    return getTaskOrThrow(value);
+  async getById(value, currentUser) {
+    const task = await getTaskOrThrow(value);
+    const roleName = getRoleName(currentUser);
+    const isPrivileged = ACCOUNT_MANAGER_ROLES.has(roleName);
+    const isAssignee = task.assignedTo === currentUser.id;
+    const isCreator = task.createdBy === currentUser.id;
+
+    if (!isPrivileged && !isAssignee && !isCreator) {
+      throw new ApiError(403, 'You are not allowed to view this task');
+    }
+
+    return task;
   },
 
   async update(
@@ -380,11 +400,10 @@ export const TasksService = {
   ) {
     const task = await getTaskOrThrow(value);
 
-    const isAdmin =
-      currentUser.role === 'ADMIN';
+    const roleName = getRoleName(currentUser);
+    const isAdmin = roleName === 'ADMIN';
 
-    const isAccountManager =
-      currentUser.role === 'ACCOUNT_MANAGER';
+    const isAccountManager = roleName === 'ACCOUNT_MANAGER';
 
     const isAssignee =
       task.assignedTo === currentUser.id;
@@ -498,11 +517,10 @@ export const TasksService = {
       );
     }
 
-    const isAdmin =
-      currentUser.role === 'ADMIN';
+    const roleName = getRoleName(currentUser);
+    const isAdmin = roleName === 'ADMIN';
 
-    const isAccountManager =
-      currentUser.role === 'ACCOUNT_MANAGER';
+    const isAccountManager = roleName === 'ACCOUNT_MANAGER';
 
     const isAssignee =
       task.assignedTo === currentUser.id;
@@ -635,11 +653,10 @@ export const TasksService = {
   async remove(value, currentUser) {
     const task = await getTaskOrThrow(value);
 
-    const isAdmin =
-      currentUser.role === 'ADMIN';
+    const roleName = getRoleName(currentUser);
+    const isAdmin = roleName === 'ADMIN';
 
-    const isAccountManager =
-      currentUser.role === 'ACCOUNT_MANAGER';
+    const isAccountManager = roleName === 'ACCOUNT_MANAGER';
 
     if (
       !isAdmin &&

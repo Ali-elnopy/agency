@@ -2,29 +2,21 @@ import { ApiError } from '../utils/ApiError.js';
 
 /**
  * Middleware: requireCreator
- * Enforces that only users with the 'CREATOR' role (or creator@orvia.com)
+ * Enforces that only Creator / Content Creator users
  * can execute Create, Edit, or Delete actions on Content Management resources
  * (Content Plans, Campaigns, Content Items).
- * All other roles (Admin, Account Manager, Employee/Content Creator, Client)
+ * All other roles (Admin, Account Manager, Regular Employee, Client)
  * are strictly Read-Only.
  */
 export const requireCreator = (req, res, next) => {
   const roleName = String(req.user?.role?.name || req.user?.role || '').toUpperCase();
   const jobTitle = String(req.user?.jobTitle?.name || req.user?.jobTitle || '').toLowerCase();
-  const email = String(req.user?.email || '').toLowerCase();
-
-  // Employee (Content Creator) holds the creator execution privileges.
-  // Legacy creator credentials and roles also map here cleanly.
-  const isEmployeeCreator =
-    roleName === 'EMPLOYEE' ||
+  const isCreator =
     roleName === 'CONTENT_CREATOR' ||
     roleName === 'CREATOR' ||
-    email === 'employee@orvia.com' ||
-    email === 'creator@orvia.com' ||
-    jobTitle.includes('creator') ||
-    jobTitle.includes('employee');
+    (roleName === 'EMPLOYEE' && jobTitle === 'content creator');
 
-  if (!isEmployeeCreator) {
+  if (!isCreator) {
     return next(
       new ApiError(
         403,

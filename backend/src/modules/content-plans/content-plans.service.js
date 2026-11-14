@@ -156,6 +156,16 @@ export const ContentPlansService = {
       throw new ApiError(400, 'Invalid content plan status');
     }
 
+    const canSubmitForReview =
+      (plan.status === 'DRAFT' || plan.status === 'NEEDS_CHANGES') &&
+      newStatus === 'IN_REVIEW';
+    if (!canSubmitForReview) {
+      throw new ApiError(
+        400,
+        `Cannot change content plan status from ${plan.status} to ${newStatus}`,
+      );
+    }
+
     try {
       return await ContentPlansModel.update(plan.id, {
         status: newStatus,

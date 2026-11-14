@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useBrands } from '../../context/brandsStore';
+import useAuth from '../../hooks/useAuth';
 import {
   PLAN_DIRECTION_STATUSES,
   PLAN_DIRECTION_STATUS_LABEL,
@@ -39,6 +40,7 @@ export default function PlanDirectionSection({
   initialPlatformId,
   initialMonth,
 }) {
+  const { user } = useAuth();
   const {
     getPlatforms,
     getPlanDirections,
@@ -46,6 +48,17 @@ export default function PlanDirectionSection({
     deletePlanDirection,
     content,
   } = useBrands();
+  const roleName = String(user?.role?.name ?? user?.role ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[ -]+/g, '_');
+  const jobTitle = String(user?.jobTitle?.name ?? user?.jobTitle ?? '')
+    .trim()
+    .toLowerCase();
+  const canCreateContent =
+    roleName === 'CREATOR' ||
+    roleName === 'CONTENT_CREATOR' ||
+    (roleName === 'EMPLOYEE' && jobTitle === 'content creator');
 
   const platforms = getPlatforms(brand.id);
   const [platformId, setPlatformId] = useState(initialPlatformId ?? '');
@@ -148,12 +161,14 @@ export default function PlanDirectionSection({
         <div className="bw-empty bw-empty--panel">
           <strong>Add a platform first.</strong>
           <p>Monthly plans are separated by platform, so start by adding one.</p>
-          <button type="button" className="button button--primary button--sm" onClick={onAddPlatform}>
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-plus" />
-            </svg>
-            Add Platform
-          </button>
+          {canCreateContent ? (
+            <button type="button" className="button button--primary button--sm" onClick={onAddPlatform}>
+              <svg aria-hidden="true" className="icon">
+                <use href="#i-plus" />
+              </svg>
+              Add Platform
+            </button>
+          ) : null}
         </div>
       </div>
     );

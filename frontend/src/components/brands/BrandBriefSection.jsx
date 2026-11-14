@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useBrands } from '../../context/brandsStore';
 import useAuth from '../../hooks/useAuth';
-import { BRIEF_FIELDS } from '../../data/brandWorkspace';
 import { formatBytes, getFileBlob, removeFileBlob, saveFileBlob } from '../../services/fileStore';
 
 function formatDateTime(value) {
@@ -30,16 +29,11 @@ function fileKind(mime = '', name = '') {
 
 export default function BrandBriefSection({ brand, onToast }) {
   const { user } = useAuth();
-  const { getBriefs, addBrief, deleteBrief, getBriefInfo, saveBriefInfo } = useBrands();
+  const { getBriefs, addBrief, deleteBrief } = useBrands();
   const inputRef = useRef(null);
 
-  const [form, setForm] = useState(() => getBriefInfo(brand.id));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    setForm(getBriefInfo(brand.id));
-  }, [brand.id, getBriefInfo]);
 
   const briefs = getBriefs(brand.id).slice().sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
   const latestId = briefs[0]?.id ?? null;
@@ -105,14 +99,6 @@ export default function BrandBriefSection({ brand, onToast }) {
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
-  const handleSave = (event) => {
-    event.preventDefault();
-    saveBriefInfo(brand.id, form);
-    onToast?.('Brand brief saved.');
-  };
-
-  const setField = (id, value) => setForm((prev) => ({ ...prev, [id]: value }));
-
   return (
     <div className="bw-section">
       <header className="bw-head">
@@ -150,32 +136,13 @@ export default function BrandBriefSection({ brand, onToast }) {
           <header className="bw-card__head">
             <div>
               <h3>Brief answers</h3>
-              <p>Answers to the questions collected with the client.</p>
+              <p>Client answers are not available from the current Brand Brief API response.</p>
             </div>
           </header>
-
-          <form className="bw-form" onSubmit={handleSave}>
-            {BRIEF_FIELDS.map((field) => (
-              <div className="bw-field" key={field.id}>
-                <label htmlFor={`brief-${field.id}`}>{field.label}</label>
-                <textarea
-                  id={`brief-${field.id}`}
-                  className="form-textarea"
-                  rows={field.id === 'overview' || field.id === 'audience' ? 3 : 2}
-                  placeholder={field.placeholder}
-                  value={form[field.id] ?? ''}
-                  onChange={(event) => setField(field.id, event.target.value)}
-                />
-                <span className="bw-hint">{field.hint}</span>
-              </div>
-            ))}
-
-            <div className="bw-actions">
-              <button type="submit" className="button button--primary button--sm">
-                Save brief answers
-              </button>
-            </div>
-          </form>
+          <div className="bw-empty" role="status">
+            <strong>No client answers can be loaded yet.</strong>
+            <p>The current read API does not return onboarding answers for this brand.</p>
+          </div>
         </section>
 
         <section className="bw-card">

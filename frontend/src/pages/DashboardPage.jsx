@@ -91,6 +91,17 @@ export default function DashboardPage({
   const { user } = useAuth();
   const { role, t } = useSprint3();
   const isAdmin = role === 'admin' || user?.role === 'ADMIN' || user?.systemAccess === 'admin';
+  const roleName = String(user?.role?.name ?? user?.role ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[ -]+/g, '_');
+  const jobTitle = String(user?.jobTitle?.name ?? user?.jobTitle ?? '')
+    .trim()
+    .toLowerCase();
+  const canCreateContent =
+    roleName === 'CREATOR' ||
+    roleName === 'CONTENT_CREATOR' ||
+    (roleName === 'EMPLOYEE' && jobTitle === 'content creator');
   const { toast, showToast, clearToast } = useToast(8000);
 
   const [section, setSection] = useState(() => {
@@ -98,6 +109,7 @@ export default function DashboardPage({
     return 'dashboard';
   });
   const [activeBrandId, setActiveBrandId] = useState('brand-1');
+  const [activeBrandTab, setActiveBrandTab] = useState('hub');
   const [activePlanMonth, setActivePlanMonth] = useState(() => monthKey());
   const [activePlatformId, setActivePlatformId] = useState(null);
   const [activeTeam, setActiveTeam] = useState('Brand Strategy & Growth');
@@ -180,8 +192,9 @@ export default function DashboardPage({
     showToast(`${brandName} was assigned to ${teamName}.`);
   };
 
-  const openBrand = (brandId) => {
+  const openBrand = (brandId, tab = 'hub') => {
     setActiveBrandId(brandId || 'brand-1');
+    setActiveBrandTab(tab);
     setActivePlanMonth(monthKey());
     go('brandDetail');
   };
@@ -241,8 +254,9 @@ export default function DashboardPage({
       case 'brandDetail':
         return (
           <BrandDetailPage
-            key={activeBrandId}
+            key={`${activeBrandId}-${activeBrandTab}`}
             brandId={activeBrandId}
+            initialTab={activeBrandTab}
             initialMonth={activePlanMonth}
             onBack={() => go('clients')}
             onAddContent={openAddContent}
@@ -332,6 +346,10 @@ export default function DashboardPage({
               if (brandId) setActiveBrandId(brandId);
               openAddContent(month);
             }}
+            onAddPlatform={(brandId) => {
+              if (brandId) setActiveBrandId(brandId);
+              go('brandDetail');
+            }}
           />
         );
       case 'tasks':
@@ -363,7 +381,9 @@ export default function DashboardPage({
     section === 'roles'
       ? 'New Custom Role'
       : section === 'brandDetail'
-        ? 'Add Content'
+        ? canCreateContent
+          ? 'Add Content'
+          : null
         : section === 'profile' ||
             section === 'settings' ||
             section === 'clients' ||
@@ -383,7 +403,8 @@ export default function DashboardPage({
             section === 'tasks' ||
             section === 'myWork' ||
             section === 'decisions' ||
-            section === 'portal'
+            section === 'portal' ||
+            section === 'dashboard'
           ? null
           : 'New Brief';
 
@@ -391,7 +412,7 @@ export default function DashboardPage({
     if (section === 'clients') {
       if (isAdmin) go('addBrand');
     } else if (section === 'brandDetail') {
-      openAddContent();
+      if (canCreateContent) openAddContent();
     } else if (section === 'roles') {
       showToast('Opening the custom role builder…', 'info');
     } else {
@@ -420,6 +441,7 @@ export default function DashboardPage({
             onOpenHelp={() => setIsHelpOpen(true)}
             onSearchNavigate={navigateFromSearch}
             onSearchBrand={openBrand}
+            onOpenNotificationBrand={(brandId) => openBrand(brandId, 'brief')}
             onSearchTeam={openTeam}
             onSearchUser={searchUser}
             actionLabel={actionLabel}

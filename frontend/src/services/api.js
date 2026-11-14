@@ -88,15 +88,6 @@ export function isDevBypassEnabled() {
   return import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true';
 }
 
-export function getMockCredentials() {
-  return [
-    { email: 'admin@orvia.com', password: 'Password123!', label: 'Admin (مدير النظام)' },
-    { email: 'am@orvia.com', password: 'Password123!', label: 'Account Manager (مدير الحسابات)' },
-    { email: 'employee@orvia.com', password: 'Password123!', label: 'Employee (صانع المحتوى / الموظف)' },
-    { email: 'client@orvia.com', password: 'Password123!', label: 'Client (العميل)' },
-  ];
-}
-
 function isUnavailable(error) {
   return error instanceof ApiError && (error.status === 0 || error.status >= 500);
 }
