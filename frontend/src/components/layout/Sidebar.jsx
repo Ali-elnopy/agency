@@ -15,12 +15,6 @@ const NAV_ITEMS = [
     roles: ['admin', 'account_manager', 'employee'],
   },
   {
-    id: 'briefs',
-    label: 'AI Briefs',
-    icon: '#i-zap',
-    roles: ['admin', 'account_manager', 'employee'],
-  },
-  {
     id: 'tasks',
     label: 'Tasks',
     icon: '#i-layers',

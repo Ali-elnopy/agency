@@ -3,6 +3,7 @@ import PlanModal from '../components/brands/PlanModal';
 import ContentDetailsModal from '../components/sprint3/ContentDetailsModal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
+import useAuth from '../hooks/useAuth';
 import { useBrands } from '../context/brandsStore';
 import { useSprint3 } from '../context/sprint3Store';
 import {
@@ -52,6 +53,7 @@ function defaultDateFor(month) {
 }
 
 export default function AddContentPage({ brandId, initialMonth, initialPlatformId, onBack }) {
+  const { user } = useAuth();
   const { brands = [], getBrand, plans, content, addContent, savePlan, getPlatforms, updateContent } =
     useBrands();
   const {
@@ -62,6 +64,17 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
     t,
   } = useSprint3();
   const { toast, showToast } = useToast(5000);
+  const roleName = String(user?.role?.name ?? user?.role ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[ -]+/g, '_');
+  const jobTitle = String(user?.jobTitle?.name ?? user?.jobTitle ?? '')
+    .trim()
+    .toLowerCase();
+  const canCreateContent =
+    roleName === 'CREATOR' ||
+    roleName === 'CONTENT_CREATOR' ||
+    (roleName === 'EMPLOYEE' && jobTitle === 'content creator');
 
   const brand = getBrand(brandId) || brands[0] || null;
   const effectiveBrandId = brand?.id ?? brandId;
@@ -304,6 +317,23 @@ export default function AddContentPage({ brandId, initialMonth, initialPlatformI
           <p>{t('Return to the Brands workspace and open a brand before planning content.')}</p>
           <button type="button" className="button button--primary" onClick={onBack}>
             {t('Back to Brands')}
+          </button>
+        </section>
+      </div>
+    );
+  }
+
+  if (!canCreateContent) {
+    return (
+      <div className="page-screen">
+        <section className="page-head">
+          <h1 className="page-head__title">{t('Content Management')}</h1>
+        </section>
+        <section className="brand-empty brand-empty--page">
+          <h2>{t('Read-only access')}</h2>
+          <p>{t('Only Creators can create plans, campaigns, or content items.')}</p>
+          <button type="button" className="button button--primary" onClick={onBack}>
+            {t('Back to Brand')}
           </button>
         </section>
       </div>

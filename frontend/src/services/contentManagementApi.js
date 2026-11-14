@@ -11,6 +11,13 @@ import { isMockApiEnabled } from './api';
 
 export const CONTENT_TYPES = ['POST', 'REEL', 'STORY'];
 
+export async function fetchPlatformAccountsApi(brandId) {
+  const params = new URLSearchParams();
+  if (brandId) params.append('brandId', brandId);
+  const query = params.toString();
+  return apiRequest(`/platform-accounts${query ? `?${query}` : ''}`, { method: 'GET' });
+}
+
 export async function fetchContentPlansApi({ brandId, platformAccountId, year, month, status } = {}) {
   const params = new URLSearchParams();
   if (brandId) params.append('brandId', brandId);
@@ -39,6 +46,13 @@ export async function updateContentPlanApi(planId, payload) {
   return apiRequest(`/content-plans/${planId}`, {
     method: 'PATCH',
     body: payload,
+  });
+}
+
+export async function updateContentPlanStatusApi(planId, status) {
+  return apiRequest(`/content-plans/${planId}/status`, {
+    method: 'PATCH',
+    body: { status },
   });
 }
 

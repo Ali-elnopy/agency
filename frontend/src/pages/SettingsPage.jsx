@@ -15,78 +15,15 @@ const PASSWORD_RULES = [
 
 const STRENGTH_LABELS = ['Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 
-const DEADLINE_STORAGE_KEY = 'orvia_workflow_deadlines_v1';
-
-const DEFAULT_DEADLINES = {
-  production: 24,
-  review: 12,
-  publish: 0,
-};
-
-const DEADLINE_STAGES = [
-  {
-    id: 'production',
-    label: 'Production',
-    copy: 'Deadline is calculated this many hours before the content publish time.',
-  },
-  {
-    id: 'review',
-    label: 'Review',
-    copy: 'Deadline is calculated this many hours before the content publish time.',
-  },
-  {
-    id: 'publish',
-    label: 'Publish',
-    copy: 'Deadline is calculated this many hours before the content publish time.',
-  },
-];
-
 function strengthOf(value) {
   if (!value) return 0;
   return PASSWORD_RULES.reduce((count, rule) => (rule.test(value) ? count + 1 : count), 0);
-}
-
-function isValidDeadline(value) {
-  return Number.isInteger(value) && value >= 0 && value <= 720;
-}
-
-function readDeadlines() {
-  if (typeof window === 'undefined') return { ...DEFAULT_DEADLINES };
-
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(DEADLINE_STORAGE_KEY));
-    if (!parsed || typeof parsed !== 'object') return { ...DEFAULT_DEADLINES };
-
-    return {
-      production: isValidDeadline(parsed.production)
-        ? parsed.production
-        : DEFAULT_DEADLINES.production,
-      review: isValidDeadline(parsed.review) ? parsed.review : DEFAULT_DEADLINES.review,
-      publish: isValidDeadline(parsed.publish) ? parsed.publish : DEFAULT_DEADLINES.publish,
-    };
-  } catch {
-    return { ...DEFAULT_DEADLINES };
-  }
-}
-
-function writeDeadlines(value) {
-  if (typeof window === 'undefined') return;
-
-  try {
-    window.localStorage.setItem(DEADLINE_STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    // The rule still applies for this session when storage is unavailable.
-  }
 }
 
 export default function SettingsPage({ onSignOut }) {
   const { user } = useAuth();
   const { toast, showToast } = useToast(3500);
   const { t } = useSprint3();
-
-  const [deadlines, setDeadlines] = useState(readDeadlines);
-  const [savedDeadlines, setSavedDeadlines] = useState(readDeadlines);
-  const [deadlineErrors, setDeadlineErrors] = useState({});
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -103,37 +40,6 @@ export default function SettingsPage({ onSignOut }) {
   const passwordsMatch =
     passwordForm.confirmPassword.length > 0 &&
     passwordForm.confirmPassword === passwordForm.newPassword;
-
-  const updateDeadline = (stageId) => (event) => {
-    const { value } = event.target;
-
-    setDeadlines((prev) => ({ ...prev, [stageId]: value }));
-    setDeadlineErrors((prev) => {
-      if (!prev[stageId]) return prev;
-      const next = { ...prev };
-      delete next[stageId];
-      return next;
-    });
-  };
-
-  const saveDeadline = (stage) => {
-    const raw = String(deadlines[stage.id] ?? '').trim();
-    const value = raw === '' ? Number.NaN : Number(raw);
-
-    if (!isValidDeadline(value)) {
-      setDeadlineErrors((prev) => ({
-        ...prev,
-        [stage.id]: t('Enter a whole number between 0 and 720.'),
-      }));
-      return;
-    }
-
-    const next = { ...savedDeadlines, [stage.id]: value };
-    setSavedDeadlines(next);
-    setDeadlines((prev) => ({ ...prev, [stage.id]: value }));
-    writeDeadlines(next);
-    notify(`${t(stage.label)} ${t('deadline saved.')}`);
-  };
 
   const updatePasswordField = (field) => (event) => {
     const { value } = event.target;
@@ -187,71 +93,8 @@ export default function SettingsPage({ onSignOut }) {
       <header className="st-head">
         <span className="st-eyebrow">{t('Admin Settings')}</span>
         <h1>{t('Settings')}</h1>
-        <p>{t('Control default workflow deadlines and keep your account secure.')}</p>
+        <p>{t('Update password and session preferences.')}</p>
       </header>
-
-      <section className="st-card">
-        <header className="st-card__head">
-          <div>
-            <h2>{t('Workflow Settings')}</h2>
-            <p>
-              {t(
-                'Control the default deadline rules used when an Account Manager assigns a new content workflow. Existing tasks keep their current due dates.',
-              )}
-            </p>
-          </div>
-          <span className="st-card__icon">
-            <svg aria-hidden="true" className="icon">
-              <use href="#i-clock" />
-            </svg>
-          </span>
-        </header>
-
-        <div className="st-rules">
-          <header className="st-rules__head">
-            <h3>{t('Deadline Rules')}</h3>
-            <p>{t('Example: 48 hours means the task is due 48 hours before publish_at.')}</p>
-          </header>
-
-          <div className="st-rule-list">
-            {DEADLINE_STAGES.map((stage) => (
-              <div className="st-rule" key={stage.id}>
-                <div className="st-rule__copy">
-                  <strong>{t(stage.label)}</strong>
-                  <p>{t(stage.copy)}</p>
-                </div>
-
-                <div className="st-rule__field">
-                  <label htmlFor={`deadline-${stage.id}`}>{t('Hours before publish')}</label>
-                  <div className="st-rule__controls">
-                    <input
-                      id={`deadline-${stage.id}`}
-                      className={`st-input${deadlineErrors[stage.id] ? ' is-invalid' : ''}`}
-                      type="number"
-                      min="0"
-                      max="720"
-                      step="1"
-                      inputMode="numeric"
-                      value={deadlines[stage.id]}
-                      onChange={updateDeadline(stage.id)}
-                    />
-                    <button
-                      type="button"
-                      className="st-save"
-                      onClick={() => saveDeadline(stage)}
-                    >
-                      {t('Save')}
-                    </button>
-                  </div>
-                  {deadlineErrors[stage.id] && (
-                    <small className="st-error">{deadlineErrors[stage.id]}</small>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       <section className="st-card st-security">
         <header className="st-card__head st-card__head--row">

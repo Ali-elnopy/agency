@@ -19,6 +19,10 @@ const templatesBundle = JSON.parse(
     readFileSync(templatesPath, 'utf8'),
 );
 
+function getRoleName(user) {
+    return user?.role?.name ?? user?.role ?? '';
+}
+
 const resolveComposition = (mainCategory, activityType) => {
     const category = templatesBundle.onboarding_flow.main_categories.find(
         (item) => item.code === mainCategory,
@@ -112,11 +116,13 @@ const buildQuestionsAndAnswers = (onboarding) => {
 };
 
 const assertCanGenerate = (user, brand) => {
-    if (user?.role?.name === 'ADMIN') {
+    const roleName = getRoleName(user);
+
+    if (roleName === 'ADMIN') {
         return;
     }
 
-    if (user?.role?.name !== 'ACCOUNT_MANAGER') {
+    if (roleName !== 'ACCOUNT_MANAGER') {
         throw new ApiError(
             403,
             'Only administrators and assigned account managers can generate Brand Briefs.',
@@ -124,7 +130,10 @@ const assertCanGenerate = (user, brand) => {
     }
 
     if (brand.accountManagerId !== user.id) {
-        throw new ApiError(404, 'Brand not found.');
+        throw new ApiError(
+            403,
+            'You can only generate Brand Briefs for your assigned brands.',
+        );
     }
 };
 
@@ -172,14 +181,29 @@ function toBriefDto(brief) {
 }
 
 function canManage(user, brand) {
-    if (user?.role?.name === 'ADMIN') {
+    if (getRoleName(user) === 'ADMIN') {
         return true;
     }
 
     return (
-        user?.role?.name === 'ACCOUNT_MANAGER' &&
+        getRoleName(user) === 'ACCOUNT_MANAGER' &&
         brand?.accountManagerId === user.id
     );
+}
+
+function assertCanRead(user, brand) {
+    const roleName = getRoleName(user);
+
+    if (roleName === 'ADMIN') return;
+
+    if (roleName === 'ACCOUNT_MANAGER' && brand?.accountManagerId === user.id) {
+        return;
+    }
+
+    // Preserve the existing explicit employee read permission for a brief ID.
+    if (roleName === 'EMPLOYEE') return;
+
+    throw new ApiError(403, 'You cannot read this Brand Brief.');
 }
 
 function parseBriefId(value) {
@@ -194,10 +218,14 @@ function parseBriefId(value) {
 
 export const BrandBriefsService = {
     async list(user, filters = {}) {
-        const accountManagerId =
-            user?.role?.name === 'ACCOUNT_MANAGER'
-                ? user.id
-                : undefined;
+        const roleName = getRoleName(user);
+        let accountManagerId;
+
+        if (roleName === 'ACCOUNT_MANAGER') {
+            accountManagerId = user.id;
+        } else if (roleName !== 'ADMIN') {
+            throw new ApiError(403, 'You cannot read Brand Briefs.');
+        }
 
         const briefs = await BrandBriefsModel.list({
             ...filters,
@@ -219,13 +247,7 @@ export const BrandBriefsService = {
             throw new ApiError(404, 'Brand Brief not found.');
         }
 
-        if (
-            user?.role?.name !== 'ADMIN' &&
-            user?.role?.name !== 'ACCOUNT_MANAGER' &&
-            user?.role?.name !== 'EMPLOYEE'
-        ) {
-            throw new ApiError(403, 'You cannot read this Brand Brief.');
-        }
+        assertCanRead(user, brief.onboarding?.brand);
 
         return toBriefDto(brief);
     },

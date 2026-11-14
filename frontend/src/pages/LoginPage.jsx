@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { getMockCredentials } from '../services/api';
 import InfoModal from '../components/modals/InfoModal';
 import Logo from '../components/Logo';
 import useAuth from '../hooks/useAuth';
@@ -10,7 +9,6 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
   const { login } = auth;
   const { lang, setLang, t } = useSprint3();
   const DEV_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_LOGIN === 'true';
-  const demoAccounts = getMockCredentials();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -49,12 +47,6 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const applyDemoAccount = (account) => {
-    setEmail(account.email);
-    setPassword(account.password);
-    setError('');
   };
 
   return (
@@ -227,27 +219,6 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
               </svg>
             </button>
 
-            {demoAccounts.length > 0 && (
-              <div className="quick-login" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>
-                  {lang === 'ar' ? 'تسجيل دخول تجريبي سريع بحسب الدور:' : 'Quick Demo Sign-In by Role:'}
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                  {demoAccounts.map((account) => (
-                    <button
-                      key={account.email}
-                      type="button"
-                      className="quick-login__btn"
-                      onClick={() => applyDemoAccount(account)}
-                      title={`${account.email} · Password123!`}
-                      style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'center' }}
-                    >
-                      {account.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </form>
         </div>
 

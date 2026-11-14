@@ -205,6 +205,7 @@ export default function Topbar({
   onSearchBrand,
   onSearchTeam,
   onSearchUser,
+  onOpenNotificationBrand,
 }) {
   const { user } = useAuth();
   const { brands } = useBrands();
@@ -218,6 +219,7 @@ export default function Topbar({
     unreadCount = 0,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    refreshNotifications,
   } = useSprint3();
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
@@ -559,7 +561,11 @@ export default function Topbar({
             type="button"
             className="icon-btn"
             aria-label="Notifications"
-            onClick={() => setNotifOpen(!notifOpen)}
+            onClick={() => {
+              const nextOpen = !notifOpen;
+              setNotifOpen(nextOpen);
+              if (nextOpen) refreshNotifications();
+            }}
             title={t('Notifications')}
             style={{ position: 'relative' }}
           >
@@ -647,10 +653,21 @@ export default function Topbar({
                   </div>
                 ) : (
                   notifications.map((n) => (
-                    <div
+                    <button
+                      type="button"
                       key={n.id}
-                      onClick={() => markNotificationAsRead(n.id)}
+                      onClick={() => {
+                        markNotificationAsRead(n.id);
+                        if (n.brandId) {
+                          setNotifOpen(false);
+                          onOpenNotificationBrand?.(n.brandId);
+                        }
+                      }}
                       style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        border: 0,
+                        font: 'inherit',
                         padding: '12px 16px',
                         borderBottom: '1px solid var(--panel-line, #f1f5f9)',
                         background: n.isRead ? 'transparent' : 'var(--panel-highlight, rgba(234, 88, 12, 0.05))',
@@ -679,7 +696,7 @@ export default function Topbar({
                           {lang === 'ar' ? n.messageAr || n.message : n.message}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>

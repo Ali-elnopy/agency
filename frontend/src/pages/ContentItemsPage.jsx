@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from '../components/common/Modal';
 import Toast from '../components/ui/Toast';
 import useToast from '../hooks/useToast';
@@ -16,6 +16,16 @@ import {
 } from '../data/brands';
 import { linesOf } from '../data/sprint3';
 import {
+  createContentPlanApi,
+  deleteContentPlanApi,
+  fetchContentItemsApi,
+  fetchContentPlansApi,
+  fetchPlatformAccountsApi,
+  updateContentPlanApi,
+  updateContentPlanStatusApi,
+} from '../services/contentManagementApi';
+import { fetchCampaignsApi } from '../services/sprint3Api';
+import {
   EmptyState,
   PageHeader,
   Stat,
@@ -23,16 +33,23 @@ import {
 } from '../components/sprint3/Sprint3UI';
 
 const STATUS_TONE = {
-  planned: 'is-amber',
-  delivered: 'is-green',
-  delayed: 'is-red',
   draft: 'is-gray',
-  in_progress: 'is-blue',
-  scheduled: 'is-purple',
-  published: 'is-green',
+  in_review: 'is-purple',
+  needs_changes: 'is-amber',
+  approved: 'is-green',
 };
 
 const CAMPAIGN_COLORS = ['is-orange', 'is-blue', 'is-purple', 'is-green', 'is-pink'];
+const PLAN_STATUS_LABELS = {
+  draft: 'Draft',
+  in_review: 'In Review',
+  needs_changes: 'Needs Changes',
+  approved: 'Approved',
+};
+const MONTH_OPTIONS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 const EMPTY_CAMPAIGN = {
   name: '',
@@ -43,9 +60,10 @@ const EMPTY_CAMPAIGN = {
 
 const EMPTY_PLAN = {
   month: monthKey(),
+  platformAccountId: '',
   postsTarget: 10,
   reelsTarget: 5,
-  status: 'draft',
+  monthlyGoals: '',
 };
 
 const EMPTY_ITEM = {
@@ -62,16 +80,27 @@ const EMPTY_ITEM = {
 };
 
 const DEFAULT_PLATFORMS = [
-  { id: 'Instagram', name: 'Instagram', handle: '@brand_official', followers: '45.2K', status: 'active', icon: '📷' },
-  { id: 'Facebook', name: 'Facebook', handle: 'Brand Official Page', followers: '28.5K', status: 'active', icon: '📘' },
-  { id: 'LinkedIn', name: 'LinkedIn', handle: 'Brand Company Inc.', followers: '12.1K', status: 'active', icon: '💼' },
-  { id: 'X', name: 'X / Twitter', handle: '@brand_hq', followers: '18.9K', status: 'active', icon: '🐦' },
-  { id: 'TikTok', name: 'TikTok', handle: '@brand_tok', followers: '62.4K', status: 'active', icon: '🎵' },
+  { id: 'Instagram', name: 'Instagram', handle: '@brand_official', status: 'active', icon: '📷' },
+  { id: 'Facebook', name: 'Facebook', handle: 'Brand Official Page', status: 'active', icon: '📘' },
+  { id: 'LinkedIn', name: 'LinkedIn', handle: 'Brand Company Inc.', status: 'active', icon: '💼' },
+  { id: 'X', name: 'X / Twitter', handle: '@brand_hq', status: 'active', icon: '🐦' },
+  { id: 'TikTok', name: 'TikTok', handle: '@brand_tok', status: 'active', icon: '🎵' },
 ];
+// Kept for the separate fixture cleanup task; live platform screens do not read it.
+void DEFAULT_PLATFORMS;
 
-export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
+const PLATFORM_ICONS = {
+  instagram: '📷',
+  facebook: '📘',
+  linkedin: '💼',
+  x: '🐦',
+  twitter: '🐦',
+  tiktok: '🎵',
+};
+
+export default function ContentItemsPage({ initialBrandId, onOpenPlan, onAddPlatform }) {
   const { user } = useAuth();
-  const { brands, content, updateContent, deleteContent, plans, addPlan: addPlanToStore, deletePlan: deletePlanFromStore } = useBrands();
+  const { brands, content, updateContent, deleteContent, plans, getPlatforms } = useBrands();
   const {
     getApprovedStrategy,
     getCampaigns,
@@ -99,17 +128,24 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
     }
   }, [initialBrandId]);
   const [selectedPlatform, setSelectedPlatform] = useState('Instagram');
+  const [selectedPlatformAccountId, setSelectedPlatformAccountId] = useState(null);
+  const [platformScopedPlanRecords, setPlatformScopedPlanRecords] = useState(null);
+  const [platformPlansLoading, setPlatformPlansLoading] = useState(false);
+  const [platformPlansError, setPlatformPlansError] = useState('');
+  const platformPlansRequestRef = useRef(0);
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey());
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
 
   // Local state for Plans stored in component/store
   const [localPlans, setLocalPlans] = useState(() => plans || []);
+  const [overviewData, setOverviewData] = useState(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState('');
 
   // Filter states
   const [brandSearch, setBrandSearch] = useState('');
   const [platformSearch, setPlatformSearch] = useState('');
-  const [planBrandFilter, setPlanBrandFilter] = useState('all');
   const [planStatusFilter, setPlanStatusFilter] = useState('all');
   const [planYearFilter, setPlanYearFilter] = useState('all');
   const [planMonthFilter, setPlanMonthFilter] = useState('all');
@@ -119,6 +155,7 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planForm, setPlanForm] = useState(EMPTY_PLAN);
   const [planToDelete, setPlanToDelete] = useState(null);
+  const [deletedPlanIds, setDeletedPlanIds] = useState([]);
 
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [campaignForm, setCampaignForm] = useState(EMPTY_CAMPAIGN);
@@ -129,26 +166,101 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
   const [itemForm, setItemForm] = useState(EMPTY_ITEM);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  // Role differentiation per Mustafa's PDF Page 6 & Feedback:
-  // A. Creator: Create/Edit/Delete/Perform assigned content work.
-  // B. Regular Employee: Read-only (View, Filter, Sort only).
-  // C. Account Manager: Review & Approval workflow (Approve / Request Changes).
-  const [activeRoleMode, setActiveRoleMode] = useState(null);
-  const technicalRole = String(user?.role || '').toUpperCase();
-  const userEmail = String(user?.email || '').toLowerCase();
-
-  const defaultRoleMode = (technicalRole === 'ACCOUNT_MANAGER' || userEmail === 'am@orvia.com')
-    ? 'account_manager'
-    : (technicalRole === 'EMPLOYEE' || technicalRole === 'CONTENT_CREATOR' || technicalRole === 'CREATOR' || userEmail === 'employee@orvia.com' || userEmail === 'creator@orvia.com')
-      ? 'creator'
-      : 'regular_employee';
-
-  const effectiveRoleMode = activeRoleMode || defaultRoleMode;
-  const canEdit = effectiveRoleMode === 'creator';
-  const isAccountManager = effectiveRoleMode === 'account_manager';
-  const isRegularEmployee = effectiveRoleMode === 'regular_employee';
+  const roleName = String(user?.role?.name ?? user?.role ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[ -]+/g, '_');
+  const jobTitle = String(user?.jobTitle?.name ?? user?.jobTitle ?? '')
+    .trim()
+    .toLowerCase();
+  const canEdit =
+    roleName === 'CREATOR' ||
+    roleName === 'CONTENT_CREATOR' ||
+    (roleName === 'EMPLOYEE' && jobTitle === 'content creator');
 
   const selectedBrand = brands.find((item) => String(item.id) === String(selectedBrandId)) ?? activeBrands[0] ?? null;
+  const platformAccounts = useMemo(
+    () => Array.from(new Map(
+      [
+        ...(selectedBrand ? getPlatforms(selectedBrand.id) : []),
+        ...(selectedBrand ? getPlatforms(String(selectedBrand.id)) : []),
+      ]
+        .map((account) => ({
+          ...account,
+          numericId: Number(account.serverId ?? account.id),
+        }))
+        .filter((account) => Number.isSafeInteger(account.numericId) && account.numericId > 0)
+        .map((account) => [account.numericId, account]),
+    ).values()),
+    [getPlatforms, selectedBrand],
+  );
+
+  useEffect(() => {
+    const brandId = Number(selectedBrand?.id);
+    if (!Number.isSafeInteger(brandId) || brandId <= 0) {
+      setOverviewData(null);
+      setOverviewError('');
+      return undefined;
+    }
+
+    let alive = true;
+    setOverviewLoading(true);
+    setOverviewError('');
+    setOverviewData(null);
+
+    Promise.all([
+      fetchPlatformAccountsApi(brandId),
+      fetchContentPlansApi({ brandId }),
+    ])
+      .then(async ([platformsResponse, plansResponse]) => {
+        const accountRecords = platformsResponse?.data?.accounts;
+        const planRecords = plansResponse?.data?.plans;
+        if (!Array.isArray(accountRecords) || !Array.isArray(planRecords)) {
+          throw new Error(t('Could not load brand overview data.'));
+        }
+
+        const planSummaries = await Promise.all(planRecords.map(async (plan) => {
+          const contentPlanId = Number(plan.id);
+          if (!Number.isSafeInteger(contentPlanId) || contentPlanId <= 0) {
+            throw new Error(t('A content plan has an invalid ID.'));
+          }
+
+          const [itemsResponse, campaignRecords] = await Promise.all([
+            fetchContentItemsApi({ contentPlanId }),
+            fetchCampaignsApi({ contentPlanId }),
+          ]);
+          const itemRecords = itemsResponse?.data?.items;
+          if (!Array.isArray(itemRecords) || !Array.isArray(campaignRecords)) {
+            throw new Error(t('Could not load plan items and campaigns.'));
+          }
+
+          return {
+            ...plan,
+            itemCount: itemRecords.length,
+            campaigns: campaignRecords,
+          };
+        }));
+
+        if (!alive) return;
+        setOverviewData({
+          platforms: accountRecords,
+          plans: planSummaries,
+          campaigns: planSummaries.flatMap((plan) => plan.campaigns),
+          itemCount: planSummaries.reduce((total, plan) => total + plan.itemCount, 0),
+        });
+      })
+      .catch((error) => {
+        if (!alive) return;
+        setOverviewError(error?.message || t('Could not load brand overview data.'));
+      })
+      .finally(() => {
+        if (alive) setOverviewLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [selectedBrand?.id, platformAccounts, localPlans, content, t]);
 
   React.useEffect(() => {
     if (activeBrands.length && !brands.some((b) => String(b.id) === String(selectedBrandId))) {
@@ -218,13 +330,43 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
   };
 
   const handleSelectBrand = (bId) => {
+    platformPlansRequestRef.current += 1;
     setSelectedBrandId(bId);
+    setSelectedPlatformAccountId(null);
+    setPlatformScopedPlanRecords(null);
+    setPlatformPlansLoading(false);
+    setPlatformPlansError('');
     setScreen('brand_hub');
   };
 
-  const handleSelectPlatform = (plat) => {
-    setSelectedPlatform(plat);
+  const handleSelectPlatform = async (platformAccount) => {
+    const platformAccountId = Number(platformAccount?.id);
+    if (!Number.isSafeInteger(platformAccountId) || platformAccountId <= 0) {
+      setPlatformPlansError(t('This platform account does not have a valid server ID.'));
+      return;
+    }
+
+    setSelectedPlatform(platformAccount.platform);
+    setSelectedPlatformAccountId(platformAccountId);
+    setPlatformScopedPlanRecords(null);
+    setPlatformPlansError('');
+    setPlatformPlansLoading(true);
     setScreen('plans');
+    const requestId = ++platformPlansRequestRef.current;
+    try {
+      const response = await fetchContentPlansApi({ platformAccountId });
+      const records = response?.data?.plans;
+      if (!Array.isArray(records)) {
+        throw new Error(t('Could not load content plans for this platform account.'));
+      }
+      if (platformPlansRequestRef.current === requestId) setPlatformScopedPlanRecords(records);
+    } catch (error) {
+      if (platformPlansRequestRef.current === requestId) {
+        setPlatformPlansError(error?.message || t('Could not load content plans for this platform account.'));
+      }
+    } finally {
+      if (platformPlansRequestRef.current === requestId) setPlatformPlansLoading(false);
+    }
   };
 
   const handleSelectPlan = (month) => {
@@ -254,32 +396,130 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
     setScreen('item_details');
   };
 
+  const handleAddPlatformFromOverview = () => {
+    if (onAddPlatform) {
+      onAddPlatform(selectedBrand?.id);
+      return;
+    }
+    navTo('platforms');
+  };
+
+  const handleCreatePlanFromOverview = () => {
+    const defaultAccount = platformAccounts.find((account) => account.name === selectedPlatform)
+      ?? platformAccounts[0];
+    setPlanForm({
+      ...EMPTY_PLAN,
+      platformAccountId: defaultAccount ? String(defaultAccount.numericId) : '',
+    });
+    setPlanModalOpen(true);
+  };
+
   // Plan Handlers
-  const handleCreatePlan = () => {
+  const handleCreatePlan = async () => {
+    if (!canEdit) return;
     if (!isStrategyApproved) {
       showToast(t('Creating a Content Plan is locked because this brand does not have an approved strategy yet.'), 'error');
       return;
     }
-    const newPlan = {
-      id: `plan-${selectedBrandId}-${planForm.month}`,
-      brandId: selectedBrandId,
-      platform: selectedPlatform,
-      month: planForm.month,
-      postsTarget: Number(planForm.postsTarget) || 10,
-      reelsTarget: Number(planForm.reelsTarget) || 5,
-      status: planForm.status || 'draft',
-      createdAt: new Date().toISOString().slice(0, 10),
+    const [year, month] = String(planForm.month || '').split('-').map(Number);
+    const brandId = Number(selectedBrandId);
+    const platformAccountId = Number(planForm.platformAccountId);
+    if (
+      !Number.isSafeInteger(brandId) || brandId <= 0 ||
+      !Number.isSafeInteger(platformAccountId) || platformAccountId <= 0 ||
+      !Number.isSafeInteger(year) || !Number.isSafeInteger(month) || month < 1 || month > 12
+    ) {
+      showToast(t('Select a platform account and a valid month.'), 'error');
+      return;
+    }
+
+    const postsTarget = Number(planForm.postsTarget) || 0;
+    const reelsTarget = Number(planForm.reelsTarget) || 0;
+    const platformAccount = platformAccounts.find(
+      (account) => Number(account.serverId ?? account.id) === platformAccountId,
+    );
+    const payload = {
+      brandId,
+      platformAccountId,
+      title: `${planForm.month} Content Plan`,
+      year,
+      month,
+      monthlyGoals: String(planForm.monthlyGoals || '').trim() || null,
+      notes: `Posts target: ${postsTarget}, Reels target: ${reelsTarget}`,
     };
-    setLocalPlans((prev) => [newPlan, ...prev]);
-    setPlanModalOpen(false);
-    showToast(t('Plan created.'), 'success');
+
+    try {
+      const editingServerId = Number(planForm.serverId);
+      const response = editingServerId > 0
+        ? await updateContentPlanApi(editingServerId, payload)
+        : await createContentPlanApi(payload);
+      const created = response?.data?.plan ?? response?.data ?? response?.plan ?? response;
+      const serverId = Number(created?.id ?? editingServerId);
+      if (!Number.isSafeInteger(serverId) || serverId <= 0) {
+        throw new Error(t('The server response did not include a valid plan ID.'));
+      }
+      const newPlan = {
+        id: `plan-${brandId}-${year}-${String(month).padStart(2, '0')}`,
+        serverId,
+        brandId: String(brandId),
+        platformAccountId,
+        platform: platformAccount?.name,
+        month: `${year}-${String(month).padStart(2, '0')}`,
+        postsTarget,
+        reelsTarget,
+        status: String(created.status || 'DRAFT').toLowerCase(),
+        title: created.title || payload.title,
+        createdAt: created.createdAt || new Date().toISOString().slice(0, 10),
+      };
+      setLocalPlans((prev) => [newPlan, ...prev.filter((plan) => Number(plan.serverId) !== serverId)]);
+      setDeletedPlanIds((prev) => prev.filter((id) => id !== serverId));
+      setPlanModalOpen(false);
+      setPlanForm(EMPTY_PLAN);
+      showToast(t(editingServerId > 0 ? 'Plan updated.' : 'Plan created.'), 'success');
+    } catch (error) {
+      showToast(error?.message || t('Could not save the plan.'), 'error');
+    }
   };
 
-  const confirmDeletePlan = () => {
-    if (!planToDelete) return;
-    setLocalPlans((prev) => prev.filter((p) => p.id !== planToDelete.id));
-    setPlanToDelete(null);
-    showToast(t('Plan deleted.'), 'success');
+  const handleSubmitPlanForReview = async (plan) => {
+    const serverId = plan?.serverId;
+    const status = String(plan?.status || '').toUpperCase();
+    if (
+      !canEdit ||
+      typeof serverId !== 'number' ||
+      !Number.isSafeInteger(serverId) ||
+      serverId <= 0 ||
+      !['DRAFT', 'NEEDS_CHANGES'].includes(status)
+    ) return;
+
+    try {
+      await updateContentPlanStatusApi(serverId, 'IN_REVIEW');
+      setLocalPlans((prev) => [
+        { ...plan, status: 'IN_REVIEW' },
+        ...prev.filter((item) => Number(item.serverId) !== serverId),
+      ]);
+      showToast(t('Plan submitted for review.'), 'success');
+    } catch (error) {
+      showToast(error?.message || t('Could not submit the plan for review.'), 'error');
+    }
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!canEdit || !planToDelete) return;
+    const serverId = Number(planToDelete.serverId);
+    if (!Number.isSafeInteger(serverId) || serverId <= 0) {
+      showToast(t('This plan is not available on the server and cannot be deleted.'), 'error');
+      return;
+    }
+    try {
+      await deleteContentPlanApi(serverId);
+      setDeletedPlanIds((prev) => [...new Set([...prev, serverId])]);
+      setLocalPlans((prev) => prev.filter((plan) => Number(plan.serverId) !== serverId));
+      setPlanToDelete(null);
+      showToast(t('Plan deleted.'), 'success');
+    } catch (error) {
+      showToast(error?.message || t('Could not delete the plan.'), 'error');
+    }
   };
 
   // Campaign Handlers
@@ -411,95 +651,6 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
     setItemModalOpen(false);
     setItemForm(EMPTY_ITEM);
     showToast(t('Content item created.'), 'success');
-  };
-
-  // RENDER: Role switcher & read-only banner per specification
-  const renderRoleControlBar = () => {
-    return (
-      <div
-        className="s3-role-mode-bar"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '10px 16px',
-          marginBottom: 16,
-          borderRadius: 12,
-          border: '1px solid var(--line)',
-          background: 'var(--panel)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-            {t('Active Role View')}:
-          </span>
-          <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className={`button button--xs ${effectiveRoleMode === 'creator' ? 'button--primary' : 'button--ghost'}`}
-              onClick={() => setActiveRoleMode('creator')}
-              title={t('Creator: Full permissions (Create, Edit, Delete, Update)')}
-            >
-              ✍️ {t('Creator (صانع المحتوى)')}
-            </button>
-            <button
-              type="button"
-              className={`button button--xs ${effectiveRoleMode === 'regular_employee' ? 'button--primary' : 'button--ghost'}`}
-              onClick={() => setActiveRoleMode('regular_employee')}
-              title={t('Regular Employee: Read-only (View, Filter, Sort only)')}
-            >
-              👀 {t('Regular Employee (موظف عادي)')}
-            </button>
-            <button
-              type="button"
-              className={`button button--xs ${effectiveRoleMode === 'account_manager' ? 'button--primary' : 'button--ghost'}`}
-              onClick={() => setActiveRoleMode('account_manager')}
-              title={t('Account Manager: Review & Approval Gate')}
-            >
-              🛡️ {t('Account Manager (مدير الحسابات)')}
-            </button>
-          </div>
-        </div>
-
-        <div>
-          {effectiveRoleMode === 'creator' && (
-            <span className="s3-pill is-green" style={{ fontSize: 12 }}>
-              ✓ {t('Creator Access: Carry out work, Update, Edit, Delete')}
-            </span>
-          )}
-          {effectiveRoleMode === 'regular_employee' && (
-            <span className="s3-pill is-amber" style={{ fontSize: 12 }}>
-              🔒 {t('Regular Employee: Read-only (View, Filter, Sort only)')}
-            </span>
-          )}
-          {effectiveRoleMode === 'account_manager' && (
-            <span className="s3-pill is-blue" style={{ fontSize: 12 }}>
-              🔍 {t('Account Manager: Review & Approval Workflow')}
-            </span>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderReadOnlyBanner = () => {
-    if (canEdit) return null;
-    return (
-      <div className="s3-readonly-banner" style={{ marginBottom: 16 }}>
-        <svg aria-hidden="true" className="icon" style={{ width: 18, height: 18, flexShrink: 0 }}>
-          <use href="#i-eye" />
-        </svg>
-        <span>
-          <strong>{isAccountManager ? t('Review Mode (Account Manager)') : t('Read-only View (Regular Employee)')}</strong>: {
-            isAccountManager
-              ? t('Account Managers review content items, approve deliverables, and request revisions.')
-              : t('Regular Employees have read-only access (View, Filter, Sort). Creation, editing, and deletion operations are restricted to Content Creators.')
-          }
-        </span>
-      </div>
-    );
   };
 
   // RENDER: Breadcrumbs Navigation
@@ -692,9 +843,10 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
     }
 
     const strat = getApprovedStrategy(selectedBrand.id);
-    const bPlans = localPlans.filter((p) => String(p.brandId) === String(selectedBrand.id));
-    const bItems = content.filter((item) => String(item.brandId) === String(selectedBrand.id));
-    const bCampaigns = getCampaigns(selectedBrand.id);
+    const overviewPlatforms = overviewData?.platforms ?? [];
+    const overviewPlans = overviewData?.plans ?? [];
+    const overviewCampaigns = overviewData?.campaigns ?? [];
+    const overviewItemCount = overviewData?.itemCount ?? 0;
 
     return (
       <div className="s3-screen">
@@ -760,25 +912,25 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
           <Stat
             icon="#i-grid"
             label={t('Connected Platforms')}
-            value="5"
-            hint={t('Instagram, FB, TikTok, X, LinkedIn')}
+            value={overviewLoading ? '…' : overviewError ? '—' : overviewPlatforms.length}
+            hint={t('Platform accounts linked to this brand')}
           />
           <Stat
             icon="#i-file"
             label={t('Content Plans')}
-            value={bPlans.length || '3'}
+            value={overviewLoading ? '…' : overviewError ? '—' : overviewPlans.length}
             hint={t('Monthly schedules')}
           />
           <Stat
             icon="#i-layers"
             label={t('Active Campaigns')}
-            value={bCampaigns.length}
+            value={overviewLoading ? '…' : overviewError ? '—' : overviewCampaigns.length}
             hint={t('Strategic marketing initiatives')}
           />
           <Stat
             icon="#i-calendar"
             label={t('Total Content Items')}
-            value={bItems.length}
+            value={overviewLoading ? '…' : overviewError ? '—' : overviewItemCount}
             hint={t('Planned, scheduled & published')}
           />
         </div>
@@ -797,21 +949,25 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                 </p>
               </div>
               <span className="pill is-blue" style={{ fontSize: 11, fontWeight: 700 }}>
-                5 {t('Connected')}
+                {overviewLoading ? '…' : overviewError ? '—' : overviewPlatforms.length} {t('Connected')}
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '14px 0 20px' }}>
-              {DEFAULT_PLATFORMS.map((plat) => (
+              {overviewLoading || (!overviewData && !overviewError) ? (
+                <small className="s3-muted">{t('Loading platform accounts...')}</small>
+              ) : overviewError ? (
+                <small className="s3-muted" role="alert">{overviewError}</small>
+              ) : overviewPlatforms.length ? overviewPlatforms.map((plat) => (
                 <div
                   key={plat.id}
                   onClick={() => {
-                    setSelectedPlatform(plat.id);
+                    setSelectedPlatform(plat.platform);
                     navTo('plans');
                   }}
                   tabIndex={0}
                   role="button"
-                  onKeyDown={(e) => e.key === 'Enter' && (setSelectedPlatform(plat.id), navTo('plans'))}
+                  onKeyDown={(e) => e.key === 'Enter' && (setSelectedPlatform(plat.platform), navTo('plans'))}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -825,18 +981,29 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>{plat.icon}</span>
+                    <span style={{ fontSize: 18 }}>
+                      {PLATFORM_ICONS[String(plat.platform || '').toLowerCase().split(/[ /]/)[0]] || '◉'}
+                    </span>
                     <div>
-                      <strong style={{ fontSize: 13, display: 'block' }}>{plat.name}</strong>
-                      <small className="s3-muted">{plat.handle}</small>
+                      <strong style={{ fontSize: 13, display: 'block' }}>{plat.platform}</strong>
+                      <small className="s3-muted">{plat.accountName || plat.accountUrl}</small>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{plat.followers}</span>
                     <span className="s3-muted" style={{ fontSize: 12 }}>→</span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <EmptyState
+                  icon="#i-globe"
+                  title={t('No social platforms yet.')}
+                  action={canEdit ? (
+                    <button type="button" className="button button--primary button--sm" onClick={handleAddPlatformFromOverview}>
+                      {t('Add Platform')}
+                    </button>
+                  ) : null}
+                />
+              )}
             </div>
 
             <footer style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -865,46 +1032,71 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                 </p>
               </div>
               <span className="pill is-purple" style={{ fontSize: 11, fontWeight: 700 }}>
-                {bItems.length} {t('Items')}
+                {overviewLoading ? '…' : overviewError ? '—' : overviewItemCount} {t('Items')}
               </span>
             </div>
 
             {/* Quick overview of plans */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '14px 0 20px' }}>
-              {/* Current Month Plan */}
-              <div
-                onClick={() => {
-                  setSelectedMonth(monthKey());
-                  navTo('plan_details');
-                }}
-                tabIndex={0}
-                role="button"
-                onKeyDown={(e) => e.key === 'Enter' && (setSelectedMonth(monthKey()), navTo('plan_details'))}
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  border: '1px solid var(--line)',
-                  background: 'var(--surface-alt, #FAF9F6)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <strong style={{ fontSize: 13 }}>📅 {monthLabel(monthKey())} {t('Plan')}</strong>
-                  <StatusPill label={t('In Progress')} tone="is-blue" />
-                </div>
-                <small className="s3-muted" style={{ display: 'block' }}>
-                  {planItems.length} {t('Items')} · {planCampaigns.length} {t('Campaigns')} · {t('Goal: Grow social engagement')}
-                </small>
-              </div>
+              {overviewLoading || (!overviewData && !overviewError) ? (
+                <small className="s3-muted">{t('Loading content plans...')}</small>
+              ) : overviewError ? (
+                <small className="s3-muted" role="alert">{overviewError}</small>
+              ) : overviewPlans.length ? overviewPlans.map((plan) => {
+                const planMonth = `${plan.year}-${String(plan.month).padStart(2, '0')}`;
+                return (
+                  <div
+                    key={plan.id}
+                    onClick={() => {
+                      setSelectedMonth(planMonth);
+                      navTo('plan_details');
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        setSelectedMonth(planMonth);
+                        navTo('plan_details');
+                      }
+                    }}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: 12,
+                      border: '1px solid var(--line)',
+                      background: 'var(--surface-alt, #FAF9F6)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <strong style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>{plan.title}</strong>
+                    <small className="s3-muted" style={{ display: 'block' }}>
+                      {monthLabel(planMonth)} {plan.year} · {plan.itemCount} {t('Items')} · {plan.campaigns.length} {t('Campaigns')}
+                    </small>
+                  </div>
+                );
+              }) : (
+                <EmptyState
+                  icon="#i-calendar"
+                  title={t('No monthly plans yet.')}
+                  action={canEdit ? (
+                    <button type="button" className="button button--primary button--sm" onClick={handleCreatePlanFromOverview}>
+                      {t('Create Monthly Plan')}
+                    </button>
+                  ) : null}
+                />
+              )}
 
               {/* Active Campaigns Preview */}
               <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface-alt, #FAF9F6)' }}>
                 <strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
-                  🎯 {t('Active Campaigns')} ({bCampaigns.length})
+                  🎯 {t('Active Campaigns')} ({overviewCampaigns.length})
                 </strong>
-                {bCampaigns.length ? (
+                {overviewLoading || (!overviewData && !overviewError) ? (
+                  <small className="s3-muted">{t('Loading campaigns...')}</small>
+                ) : overviewError ? (
+                  <small className="s3-muted" role="alert">{overviewError}</small>
+                ) : overviewCampaigns.length ? (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {bCampaigns.slice(0, 3).map((c, idx) => (
+                    {overviewCampaigns.slice(0, 3).map((c, idx) => (
                       <span
                         key={c.id}
                         className={`pill ${CAMPAIGN_COLORS[idx % CAMPAIGN_COLORS.length]}`}
@@ -957,9 +1149,10 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
      SCREEN 2: PLATFORM ACCOUNTS LIST
      ========================================================================== */
   const renderScreen2Platforms = () => {
-    const platforms = DEFAULT_PLATFORMS.filter((p) =>
-      p.name.toLowerCase().includes(platformSearch.toLowerCase()) ||
-      p.handle.toLowerCase().includes(platformSearch.toLowerCase()),
+    const platforms = (overviewData?.platforms || []).filter((platform) =>
+      String(platform.platform || '').toLowerCase().includes(platformSearch.toLowerCase()) ||
+      String(platform.accountName || '').toLowerCase().includes(platformSearch.toLowerCase()) ||
+      String(platform.accountUrl || '').toLowerCase().includes(platformSearch.toLowerCase()),
     );
 
     return (
@@ -990,38 +1183,59 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
           </div>
         </div>
 
-        <div className="s3-platform-grid">
-          {platforms.map((plat) => (
+        {overviewLoading || (!overviewData && !overviewError) ? (
+          <p className="s3-muted">{t('Loading platform accounts...')}</p>
+        ) : overviewError ? (
+          <p className="s3-muted" role="alert">{overviewError}</p>
+        ) : platforms.length ? (
+          <div className="s3-platform-grid">
+            {platforms.map((plat) => (
             <div
               key={plat.id}
               className="s3-platform-card"
-              onClick={() => handleSelectPlatform(plat.id)}
+              onClick={() => handleSelectPlatform(plat)}
               tabIndex={0}
               role="button"
-              onKeyDown={(e) => e.key === 'Enter' && handleSelectPlatform(plat.id)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSelectPlatform(plat)}
             >
               <div className="s3-platform-card__header">
-                <span className="s3-platform-card__icon">{plat.icon}</span>
+                <span className="s3-platform-card__icon">
+                  {PLATFORM_ICONS[String(plat.platform || '').toLowerCase().split(/[ /]/)[0]] || '◉'}
+                </span>
                 <div>
-                  <strong>{plat.name}</strong>
-                  <small className="s3-muted" style={{ display: 'block' }}>{plat.handle}</small>
+                  <strong>{plat.platform}</strong>
+                  <small className="s3-muted" style={{ display: 'block' }}>
+                    {plat.accountName || plat.accountUrl}
+                  </small>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', fontSize: 13 }}>
-                <span className="s3-muted">{t('Audience')}</span>
-                <strong>{plat.followers}</strong>
-              </div>
-
               <footer style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-                <StatusPill label={t('Active')} tone="is-green" />
-                <button type="button" className="button button--primary button--xs">
+                <button
+                  type="button"
+                  className="button button--primary button--xs"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleSelectPlatform(plat);
+                  }}
+                >
                   {t('View Content Plans')} →
                 </button>
               </footer>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon="#i-globe"
+            title={overviewData.platforms.length ? t('No matching platforms found.') : t('No social platforms yet.')}
+            action={!overviewData.platforms.length && canEdit ? (
+              <button type="button" className="button button--primary button--sm" onClick={handleAddPlatformFromOverview}>
+                {t('Add Platform')}
+              </button>
+            ) : null}
+          />
+        )}
       </div>
     );
   };
@@ -1030,14 +1244,62 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
      SCREEN 3: CONTENT PLANS LIST
      ========================================================================== */
   const renderScreen3Plans = () => {
-    // Unique months present for this brand
+    const accountPlans = Array.isArray(platformScopedPlanRecords)
+      ? platformScopedPlanRecords.map((plan) => {
+        const notes = String(plan.notes || '');
+        return {
+          id: `plan-${plan.brandId}-${plan.year}-${String(plan.month).padStart(2, '0')}`,
+          serverId: plan.id,
+          brandId: String(plan.brandId),
+          platformAccountId: Number(plan.platformAccountId),
+          platform: selectedPlatform,
+          month: `${plan.year}-${String(plan.month).padStart(2, '0')}`,
+          postsTarget: Number(notes.match(/Posts target:\s*(\d+)/i)?.[1] || 0),
+          reelsTarget: Number(notes.match(/Reels target:\s*(\d+)/i)?.[1] || 0),
+          monthlyGoals: plan.monthlyGoals,
+          status: plan.status,
+          title: plan.title,
+          createdAt: plan.createdAt,
+        };
+      })
+      : [];
+    const contentPlans = (selectedPlatformAccountId !== null
+      ? accountPlans
+      : [...localPlans, ...(plans || [])]
+    ).filter((plan) => !deletedPlanIds.includes(Number(plan.serverId)));
+    const selectedPlatformAccountIds = new Set(
+      selectedPlatformAccountId !== null
+        ? [selectedPlatformAccountId]
+        : platformAccounts
+          .filter((account) => account.name === selectedPlatform)
+          .map((account) => account.numericId),
+    );
+    const getPlanForMonth = (month) => contentPlans.find((item) => {
+      if (String(item.brandId) !== String(selectedBrandId) || item.month !== month) return false;
+      if (item.platformAccountId) return selectedPlatformAccountIds.has(Number(item.platformAccountId));
+      return !item.platform || item.platform === selectedPlatform;
+    });
+    // Show months represented by a Content Plan record. Demo fixtures remain
+    // available through the provider's demo bypass hydration path.
     const availableMonths = Array.from(
-      new Set([monthKey(), '2026-11', '2026-10', '2026-09', ...brandItems.map((i) => i.month)]),
+      new Set([
+        ...contentPlans
+          .filter((plan) => getPlanForMonth(plan.month) === plan)
+          .map((plan) => plan.month),
+      ]),
+    ).sort().reverse();
+    const getPlanStatus = (month) => {
+      const plan = getPlanForMonth(month);
+      return String(plan?.status || 'DRAFT').toLowerCase();
+    };
+    const availableYears = Array.from(
+      new Set(availableMonths.map((month) => month.slice(0, 4))),
     ).sort().reverse();
 
     const filteredPlans = availableMonths.filter((m) => {
       if (planMonthFilter !== 'all' && m.slice(5, 7) !== planMonthFilter) return false;
       if (planYearFilter !== 'all' && m.slice(0, 4) !== planYearFilter) return false;
+      if (planStatusFilter !== 'all' && getPlanStatus(m) !== planStatusFilter) return false;
       return true;
     });
 
@@ -1065,7 +1327,16 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                 className="button button--primary"
                 disabled={!isStrategyApproved}
                 title={!isStrategyApproved ? t('Strategy must be approved first') : ''}
-                onClick={() => setPlanModalOpen(true)}
+                onClick={() => {
+                  const defaultAccount = platformAccounts.find(
+                    (account) => account.numericId === selectedPlatformAccountId,
+                  ) ?? platformAccounts.find((account) => account.name === selectedPlatform);
+                  setPlanForm({
+                    ...EMPTY_PLAN,
+                    platformAccountId: defaultAccount ? String(defaultAccount.numericId) : '',
+                  });
+                  setPlanModalOpen(true);
+                }}
               >
                 <svg aria-hidden="true" className="icon">
                   <use href="#i-plus" />
@@ -1097,8 +1368,12 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               className="form-select"
               value={selectedBrandId}
               onChange={(e) => {
+                platformPlansRequestRef.current += 1;
                 setSelectedBrandId(e.target.value);
-                setPlanBrandFilter(e.target.value);
+                setSelectedPlatformAccountId(null);
+                setPlatformScopedPlanRecords(null);
+                setPlatformPlansLoading(false);
+                setPlatformPlansError('');
               }}
               aria-label={t('Brand')}
             >
@@ -1122,10 +1397,14 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               aria-label={t('Month')}
             >
               <option value="all">{t('All months')}</option>
-              <option value="09">{t('September')} (09)</option>
-              <option value="10">{t('October')} (10)</option>
-              <option value="11">{t('November')} (11)</option>
-              <option value="12">{t('December')} (12)</option>
+              {MONTH_OPTIONS.map((month, index) => {
+                const value = String(index + 1).padStart(2, '0');
+                return (
+                  <option key={value} value={value}>
+                    {t(month)}
+                  </option>
+                );
+              })}
             </select>
             <svg aria-hidden="true" className="icon">
               <use href="#i-chevron" />
@@ -1141,8 +1420,9 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               aria-label={t('Year')}
             >
               <option value="all">{t('All years')}</option>
-              <option value="2026">2026</option>
-              <option value="2025">2025</option>
+              {availableYears.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
             <svg aria-hidden="true" className="icon">
               <use href="#i-chevron" />
@@ -1159,9 +1439,9 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
             >
               <option value="all">{t('All statuses')}</option>
               <option value="draft">{t('Draft')}</option>
-              <option value="in_progress">{t('In Progress')}</option>
-              <option value="scheduled">{t('Scheduled')}</option>
-              <option value="published">{t('Published')}</option>
+              <option value="in_review">{t('In Review')}</option>
+              <option value="needs_changes">{t('Needs Changes')}</option>
+              <option value="approved">{t('Approved')}</option>
             </select>
             <svg aria-hidden="true" className="icon">
               <use href="#i-chevron" />
@@ -1169,9 +1449,15 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
           </span>
         </section>
 
-        {filteredPlans.length ? (
+        {selectedPlatformAccountId !== null && platformPlansLoading ? (
+          <p className="s3-muted">{t('Loading content plans...')}</p>
+        ) : selectedPlatformAccountId !== null && platformPlansError ? (
+          <p className="s3-muted" role="alert">{platformPlansError}</p>
+        ) : filteredPlans.length ? (
           <div className="s3-plan-grid">
             {filteredPlans.map((m) => {
+              const status = getPlanStatus(m);
+              const plan = getPlanForMonth(m);
               const mItems = brandItems.filter((i) => i.month === m);
               const mCampaigns = campaigns.filter((c) =>
                 mItems.some((i) => (getContentMeta(i.id).campaignId ?? i.campaignId) === c.id),
@@ -1188,7 +1474,10 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                         {t('Month')}: {m.slice(5, 7)} · {t('Year')}: {m.slice(0, 4)} · {selectedPlatform}
                       </small>
                     </div>
-                    <StatusPill label={t('In Progress')} tone="is-blue" />
+                    <StatusPill
+                      label={t(PLAN_STATUS_LABELS[status] || status)}
+                      tone={STATUS_TONE[status] || 'is-blue'}
+                    />
                   </div>
 
                   <div style={{ margin: '8px 0', fontSize: 12, color: 'var(--muted)' }}>
@@ -1225,11 +1514,31 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
 
                     {canEdit ? (
                       <div style={{ display: 'flex', gap: 6 }}>
+                        {typeof plan?.serverId === 'number' &&
+                        Number.isSafeInteger(plan.serverId) &&
+                        plan.serverId > 0 &&
+                        ['draft', 'needs_changes'].includes(status) ? (
+                          <button
+                            type="button"
+                            className="button button--secondary button--sm"
+                            onClick={() => handleSubmitPlanForReview(plan)}
+                          >
+                            {t('Submit for Review')}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className="button button--ghost button--sm"
                           onClick={() => {
-                            setPlanForm({ month: m, postsTarget: postsCount || 10, reelsTarget: reelsCount || 5, status: 'in_progress' });
+                            setPlanForm({
+                              ...EMPTY_PLAN,
+                              serverId: plan?.serverId,
+                              month: m,
+                              platformAccountId: plan?.platformAccountId || '',
+                              postsTarget: postsCount || 10,
+                              reelsTarget: reelsCount || 5,
+                              monthlyGoals: plan?.monthlyGoals || '',
+                            });
                             setPlanModalOpen(true);
                           }}
                           aria-label={t('Edit Plan')}
@@ -1242,7 +1551,12 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                         <button
                           type="button"
                           className="button button--ghost button--sm is-danger"
-                          onClick={() => setPlanToDelete({ id: m, month: m, hasRelated: mCampaigns.length > 0 || mItems.length > 0 })}
+                          onClick={() => setPlanToDelete({
+                            ...plan,
+                            id: plan?.id || m,
+                            month: m,
+                            hasRelated: mCampaigns.length > 0 || mItems.length > 0,
+                          })}
                           aria-label={t('Delete Plan')}
                           title={t('Delete Plan')}
                         >
@@ -1833,33 +2147,6 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
                   {t('Delete Item')}
                 </button>
               </>
-            ) : isAccountManager ? (
-              <>
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  style={{ color: '#d97706', borderColor: '#d97706' }}
-                  onClick={() => {
-                    updateContent(selectedItemId, { status: 'in_revision' });
-                    setItemForm((prev) => ({ ...prev, status: 'in_revision' }));
-                    showToast(t('Item returned for revision with notes.'), 'warning');
-                  }}
-                >
-                  ↩️ {t('Request Revision')}
-                </button>
-                <button
-                  type="button"
-                  className="button button--primary"
-                  style={{ background: '#10b981', borderColor: '#10b981' }}
-                  onClick={() => {
-                    updateContent(selectedItemId, { status: 'approved' });
-                    setItemForm((prev) => ({ ...prev, status: 'approved' }));
-                    showToast(t('Content item approved by Account Manager!'), 'success');
-                  }}
-                >
-                  ✓ {t('Approve Deliverable')}
-                </button>
-              </>
             ) : null}
           </div>
         </div>
@@ -2005,8 +2292,6 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
         )}
       />
 
-      {renderRoleControlBar()}
-      {renderReadOnlyBanner()}
       {renderBreadcrumbs()}
 
       {/* Screen Routing */}
@@ -2022,8 +2307,8 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
       <Modal
         isOpen={planModalOpen}
         onClose={() => setPlanModalOpen(false)}
-        title={t('New Plan')}
-        subtitle={t('Create a monthly content plan for this platform account.')}
+        title={t(planForm.serverId ? 'Edit Plan' : 'New Plan')}
+        subtitle={t(planForm.serverId ? 'Update this monthly content plan.' : 'Create a monthly content plan for this platform account.')}
         icon="#i-calendar"
         iconColor="blue"
         maxWidth="480px"
@@ -2033,12 +2318,28 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               {t('Cancel')}
             </button>
             <button type="button" className="button button--primary" onClick={handleCreatePlan}>
-              {t('Create Plan')}
+              {t(planForm.serverId ? 'Save Changes' : 'Create Plan')}
             </button>
           </>
         }
       >
         <div className="s3-form-grid">
+          <label className="s3-field s3-field--full">
+            <span className="s3-field__label">{t('Platform Account')} *</span>
+            <select
+              className="form-select"
+              value={planForm.platformAccountId}
+              onChange={(e) => setPlanForm((prev) => ({ ...prev, platformAccountId: e.target.value }))}
+              required
+            >
+              <option value="">{t('Select platform account')}</option>
+              {platformAccounts.map((account) => (
+                <option key={account.numericId} value={String(account.numericId)}>
+                  {account.name}{account.handle ? ` · ${account.handle}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="s3-field s3-field--full">
             <span className="s3-field__label">{t('Month')} (YYYY-MM) *</span>
             <input
@@ -2064,6 +2365,15 @@ export default function ContentItemsPage({ initialBrandId, onOpenPlan }) {
               className="form-input"
               value={planForm.reelsTarget}
               onChange={(e) => setPlanForm((prev) => ({ ...prev, reelsTarget: e.target.value }))}
+            />
+          </label>
+          <label className="s3-field s3-field--full">
+            <span className="s3-field__label">{t('Monthly Goals')}</span>
+            <textarea
+              className="form-input"
+              value={planForm.monthlyGoals}
+              onChange={(e) => setPlanForm((prev) => ({ ...prev, monthlyGoals: e.target.value }))}
+              rows={3}
             />
           </label>
         </div>
