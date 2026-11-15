@@ -73,10 +73,18 @@ function getBrandAccessWhere(user) {
     };
   }
 
-  // Content Creator is identified by role + job title.
+  const userPermissions = (user?.permissions || []).map(
+    (p) => p.permission?.code || p.code || p,
+  );
+  const hasContentPermission =
+    userPermissions.includes('CREATE_CONTENT') ||
+    userPermissions.includes('MANAGE_CONTENT') ||
+    userPermissions.includes('REVIEW_CONTENT') ||
+    userPermissions.includes('PUBLISH_CONTENT');
+
   if (
     role === 'EMPLOYEE' &&
-    user?.jobTitle?.name === 'Content Creator'
+    (user?.jobTitle?.name === 'Content Creator' || hasContentPermission)
   ) {
     return {
       team: {

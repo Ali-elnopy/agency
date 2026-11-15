@@ -10,7 +10,7 @@ import {
 } from './content-items.validation.js';
 
 import { authenticate } from '../../middlewares/auth.js';
-import { requireCreator } from '../../middlewares/requireCreator.js';
+import { requirePermission } from '../../middlewares/requirePermission.js';
 import { validate } from '../../middlewares/validate.js';
 
 export const contentItemsRouter =
@@ -25,7 +25,7 @@ contentItemsRouter.get(
 
 contentItemsRouter.post(
   '/',
-  requireCreator,
+  requirePermission('CREATE_CONTENT'),
   validate(createContentItemSchema),
   ContentItemsController.create,
 );
@@ -37,13 +37,13 @@ contentItemsRouter.get(
 
 contentItemsRouter.patch(
   '/:id',
-  requireCreator,
+  requirePermission('MANAGE_CONTENT'),
   validate(updateContentItemSchema),
   ContentItemsController.update,
 );
 
 contentItemsRouter.delete(
   '/:id',
-  requireCreator,
+  requirePermission('MANAGE_CONTENT'),
   ContentItemsController.remove,
 );

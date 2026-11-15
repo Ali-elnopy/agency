@@ -8,8 +8,15 @@ import { prisma } from '../../config/prisma.js';
 const MANAGEABLE_ROLES = new Set([
   'ADMIN',
   'ACCOUNT_MANAGER',
-  'TEAM_LEADER',
+  'CLIENT',
   'EMPLOYEE',
+]);
+
+const VALID_EMPLOYEE_PERMISSIONS = new Set([
+  'CREATE_CONTENT',
+  'MANAGE_CONTENT',
+  'REVIEW_CONTENT',
+  'PUBLISH_CONTENT',
 ]);
 
 const EMPLOYEE_JOB_TITLES = new Set([
@@ -49,7 +56,7 @@ function assertManageableRole(roleName) {
   if (!MANAGEABLE_ROLES.has(roleName)) {
     throw new ApiError(
       400,
-      'Users can only be assigned ADMIN, TEAM_LEADER, ACCOUNT_MANAGER or EMPLOYEE roles',
+      'Users can only be assigned ADMIN, ACCOUNT_MANAGER, CLIENT or EMPLOYEE roles',
     );
   }
 }
@@ -193,12 +200,25 @@ export const UsersService = {
   },
 
   async createUser(input, adminId) {
+    if (input.roleName === 'ADMIN') {
+      throw new ApiError(
+        403,
+        'Administrator accounts cannot be created through the standard user creation flow',
+      );
+    }
+
+    if (input.roleName !== 'EMPLOYEE' && input.permissions && input.permissions.length > 0) {
+      throw new ApiError(
+        400,
+        'Permissions can only be assigned to the EMPLOYEE role',
+      );
+    }
+
     const roleId = await resolveRoleId(input.roleName);
 
-    let jobTitle;
+    let jobTitle = null;
 
-    if (input.roleName === 'ADMIN') {
-      // Admins do not have or require a job title.
+    if (input.roleName === 'CLIENT') {
       jobTitle = null;
     } else if (input.customJobTitle?.trim()) {
       jobTitle = await UsersModel.findJobTitleByName(input.customJobTitle.trim());
@@ -211,16 +231,20 @@ export const UsersService = {
       jobTitle = await resolveJobTitleById(input.jobTitleId);
     } else if (input.roleName === 'ACCOUNT_MANAGER') {
       jobTitle = await resolveAccountManagerJobTitle();
-    } else if (input.roleName === 'TEAM_LEADER') {
-      let tlTitle = await UsersModel.findJobTitleByName('Team Leader');
-      if (!tlTitle) {
-        tlTitle = await prisma.jobTitle.create({
-          data: { name: 'Team Leader', isActive: true },
-        });
+    }
+
+    let permissionIds = [];
+    if (input.roleName === 'EMPLOYEE' && input.permissions && input.permissions.length > 0) {
+      const uniqueCodes = [...new Set(input.permissions)];
+      for (const code of uniqueCodes) {
+        if (!VALID_EMPLOYEE_PERMISSIONS.has(code)) {
+          throw new ApiError(400, `Invalid employee permission: '${code}'`);
+        }
       }
-      jobTitle = tlTitle;
-    } else {
-      throw new ApiError(400, 'A job title is required for this role');
+      if (typeof UsersModel.findPermissionsByCodes === 'function') {
+        const dbPermissions = await UsersModel.findPermissionsByCodes(uniqueCodes);
+        permissionIds = dbPermissions.map((p) => p.id);
+      }
     }
 
     const passwordHash = await bcrypt.hash(input.password, 12);
@@ -236,6 +260,10 @@ export const UsersService = {
         createdBy: adminId,
       });
 
+      if (permissionIds.length > 0 && typeof UsersModel.setUserPermissions === 'function') {
+        await UsersModel.setUserPermissions(created.id, permissionIds);
+      }
+
       if (input.teamId) {
         await prisma.teamMembership.upsert({
           where: {
@@ -250,13 +278,6 @@ export const UsersService = {
           },
           update: {},
         });
-
-        if (input.roleName === 'TEAM_LEADER') {
-          await prisma.team.update({
-            where: { id: input.teamId },
-            data: { teamLeadId: created.id },
-          });
-        }
       }
 
       return await UsersModel.findById(created.id);
@@ -326,7 +347,7 @@ export const UsersService = {
 
     let jobTitle;
 
-    if (resultingRoleName === 'ADMIN') {
+    if (resultingRoleName === 'ADMIN' || resultingRoleName === 'CLIENT') {
       data.jobTitleId = null;
     } else if (input.customJobTitle?.trim()) {
       jobTitle = await UsersModel.findJobTitleByName(input.customJobTitle.trim());
@@ -346,18 +367,42 @@ export const UsersService = {
     } else if (resultingRoleName === 'ACCOUNT_MANAGER') {
       jobTitle = await resolveAccountManagerJobTitle();
       data.jobTitleId = jobTitle.id;
-    } else if (resultingRoleName === 'TEAM_LEADER' && !user.jobTitleId) {
-      let tlTitle = await UsersModel.findJobTitleByName('Team Leader');
-      if (!tlTitle) {
-        tlTitle = await prisma.jobTitle.create({
-          data: { name: 'Team Leader', isActive: true },
-        });
-      }
-      data.jobTitleId = tlTitle.id;
     }
 
     try {
       await UsersModel.update(user.id, data);
+
+      if (input.permissions !== undefined) {
+        if (resultingRoleName !== 'EMPLOYEE' && input.permissions.length > 0) {
+          throw new ApiError(
+            400,
+            'Permissions can only be assigned to the EMPLOYEE role',
+          );
+        }
+
+        if (resultingRoleName === 'EMPLOYEE') {
+          const uniqueCodes = [...new Set(input.permissions)];
+          for (const code of uniqueCodes) {
+            if (!VALID_EMPLOYEE_PERMISSIONS.has(code)) {
+              throw new ApiError(400, `Invalid employee permission: '${code}'`);
+            }
+          }
+          let permissionIds = [];
+          if (typeof UsersModel.findPermissionsByCodes === 'function') {
+            const dbPermissions = await UsersModel.findPermissionsByCodes(uniqueCodes);
+            permissionIds = dbPermissions.map((p) => p.id);
+          }
+          if (typeof UsersModel.setUserPermissions === 'function') {
+            await UsersModel.setUserPermissions(user.id, permissionIds);
+          }
+        } else if (typeof UsersModel.setUserPermissions === 'function') {
+          await UsersModel.setUserPermissions(user.id, []);
+        }
+      } else if (user.role?.name === 'EMPLOYEE' && resultingRoleName !== 'EMPLOYEE') {
+        if (typeof UsersModel.setUserPermissions === 'function') {
+          await UsersModel.setUserPermissions(user.id, []);
+        }
+      }
 
       if (input.teamId !== undefined) {
         if (input.teamId === null) {
@@ -385,13 +430,6 @@ export const UsersService = {
             },
             update: {},
           });
-
-          if (resultingRoleName === 'TEAM_LEADER') {
-            await prisma.team.update({
-              where: { id: input.teamId },
-              data: { teamLeadId: user.id },
-            });
-          }
         }
       }
 

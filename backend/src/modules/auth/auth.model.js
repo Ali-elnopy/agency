@@ -12,6 +12,24 @@ const publicUserSelect = {
     select: {
       id: true,
       name: true,
+      permissions: {
+        select: {
+          permission: {
+            select: {
+              code: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  permissions: {
+    select: {
+      permission: {
+        select: {
+          code: true,
+        },
+      },
     },
   },
   jobTitle: {

@@ -19,10 +19,7 @@ function getBrandAccessWhere(user) {
     };
   }
 
-  if (
-    user.role === 'EMPLOYEE' &&
-    user.jobTitle?.name === 'Content Creator'
-  ) {
+  if (user.role === 'EMPLOYEE') {
     return {
       team: {
         is: {

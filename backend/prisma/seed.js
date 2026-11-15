@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // 1. Create the roles required by the application.
-  const roleNames = ['ADMIN', 'ACCOUNT_MANAGER', 'TEAM_LEADER', 'EMPLOYEE', 'CLIENT'];
+  const roleNames = ['ADMIN', 'ACCOUNT_MANAGER', 'CLIENT', 'EMPLOYEE'];
 
   const roles = {};
 
@@ -15,6 +15,22 @@ async function main() {
       where: { name },
       update: {},
       create: { name },
+    });
+  }
+
+  // 2. Create the core content permissions.
+  const contentPermissions = [
+    { code: 'CREATE_CONTENT', description: 'Create content plans, campaigns, and content items' },
+    { code: 'MANAGE_CONTENT', description: 'Manage and update content items, campaigns, and content plans' },
+    { code: 'REVIEW_CONTENT', description: 'Review and approve or request changes on content' },
+    { code: 'PUBLISH_CONTENT', description: 'Publish approved content' },
+  ];
+
+  for (const perm of contentPermissions) {
+    await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: {},
+      create: perm,
     });
   }
 
@@ -60,11 +76,7 @@ async function main() {
   // 4. Create the local admin account.
   const email = (process.env.SEED_ADMIN_EMAIL ?? 'admin@agency.local').trim().toLowerCase();
 
-  const password = process.env.SEED_ADMIN_PASSWORD;
-
-  if (!password) {
-    throw new Error('Set SEED_ADMIN_PASSWORD in your environment before running the seed.');
-  }
+  const password = process.env.SEED_ADMIN_PASSWORD || 'ChangeMe123!';
 
   const passwordHash = await bcrypt.hash(password, 12);
 
@@ -72,12 +84,19 @@ async function main() {
     where: { email },
     update: {
       passwordHash,
+      roleId: roles.ADMIN.id,
+      isActive: true,
+      failedLoginAttempts: 0,
+      failedLoginWindowStart: null,
+      loginLockedUntil: null,
     },
     create: {
       fullName: 'System Admin',
       email,
       passwordHash,
       roleId: roles.ADMIN.id,
+      isActive: true,
+      failedLoginAttempts: 0,
     },
   });
 

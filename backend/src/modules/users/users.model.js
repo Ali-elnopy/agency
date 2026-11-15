@@ -13,6 +13,26 @@ const publicUserSelect = {
     select: {
       id: true,
       name: true,
+      permissions: {
+        select: {
+          permission: {
+            select: {
+              id: true,
+              code: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  permissions: {
+    select: {
+      permission: {
+        select: {
+          id: true,
+          code: true,
+        },
+      },
     },
   },
   jobTitle: {
@@ -65,6 +85,27 @@ export const UsersModel = {
 
   findRoleByName(name) {
     return prisma.role.findUnique({ where: { name } });
+  },
+
+  findPermissionsByCodes(codes) {
+    return prisma.permission.findMany({
+      where: { code: { in: codes } },
+    });
+  },
+
+  async setUserPermissions(userId, permissionIds, tx = prisma) {
+    await tx.userPermission.deleteMany({
+      where: { userId },
+    });
+    if (permissionIds && permissionIds.length > 0) {
+      await tx.userPermission.createMany({
+        data: permissionIds.map((permissionId) => ({
+          userId,
+          permissionId,
+        })),
+        skipDuplicates: true,
+      });
+    }
   },
 
   findJobTitleById(id) {

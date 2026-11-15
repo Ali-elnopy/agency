@@ -1,10 +1,29 @@
-
 import { z } from 'zod';
 
-const manageableRoleName = z.enum([
+export const EMPLOYEE_PERMISSIONS = [
+  'CREATE_CONTENT',
+  'MANAGE_CONTENT',
+  'REVIEW_CONTENT',
+  'PUBLISH_CONTENT',
+];
+
+const employeePermissionEnum = z.enum([
+  'CREATE_CONTENT',
+  'MANAGE_CONTENT',
+  'REVIEW_CONTENT',
+  'PUBLISH_CONTENT',
+]);
+
+const createRoleNameEnum = z.enum([
+  'ACCOUNT_MANAGER',
+  'CLIENT',
+  'EMPLOYEE',
+]);
+
+const updateRoleNameEnum = z.enum([
   'ADMIN',
   'ACCOUNT_MANAGER',
-  'TEAM_LEADER',
+  'CLIENT',
   'EMPLOYEE',
 ]);
 
@@ -32,13 +51,23 @@ export const createUserSchema = z
 
     phone: z.string().trim().max(30).nullable().optional(),
 
-    roleName: manageableRoleName,
+    roleName: createRoleNameEnum,
 
     jobTitleId: z.number().int().positive().nullable().optional(),
     customJobTitle: z.string().trim().min(1).max(100).nullable().optional(),
     teamId: z.number().int().positive().nullable().optional(),
+    permissions: z.array(employeePermissionEnum).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.roleName !== 'EMPLOYEE' && data.permissions && data.permissions.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Permissions can only be assigned to the EMPLOYEE role',
+        path: ['permissions'],
+      });
+    }
+  });
 
 export const updateUserSchema = z
   .object({
@@ -54,11 +83,12 @@ export const updateUserSchema = z
 
     phone: z.string().trim().max(30).nullable().optional(),
 
-    roleName: manageableRoleName.optional(),
+    roleName: updateRoleNameEnum.optional(),
 
     jobTitleId: z.number().int().positive().nullable().optional(),
     customJobTitle: z.string().trim().min(1).max(100).nullable().optional(),
     teamId: z.number().int().positive().nullable().optional(),
+    permissions: z.array(employeePermissionEnum).optional(),
   })
   .strict()
   .refine((data) => Object.keys(data).length > 0, {

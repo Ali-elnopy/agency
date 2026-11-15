@@ -21,11 +21,8 @@ function getRole(user) {
     return user?.role?.name;
 }
 
-function isContentCreator(user) {
-    return (
-        getRole(user) === 'EMPLOYEE' &&
-        user?.jobTitle?.name === 'Content Creator'
-    );
+function isEmployee(user) {
+    return getRole(user) === 'EMPLOYEE';
 }
 
 function getApproverType(user) {
@@ -60,7 +57,7 @@ function canAccessBrand(brand, user) {
         return true;
     }
 
-    if (isContentCreator(user)) {
+    if (isEmployee(user)) {
         return (
             brand.team?.memberships?.some(
                 (membership) => membership.userId === user.id,
@@ -72,10 +69,11 @@ function canAccessBrand(brand, user) {
 }
 
 function assertContentCreator(user) {
-    if (!isContentCreator(user)) {
+    const role = getRole(user);
+    if (role !== 'ADMIN' && role !== 'EMPLOYEE') {
         throw new ApiError(
             403,
-            'Only Content Creators can manage and upload strategies',
+            'Only Employees can manage and upload strategies',
         );
     }
 }
@@ -147,7 +145,7 @@ function getListWhere(user) {
         };
     }
 
-    if (isContentCreator(user)) {
+    if (isEmployee(user)) {
         return {
             brand: {
                 team: {

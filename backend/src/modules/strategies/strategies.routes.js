@@ -11,6 +11,7 @@ import {
 } from './strategies.validation.js';
 
 import { authenticate } from '../../middlewares/auth.js';
+import { requirePermission } from '../../middlewares/requirePermission.js';
 import { validate } from '../../middlewares/validate.js';
 
 import {
@@ -25,22 +26,6 @@ export const strategiesRouter = Router();
 
 strategiesRouter.use(authenticate);
 
-// Check the uploader's role before Multer writes anything to disk.
-const requireContentCreator = asyncHandler(async (req, res, next) => {
-    const isContentCreator =
-        req.user?.role?.name === 'EMPLOYEE' &&
-        req.user?.jobTitle?.name === 'Content Creator';
-
-    if (!isContentCreator) {
-        throw new ApiError(
-            403,
-            'Only Content Creators can upload strategy files',
-        );
-    }
-
-    next();
-});
-
 strategiesRouter.get(
     '/',
     StrategiesController.list,
@@ -48,6 +33,7 @@ strategiesRouter.get(
 
 strategiesRouter.post(
     '/',
+    requirePermission('CREATE_CONTENT'),
     validate(createStrategySchema),
     StrategiesController.create,
 );
@@ -59,18 +45,20 @@ strategiesRouter.get(
 
 strategiesRouter.patch(
     '/:id',
+    requirePermission('MANAGE_CONTENT'),
     validate(updateStrategySchema),
     StrategiesController.update,
 );
 
 strategiesRouter.delete(
     '/:id',
+    requirePermission('MANAGE_CONTENT'),
     StrategiesController.remove,
 );
 
 strategiesRouter.post(
     '/:id/versions',
-    requireContentCreator,
+    requirePermission('CREATE_CONTENT', 'MANAGE_CONTENT'),
     strategyUpload.single('file'),
     handleStrategyUploadError,
     StrategiesController.uploadVersion,

@@ -8,7 +8,7 @@ import {
 } from './campaigns.validation.js';
 
 import { authenticate } from '../../middlewares/auth.js';
-import { requireCreator } from '../../middlewares/requireCreator.js';
+import { requirePermission } from '../../middlewares/requirePermission.js';
 import { validate } from '../../middlewares/validate.js';
 
 export const campaignsRouter = Router();
@@ -22,7 +22,7 @@ campaignsRouter.get(
 
 campaignsRouter.post(
   '/',
-  requireCreator,
+  requirePermission('CREATE_CONTENT'),
   validate(createCampaignSchema),
   CampaignsController.create,
 );
@@ -34,13 +34,13 @@ campaignsRouter.get(
 
 campaignsRouter.patch(
   '/:id',
-  requireCreator,
+  requirePermission('MANAGE_CONTENT'),
   validate(updateCampaignSchema),
   CampaignsController.update,
 );
 
 campaignsRouter.delete(
   '/:id',
-  requireCreator,
+  requirePermission('MANAGE_CONTENT'),
   CampaignsController.remove,
 );

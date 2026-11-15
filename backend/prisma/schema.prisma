@@ -1,12 +1,12 @@
 generator client {
-  provider      = "prisma-client-js"
+  provider = "prisma-client-js"
   // binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL") 
+  directUrl = env("DIRECT_URL")
 }
 
 model Role {
@@ -68,6 +68,7 @@ model User {
   sessions AuthSession[]
 
   passwordResetTokens PasswordResetToken[]
+  permissions         UserPermission[]
 
   auditLogs            AuditLog[]
   createdContentPlans  ContentPlan[] @relation("ContentPlanCreator")
@@ -251,6 +252,7 @@ model Permission {
   description String?
 
   roles RolePermission[]
+  users UserPermission[]
 
   @@map("permissions")
 }
@@ -264,6 +266,18 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@map("role_permissions")
+}
+
+model UserPermission {
+  userId       Int @map("user_id")
+  permissionId Int @map("permission_id")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@index([permissionId])
+  @@map("user_permissions")
 }
 
 model AuthSession {

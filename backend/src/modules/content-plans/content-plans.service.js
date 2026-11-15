@@ -41,11 +41,8 @@ function getBrandAccessWhere(user) {
     };
   }
 
-  // Content Creator can access brands assigned to their team.
-  if (
-    role === 'EMPLOYEE' &&
-    user?.jobTitle?.name === 'Content Creator'
-  ) {
+  // Employees can access brands assigned to their team.
+  if (role === 'EMPLOYEE') {
     return {
       team: {
         is: {
@@ -119,7 +116,6 @@ function ensureCanManageBrand(user, brand) {
 
   if (
     role === 'EMPLOYEE' &&
-    user?.jobTitle?.name === 'Content Creator' &&
     brand.team?.memberships?.some(
       (membership) => membership.userId === user.id,
     )
