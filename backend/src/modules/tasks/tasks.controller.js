@@ -1,3 +1,4 @@
+
 import { TasksService } from './tasks.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
@@ -7,7 +8,7 @@ export const TasksController = {
       const task =
         await TasksService.createDirectTask(
           req.body,
-          req.user.id,
+          req.user,
         );
 
       res.status(201).json({
@@ -24,7 +25,7 @@ export const TasksController = {
         await TasksService.assignContentItemTasks(
           req.params.contentItemId,
           req.body,
-          req.user.id,
+          req.user,
         );
 
       res.status(201).json({
@@ -100,6 +101,7 @@ export const TasksController = {
       const task =
         await TasksService.getById(
           req.params.id,
+          req.user,
         );
 
       res.status(200).json({
@@ -131,6 +133,7 @@ export const TasksController = {
       const task =
         await TasksService.getById(
           req.params.id,
+          req.user,
         );
 
       const updatedTask =
