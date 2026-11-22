@@ -268,11 +268,10 @@ export async function sendMail({ to, subject, html, text }) {
   }
 
   if (process.env.NODE_ENV !== 'production') {
-    console.log('\n================== [ORVIA IN-APP VERIFICATION CODE] ==================');
-    console.log(`To:      ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log('======================================================================\n');
-    return { provider: 'in-app', previewUrl: '' };
+    // Development fallback: a real SMTP send into an Ethereal test inbox.
+    // It is not a fake success — the message is delivered and can be opened
+    // through the preview URL returned to the client.
+    return sendViaEthereal({ from: config.from, to, subject, html, text });
   }
 
   throw new Error('No mail transport is configured (RESEND_API_KEY or SMTP_USER/SMTP_PASS).');
@@ -283,7 +282,7 @@ function resetEmailBody({ fullName, token, expiresInMinutes }) {
   const product = appName();
 
   const text = [
-    `Hi ${name},`,
+    `Hello ${name},`,
     '',
     `We received a request to reset the password for your ${product} account.`,
     '',
@@ -295,7 +294,7 @@ function resetEmailBody({ fullName, token, expiresInMinutes }) {
     '',
     'If you did not request this password reset, please ignore this email — your current password stays unchanged.',
     '',
-    `Best regards,`,
+    'Best regards,',
     `${product} Team`,
   ].join('\n');
 
@@ -307,6 +306,9 @@ function resetEmailBody({ fullName, token, expiresInMinutes }) {
     <title>Password Reset Verification Code</title>
   </head>
   <body style="margin:0;padding:32px 16px;background:#F4F3EF;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17171C;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">
+      Your ${product} verification code is ${token}. Enter this 6-digit code to reset your password (expires in ${expiresInMinutes} minutes).
+    </div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#FFFFFF;border-radius:24px;padding:36px;border:1px solid #E5E3DE;">
       <tr><td>
         <p style="margin:0 0 20px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#6E6D72;font-weight:700;">${product} · PASSWORD RESET</p>
@@ -339,14 +341,6 @@ export async function sendPasswordResetEmail({ to, fullName, token, expiresInMin
     text,
     html,
   });
-
-  if (mailResult?.provider === 'in-app') {
-    console.log('\n================== [ORVIA IN-APP VERIFICATION CODE] ==================');
-    console.log(`To:      ${to}`);
-    console.log(`Code:    ${token}`);
-    console.log(`Expires: ${expiresInMinutes} minutes`);
-    console.log('======================================================================\n');
-  }
 
   return {
     token,

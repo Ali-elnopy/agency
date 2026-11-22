@@ -23,13 +23,32 @@ export const AuthController = {
         message: 'Runtime mail configuration is disabled in production.',
       });
     }
-    const { email, appPassword, resendApiKey, mailFrom } = req.body || {};
+    const email = String(req.body?.email ?? '').trim();
+    const appPassword = String(req.body?.appPassword ?? '').trim();
+    const resendApiKey = String(req.body?.resendApiKey ?? '').trim();
+    const mailFrom = String(req.body?.mailFrom ?? '').trim();
+
+    if (!resendApiKey && !(email && appPassword)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Provide a Resend API key, or a sender email plus a Gmail app password.',
+      });
+    }
+
+    if (resendApiKey && !/^re_[A-Za-z0-9_-]{8,}$/.test(resendApiKey)) {
+      return res.status(400).json({
+        success: false,
+        message: 'That does not look like a Resend API key (it must start with re_).',
+      });
+    }
+
     setRuntimeSmtpConfig({ email, appPassword, resendApiKey, mailFrom });
     const cfg = getMailConfig();
     res.status(200).json({
       success: true,
       message: cfg.provider
-        ? `Real email delivery activated via ${cfg.provider.toUpperCase()}!`
+        ? `Email delivery activated via ${cfg.provider.toUpperCase()}.`
         : 'Mail configuration saved.',
       data: {
         configured: Boolean(cfg.provider),
@@ -90,7 +109,8 @@ export const AuthController = {
 
   forgotPassword: asyncHandler(async (req, res) => {
     const result = await AuthService.requestPasswordReset(req.body);
-    const { code: _omitCode, ...publicData } = result || {};
+    const publicData = { ...(result || {}) };
+    delete publicData.code;
 
     res.status(200).json({
       success: true,
@@ -111,7 +131,8 @@ export const AuthController = {
 
   resendOtp: asyncHandler(async (req, res) => {
     const result = await AuthService.resendOtp(req.body);
-    const { code: _omitCode, ...publicData } = result || {};
+    const publicData = { ...(result || {}) };
+    delete publicData.code;
 
     res.status(200).json({
       success: true,

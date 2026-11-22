@@ -7,7 +7,7 @@ const ROLES={admin:'Admin',am:'Account Manager',cc:'Content Creator',emp:'Creati
 const ME={admin:['Elena Vance','Workspace owner'],am:['Omar Haddad','Account Manager'],cc:['Lina Aziz','Content Creator'],emp:['Karim Fouad','Creative · Video Editor'],client:['Sara Nabil','Client · Lumen Skincare']};
 const S={authed:false,role:'admin',p:{CREATE_CONTENT:true,MANAGE_CONTENT:true,REVIEW_CONTENT:false,PUBLISH_CONTENT:false},page:'dashboard',auth:'login',q:'',nf:'all',open:false,err:{},brand:null,sub:null,
  forgotEmail:'',otp:'',otpEmail:'',otpExpiresAt:0,otpLeft:0,resendAt:0,resendLeft:0,sent:0,busy:false,resetToken:'',resetEmail:'',newPassword:'',confirmPassword:'',loginNotice:'',
- mailCfg:{loaded:false,configured:false,provider:null,smtpUser:'mohamedabdelsamad057@gmail.com',showSetup:false,tab:'gmail'},
+ mailCfg:{loaded:false,configured:false,provider:null,smtpUser:'',from:'',showSetup:false,tab:'resend'},
  theme:(()=>{try{return localStorage.getItem('orvia_theme')||'light'}catch(e){return 'light'}})()};
 const STRENGTH_LABELS=['Very Weak','Weak','Fair','Good','Strong'];
 function passwordChecks(value){
@@ -164,12 +164,24 @@ function authView(){
  const loginNotice=S.loginNotice?`<div class="note ok" role="status"><b>✓</b><span>${esc(S.loginNotice)}</span></div>`:'';
  const themeBtn=`<div class="auth-top"><span class="mono mute">Secure account recovery</span><button type="button" class="btn sm t" onclick="toggleTheme()">${S.theme==='dark'?'☀ Light':'☾ Dark'}</button></div>`;
  const login=`<h1>Welcome back</h1><p class="mute" style="margin:8px 0 20px">Sign in to your ORVIA workspace.</p>${loginNotice}<div class="mono mute" style="margin-bottom:6px">PREVIEW AS</div><div class="rolechips">${Object.entries(ROLES).map(([k,v])=>`<button class="${S.role===k?'on':''}" onclick="S.role='${k}';render()">${v}</button>`).join('')}</div>${F('email','Email','email','',S.forgotEmail||'')}${F('password','Password','password')}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><a class="lk" onclick="S.auth='forgot';S.loginNotice='';S.err={};render()">Forgot password?</a><button class="btn p" onclick="doLogin()">Sign in</button></div>`;
- const forgot=`<h1>Reset your password</h1><p class="mute" style="margin:8px 0 20px">Enter the work email registered to your account and we’ll send a 6-digit verification code.</p>${formError}${F('email','Email','email','',S.forgotEmail||'')}<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn p" ${S.busy?'disabled':''} onclick="doForgot()">${S.busy?'Sending…':'Send verification code'}</button><a class="lk" onclick="S.auth='verify';S.sent=0;S.err={};render()">I have a code</a></div><div class="note" style="margin-top:18px"><b>i</b><span>For security, we never confirm whether an account exists with this email.</span></div><p><a class="lk" onclick="S.auth='login';S.sent=0;S.otp='';S.resetToken='';S.err={};render()">Back to sign in</a></p>`;
+ const mailCfg=S.mailCfg||{};
+ const providerLabel=mailCfg.provider==='resend'?'Resend':mailCfg.provider==='smtp'?'Gmail / SMTP':mailCfg.provider==='ethereal-smtp'?'local test inbox':String(mailCfg.provider||'not configured');
+ const mailSetupCard=mailCfg.configured
+  ?`<div class="note ok" style="margin-top:14px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span><b>✓ Email delivery active</b> · ${esc(providerLabel)}${mailCfg.smtpUser?` (${esc(mailCfg.smtpUser)})`:''}</span><a class="lk" style="font-size:12px" onclick="S.mailCfg.showSetup=!S.mailCfg.showSetup;render()">${mailCfg.showSetup?'Hide':'Change'}</a></div>`
+  :`<div class="note wn" style="margin-top:14px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span><b>⚠ Email delivery is not configured yet.</b> Add a Resend API key (recommended) or a Gmail app password so codes reach a real inbox.</span><a class="lk" style="font-size:12px;font-weight:700" onclick="S.mailCfg.showSetup=!S.mailCfg.showSetup;render()">${mailCfg.showSetup?'Hide':'Set up email →'}</a></div>`;
+ const tab=mailCfg.tab==='smtp'?'smtp':'resend';
+ const mailSetupForm=mailCfg.showSetup
+  ?`<div class="card" style="margin-top:12px;padding:16px;border:1.5px solid var(--ink)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b>Email delivery</b><span class="mono mute">LOCAL SETUP</span></div><div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button type="button" class="btn sm ${tab==='resend'?'p':'t'}" onclick="S.mailCfg.tab='resend';render()">Resend (recommended)</button><button type="button" class="btn sm ${tab==='smtp'?'p':'t'}" onclick="S.mailCfg.tab='smtp';render()">Gmail / SMTP</button></div>${tab==='resend'?`<div class="fl"><label>Resend API key<a href="https://resend.com/api-keys" target="_blank" rel="noopener" class="lk" style="font-size:12px">Get a key ↗</a></label><input id="cfg-resend-key" type="password" autocomplete="off" placeholder="re_xxxxxxxxxxxxxxxx"></div><div class="fl"><label>From address</label><input id="cfg-mail-from" type="text" value="${esc(mailCfg.from||'')}" placeholder="ORVIA &lt;onboarding@resend.dev&gt;"></div><div class="note" style="margin:0 0 10px;font-size:12px"><b>i</b><span>During onboarding, <b>onboarding@resend.dev</b> only delivers to the email on your own Resend account. Verify a domain at resend.com/domains before emailing real users. <a class="lk" href="https://resend.com/onboarding" target="_blank" rel="noopener">Resend onboarding ↗</a></span></div>`:`<div class="fl"><label>Sender Gmail address</label><input id="cfg-smtp-user" type="email" value="${esc(mailCfg.smtpUser||'')}" placeholder="you@gmail.com"></div><div class="fl"><label>Google 16-character app password<a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="lk" style="font-size:12px">Create one ↗</a></label><input id="cfg-smtp-pass" type="password" autocomplete="off" placeholder="xxxx xxxx xxxx xxxx"></div><div class="note" style="margin:0 0 10px;font-size:12px"><b>i</b><span>Gmail requires 2-Step Verification before app passwords are available. This path uses SMTP through Nodemailer.</span></div>`}<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn sm p" onclick="saveMailCfg()">Save &amp; activate</button><button type="button" class="btn sm" onclick="S.mailCfg.showSetup=false;render()">Cancel</button></div></div>`
+  :'';
+ const previewBanner=S.previewUrl
+  ?`<div class="note" style="margin-bottom:14px"><b>✉</b><span>Test email delivered to the local Ethereal inbox. <a class="lk" href="${esc(S.previewUrl)}" target="_blank" rel="noopener">Open the test inbox ↗</a> to read the message and copy the code.</span></div>`
+  :'';
+ const forgot=`<h1>Reset your password</h1><p class="mute" style="margin:8px 0 20px">Enter the work email registered to your account and we’ll send a 6-digit verification code.</p>${formError}${F('email','Email','email','',S.forgotEmail||'')}<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn p" ${S.busy?'disabled':''} onclick="doForgot()">${S.busy?'Sending…':'Send verification code'}</button><a class="lk" onclick="S.auth='verify';S.sent=0;S.err={};render()">I have a code</a></div>${mailSetupCard}${mailSetupForm}<div class="note" style="margin-top:14px"><b>i</b><span>For security, we never confirm whether an account exists with this email.</span></div><p><a class="lk" onclick="S.auth='login';S.sent=0;S.otp='';S.resetToken='';S.err={};render()">Back to sign in</a></p>`;
  const checks=passwordChecks(S.newPassword||'');
  const passed=checks.filter(c=>c.ok).length;
  const canReset=Boolean(S.resetToken)&&passed===checks.length&&S.confirmPassword===S.newPassword&&!S.busy;
  const otpDigits=Array.from({length:6},(_,idx)=>esc((S.otp||'')[idx]||''));
- const verify=`<h1>Enter verification code</h1><p class="mute" style="margin:8px 0 20px">We sent a 6-digit code to <b>${esc(S.otpEmail||S.forgotEmail||'your email')}</b>. Enter it below to continue.</p>${S.sent?`<div class="note ok" role="status"><b>✓</b><span>Verification code sent. Check your inbox and spam folder.</span></div>`:''}${formError}<div class="fl ${S.err.otp?'bad':''}"><label>Verification code<span>6 digits</span></label><input type="hidden" data-f="otp" value="${esc(S.otp||'')}"><div class="otp-boxes" role="group" aria-label="6-digit verification code">${otpDigits.map((d,idx)=>`<input class="otp-box" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" data-otp-idx="${idx}" value="${d}" aria-label="Digit ${idx+1}" oninput="onOtpBoxInput(this,${idx})" onkeydown="onOtpBoxKey(event,${idx})" onpaste="onOtpBoxPaste(event)">`).join('')}</div>${S.err.otp?`<small>${esc(S.err.otp)}</small>`:'<small>Enter the 6-digit code from your email.</small>'}</div><div class="otp-meta"><span>Expires in <b id="otp-countdown">${formatCountdown(S.otpLeft)}</b></span><span>Max 5 attempts</span></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button id="otp-verify-btn" class="btn p" ${S.busy||S.otpLeft<=0?'disabled':''} onclick="doVerifyOtp()">${S.busy?'Verifying…':'Verify code'}</button><a id="otp-resend-link" class="lk" style="opacity:${S.resendLeft>0?'.5':'1'}" onclick="doResendOtp()">${S.resendLeft>0?`Resend in ${S.resendLeft}s`:'Resend code'}</a></div><p><a class="lk" onclick="S.auth='forgot';S.sent=0;S.err={};render()">Use a different email</a> · <a class="lk" onclick="S.auth='login';S.sent=0;S.otp='';S.resetToken='';S.err={};render()">Back to sign in</a></p>`;
+ const verify=`<h1>Enter verification code</h1><p class="mute" style="margin:8px 0 20px">We sent a 6-digit code to <b>${esc(S.otpEmail||S.forgotEmail||'your email')}</b>. Enter it below to continue.</p>${previewBanner}${S.sent?`<div class="note ok" role="status"><b>✓</b><span>Verification code sent. Check your inbox and spam folder.</span></div>`:''}${formError}<div class="fl ${S.err.otp?'bad':''}"><label>Verification code<span>6 digits</span></label><input type="hidden" data-f="otp" value="${esc(S.otp||'')}"><div class="otp-boxes" role="group" aria-label="6-digit verification code">${otpDigits.map((d,idx)=>`<input class="otp-box" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" data-otp-idx="${idx}" value="${d}" aria-label="Digit ${idx+1}" oninput="onOtpBoxInput(this,${idx})" onkeydown="onOtpBoxKey(event,${idx})" onpaste="onOtpBoxPaste(event)">`).join('')}</div>${S.err.otp?`<small>${esc(S.err.otp)}</small>`:'<small>Enter the 6-digit code from your email.</small>'}</div><div class="otp-meta"><span>Expires in <b id="otp-countdown">${formatCountdown(S.otpLeft)}</b></span><span>Max 5 attempts</span></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button id="otp-verify-btn" class="btn p" ${S.busy||S.otpLeft<=0?'disabled':''} onclick="doVerifyOtp()">${S.busy?'Verifying…':'Verify code'}</button><a id="otp-resend-link" class="lk" style="opacity:${S.resendLeft>0?'.5':'1'}" onclick="doResendOtp()">${S.resendLeft>0?`Resend in ${S.resendLeft}s`:'Resend code'}</a></div>${mailSetupCard}${mailSetupForm}<p><a class="lk" onclick="S.auth='forgot';S.sent=0;S.err={};render()">Use a different email</a> · <a class="lk" onclick="S.auth='login';S.sent=0;S.otp='';S.resetToken='';S.err={};render()">Back to sign in</a></p>`;
  const resetPassword=`<h1>Choose a new password</h1><p class="mute" style="margin:8px 0 20px">Your code is verified. Set a new password for <b>${esc(S.resetEmail||S.otpEmail||'your account')}</b>.</p>${formError}<div class="fl ${S.err.newPassword?'bad':''}"><label>New password<span>min. 12 characters</span></label><div class="pw-wrap"><input id="new-password" data-f="newPassword" type="password" value="${esc(S.newPassword||'')}" autocomplete="new-password" oninput="S.newPassword=this.value;updatePwMeter()"><button type="button" class="pw-btn" onclick="togPw(this)" aria-label="Show password" title="Show password">${ic('eye')}</button></div>${S.err.newPassword?`<small>${esc(S.err.newPassword)}</small>`:''}</div><div class="pw-meter"><div class="pw-meter__head"><span>Password strength</span><b id="pw-strength-label">${S.newPassword?STRENGTH_LABELS[passed]:'—'} (${passed}/4)</b></div><div class="pw-meter__bar">${checks.map((c,i)=>`<i data-pw-seg class="${i<passed?'is-on':''}"></i>`).join('')}</div></div><ul class="pw-req">${checks.map((c,i)=>`<li id="pw-req-${i}" class="${c.ok?'is-ok':''}"><span>✓</span>${c.label}</li>`).join('')}</ul><div class="fl"><label>Confirm new password</label><div class="pw-wrap"><input id="confirm-password" data-f="confirmPassword" type="password" value="${esc(S.confirmPassword||'')}" autocomplete="new-password" oninput="S.confirmPassword=this.value;updatePwMeter()"><button type="button" class="pw-btn" onclick="togPw(this)" aria-label="Show password" title="Show password">${ic('eye')}</button></div><small id="pw-match" class="pw-match" style="display:${S.confirmPassword&&S.confirmPassword===S.newPassword?'inline-flex':'none'}">✓ Passwords match</small><small id="pw-mismatch" class="pw-mismatch" style="display:${S.confirmPassword&&S.confirmPassword!==S.newPassword?'block':'none'}">${esc(S.err.confirmPassword||'Passwords do not match.')}</small></div><button id="pw-submit" class="btn p" ${canReset?'':'disabled'} onclick="doResetPassword()">${S.busy?'Updating…':'Update password'}</button><p><a class="lk" onclick="S.auth='login';S.resetToken='';S.newPassword='';S.confirmPassword='';S.err={};render()">Back to sign in</a></p>`;
  return `<div class="auth"><div class="al">${themeBtn}<div class="logo"><i></i><div><b>ORVIA</b><small>Studio workspace</small></div></div>${{login,forgot,verify,resetPassword}[a]||login}</div><div class="ar"><div class="ring" style="position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;border:1px solid #3A3A44"></div><span class="tag" style="background:transparent;color:#F4F3EF;border-color:#55555E;width:max-content">Agency shape DNA</span><div><h2>Make the silhouette do the branding.</h2><div class="shapes"><div style="width:64px;height:84px;background:var(--lilac);border-radius:32px 32px 0 0"></div><div style="width:84px;height:84px;border-radius:50%;border:1px solid #6E6D72;display:grid;place-items:center"><i style="width:22px;height:22px;border-radius:50%;background:var(--peach)"></i></div><div style="width:76px;height:84px;background:var(--mint);border-radius:0 38px 38px 0"></div><div class="burst" style="position:static;width:76px;height:76px;background:var(--peach)">12</div></div></div></div></div>`}
 function doLogin(){const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));S.err={};if(!v.email)S.err.email='Enter your email.';if(!v.password)S.err.password='Enter your password.';
@@ -1161,26 +1173,32 @@ async function loadMailStatus(){
  try{
   const res=await apiCall('/auth/mail-status',{auth:false});
   if(res){
-   S.mailCfg={...S.mailCfg,loaded:true,configured:Boolean(res.configured),provider:res.provider,smtpUser:res.smtpUser||S.mailCfg.smtpUser};
+   S.mailCfg={...S.mailCfg,loaded:true,configured:Boolean(res.configured),provider:res.provider,smtpUser:res.smtpUser||S.mailCfg.smtpUser,from:res.from||S.mailCfg.from};
    if(!S.authed&&S.auth==='forgot')render();
   }
  }catch(e){}
 }
 
 async function saveMailCfg(){
- const tab=S.mailCfg.tab;
+ const tab=S.mailCfg.tab==='smtp'?'smtp':'resend';
  const resendApiKey=document.getElementById('cfg-resend-key')?.value?.trim()||'';
+ const mailFrom=document.getElementById('cfg-mail-from')?.value?.trim()||'';
  const email=document.getElementById('cfg-smtp-user')?.value?.trim()||'';
  const appPassword=document.getElementById('cfg-smtp-pass')?.value?.trim()||'';
- if(tab==='resend'&&!resendApiKey){toast('Paste your Resend API Key (re_...)');return}
- if(tab!=='resend'&&(!email||!appPassword)){toast('Enter your Gmail and 16-character App Password');return}
+ if(tab==='resend'&&!/^re_[A-Za-z0-9_-]{8,}$/.test(resendApiKey)){toast('Paste a valid Resend API key (starts with re_)');return}
+ if(tab!=='resend'&&(!email||!appPassword)){toast('Enter your Gmail address and 16-character app password');return}
+ S.busy=true;
+ render();
  try{
-  const res=await apiCall('/auth/mail-config',{method:'POST',body:{email,appPassword,resendApiKey},auth:false});
-  S.mailCfg={...S.mailCfg,loaded:true,configured:Boolean(res?.configured),provider:res?.provider,smtpUser:res?.smtpUser||email,showSetup:false};
-  toast('Real phone email delivery activated!');
+  const res=await apiCall('/auth/mail-config',{method:'POST',body:{email,appPassword,resendApiKey,mailFrom},auth:false});
+  S.busy=false;
+  S.mailCfg={...S.mailCfg,loaded:true,configured:Boolean(res?.configured),provider:res?.provider,smtpUser:res?.smtpUser||email,from:res?.from||mailFrom,showSetup:false};
+  toast(res?.message||'Email delivery settings saved.');
   render();
  }catch(err){
+  S.busy=false;
   toast(err?.message||'Could not save mail settings');
+  render();
  }
 }
 
@@ -1195,6 +1213,7 @@ async function doForgot(){
  S.otp='';
  S.otpEmail=email;
  S.resetToken='';
+ S.previewUrl='';
  S.busy=true;
  S.sent=0;
  render();
@@ -1204,6 +1223,7 @@ async function doForgot(){
   S.sent=1;
   S.auth='verify';
   S.otpEmail=res?.email||email;
+   S.previewUrl=res?.previewUrl||'';
   S.otpExpiresAt=res?.expiresAt?Date.parse(res.expiresAt):Date.now()+10*60*1000;
   S.otpLeft=Math.max(1,Math.ceil((S.otpExpiresAt-Date.now())/1000));
   S.resendLeft=60;
@@ -1261,7 +1281,8 @@ async function doResendOtp(){
   S.busy=false;
   S.sent=1;
   S.otp='';
-  S.otpExpiresAt=res?.expiresAt?Date.parse(res.expiresAt):Date.now()+10*60*1000;
+   S.previewUrl=res?.previewUrl||S.previewUrl||'';
+   S.otpExpiresAt=res?.expiresAt?Date.parse(res.expiresAt):Date.now()+10*60*1000;
   S.otpLeft=Math.max(1,Math.ceil((S.otpExpiresAt-Date.now())/1000));
   S.resendLeft=60;
   render();

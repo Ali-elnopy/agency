@@ -142,11 +142,11 @@ a.lk{color:var(--ink);font-weight:700;cursor:pointer;text-decoration:underline;t
 .pw-mismatch{color:var(--et);font-weight:700;font-size:12px;margin-top:2px}
 [data-theme='dark'] .auth{--ink:#F4F3EF;--canvas:#121216;--paper:#1D1D23;--mist:#2A2A31;--line:#3A3A44;--mute:#A6A5AE;--lilac:#4A3FA8;--peach:#FFB9A6;--mint:#8FD9B6;--okb:#1D3B2A;--okt:#8FD9B6;--wb:#3B3118;--wt:#F2D184;--eb:#3E2420;--et:#F09A8B;--ib:#1E3440;--it:#9CD6EE;background:var(--canvas);color:var(--ink);color-scheme:dark}
 [data-theme='dark'] .ar{background:#0B0B0E}
-[data-theme='dark'] .fl input,[data-theme='dark'] .fl select,[data-theme='dark'] .fl textarea,[data-theme='dark'] .otp-input{background:#17171C}
+[data-theme='dark'] .fl input,[data-theme='dark'] .fl select,[data-theme='dark'] .fl textarea,[data-theme='dark'] .otp-input,[data-theme='dark'] .otp-box{background:#17171C}
 [data-theme='dark'] .pw-btn{color:#A6A5AE}
 [data-theme='dark'] .pw-btn:hover{background:var(--mist);color:var(--ink)}
 @media(max-width:1000px){.g3,.g2,.auth,.pg{grid-template-columns:1fr}.ar{display:none}.tb{grid-template-columns:1fr 80px}.tb .bar,.tb .mono:last-child{display:none}}
-@media(max-width:600px){.al{padding:28px 18px}.auth-top{margin-bottom:20px}.otp-input{font-size:22px!important;letter-spacing:.32em;padding-left:calc(14px + .32em)!important}.otp-meta{flex-direction:column;gap:2px}}
+@media(max-width:600px){.al{padding:28px 18px}.auth-top{margin-bottom:20px}.otp-input{font-size:22px!important;letter-spacing:.32em;padding-left:calc(14px + .32em)!important}.otp-boxes{gap:6px}.otp-box{height:50px;font-size:20px!important;border-radius:12px}.otp-meta{flex-direction:column;gap:2px}}
 @media(max-width:860px){.side{position:fixed;left:0;z-index:15;transform:translateX(-100%);transition:transform .2s;padding-top:calc(24px + env(safe-area-inset-top,0px))}.side.open{transform:none}.menu{display:inline-grid}.top{padding:12px 16px;flex-wrap:wrap}.seg{margin-left:0;width:100%}#view{padding:20px 16px}.crumb{display:none}.kv{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.sk{animation:none}.side{transition:none}}
 
