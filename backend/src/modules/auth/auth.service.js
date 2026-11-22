@@ -103,6 +103,7 @@ export const AuthService = {
         user: getPublicUser({ ...fbUser, lastLoginAt: new Date() }),
         accessToken,
         refreshToken,
+        offlineMode: true,
       };
     }
 
