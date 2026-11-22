@@ -14,19 +14,29 @@ const taskSelect = {
   effectiveDeadline: true,
   startedAt: true,
   completedAt: true,
+
+  submissionUrl: true,
+  submissionNotes: true,
+  submittedAt: true,
+
   dependsOnTaskId: true,
   createdAt: true,
   updatedAt: true,
 
   contentItem: {
-    select: {
-      id: true,
-      title: true,
-      type: true,
-      scheduledDate: true,
-      contentPlanId: true,
-    },
+  select: {
+    id: true,
+    title: true,
+    type: true,
+    scheduledDate: true,
+    contentPlanId: true,
+
+    reference: true,
+    toneOfVoice: true,
+    caption: true,
+    notes: true,
   },
+},
 
   assignee: {
     select: {

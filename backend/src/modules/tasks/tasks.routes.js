@@ -8,6 +8,7 @@ import {
   assignContentItemTasksSchema,
   updateTaskSchema,
   updateTaskStatusSchema,
+  submitContentTaskSchema,
 } from './tasks.validation.js';
 
 import { authenticate } from '../../middlewares/auth.js';
@@ -37,6 +38,12 @@ tasksRouter.post(
   '/content-items/:contentItemId/assign',
   validate(assignContentItemTasksSchema),
   TasksController.assignContentItemTasks,
+);
+
+tasksRouter.post(
+  '/:id/submit',
+  validate(submitContentTaskSchema),
+  TasksController.submitContentTask,
 );
 
 tasksRouter.patch(

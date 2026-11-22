@@ -479,7 +479,6 @@ model StrategyApproval {
   @@index([approverId])
   @@map("strategy_approvals")
 }
-
 model Task {
   id            Int  @id @default(autoincrement())
   contentItemId Int? @map("content_item_id")
@@ -500,6 +499,11 @@ model Task {
   startedAt   DateTime? @map("started_at") @db.Timestamptz(6)
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
 
+  // Content submission fields
+  submissionUrl   String?   @map("submission_url") @db.Text
+  submissionNotes String?   @map("submission_notes") @db.Text
+  submittedAt     DateTime? @map("submitted_at") @db.Timestamptz(6)
+
   dependsOnTaskId Int? @map("depends_on_task_id")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -519,6 +523,7 @@ model Task {
   @@index([plannedDeadline])
   @@index([effectiveDeadline])
   @@index([dependsOnTaskId])
+  @@index([submittedAt])
   @@map("tasks")
 }
 
