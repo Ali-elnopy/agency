@@ -1,3 +1,4 @@
+
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
@@ -6,7 +7,13 @@ const prisma = new PrismaClient();
 
 async function main() {
   // 1. Create the roles required by the application.
-  const roleNames = ['ADMIN', 'ACCOUNT_MANAGER', 'TEAM_LEADER', 'EMPLOYEE', 'CLIENT'];
+  const roleNames = [
+    'ADMIN',
+    'CLIENT',
+    'ACCOUNT_MANAGER',
+    'CONTENT_CREATOR',
+    'CREATIVE',
+  ];
 
   const roles = {};
 
@@ -18,52 +25,37 @@ async function main() {
     });
   }
 
-  // 2. Create and activate the current job titles.
+  // 2. Create and activate the three CREATIVE job titles.
   const jobTitles = [
-    'Media Buyer',
-    'Photographer',
-    'Video Editor',
-    'Social Media Specialist',
-    'Marketing Manager',
-    'Content Creator',
     'Graphic Designer',
+    'Video Editor',
+    'Motion Designer',
   ];
 
   for (const name of jobTitles) {
     await prisma.jobTitle.upsert({
       where: { name },
       update: { isActive: true },
-      create: { name },
+      create: {
+        name,
+        isActive: true,
+      },
     });
   }
 
-  // 3. Keep Account Manager active.
-  // Deactivate only the outdated job titles.
-  await prisma.jobTitle.upsert({
-    where: { name: 'Account Manager' },
-    update: { isActive: true },
-    create: {
-      name: 'Account Manager',
-      isActive: true,
-    },
-  });
-
-  await prisma.jobTitle.updateMany({
-    where: {
-      name: {
-        in: ['Designer'],
-      },
-    },
-    data: { isActive: false },
-  });
-
-  // 4. Create the local admin account.
-  const email = (process.env.SEED_ADMIN_EMAIL ?? 'admin@agency.local').trim().toLowerCase();
+  // 3. Create the local admin account.
+  const email = (
+    process.env.SEED_ADMIN_EMAIL ?? 'admin@agency.local'
+  )
+    .trim()
+    .toLowerCase();
 
   const password = process.env.SEED_ADMIN_PASSWORD;
 
   if (!password) {
-    throw new Error('Set SEED_ADMIN_PASSWORD in your environment before running the seed.');
+    throw new Error(
+      'Set SEED_ADMIN_PASSWORD in your environment before running the seed.',
+    );
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -84,7 +76,7 @@ async function main() {
   console.log('Seed completed successfully.');
   console.log(`Admin account ready: ${email}`);
   console.log(`Roles ready: ${roleNames.join(', ')}`);
-  console.log(`Job titles ready: ${[...jobTitles, 'Account Manager'].join(', ')}`);
+  console.log(`Job titles ready: ${jobTitles.join(', ')}`);
 }
 
 main()

@@ -1,7 +1,64 @@
 import { AuthService } from './auth.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
+import { getMailConfig, setRuntimeSmtpConfig } from '../../utils/mailer.js';
 
 export const AuthController = {
+  mailStatus: asyncHandler(async (req, res) => {
+    const cfg = getMailConfig();
+    res.status(200).json({
+      success: true,
+      data: {
+        configured: Boolean(cfg.provider),
+        provider: cfg.provider,
+        smtpUser: cfg.smtp?.user || '',
+        from: cfg.from || '',
+      },
+    });
+  }),
+
+  updateMailConfig: asyncHandler(async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        success: false,
+        message: 'Runtime mail configuration is disabled in production.',
+      });
+    }
+    const email = String(req.body?.email ?? '').trim();
+    const appPassword = String(req.body?.appPassword ?? '').trim();
+    const resendApiKey = String(req.body?.resendApiKey ?? '').trim();
+    const mailFrom = String(req.body?.mailFrom ?? '').trim();
+
+    if (!resendApiKey && !(email && appPassword)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Provide a Resend API key, or a sender email plus a Gmail app password.',
+      });
+    }
+
+    if (resendApiKey && !/^re_[A-Za-z0-9_-]{8,}$/.test(resendApiKey)) {
+      return res.status(400).json({
+        success: false,
+        message: 'That does not look like a Resend API key (it must start with re_).',
+      });
+    }
+
+    setRuntimeSmtpConfig({ email, appPassword, resendApiKey, mailFrom });
+    const cfg = getMailConfig();
+    res.status(200).json({
+      success: true,
+      message: cfg.provider
+        ? `Email delivery activated via ${cfg.provider.toUpperCase()}.`
+        : 'Mail configuration saved.',
+      data: {
+        configured: Boolean(cfg.provider),
+        provider: cfg.provider,
+        smtpUser: cfg.smtp?.user || '',
+        from: cfg.from || '',
+      },
+    });
+  }),
+
   login: asyncHandler(async (req, res) => {
     const result = await AuthService.login(req.body);
 
@@ -52,10 +109,35 @@ export const AuthController = {
 
   forgotPassword: asyncHandler(async (req, res) => {
     const result = await AuthService.requestPasswordReset(req.body);
+    const publicData = { ...(result || {}) };
+    delete publicData.code;
 
     res.status(200).json({
       success: true,
       message: result.message,
+      data: publicData,
+    });
+  }),
+
+  verifyOtp: asyncHandler(async (req, res) => {
+    const result = await AuthService.verifyOtp(req.body);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  }),
+
+  resendOtp: asyncHandler(async (req, res) => {
+    const result = await AuthService.resendOtp(req.body);
+    const publicData = { ...(result || {}) };
+    delete publicData.code;
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: publicData,
     });
   }),
 
@@ -68,6 +150,7 @@ export const AuthController = {
     res.status(200).json({
       success: true,
       message: result.message,
+      data: result,
     });
   }),
 };

@@ -5,15 +5,30 @@ import bcrypt from 'bcryptjs';
 import { BrandsModel } from './brands.model.js';
 import { ApiError } from '../../utils/ApiError.js';
 
-const BRAND_STATUSES = new Set(['active', 'paused', 'archived']);
+const BRAND_STATUSES = new Set([
+  'active',
+  'paused',
+  'archived',
+]);
+
+function getRole(user) {
+  return typeof user?.role === 'string'
+    ? user.role
+    : user?.role?.name;
+}
 
 async function validateTeam(teamId) {
   if (teamId == null) return;
 
   const team = await BrandsModel.findTeamById(teamId);
 
-  if (!team) throw new ApiError(400, 'Selected team does not exist');
-  if (!team.isActive) throw new ApiError(400, 'Selected team is inactive');
+  if (!team) {
+    throw new ApiError(400, 'Selected team does not exist');
+  }
+
+  if (!team.isActive) {
+    throw new ApiError(400, 'Selected team is inactive');
+  }
 }
 
 async function validateAccountManager(accountManagerId) {
@@ -52,14 +67,16 @@ async function getBrandOrThrow(idValue) {
   const id = parseBrandId(idValue);
   const brand = await BrandsModel.findById(id);
 
-  if (!brand) throw new ApiError(404, 'Brand not found');
+  if (!brand) {
+    throw new ApiError(404, 'Brand not found');
+  }
 
   return brand;
 }
 
 // Determines which brands the authenticated user can access.
 function getBrandAccessWhere(user) {
-  const role = user?.role?.name;
+  const role = getRole(user);
 
   // Admin can access all brands.
   if (role === 'ADMIN') {
@@ -73,11 +90,26 @@ function getBrandAccessWhere(user) {
     };
   }
 
-  // Content Creator is identified by role + job title.
+  // Content Creator retains the existing team-based access rule.
   if (
     role === 'EMPLOYEE' &&
     user?.jobTitle?.name === 'Content Creator'
   ) {
+    return {
+      team: {
+        is: {
+          memberships: {
+            some: {
+              userId: user.id,
+            },
+          },
+        },
+      },
+    };
+  }
+
+  // Creative users can access brands belonging to their teams only.
+  if (role === 'CREATIVE') {
     return {
       team: {
         is: {
@@ -103,10 +135,11 @@ function getBrandAccessWhere(user) {
 
 async function getAccessibleBrandOrThrow(idValue, user) {
   const id = parseBrandId(idValue);
+  const role = getRole(user);
   const accessWhere = getBrandAccessWhere(user);
 
   const brand =
-    user.role.name === 'ADMIN'
+    role === 'ADMIN'
       ? await BrandsModel.findById(id)
       : await BrandsModel.findAccessibleById(id, accessWhere);
 
@@ -158,7 +191,9 @@ export const BrandsService = {
       industry: input.industry ?? null,
       websiteUrl: input.websiteUrl ?? null,
       description: input.description ?? null,
-      status: input.status ? String(input.status).toLowerCase() : 'active',
+      status: input.status
+        ? String(input.status).toLowerCase()
+        : 'active',
       teamId: input.teamId ?? null,
       accountManagerId: input.accountManagerId ?? null,
       createdBy: adminId,
@@ -203,12 +238,22 @@ export const BrandsService = {
   async updateBrand(idValue, input) {
     const brand = await getBrandOrThrow(idValue);
 
-    const lowerStatus = input.status !== undefined ? String(input.status).toLowerCase() : undefined;
-    if (lowerStatus !== undefined && !BRAND_STATUSES.has(lowerStatus)) {
+    const lowerStatus =
+      input.status !== undefined
+        ? String(input.status).toLowerCase()
+        : undefined;
+
+    if (
+      lowerStatus !== undefined &&
+      !BRAND_STATUSES.has(lowerStatus)
+    ) {
       throw new ApiError(400, 'Invalid brand status');
     }
 
-    if (input.teamId !== undefined) await validateTeam(input.teamId);
+    if (input.teamId !== undefined) {
+      await validateTeam(input.teamId);
+    }
+
     if (input.accountManagerId !== undefined) {
       await validateAccountManager(input.accountManagerId);
     }
@@ -223,10 +268,14 @@ export const BrandsService = {
       'teamId',
       'accountManagerId',
     ]) {
-      if (input[key] !== undefined) data[key] = input[key];
+      if (input[key] !== undefined) {
+        data[key] = input[key];
+      }
     }
 
-    if (lowerStatus !== undefined) data.status = lowerStatus;
+    if (lowerStatus !== undefined) {
+      data.status = lowerStatus;
+    }
 
     try {
       return await BrandsModel.update(brand.id, data);

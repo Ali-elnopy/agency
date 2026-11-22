@@ -30,6 +30,7 @@ export default function ResetPasswordPage({
   onToggleTheme,
   email = '',
   accountEmail,
+  resetToken = '',
   token = '',
 }) {
   const { lang, setLang, t } = useSprint3();
@@ -47,7 +48,7 @@ export default function ResetPasswordPage({
   );
   const strengthLabel = STRENGTH_LABELS[passed];
   const matches = confirm.length > 0 && confirm === password;
-  const hasToken = Boolean(token);
+  const hasToken = Boolean(resetToken || token);
   const canSubmit = hasToken && passed === REQUIREMENTS.length && matches && !submitting;
   const target = email || accountEmail || 'your ORVIA workspace account';
 
@@ -58,7 +59,10 @@ export default function ResetPasswordPage({
     setSubmitting(true);
     setError('');
 
-    const result = await resetPasswordApi({ token, newPassword: password });
+    const result = await resetPasswordApi({
+      resetToken: resetToken || token,
+      newPassword: password,
+    });
 
     if (result.success) {
       setDone(true);
@@ -167,7 +171,7 @@ export default function ResetPasswordPage({
           <div className="auth-notice" role="alert">
             <strong>{t('This reset link is incomplete')}</strong>
             <p className="auth-notice__text">
-              {t('Reset links are single-use and expire after 30 minutes. Request a fresh one and open it from your inbox.')}
+              {t('Reset authorizations are single-use and expire after 10 minutes. Verify your email code again to request a fresh one.')}
             </p>
             <button
               type="button"

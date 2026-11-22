@@ -238,21 +238,59 @@ export const AuthModel = {
 
   createPasswordResetToken({ userId, tokenHash, expiresAt }) {
     return prisma.$transaction(async (tx) => {
-      // A new link always invalidates the previous unused ones.
+      // A new code always invalidates every previous unused request.
       await tx.passwordResetToken.updateMany({
         where: { userId, usedAt: null },
         data: { usedAt: new Date() },
       });
 
       return tx.passwordResetToken.create({
-        data: { userId, tokenHash, expiresAt },
+        data: {
+          userId,
+          tokenHash,
+          expiresAt,
+          attempts: 0,
+          lastSentAt: new Date(),
+        },
       });
     });
   },
 
-  findPasswordResetToken(tokenHash) {
+  findLatestOtpForUser(userId) {
+    return prisma.passwordResetToken.findFirst({
+      where: { userId, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+
+  incrementPasswordResetAttempts(tokenId) {
+    return prisma.passwordResetToken.update({
+      where: { id: tokenId },
+      data: { attempts: { increment: 1 } },
+    });
+  },
+
+  markPasswordResetTokenUsed(tokenId) {
+    return prisma.passwordResetToken.updateMany({
+      where: { id: tokenId, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+  },
+
+  issueResetToken({ tokenId, resetTokenHash, resetTokenExpiresAt }) {
+    return prisma.passwordResetToken.update({
+      where: { id: tokenId },
+      data: {
+        resetTokenHash,
+        resetTokenExpiresAt,
+        verifiedAt: new Date(),
+      },
+    });
+  },
+
+  findPasswordResetByResetTokenHash(resetTokenHash) {
     return prisma.passwordResetToken.findUnique({
-      where: { tokenHash },
+      where: { resetTokenHash },
       include: {
         user: {
           select: {
@@ -271,9 +309,16 @@ export const AuthModel = {
     return prisma.$transaction(async (tx) => {
       const now = new Date();
 
-      // Claim the token atomically: a concurrent request cannot reuse it.
+      // Claim the reset authorization atomically: a concurrent request cannot
+      // reuse it, and the OTP cannot be replayed either. Both timestamps are
+      // checked server-side.
       const claimed = await tx.passwordResetToken.updateMany({
-        where: { id: tokenId, usedAt: null, expiresAt: { gt: now } },
+        where: {
+          id: tokenId,
+          usedAt: null,
+          resetTokenHash: { not: null },
+          resetTokenExpiresAt: { gt: now },
+        },
         data: { usedAt: now },
       });
 

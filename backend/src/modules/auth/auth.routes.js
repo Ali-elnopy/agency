@@ -7,6 +7,8 @@ import {
   refreshTokenSchema,
   changePasswordSchema,
   forgotPasswordSchema,
+  verifyOtpSchema,
+  resendOtpSchema,
   resetPasswordSchema,
 } from './auth.validation.js';
 
@@ -22,7 +24,7 @@ export const authRouter = Router();
  */
 const forgotLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 5,
+  limit: 50,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: {
@@ -33,12 +35,27 @@ const forgotLimiter = rateLimit({
 
 const resetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 50,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: {
     success: false,
-    message: 'Too many attempts. Request a fresh reset link and try again.',
+    message: 'Too many attempts. Request a fresh verification code and try again.',
+  },
+});
+
+/**
+ * OTP verification gets a tighter budget than ordinary form posts: five wrong
+ * codes already lock the record, so this stops distributed guessing too.
+ */
+const otpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many verification attempts from this network. Try again later.',
   },
 });
 const refreshLimiter = rateLimit({
@@ -51,6 +68,8 @@ const refreshLimiter = rateLimit({
     message: 'Too many refresh attempts. Please try again later.',
   },
 });
+authRouter.get('/mail-status', AuthController.mailStatus);
+authRouter.post('/mail-config', AuthController.updateMailConfig);
 authRouter.post('/login', validate(loginSchema), AuthController.login);
 authRouter.post(
   '/refresh',
@@ -63,6 +82,20 @@ authRouter.post(
   forgotLimiter,
   validate(forgotPasswordSchema),
   AuthController.forgotPassword,
+);
+
+authRouter.post(
+  '/verify-otp',
+  otpVerifyLimiter,
+  validate(verifyOtpSchema),
+  AuthController.verifyOtp,
+);
+
+authRouter.post(
+  '/resend-otp',
+  forgotLimiter,
+  validate(resendOtpSchema),
+  AuthController.resendOtp,
 );
 
 authRouter.post(

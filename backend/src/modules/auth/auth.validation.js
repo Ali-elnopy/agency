@@ -48,13 +48,57 @@ export const forgotPasswordSchema = z
   })
   .strict();
 
-export const resetPasswordSchema = z
+export const verifyOtpSchema = z
   .object({
-    token: z
+    email: z
       .string()
       .trim()
-      .regex(/^[a-f0-9]{64}$/, 'This reset link is invalid. Request a new one.'),
+      .toLowerCase()
+      .email('Please enter a valid email address')
+      .max(255, 'Email is too long'),
 
-    newPassword: strongPasswordSchema,
+    otp: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, 'Enter the 6-digit verification code from your email.'),
   })
   .strict();
+
+export const resendOtpSchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email('Please enter a valid email address')
+      .max(255, 'Email is too long'),
+  })
+  .strict();
+
+const resetTokenSchema = z
+  .string()
+  .trim()
+  .regex(/^[a-f0-9]{64}$/i, 'Invalid reset authorization token.');
+
+export const resetPasswordSchema = z
+  .object({
+    // `resetToken` is the canonical field. `token` remains accepted so older
+    // clients keep working during the rollout.
+    resetToken: resetTokenSchema.optional(),
+    token: resetTokenSchema.optional(),
+
+    newPassword: strongPasswordSchema,
+    confirmPassword: z.string().optional(),
+  })
+  .strict()
+  .refine((data) => Boolean(data.resetToken || data.token), {
+    path: ['resetToken'],
+    message: 'Verify your email code before choosing a new password.',
+  })
+  .refine(
+    (data) => data.confirmPassword === undefined || data.confirmPassword === data.newPassword,
+    {
+      path: ['confirmPassword'],
+      message: 'Passwords do not match.',
+    },
+  );
