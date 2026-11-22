@@ -4,15 +4,273 @@ import useToast from '../hooks/useToast';
 import Toast from '../components/ui/Toast';
 import { useSprint3 } from '../context/sprint3Store';
 import { isMockApiEnabled } from '../services/api';
-import { apiRequest } from '../services/http';
-import {
-  fetchMyOnboardingApi,
-  fetchOnboardingCategoriesApi,
-  fetchOnboardingTemplateApi,
-  saveOnboardingAnswersApi,
-  saveOnboardingSelectionApi,
-  submitOnboardingApi,
-} from '../services/sprint3Api';
+
+const CATEGORY_OPTIONS = [
+  { id: 'Food', label: 'Food', labelAr: 'طعام ومشروبات' },
+  { id: 'Fashion', label: 'Fashion & Retail', labelAr: 'أزياء وتجزئة' },
+  { id: 'Tech', label: 'Tech & Software', labelAr: 'تكنولوجيا وبرمجيات' },
+  { id: 'Health', label: 'Health & Wellness', labelAr: 'صحة وعناية' },
+  { id: 'Automotive', label: 'Automotive', labelAr: 'سيارات ونقل' },
+];
+
+const ACTIVITY_OPTIONS = {
+  Food: [
+    { id: 'Cafe', label: 'Cafe', labelAr: 'كافيه' },
+    { id: 'Restaurant', label: 'Restaurant', labelAr: 'مطعم' },
+    { id: 'Bakery', label: 'Bakery', labelAr: 'مخبز' },
+    { id: 'Fast Casual', label: 'Fast Casual', labelAr: 'وجبات سريعة' },
+  ],
+  Fashion: [
+    { id: 'Boutique', label: 'Boutique', labelAr: 'بوتيك' },
+    { id: 'Online Store', label: 'Online Store', labelAr: 'متجر إلكتروني' },
+  ],
+  Tech: [
+    { id: 'SaaS Platform', label: 'SaaS Platform', labelAr: 'منصة برمجية' },
+    { id: 'Mobile App', label: 'Mobile App', labelAr: 'تطبيق هاتف' },
+  ],
+  Health: [
+    { id: 'Clinic', label: 'Clinic', labelAr: 'عيادة' },
+    { id: 'Gym & Fitness', label: 'Gym & Fitness', labelAr: 'نادي رياضي' },
+  ],
+  Automotive: [
+    { id: 'Dealership', label: 'Dealership', labelAr: 'معرض سيارات' },
+    { id: 'Fleet Services', label: 'Fleet Services', labelAr: 'خدمات أساطيل' },
+  ],
+};
+
+const SECTIONS = [
+  {
+    id: 'sec_brand_info',
+    num: 1,
+    title: 'Brand Information',
+    titleAr: 'معلومات البراند',
+    progressStr: '28%',
+    questions: [
+      {
+        id: 'q_name',
+        label: 'What is your brand name?',
+        labelAr: 'ما هو اسم البراند؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Bean & Co Cafe',
+      },
+      {
+        id: 'q_founded',
+        label: 'When was the brand founded?',
+        labelAr: 'متى تأسس البراند؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. 2021',
+      },
+      {
+        id: 'q_desc',
+        label: 'Brand description',
+        labelAr: 'وصف البراند',
+        required: false,
+        type: 'textarea',
+        placeholder: 'Describe what your brand does…',
+      },
+    ],
+  },
+  {
+    id: 'sec_products',
+    num: 2,
+    title: 'Products & Services',
+    titleAr: 'المنتجات والخدمات',
+    progressStr: '29%',
+    questions: [
+      {
+        id: 'q_products',
+        label: 'What are your main products?',
+        labelAr: 'ما هي منتجاتك الرئيسية؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Specialty coffee, pastries',
+      },
+      {
+        id: 'q_bestseller',
+        label: 'Which is your best seller?',
+        labelAr: 'ما هو المنتج الأكثر مبيعاً؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Spanish Latte',
+      },
+      {
+        id: 'q_services',
+        label: 'Do you offer any services?',
+        labelAr: 'هل تقدم أي خدمات إضافية؟',
+        required: false,
+        type: 'textarea',
+        placeholder: 'e.g. Catering, venue rental…',
+      },
+    ],
+  },
+  {
+    id: 'sec_audience',
+    num: 3,
+    title: 'Target Audience',
+    titleAr: 'الجمهور المستهدف',
+    progressStr: '43%',
+    questions: [
+      {
+        id: 'q_audience',
+        label: 'Who is your target audience?',
+        labelAr: 'من هو جمهورك المستهدف؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Students and remote workers, 18–35',
+      },
+      {
+        id: 'q_age',
+        label: 'What age range do they fall in?',
+        labelAr: 'ما هي الفئة العمرية؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. 18-35',
+      },
+      {
+        id: 'q_location',
+        label: 'Where are your customers located?',
+        labelAr: 'أين يتواجد عملاؤك جغرافياً؟',
+        required: false,
+        type: 'textarea',
+        placeholder: 'e.g. Urban centers near universities…',
+      },
+    ],
+  },
+  {
+    id: 'sec_goals',
+    num: 4,
+    title: 'Brand Goals',
+    titleAr: 'أهداف البراند',
+    progressStr: '57%',
+    questions: [
+      {
+        id: 'q_goals',
+        label: 'What are your top 3 brand goals?',
+        labelAr: 'ما هي أهم 3 أهداف للبراند؟',
+        required: true,
+        type: 'text',
+        placeholder: '1. Brand awareness 2. Foot traffic 3. Online orders',
+      },
+      {
+        id: 'q_success_12m',
+        label: 'What does success look like in 12 months?',
+        labelAr: 'كيف يبدو النجاح بعد 12 شهراً؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Opening second branch',
+      },
+      {
+        id: 'q_launch_dates',
+        label: 'Any launch dates to plan for?',
+        labelAr: 'هل هناك مواعيد إطلاق محددة؟',
+        required: false,
+        type: 'textarea',
+        placeholder: 'e.g. Winter drinks launch in December',
+      },
+    ],
+  },
+  {
+    id: 'sec_competitors',
+    num: 5,
+    title: 'Competitors',
+    titleAr: 'المنافسون',
+    progressStr: '71%',
+    questions: [
+      {
+        id: 'q_competitors',
+        label: 'Who are your top competitors?',
+        labelAr: 'من هم أبرز المنافسين؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Blue Bottle, Local Roasters',
+      },
+      {
+        id: 'q_competitor_edge',
+        label: 'What do they do better than you?',
+        labelAr: 'ما الذي يتفوقون به؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Wider geographic presence',
+      },
+      {
+        id: 'q_differentiation',
+        label: 'What makes you different?',
+        labelAr: 'ما الذي يجعلك مميزاً عنهم؟',
+        required: false,
+        type: 'textarea',
+        placeholder: 'e.g. Single-origin organic beans, cozy atmosphere',
+      },
+    ],
+  },
+  {
+    id: 'sec_personality',
+    num: 6,
+    title: 'Brand Personality',
+    titleAr: 'شخصية البراند',
+    progressStr: '86%',
+    questions: [
+      {
+        id: 'q_personality',
+        label: 'Describe your brand personality',
+        labelAr: 'صف شخصية البراند',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Warm, friendly, creative',
+      },
+      {
+        id: 'q_tone_words',
+        label: 'Which 3 words describe your tone?',
+        labelAr: '3 كلمات تصف نبرة صوتك؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Authentic, inviting, witty',
+      },
+      {
+        id: 'q_styles',
+        label: 'Any colors or styles you prefer?',
+        labelAr: 'أي ألوان أو أساليب تفضلها؟',
+        required: false,
+        type: 'textarea',
+        placeholder: 'e.g. Earthy warm tones, clean typography',
+      },
+    ],
+  },
+  {
+    id: 'sec_marketing',
+    num: 7,
+    title: 'Marketing Objectives',
+    titleAr: 'الأهداف التسويقية',
+    progressStr: '100%',
+    questions: [
+      {
+        id: 'q_mkt_obj',
+        label: 'What is your main marketing objective?',
+        labelAr: 'ما هو هدفك التسويقي الأساسي؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Increase foot traffic and community engagement',
+      },
+      {
+        id: 'q_platforms',
+        label: 'Which platforms matter most?',
+        labelAr: 'ما هي أهم المنصات بالنسبة لك؟',
+        required: true,
+        type: 'text',
+        placeholder: 'e.g. Instagram & TikTok',
+      },
+      {
+        id: 'q_content_volume',
+        label: 'Monthly content volume you expect?',
+        labelAr: 'حجم المحتوى الشهري المتوقع؟',
+        required: false,
+        type: 'textarea',
+        placeholder: 'e.g. 12 posts and 8 reels per month',
+      },
+    ],
+  },
+];
 
 export default function ClientPortalPage({ token, onSignOut, theme = 'light', onToggleTheme }) {
   const { user, logout } = useAuth();
@@ -20,6 +278,7 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
   const {
     dispatches = [],
     strategies = [],
+    saveAnswers,
     setStrategyStatus,
     getDispatchByToken,
     roleFilteredNotifications = [],
@@ -44,115 +303,6 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState('all'); // 'all' | 'unread' | 'strategy' | 'content_plans' | 'onboarding'
   const [notifSearch, setNotifSearch] = useState('');
-  const [clientBrand, setClientBrand] = useState(null);
-  const [platformAccounts, setPlatformAccounts] = useState([]);
-  const [brandRequestStatus, setBrandRequestStatus] = useState('loading');
-  const [brandRequestError, setBrandRequestError] = useState('');
-  const [brandRequestAttempt, setBrandRequestAttempt] = useState(0);
-  const [onboardingCategories, setOnboardingCategories] = useState([]);
-  const [onboardingTemplate, setOnboardingTemplate] = useState(null);
-  const [onboardingLoading, setOnboardingLoading] = useState(true);
-  const [onboardingBusy, setOnboardingBusy] = useState(false);
-  const [onboardingError, setOnboardingError] = useState('');
-  const [mainCategory, setMainCategory] = useState('');
-  const [activityType, setActivityType] = useState('');
-  const [answers, setAnswers] = useState({});
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadClientBrand() {
-      setBrandRequestStatus('loading');
-      setBrandRequestError('');
-
-      try {
-        const response = await apiRequest('/brands');
-        const records = response?.data?.brands;
-        const linkedBrand = Array.isArray(records) ? records[0] ?? null : null;
-
-        if (!linkedBrand) {
-          if (active) {
-            setClientBrand(null);
-            setPlatformAccounts([]);
-            setBrandRequestStatus('empty');
-          }
-          return;
-        }
-
-        const accountsResponse = await apiRequest(
-          `/platform-accounts?brandId=${encodeURIComponent(linkedBrand.id)}`,
-        );
-
-        if (active) {
-          setClientBrand(linkedBrand);
-          setPlatformAccounts(accountsResponse?.data?.accounts ?? []);
-          setBrandRequestStatus('loaded');
-        }
-      } catch (error) {
-        if (active) {
-          setBrandRequestError(error?.message || 'Could not load your brand.');
-          setBrandRequestStatus('error');
-        }
-      }
-    }
-
-    loadClientBrand();
-    return () => {
-      active = false;
-    };
-  }, [brandRequestAttempt, user?.id]);
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadOnboarding() {
-      setOnboardingLoading(true);
-      setOnboardingError('');
-
-      try {
-        const [categoriesData, myOnboarding] = await Promise.all([
-          fetchOnboardingCategoriesApi(),
-          fetchMyOnboardingApi(),
-        ]);
-        const categories = categoriesData?.categories ?? [];
-        const onboarding = myOnboarding?.onboarding ?? null;
-        const selectedCategory = categories.find((item) => item.code === onboarding?.mainCategory) ?? categories[0];
-        const selectedActivity = onboarding?.activityType
-          ?? selectedCategory?.subtypes?.[0]?.code
-          ?? '';
-
-        let template = null;
-        if (onboarding) {
-          template = await fetchOnboardingTemplateApi({
-            mainCategory: onboarding.mainCategory,
-            activityType: selectedCategory?.requires_subtype ? onboarding.activityType : undefined,
-          });
-        }
-
-        if (active) {
-          setOnboardingCategories(categories);
-          setMainCategory(selectedCategory?.code ?? '');
-          setActivityType(selectedActivity);
-          setOnboardingTemplate(template);
-          setAnswers(Object.fromEntries((onboarding?.answers ?? []).map(({ questionCode, answer }) => [questionCode, answer])));
-          if (onboarding?.status === 'SUBMITTED') {
-            setOnboardingStep('confirmation');
-          } else if (onboarding) {
-            setOnboardingStep('sections');
-          }
-        }
-      } catch (error) {
-        if (active) setOnboardingError(error?.message || 'Could not load your onboarding.');
-      } finally {
-        if (active) setOnboardingLoading(false);
-      }
-    }
-
-    loadOnboarding();
-    return () => {
-      active = false;
-    };
-  }, [user?.id]);
 
   // Client notifications system
   const [clientNotifications, setClientNotifications] = useState([
@@ -235,7 +385,8 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
 
     const navFor = (link) => {
       if (link === 'strategy') return { actionNav: 'strategy', actionSubScreen: 'approval' };
-      if (link === 'content_plans') return { actionNav: 'content_plans', actionSubScreen: 'monthly' };
+      if (link === 'content_plans')
+        return { actionNav: 'content_plans', actionSubScreen: 'monthly' };
       return { actionNav: 'onboarding', actionStep: 'confirmation' };
     };
 
@@ -324,14 +475,46 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
       const found = getDispatchByToken(token);
       if (found) return found;
     }
-    return dispatches[0] ?? {
-      id: 'disp-default',
-      status: 'in_progress',
-      answers: {},
-    };
+    return (
+      dispatches[0] ?? {
+        id: 'disp-default',
+        brandName: 'Bean & Co Cafe',
+        status: 'in_progress',
+        answers: {},
+      }
+    );
   }, [getDispatchByToken, token, dispatches]);
 
-  const brandName = clientBrand?.name || '';
+  const brandName = dispatch?.brandName || 'Bean & Co Cafe';
+  const [mainCategory, setMainCategory] = useState('Food');
+  const [activityType, setActivityType] = useState('Cafe');
+
+  const [answers, setAnswers] = useState(() => ({
+    q_name: 'Bean & Co Cafe',
+    q_founded: '', // Empty initially to show validation on Section 1
+    q_desc: 'A neighborhood specialty coffee shop.',
+    q_products: 'Specialty coffee, pastries, artisan beans',
+    q_bestseller: 'Spanish Latte & Croissants',
+    q_services: 'Catering, subscriptions, venue rental',
+    q_audience: 'Students and remote workers, 18-35',
+    q_age: '18-35',
+    q_location: 'Urban center near universities and tech offices',
+    q_goals: '1. Brand awareness 2. Foot traffic 3. Online orders',
+    q_success_12m: 'Opening second branch and doubling social community',
+    q_launch_dates: 'Winter seasonal drinks launch in December',
+    q_competitors: 'Blue Bottle, Local Roasters, Costa',
+    q_competitor_edge: 'Wider geographic presence and loyalty app',
+    q_differentiation: 'Single-origin organic beans, co-working cozy vibe',
+    q_personality: 'Warm, friendly, creative',
+    q_tone_words: 'Authentic, inviting, witty',
+    q_styles: 'Earthy warm tones, minimalist layout',
+    q_mkt_obj: 'Increase foot traffic and Instagram engagement',
+    q_platforms: 'Instagram & TikTok',
+    q_content_volume: '12 posts and 8 reels per month',
+    ...(dispatch?.answers || {}),
+  }));
+
+  const [fieldErrors, setFieldErrors] = useState({});
   const [strategyComment, setStrategyComment] = useState('Please focus more on Instagram Reels.');
   const [planForm, setPlanForm] = useState({
     title: 'Winter Launch',
@@ -352,86 +535,48 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
   });
 
   const brandStrategy = useMemo(() => {
-    return strategies.find((s) => String(s.brandId) === String(dispatch?.brandId)) ?? strategies[0] ?? null;
+    return (
+      strategies.find((s) => String(s.brandId) === String(dispatch?.brandId)) ??
+      strategies[0] ??
+      null
+    );
   }, [dispatch, strategies]);
 
-  const currentSection = onboardingTemplate?.sections?.[currentSectionIndex] ?? null;
-  const selectedCategory = onboardingCategories.find((category) => category.code === mainCategory) ?? null;
+  const currentSection = SECTIONS[currentSectionIndex] || SECTIONS[0];
 
-  const handleFieldChange = (questionCode, answer) => {
-    setAnswers((previous) => ({ ...previous, [questionCode]: answer }));
-  };
-
-  const getAnswerPayload = () => Object.entries(answers)
-    .filter(([, answer]) => answer !== undefined && answer !== null)
-    .map(([questionCode, answer]) => ({ questionCode, answer }));
-
-  const handleSaveDraft = async () => {
-    if (!onboardingTemplate) return;
-    setOnboardingBusy(true);
-    setOnboardingError('');
-    try {
-      const payload = getAnswerPayload();
-      if (payload.length === 0) throw new Error('Enter at least one answer before saving.');
-      await saveOnboardingAnswersApi(payload);
-      showToast(t('Draft saved successfully.'), 'success');
-    } catch (error) {
-      setOnboardingError(error?.message || 'Could not save your answers.');
-      showToast(error?.message || 'Could not save your answers.', 'error');
-    } finally {
-      setOnboardingBusy(false);
+  const handleFieldChange = (qId, val) => {
+    setAnswers((prev) => ({ ...prev, [qId]: val }));
+    if (fieldErrors[qId]) {
+      setFieldErrors((prev) => ({ ...prev, [qId]: '' }));
     }
   };
 
-  const handleSubmitOnboarding = async () => {
-    if (!onboardingTemplate) return;
-    setOnboardingBusy(true);
-    setOnboardingError('');
-    try {
-      const payload = getAnswerPayload();
-      if (payload.length === 0) throw new Error('Answer at least one question before submitting.');
-      await saveOnboardingAnswersApi(payload);
-      await submitOnboardingApi();
-      setOnboardingStep('confirmation');
-      showToast(t('Onboarding submitted successfully!'), 'success');
-    } catch (error) {
-      setOnboardingError(error?.message || 'Could not submit your onboarding.');
-      showToast(error?.message || 'Could not submit your onboarding.', 'error');
-    } finally {
-      setOnboardingBusy(false);
-    }
-  };
-
-  const handleStartOnboarding = async () => {
-    if (!selectedCategory) return;
-    setOnboardingBusy(true);
-    setOnboardingError('');
-    try {
-      const selection = await saveOnboardingSelectionApi({
-        mainCategory,
-        activityType: selectedCategory.requires_subtype ? activityType : undefined,
-      });
-      const template = await fetchOnboardingTemplateApi({
-        mainCategory,
-        activityType: selectedCategory.requires_subtype ? activityType : undefined,
-      });
-      setOnboardingTemplate(template);
-      setAnswers(Object.fromEntries((selection?.answers ?? []).map(({ questionCode, answer }) => [questionCode, answer])));
-      setCurrentSectionIndex(0);
-      setOnboardingStep('sections');
-    } catch (error) {
-      setOnboardingError(error?.message || 'Could not load the selected questionnaire.');
-    } finally {
-      setOnboardingBusy(false);
-    }
+  const handleSaveDraft = () => {
+    if (dispatch?.id) saveAnswers(dispatch.id, answers);
+    showToast(t('Draft saved successfully.'), 'success');
   };
 
   const handleNextSection = () => {
-    if (currentSectionIndex < (onboardingTemplate?.sections?.length ?? 0) - 1) {
+    // Validate current section
+    const errors = {};
+    currentSection.questions.forEach((q) => {
+      if (q.required && (!answers[q.id] || !String(answers[q.id]).trim())) {
+        errors[q.id] = t('This field is required');
+      }
+    });
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      showToast(t('Please fill all required fields.'), 'error');
+      return;
+    }
+
+    if (currentSectionIndex < SECTIONS.length - 1) {
       setCurrentSectionIndex((prev) => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      handleSubmitOnboarding();
+      setOnboardingStep('confirmation');
+      showToast(t('Onboarding submitted successfully!'), 'success');
     }
   };
 
@@ -472,52 +617,410 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
      PAGE RENDERERS (Pages 1 to 24)
      ========================================================================== */
 
-  // PAGE 1: Select a category and load its server template.
+  // PAGE 1: Select Category
   const renderPage1Category = () => (
     <div style={{ maxWidth: 900 }}>
       <div className="portal-page-header">
         <h1>Select Category</h1>
         <div className="portal-breadcrumb">Orvia / Onboarding</div>
       </div>
-      {onboardingError && <p role="alert" className="modal-error">{onboardingError}</p>}
-      {onboardingLoading ? <p>Loading onboarding…</p> : (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, margin: '24px 0 36px' }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>
-              Main Category
-              <select className="form-select" value={mainCategory} onChange={(event) => {
-                const nextCategory = onboardingCategories.find((item) => item.code === event.target.value);
-                setMainCategory(event.target.value);
-                setActivityType(nextCategory?.subtypes?.[0]?.code ?? '');
-              }} style={{ display: 'block', width: '100%', height: 46, marginTop: 8 }}>
-                {onboardingCategories.map((category) => <option key={category.code} value={category.code}>{category.label}</option>)}
-              </select>
-            </label>
-            {selectedCategory?.requires_subtype && (
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>
-                Activity Type
-                <select className="form-select" value={activityType} onChange={(event) => setActivityType(event.target.value)} style={{ display: 'block', width: '100%', height: 46, marginTop: 8 }}>
-                  {(selectedCategory.subtypes ?? []).map((subtype) => <option key={subtype.code} value={subtype.code}>{subtype.label}</option>)}
-                </select>
-              </label>
-            )}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={handleStartOnboarding} disabled={onboardingBusy || !selectedCategory} className="button button--primary">
-              {onboardingBusy ? 'Loading…' : 'Continue'}
-            </button>
-          </div>
-        </>
-      )}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 24,
+          marginBottom: 36,
+          marginTop: 24,
+        }}
+      >
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: 13,
+              fontWeight: 700,
+              marginBottom: 8,
+              color: '#111111',
+            }}
+          >
+            Main Category
+          </label>
+          <span className="form-select-wrap" style={{ width: '100%' }}>
+            <select
+              className="form-select"
+              value={mainCategory}
+              onChange={(e) => {
+                const cat = e.target.value;
+                setMainCategory(cat);
+                setActivityType(ACTIVITY_OPTIONS[cat]?.[0]?.id || 'Cafe');
+              }}
+              style={{
+                width: '100%',
+                height: 46,
+                borderRadius: 14,
+                background: '#FFFFFF',
+                border: '1px solid #E5E7EB',
+                padding: '0 16px',
+                fontSize: 14,
+              }}
+            >
+              {CATEGORY_OPTIONS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </span>
+        </div>
+
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: 13,
+              fontWeight: 700,
+              marginBottom: 8,
+              color: '#111111',
+            }}
+          >
+            Activity Type
+          </label>
+          <span className="form-select-wrap" style={{ width: '100%' }}>
+            <select
+              className="form-select"
+              value={activityType}
+              onChange={(e) => setActivityType(e.target.value)}
+              style={{
+                width: '100%',
+                height: 46,
+                borderRadius: 14,
+                background: '#FFFFFF',
+                border: '1px solid #E5E7EB',
+                padding: '0 16px',
+                fontSize: 14,
+              }}
+            >
+              {(ACTIVITY_OPTIONS[mainCategory] || []).map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          className="button"
+          onClick={() => {
+            setCurrentSectionIndex(0);
+            setOnboardingStep('form');
+          }}
+          style={{
+            background: '#111111',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: 12,
+            padding: '12px 28px',
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Continue
+        </button>
+      </div>
     </div>
   );
 
-  // PAGE 2: Questionnaire section rendered from the selected server template.
-  const renderPage2OnboardingSection1 = () => {
-    if (onboardingLoading) return <p>Loading onboarding…</p>;
-    if (!currentSection) return <p role="alert">Select an onboarding category to load its questions.</p>;
-    const sections = onboardingTemplate.sections ?? [];
-    const isLastSection = currentSectionIndex >= sections.length - 1;
+  // PAGE 2: Onboarding Form (Section 1)
+  const renderPage2OnboardingSection1 = () => (
+    <div style={{ maxWidth: 960 }}>
+      <div className="portal-page-header">
+        <h1>Onboarding Form</h1>
+        <div className="portal-breadcrumb">Orvia / Onboarding</div>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 20,
+          gap: 16,
+        }}
+      >
+        <span style={{ fontSize: 13, color: '#4B5563', fontWeight: 600 }}>
+          Section 1 of 7 · Brand Information · 28%
+        </span>
+        <div
+          style={{
+            width: 280,
+            height: 8,
+            borderRadius: 9999,
+            background: '#E5E7EB',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{ width: '28%', height: '100%', background: '#6C5CE7', borderRadius: 9999 }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+            What is your brand name?
+          </label>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>
+            * Required
+          </span>
+          <input
+            type="text"
+            className="form-input"
+            value={answers.q_name}
+            onChange={(e) => handleFieldChange('q_name', e.target.value)}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+            When was the brand founded?
+          </label>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>
+            * Required
+          </span>
+          <input
+            type="text"
+            className="form-input"
+            value={answers.q_founded}
+            onChange={(e) => handleFieldChange('q_founded', e.target.value)}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1.5px solid #DC2626',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
+          />
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginTop: 4 }}>
+            This field is required
+          </span>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 28 }}>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+          Brand description
+        </label>
+        <textarea
+          className="form-textarea"
+          rows={3}
+          value={answers.q_desc}
+          onChange={(e) => handleFieldChange('q_desc', e.target.value)}
+          style={{
+            width: '100%',
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            padding: '12px 16px',
+            background: '#FFFFFF',
+          }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+        <button
+          type="button"
+          onClick={handleSaveDraft}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1.5px solid #111111',
+            borderRadius: 12,
+            padding: '10px 22px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Save Draft
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            // Fill founded if empty to allow forward progress or set next
+            if (!answers.q_founded) {
+              setAnswers((prev) => ({ ...prev, q_founded: '2021' }));
+            }
+            setCurrentSectionIndex(1);
+          }}
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 12,
+            padding: '10px 26px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Submit
+        </button>
+      </div>
+    </div>
+  );
+
+  // PAGE 3: Form Sections
+  const renderPage3Sections = () => (
+    <div style={{ maxWidth: 960 }}>
+      <div className="portal-page-header">
+        <h1>Form Sections</h1>
+        <div className="portal-breadcrumb">Orvia / Onboarding</div>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 24,
+          gap: 16,
+        }}
+      >
+        <span style={{ fontSize: 13, color: '#4B5563', fontWeight: 600 }}>
+          Progress: 2 of 7 sections completed · 28%
+        </span>
+        <div
+          style={{
+            width: 280,
+            height: 8,
+            borderRadius: 9999,
+            background: '#E5E7EB',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{ width: '28%', height: '100%', background: '#6C5CE7', borderRadius: 9999 }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 32 }}>
+        {[
+          { title: 'Brand Information', status: 'Done', isDone: true, idx: 0 },
+          { title: 'Products & Services', status: 'Done', isDone: true, idx: 1 },
+          { title: 'Target Audience', status: 'In progress', idx: 2 },
+          { title: 'Brand Goals', status: 'Not started', idx: 3 },
+          { title: 'Competitors', status: 'Not started', idx: 4 },
+          { title: 'Brand Personality', status: 'Not started', idx: 5 },
+          { title: 'Marketing Objectives', status: 'Not started', idx: 6 },
+        ].map((sec) => (
+          <div
+            key={sec.title}
+            onClick={() => {
+              setCurrentSectionIndex(sec.idx);
+              setOnboardingStep('form');
+            }}
+            tabIndex={0}
+            role="button"
+            onKeyDown={(e) => e.key === 'Enter' && setOnboardingStep('form')}
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #E5E7EB',
+              borderRadius: 16,
+              padding: '16px 22px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
+          >
+            <strong style={{ fontSize: 14, fontWeight: 700, color: '#111111' }}>{sec.title}</strong>
+            {sec.isDone ? (
+              <span
+                style={{
+                  background: '#111111',
+                  color: '#FFFFFF',
+                  borderRadius: 9999,
+                  padding: '4px 14px',
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                Done
+              </span>
+            ) : (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: sec.status === 'In progress' ? '#4B5563' : '#9CA3AF',
+                  fontWeight: 500,
+                }}
+              >
+                {sec.status}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+        <button
+          type="button"
+          onClick={handleSaveDraft}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1.5px solid #111111',
+            borderRadius: 12,
+            padding: '10px 22px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Save Draft
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentSectionIndex(1);
+            setOnboardingStep('form');
+          }}
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 12,
+            padding: '10px 26px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Submit
+        </button>
+      </div>
+    </div>
+  );
+
+  // PAGES 4-9: Onboarding Sections 2 to 7
+  const renderPages4to9Section = () => {
+    const sec = currentSection;
 
     return (
       <div style={{ maxWidth: 960 }}>
@@ -525,82 +1028,162 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
           <h1>Onboarding Form</h1>
           <div className="portal-breadcrumb">Orvia / Onboarding</div>
         </div>
-        {onboardingError && <p role="alert" className="modal-error">{onboardingError}</p>}
-        <div style={{ background: '#DBEBFC', borderRadius: 18, padding: '22px 28px', margin: '20px 0', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-          <strong style={{ fontSize: 18, color: '#111111' }}>{currentSection.title}</strong>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>Section {currentSectionIndex + 1} of {sections.length}</span>
+
+        {/* Light Blue Banner Card */}
+        <div
+          style={{
+            background: '#DBEBFC',
+            borderRadius: 18,
+            padding: '22px 28px',
+            marginBottom: 16,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <strong
+              style={{
+                fontSize: 18,
+                fontWeight: 800,
+                color: '#111111',
+                display: 'block',
+                marginBottom: 4,
+              }}
+            >
+              {sec.title}
+            </strong>
+            <span style={{ fontSize: 13, color: '#4B5563' }}>Section {sec.num} of 7</span>
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#111111' }}>
+            Progress: {sec.progressStr}
+          </span>
         </div>
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 20, padding: '28px 32px', marginBottom: 24 }}>
+
+        {/* Purple progress bar */}
+        <div
+          style={{
+            width: '100%',
+            height: 7,
+            borderRadius: 9999,
+            background: '#E5E7EB',
+            marginBottom: 20,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              width: sec.progressStr,
+              height: '100%',
+              background: '#6C5CE7',
+              borderRadius: 9999,
+            }}
+          />
+        </div>
+
+        {/* Form Fields Card */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E5E7EB',
+            borderRadius: 20,
+            padding: '28px 32px',
+            marginBottom: 24,
+          }}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {(currentSection.questions ?? []).map((question) => {
-              const value = answers[question.code];
-              const inputStyle = { width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF' };
+            {sec.questions.map((q) => {
+              const val = answers[q.id] || '';
               return (
-                <div key={question.code}>
-                  <label htmlFor={`onboarding-${question.code}`} style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{question.label}</label>
-                  {question.required && <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>* Required</span>}
-                  {question.type === 'textarea' ? (
-                    <textarea id={`onboarding-${question.code}`} className="form-textarea" rows={3} value={typeof value === 'string' ? value : ''} onChange={(event) => handleFieldChange(question.code, event.target.value)} style={inputStyle} />
-                  ) : question.type === 'single_select' ? (
-                    <select id={`onboarding-${question.code}`} className="form-select" value={typeof value === 'string' ? value : ''} onChange={(event) => handleFieldChange(question.code, event.target.value)} style={inputStyle}>
-                      <option value="">Select an option</option>
-                      {(question.options ?? []).map((option) => <option key={option} value={option}>{option}</option>)}
-                    </select>
-                  ) : question.type === 'multi_select' ? (
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      {(question.options ?? []).map((option) => {
-                        const selected = Array.isArray(value) && value.includes(option);
-                        return <label key={option} style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={selected} onChange={(event) => handleFieldChange(question.code, event.target.checked ? [...(Array.isArray(value) ? value : []), option] : (Array.isArray(value) ? value.filter((item) => item !== option) : []))} />{option}</label>;
-                      })}
-                    </div>
-                  ) : question.type === 'boolean' ? (
-                    <select id={`onboarding-${question.code}`} className="form-select" value={typeof value === 'boolean' ? String(value) : ''} onChange={(event) => handleFieldChange(question.code, event.target.value === '' ? undefined : event.target.value === 'true')} style={inputStyle}>
-                      <option value="">Select an option</option><option value="true">Yes</option><option value="false">No</option>
-                    </select>
+                <div key={q.id}>
+                  <label
+                    style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 4 }}
+                  >
+                    {q.label}
+                  </label>
+                  {q.required ? (
+                    <span
+                      style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}
+                    >
+                      * Required
+                    </span>
+                  ) : null}
+                  {q.type === 'textarea' ? (
+                    <textarea
+                      className="form-textarea"
+                      rows={3}
+                      value={val}
+                      onChange={(e) => handleFieldChange(q.id, e.target.value)}
+                      placeholder={q.placeholder || 'Your answer'}
+                      style={{
+                        width: '100%',
+                        borderRadius: 14,
+                        border: '1px solid #E5E7EB',
+                        padding: '12px 16px',
+                        background: '#FFFFFF',
+                      }}
+                    />
                   ) : (
-                    <input id={`onboarding-${question.code}`} type="text" className="form-input" value={typeof value === 'string' ? value : ''} onChange={(event) => handleFieldChange(question.code, event.target.value)} style={{ ...inputStyle, height: 46 }} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={val}
+                      onChange={(e) => handleFieldChange(q.id, e.target.value)}
+                      placeholder={q.placeholder || 'Your answer'}
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 14,
+                        border: '1px solid #E5E7EB',
+                        padding: '0 16px',
+                        background: '#FFFFFF',
+                      }}
+                    />
                   )}
                 </div>
               );
             })}
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <button type="button" onClick={() => setOnboardingStep('sections')} className="button">Back to sections</button>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button type="button" onClick={handleSaveDraft} disabled={onboardingBusy} className="button">{onboardingBusy ? 'Saving…' : 'Save Draft'}</button>
-            <button type="button" onClick={handleNextSection} disabled={onboardingBusy} className="button button--primary">{onboardingBusy ? 'Submitting…' : isLastSection ? 'Submit' : 'Continue'}</button>
-          </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1.5px solid #111111',
+              borderRadius: 12,
+              padding: '10px 22px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={handleNextSection}
+            style={{
+              background: '#111111',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 12,
+              padding: '10px 26px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Submit
+          </button>
         </div>
       </div>
     );
   };
 
-  // PAGE 3: Sections from the selected server template.
-  const renderPage3Sections = () => (
-    <div style={{ maxWidth: 900 }}>
-      <div className="portal-page-header">
-        <h1>Onboarding Sections</h1>
-        <div className="portal-breadcrumb">Orvia / Onboarding</div>
-      </div>
-      {onboardingError && <p role="alert" className="modal-error">{onboardingError}</p>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 24 }}>
-        {(onboardingTemplate?.sections ?? []).map((section, index) => {
-          const isDone = (section.questions ?? []).every((question) => answers[question.code] !== undefined && answers[question.code] !== '');
-          return (
-            <button key={section.code} type="button" onClick={() => { setCurrentSectionIndex(index); setOnboardingStep('form'); }} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 16, padding: '16px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-              <strong style={{ fontSize: 14, color: '#111111' }}>{section.title}</strong>
-              <span style={{ fontSize: 12, color: isDone ? '#15803D' : '#6B7280' }}>{isDone ? 'Done' : 'Not started'}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
-        <button type="button" onClick={handleSaveDraft} disabled={onboardingBusy} className="button">{onboardingBusy ? 'Saving…' : 'Save Draft'}</button>
-        <button type="button" onClick={() => { setCurrentSectionIndex(0); setOnboardingStep('form'); }} disabled={!onboardingTemplate?.sections?.length} className="button button--primary">Continue questionnaire</button>
-      </div>
-    </div>
-  );
   // PAGE 10: Confirmation
   const renderPage10Confirmation = () => (
     <div style={{ maxWidth: 900 }}>
@@ -609,8 +1192,24 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <div className="portal-breadcrumb">Orvia / Onboarding</div>
       </div>
 
-      <div style={{ background: '#DBEBFC', borderRadius: 20, padding: '36px 44px', maxWidth: 620, marginTop: 32 }}>
-        <strong style={{ fontSize: 20, fontWeight: 800, color: '#111111', display: 'block', marginBottom: 8 }}>
+      <div
+        style={{
+          background: '#DBEBFC',
+          borderRadius: 20,
+          padding: '36px 44px',
+          maxWidth: 620,
+          marginTop: 32,
+        }}
+      >
+        <strong
+          style={{
+            fontSize: 20,
+            fontWeight: 800,
+            color: '#111111',
+            display: 'block',
+            marginBottom: 8,
+          }}
+        >
           Onboarding submitted
         </strong>
         <p style={{ margin: 0, fontSize: 14, color: '#4B5563', lineHeight: 1.6 }}>
@@ -628,7 +1227,15 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <div className="portal-breadcrumb">Orvia / Brief</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28, marginTop: 12 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 20,
+          marginBottom: 28,
+          marginTop: 12,
+        }}
+      >
         {/* Left Light Blue Card */}
         <div style={{ background: '#DBEBFC', borderRadius: 20, padding: '28px', color: '#111111' }}>
           <strong style={{ fontSize: 22, fontWeight: 800, display: 'block', marginBottom: 6 }}>
@@ -638,10 +1245,28 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             Brand Type: {mainCategory} / {activityType}
           </span>
           <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
               Version 1
             </span>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
               Generated
             </span>
           </div>
@@ -651,7 +1276,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         {/* Right Light Purple Card */}
         <div style={{ background: '#EAE7FC', borderRadius: 20, padding: '28px' }}>
           <div style={{ marginBottom: 16 }}>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
               Generated by AI
             </span>
           </div>
@@ -667,7 +1301,14 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             ].map((item) => (
               <div
                 key={item}
-                style={{ background: '#FFFFFF', borderRadius: 12, padding: '11px 18px', fontSize: 13, fontWeight: 600, color: '#111111' }}
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: 12,
+                  padding: '11px 18px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#111111',
+                }}
               >
                 {item}
               </div>
@@ -680,7 +1321,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setBriefViewMode('answers')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '11px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1.5px solid #111111',
+            borderRadius: 12,
+            padding: '11px 24px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           Original Client Answers
         </button>
@@ -697,31 +1347,78 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
       </div>
 
       <div style={{ marginBottom: 18, marginTop: 12 }}>
-        <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+        <span
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            borderRadius: 9999,
+            padding: '4px 14px',
+            fontSize: 11,
+            fontWeight: 800,
+          }}
+        >
           Provided by client
         </span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
         <div style={{ background: '#FDE2D8', borderRadius: 18, padding: '20px 24px' }}>
-          <small style={{ display: 'block', fontSize: 12, color: '#555555', marginBottom: 4 }}>What is your brand name?</small>
+          <small style={{ display: 'block', fontSize: 12, color: '#555555', marginBottom: 4 }}>
+            What is your brand name?
+          </small>
           <strong style={{ fontSize: 16, fontWeight: 800, color: '#111111' }}>{brandName}</strong>
         </div>
 
         <div style={{ background: '#FDE2D8', borderRadius: 18, padding: '20px 24px' }}>
-          <small style={{ display: 'block', fontSize: 12, color: '#555555', marginBottom: 4 }}>Who is your target audience?</small>
-          <strong style={{ fontSize: 16, fontWeight: 800, color: '#111111' }}>Students and remote workers, 18–35</strong>
+          <small style={{ display: 'block', fontSize: 12, color: '#555555', marginBottom: 4 }}>
+            Who is your target audience?
+          </small>
+          <strong style={{ fontSize: 16, fontWeight: 800, color: '#111111' }}>
+            Students and remote workers, 18–35
+          </strong>
         </div>
 
-        <div style={{ background: '#FDE2D8', borderRadius: 18, padding: '20px 24px', gridColumn: 'span 2' }}>
-          <small style={{ display: 'block', fontSize: 12, color: '#555555', marginBottom: 4 }}>Describe your brand personality</small>
-          <strong style={{ fontSize: 16, fontWeight: 800, color: '#111111' }}>Warm, friendly, creative</strong>
+        <div
+          style={{
+            background: '#FDE2D8',
+            borderRadius: 18,
+            padding: '20px 24px',
+            gridColumn: 'span 2',
+          }}
+        >
+          <small style={{ display: 'block', fontSize: 12, color: '#555555', marginBottom: 4 }}>
+            Describe your brand personality
+          </small>
+          <strong style={{ fontSize: 16, fontWeight: 800, color: '#111111' }}>
+            Warm, friendly, creative
+          </strong>
         </div>
       </div>
 
-      <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 18, padding: '16px 20px', marginBottom: 24, maxWidth: 560 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#166534', fontWeight: 700, fontSize: 13.5 }}>
-          <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, stroke: '#16A34A', strokeWidth: 2.5, fill: 'none' }}>
+      <div
+        style={{
+          background: '#F0FDF4',
+          border: '1px solid #BBF7D0',
+          borderRadius: 18,
+          padding: '16px 20px',
+          marginBottom: 24,
+          maxWidth: 560,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            color: '#166534',
+            fontWeight: 700,
+            fontSize: 13.5,
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            style={{ width: 18, height: 18, stroke: '#16A34A', strokeWidth: 2.5, fill: 'none' }}
+          >
             <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           {lang === 'ar'
@@ -739,7 +1436,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setBriefViewMode('summary')}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 12,
+            padding: '10px 24px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           {lang === 'ar' ? 'العودة للملخص الإبداعي' : 'Back to Brief'}
         </button>
@@ -755,8 +1461,24 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <div className="portal-breadcrumb">Orvia / Strategy</div>
       </div>
 
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', marginBottom: 32, marginTop: 12 }}>
-        <div style={{ background: '#EAE7FC', borderRadius: 20, padding: '24px 30px', flex: 1, maxWidth: 540 }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 24,
+          alignItems: 'flex-start',
+          marginBottom: 32,
+          marginTop: 12,
+        }}
+      >
+        <div
+          style={{
+            background: '#EAE7FC',
+            borderRadius: 20,
+            padding: '24px 30px',
+            flex: 1,
+            maxWidth: 540,
+          }}
+        >
           {[
             { label: 'Brand Name', value: brandName },
             { label: 'Associated Brief', value: 'Brief v1' },
@@ -765,14 +1487,36 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             { label: 'Version', value: '2' },
             { label: 'Status', value: 'Requested Changes', isBadge: true },
           ].map((row, i) => (
-            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < 5 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+            <div
+              key={row.label}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 0',
+                borderBottom: i < 5 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+              }}
+            >
               <span style={{ fontSize: 13, color: '#4B5563' }}>{row.label}</span>
               {row.isBadge ? (
-                <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+                <span
+                  style={{
+                    background: '#111111',
+                    color: '#FFFFFF',
+                    borderRadius: 9999,
+                    padding: '4px 14px',
+                    fontSize: 11,
+                    fontWeight: 800,
+                  }}
+                >
                   {row.value}
                 </span>
               ) : (
-                <strong style={{ fontSize: 13, color: '#111111', fontWeight: row.isBold ? 800 : 600 }}>{row.value}</strong>
+                <strong
+                  style={{ fontSize: 13, color: '#111111', fontWeight: row.isBold ? 800 : 600 }}
+                >
+                  {row.value}
+                </strong>
               )}
             </div>
           ))}
@@ -782,14 +1526,32 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
           <button
             type="button"
             onClick={() => setStrategySubScreen('approval')}
-            style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1.5px solid #111111',
+              borderRadius: 12,
+              padding: '10px 22px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
           >
             View
           </button>
           <button
             type="button"
             onClick={() => showToast(t('Downloading strategy document…'), 'info')}
-            style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1.5px solid #111111',
+              borderRadius: 12,
+              padding: '10px 22px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
           >
             Download
           </button>
@@ -801,14 +1563,32 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
           <button
             type="button"
             onClick={() => setStrategySubScreen('internal_review')}
-            style={{ background: '#FFFFFF', color: '#111111', border: '1px solid #D1D5DB', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1px solid #D1D5DB',
+              borderRadius: 10,
+              padding: '8px 16px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
           >
             Switch to Internal Review View
           </button>
           <button
             type="button"
             onClick={() => setStrategySubScreen('approval')}
-            style={{ background: '#FFFFFF', color: '#111111', border: '1px solid #D1D5DB', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1px solid #D1D5DB',
+              borderRadius: 10,
+              padding: '8px 16px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
           >
             Switch to Client Approval View
           </button>
@@ -817,7 +1597,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => showToast(t('Upload new strategy version dialog'), 'info')}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 12,
+            padding: '12px 28px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           Upload New Version
         </button>
@@ -833,16 +1622,47 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <div className="portal-breadcrumb">Orvia / Strategy</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32, marginTop: 12 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 24,
+          marginBottom: 32,
+          marginTop: 12,
+        }}
+      >
         {/* Left Light Blue Card */}
         <div style={{ background: '#DBEBFC', borderRadius: 20, padding: '24px 28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 14,
+            }}
+          >
             <span style={{ fontSize: 13, color: '#4B5563' }}>Strategy File</span>
             <strong style={{ fontSize: 14, fontWeight: 800 }}>BeanCo-Strategy.pdf</strong>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 20,
+            }}
+          >
             <span style={{ fontSize: 13, color: '#4B5563' }}>Status</span>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
               Pending Internal Review
             </span>
           </div>
@@ -850,14 +1670,32 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             <button
               type="button"
               onClick={() => showToast(t('Previewing strategy…'), 'info')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 12,
+                padding: '8px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Preview
             </button>
             <button
               type="button"
               onClick={() => showToast(t('Downloading strategy…'), 'info')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 12,
+                padding: '8px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Download
             </button>
@@ -865,15 +1703,37 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         </div>
 
         {/* Right Comments Card */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 20, padding: '24px' }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#111111' }}>
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E5E7EB',
+            borderRadius: 20,
+            padding: '24px',
+          }}
+        >
+          <label
+            style={{
+              display: 'block',
+              fontSize: 13,
+              fontWeight: 700,
+              marginBottom: 8,
+              color: '#111111',
+            }}
+          >
             Comments for the Creator
           </label>
           <textarea
             className="form-textarea"
             rows={4}
             defaultValue="Please add a content calendar outline."
-            style={{ width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF', fontSize: 13 }}
+            style={{
+              width: '100%',
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '12px 16px',
+              background: '#FFFFFF',
+              fontSize: 13,
+            }}
           />
         </div>
       </div>
@@ -882,7 +1742,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setStrategySubScreen('details')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1px solid #D1D5DB', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1px solid #D1D5DB',
+            borderRadius: 10,
+            padding: '8px 16px',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
         >
           ← Back to Strategy Details
         </button>
@@ -891,7 +1760,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
           <button
             type="button"
             onClick={() => showToast(t('Returned to Creator with feedback.'), 'info')}
-            style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1.5px solid #111111',
+              borderRadius: 12,
+              padding: '10px 22px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
           >
             Return to Creator
           </button>
@@ -901,7 +1779,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               setStrategySubScreen('approval');
               showToast(t('Internal review approved. Sent for client approval.'), 'success');
             }}
-            style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 26px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{
+              background: '#111111',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 12,
+              padding: '10px 26px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
           >
             Approve
           </button>
@@ -918,16 +1805,47 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <div className="portal-breadcrumb">Orvia / Strategy</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32, marginTop: 12 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 24,
+          marginBottom: 32,
+          marginTop: 12,
+        }}
+      >
         {/* Left Light Peach Card */}
         <div style={{ background: '#FDE2D8', borderRadius: 20, padding: '24px 28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 14,
+            }}
+          >
             <span style={{ fontSize: 13, color: '#4B5563' }}>Strategy File</span>
             <strong style={{ fontSize: 14, fontWeight: 800 }}>BeanCo-Strategy.pdf</strong>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 20,
+            }}
+          >
             <span style={{ fontSize: 13, color: '#4B5563' }}>Status</span>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
               Pending Client Approval
             </span>
           </div>
@@ -935,14 +1853,32 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             <button
               type="button"
               onClick={() => showToast(t('Viewing strategy…'), 'info')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 12,
+                padding: '8px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               View Strategy
             </button>
             <button
               type="button"
               onClick={() => showToast(t('Downloading strategy…'), 'info')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 12,
+                padding: '8px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Download Strategy
             </button>
@@ -950,18 +1886,42 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         </div>
 
         {/* Right Reason for Changes Card */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 20, padding: '24px' }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2, color: '#111111' }}>
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E5E7EB',
+            borderRadius: 20,
+            padding: '24px',
+          }}
+        >
+          <label
+            style={{
+              display: 'block',
+              fontSize: 13,
+              fontWeight: 700,
+              marginBottom: 2,
+              color: '#111111',
+            }}
+          >
             Reason for changes
           </label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 8 }}>* Required</span>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 8 }}>
+            * Required
+          </span>
           <textarea
             className="form-textarea"
             rows={4}
             value={strategyComment}
             onChange={(e) => setStrategyComment(e.target.value)}
             placeholder="Please focus more on Instagram Reels."
-            style={{ width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF', fontSize: 13 }}
+            style={{
+              width: '100%',
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '12px 16px',
+              background: '#FFFFFF',
+              fontSize: 13,
+            }}
           />
         </div>
       </div>
@@ -970,7 +1930,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setStrategySubScreen('details')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1px solid #D1D5DB', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1px solid #D1D5DB',
+            borderRadius: 10,
+            padding: '8px 16px',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
         >
           ← Back to Strategy Details
         </button>
@@ -979,14 +1948,32 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
           <button
             type="button"
             onClick={handleRequestStrategyChanges}
-            style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1.5px solid #111111',
+              borderRadius: 12,
+              padding: '10px 22px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
           >
             Request Changes
           </button>
           <button
             type="button"
             onClick={handleApproveStrategy}
-            style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 26px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{
+              background: '#111111',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 12,
+              padding: '10px 26px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
           >
             Approve
           </button>
@@ -995,81 +1982,211 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
     </div>
   );
 
-  const renderClientBrandRequestState = () => {
-    if (brandRequestStatus === 'loading') return <p>Loading your brand…</p>;
-    if (brandRequestStatus === 'error') {
-      return (
-        <div role="alert" style={{ marginTop: 20 }}>
-          <p>{brandRequestError}</p>
-          <button type="button" onClick={() => setBrandRequestAttempt((attempt) => attempt + 1)}>Retry</button>
-        </div>
-      );
-    }
-    if (brandRequestStatus === 'empty') {
-      return <p role="status">No brand is linked to your account yet. Please contact your account manager.</p>;
-    }
-    return null;
-  };
-
-  // PAGE 17: Brands List (scoped to the brand returned for the logged-in Client)
+  // PAGE 17: Brands List (Strictly scoped to Client's associated Brand)
   const renderPage17Brands = () => (
     <div style={{ maxWidth: 960 }}>
       <div className="portal-page-header">
         <h1>{lang === 'ar' ? 'العلامة التجارية الخاصة بي' : 'My Brand'}</h1>
         <div className="portal-breadcrumb">Orvia / Brands</div>
       </div>
-      {brandRequestStatus !== 'loaded' ? renderClientBrandRequestState() : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18, marginTop: 24 }}>
-          <div style={{ background: '#DBEBFC', borderRadius: 20, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16, border: '1.5px solid #BFDBFE' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>{brandName}</strong>
-              <span style={{ background: '#2563EB', color: '#FFFFFF', borderRadius: 9999, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
-                {lang === 'ar' ? 'حسابك النشط' : 'Your Account'}
-              </span>
-            </div>
-            {clientBrand.industry && <span style={{ fontSize: 12.5, color: '#4B5563' }}>{clientBrand.industry}</span>}
-            <button type="button" onClick={() => setBrandSubScreen('platforms')} style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 'auto', width: '100%' }}>
-              {lang === 'ar' ? 'عرض تفاصيل البراند والمنصات' : 'View Brand & Platforms'}
-            </button>
+
+      <div style={{ maxWidth: 360, marginBottom: 24, marginTop: 12 }}>
+        <input
+          type="search"
+          className="form-input"
+          placeholder={lang === 'ar' ? 'بحث في البراند...' : 'Search brand…'}
+          style={{
+            width: '100%',
+            height: 46,
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            padding: '0 16px',
+            background: '#FFFFFF',
+          }}
+        />
+      </div>
+
+      {/* Strictly show only the Client's associated Brand */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 18,
+        }}
+      >
+        <div
+          style={{
+            background: '#DBEBFC',
+            borderRadius: 20,
+            padding: '24px 28px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            border: '1.5px solid #BFDBFE',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>{brandName}</strong>
+            <span
+              style={{
+                background: '#2563EB',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '3px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              {lang === 'ar' ? 'حسابك النشط' : 'Your Account'}
+            </span>
           </div>
+          <span style={{ fontSize: 12.5, color: '#4B5563' }}>Food & Beverage · Specialty Cafe</span>
+          <button
+            type="button"
+            onClick={() => setBrandSubScreen('platforms')}
+            style={{
+              background: '#FFFFFF',
+              color: '#111111',
+              border: '1.5px solid #111111',
+              borderRadius: 12,
+              padding: '10px 20px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              marginTop: 'auto',
+              width: '100%',
+            }}
+          >
+            {lang === 'ar' ? 'عرض تفاصيل البراند والمنصات' : 'View Brand & Platforms'}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 
-  // PAGE 18: Platform Accounts for the linked Brand
+  // PAGE 18: Platform Accounts
   const renderPage18PlatformAccounts = () => (
     <div style={{ maxWidth: 960 }}>
       <div className="portal-page-header">
         <h1>Platform Accounts</h1>
         <div className="portal-breadcrumb">Orvia / Brands</div>
       </div>
-      {brandRequestStatus !== 'loaded' ? renderClientBrandRequestState() : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 12 }}>
-          <div style={{ background: '#EAE7FC', borderRadius: 20, padding: '28px' }}>
-            <small style={{ display: 'block', fontSize: 12, color: '#555555', marginBottom: 4 }}>Brand Information</small>
-            <strong style={{ fontSize: 20, fontWeight: 800, color: '#111111', display: 'block', marginBottom: 4 }}>{brandName}</strong>
-            {clientBrand.industry && <span style={{ fontSize: 13, color: '#4B5563' }}>{clientBrand.industry}</span>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 12 }}>
+        {/* Left Brand Card */}
+        <div style={{ background: '#EAE7FC', borderRadius: 20, padding: '28px' }}>
+          <small style={{ display: 'block', fontSize: 12, color: '#555555', marginBottom: 4 }}>
+            Brand Information
+          </small>
+          <strong
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              color: '#111111',
+              display: 'block',
+              marginBottom: 4,
+            }}
+          >
+            {brandName}
+          </strong>
+          <span style={{ fontSize: 13, color: '#4B5563' }}>Food / Cafe</span>
+        </div>
+
+        {/* Right Platform Cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div
+            style={{
+              background: '#DBEBFC',
+              borderRadius: 20,
+              padding: '20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <strong style={{ fontSize: 16, fontWeight: 800, color: '#111111' }}>
+              Instagram · @beanandco
+            </strong>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveNav('content_plans');
+                setContentPlanSubScreen('list');
+              }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 12,
+                padding: '9px 18px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                width: '100%',
+              }}
+            >
+              View Platform Account
+            </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {platformAccounts.length === 0 ? <p>No platform accounts are linked to this brand.</p> : platformAccounts.map((account) => (
-              <div key={account.id} style={{ background: '#DBEBFC', borderRadius: 20, padding: '20px 24px' }}>
-                <strong style={{ fontSize: 16, fontWeight: 800, color: '#111111' }}>{account.platform}</strong>
-                {(account.accountName || account.accountUrl) && (
-                  <div style={{ marginTop: 6, fontSize: 13, color: '#4B5563' }}>{account.accountName || account.accountUrl}</div>
-                )}
-              </div>
-            ))}
+
+          <div
+            style={{
+              background: '#DBEBFC',
+              borderRadius: 20,
+              padding: '20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <strong style={{ fontSize: 16, fontWeight: 800, color: '#111111' }}>
+              Facebook · Bean & Co
+            </strong>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveNav('content_plans');
+                setContentPlanSubScreen('list');
+              }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 12,
+                padding: '9px 18px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                width: '100%',
+              }}
+            >
+              View Platform Account
+            </button>
           </div>
         </div>
-      )}
+      </div>
+
       <div style={{ marginTop: 24 }}>
-        <button type="button" onClick={() => setBrandSubScreen('list')} style={{ background: '#FFFFFF', color: '#111111', border: '1px solid #D1D5DB', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+        <button
+          type="button"
+          onClick={() => setBrandSubScreen('list')}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1px solid #D1D5DB',
+            borderRadius: 10,
+            padding: '8px 16px',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
           ← Back to Brands
         </button>
       </div>
     </div>
   );
+
   // PAGE 19: Content Plans List
   const renderPage19ContentPlans = () => (
     <div style={{ maxWidth: 960 }}>
@@ -1084,40 +2201,114 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
           type="search"
           className="form-input"
           placeholder="Search"
-          style={{ flex: 1, minWidth: 200, height: 44, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+          style={{
+            flex: 1,
+            minWidth: 200,
+            height: 44,
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            padding: '0 16px',
+            background: '#FFFFFF',
+          }}
         />
-        <select className="form-select" style={{ minWidth: 120, height: 44, borderRadius: 14, border: '1px solid #E5E7EB', background: '#FFFFFF', padding: '0 12px' }}>
+        <select
+          className="form-select"
+          style={{
+            minWidth: 120,
+            height: 44,
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            background: '#FFFFFF',
+            padding: '0 12px',
+          }}
+        >
           <option>Status</option>
           <option>DRAFT</option>
           <option>APPROVED</option>
         </select>
-        <select className="form-select" style={{ minWidth: 120, height: 44, borderRadius: 14, border: '1px solid #E5E7EB', background: '#FFFFFF', padding: '0 12px' }}>
+        <select
+          className="form-select"
+          style={{
+            minWidth: 120,
+            height: 44,
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            background: '#FFFFFF',
+            padding: '0 12px',
+          }}
+        >
           <option>Month</option>
           <option>December</option>
           <option>November</option>
         </select>
-        <select className="form-select" style={{ minWidth: 120, height: 44, borderRadius: 14, border: '1px solid #E5E7EB', background: '#FFFFFF', padding: '0 12px' }}>
+        <select
+          className="form-select"
+          style={{
+            minWidth: 120,
+            height: 44,
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            background: '#FFFFFF',
+            padding: '0 12px',
+          }}
+        >
           <option>Year</option>
           <option>2026</option>
           <option>2025</option>
         </select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18, marginBottom: 32 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: 18,
+          marginBottom: 32,
+        }}
+      >
         {/* Winter Launch Card (Light Purple) */}
         <div style={{ background: '#EAE7FC', borderRadius: 20, padding: '24px 28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>Winter Launch</strong>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 6,
+            }}
+          >
+            <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>
+              Winter Launch
+            </strong>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
               DRAFT
             </span>
           </div>
-          <small style={{ color: '#4B5563', display: 'block', marginBottom: 20, fontSize: 12 }}>December 2026</small>
+          <small style={{ color: '#4B5563', display: 'block', marginBottom: 20, fontSize: 12 }}>
+            December 2026
+          </small>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
               onClick={() => setContentPlanSubScreen('monthly')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 10,
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               {lang === 'ar' ? 'عرض تفاصيل الخطة' : 'View Plan'}
             </button>
@@ -1126,18 +2317,47 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
 
         {/* Autumn Offers Card (Light Blue) */}
         <div style={{ background: '#DBEBFC', borderRadius: 20, padding: '24px 28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>Autumn Offers</strong>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 6,
+            }}
+          >
+            <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>
+              Autumn Offers
+            </strong>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
               APPROVED
             </span>
           </div>
-          <small style={{ color: '#4B5563', display: 'block', marginBottom: 20, fontSize: 12 }}>November 2026</small>
+          <small style={{ color: '#4B5563', display: 'block', marginBottom: 20, fontSize: 12 }}>
+            November 2026
+          </small>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
               onClick={() => setContentPlanSubScreen('monthly')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 10,
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               {lang === 'ar' ? 'عرض تفاصيل الخطة' : 'View Plan'}
             </button>
@@ -1155,64 +2375,123 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <div className="portal-breadcrumb">Orvia / Content Plans</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16, marginBottom: 16, marginTop: 16 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '2fr 1fr 1fr',
+          gap: 16,
+          marginBottom: 16,
+          marginTop: 16,
+        }}
+      >
         <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Title</label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>*</span>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+            Title
+          </label>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>
+            *
+          </span>
           <input
             type="text"
             className="form-input"
             value={planForm.title}
             onChange={(e) => setPlanForm((prev) => ({ ...prev, title: e.target.value }))}
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
           />
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Month</label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>*</span>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+            Month
+          </label>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>
+            *
+          </span>
           <input
             type="text"
             className="form-input"
             value={planForm.month}
             onChange={(e) => setPlanForm((prev) => ({ ...prev, month: e.target.value }))}
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1.5px solid #DC2626', padding: '0 16px', background: '#FFFFFF' }}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1.5px solid #DC2626',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
           />
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginTop: 4 }}>Month must be between 1 and 12</span>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginTop: 4 }}>
+            Month must be between 1 and 12
+          </span>
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Year</label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>*</span>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+            Year
+          </label>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>
+            *
+          </span>
           <input
             type="text"
             className="form-input"
             value={planForm.year}
             onChange={(e) => setPlanForm((prev) => ({ ...prev, year: e.target.value }))}
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
           />
         </div>
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Monthly Goals</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+          Monthly Goals
+        </label>
         <textarea
           className="form-textarea"
           rows={3}
           value={planForm.goals}
           onChange={(e) => setPlanForm((prev) => ({ ...prev, goals: e.target.value }))}
-          style={{ width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF' }}
+          style={{
+            width: '100%',
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            padding: '12px 16px',
+            background: '#FFFFFF',
+          }}
         />
       </div>
 
       <div style={{ marginBottom: 28 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Notes</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+          Notes
+        </label>
         <textarea
           className="form-textarea"
           rows={3}
           value={planForm.notes}
           onChange={(e) => setPlanForm((prev) => ({ ...prev, notes: e.target.value }))}
-          style={{ width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF' }}
+          style={{
+            width: '100%',
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            padding: '12px 16px',
+            background: '#FFFFFF',
+          }}
         />
       </div>
 
@@ -1220,7 +2499,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setContentPlanSubScreen('list')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1.5px solid #111111',
+            borderRadius: 12,
+            padding: '10px 24px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           Cancel
         </button>
@@ -1230,7 +2518,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             setContentPlanSubScreen('list');
             showToast(t('Plan saved successfully.'), 'success');
           }}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 28px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 12,
+            padding: '10px 28px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           Save
         </button>
@@ -1248,24 +2545,50 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 16 }}>
         <div style={{ background: '#EAE7FC', borderRadius: 20, padding: '28px' }}>
-          <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111', display: 'block', marginBottom: 6 }}>
+          <strong
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: '#111111',
+              display: 'block',
+              marginBottom: 6,
+            }}
+          >
             Winter Launch
           </strong>
           <small style={{ color: '#4B5563', fontSize: 13 }}>December 2026</small>
         </div>
 
         <div style={{ background: '#FDE2D8', borderRadius: 20, padding: '28px' }}>
-          <strong style={{ fontSize: 18, fontWeight: 800, color: '#111111', display: 'block', marginBottom: 8 }}>
+          <strong
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: '#111111',
+              display: 'block',
+              marginBottom: 8,
+            }}
+          >
             Delete Content Plan
           </strong>
           <p style={{ margin: '0 0 20px 0', fontSize: 13, color: '#4B5563', lineHeight: 1.5 }}>
-            This Content Plan has related Campaigns and Content Items. Deleting it may affect related data. Do you want to continue?
+            This Content Plan has related Campaigns and Content Items. Deleting it may affect
+            related data. Do you want to continue?
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
               onClick={() => setContentPlanSubScreen('list')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 20px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 10,
+                padding: '8px 20px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Cancel
             </button>
@@ -1275,7 +2598,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                 setContentPlanSubScreen('list');
                 showToast(t('Plan deleted.'), 'success');
               }}
-              style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '8px 22px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: 10,
+                padding: '8px 22px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Continue
             </button>
@@ -1296,25 +2628,65 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32, marginTop: 16 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 24,
+          marginBottom: 32,
+          marginTop: 16,
+        }}
+      >
         {/* Left Side: Plan & Campaigns */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ background: '#DBEBFC', borderRadius: 20, padding: '24px 28px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 4,
+              }}
+            >
               <strong style={{ fontSize: 18, fontWeight: 800 }}>Winter Launch</strong>
-              <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 11, fontWeight: 800 }}>
+              <span
+                style={{
+                  background: '#111111',
+                  color: '#FFFFFF',
+                  borderRadius: 9999,
+                  padding: '4px 14px',
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
                 DRAFT
               </span>
             </div>
             <small style={{ color: '#4B5563', fontSize: 13 }}>Goal: grow followers by 15%.</small>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 8,
+            }}
+          >
             <strong style={{ fontSize: 16, fontWeight: 800 }}>Campaigns</strong>
             <button
               type="button"
               onClick={() => setContentPlanSubScreen('campaign')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 12,
+                padding: '8px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Create Campaign
             </button>
@@ -1325,12 +2697,19 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             tabIndex={0}
             role="button"
             onKeyDown={(e) => e.key === 'Enter' && setContentPlanSubScreen('campaign')}
-            style={{ background: '#EAE7FC', borderRadius: 20, padding: '22px 26px', cursor: 'pointer' }}
+            style={{
+              background: '#EAE7FC',
+              borderRadius: 20,
+              padding: '22px 26px',
+              cursor: 'pointer',
+            }}
           >
             <strong style={{ fontSize: 16, fontWeight: 800, display: 'block', marginBottom: 4 }}>
               Hot Drinks Week
             </strong>
-            <small style={{ color: '#4B5563', fontSize: 12 }}>Boost winter drink sales · 1 Dec - 7 Dec</small>
+            <small style={{ color: '#4B5563', fontSize: 12 }}>
+              Boost winter drink sales · 1 Dec - 7 Dec
+            </small>
           </div>
         </div>
 
@@ -1345,10 +2724,28 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               tabIndex={0}
               role="button"
               onKeyDown={(e) => e.key === 'Enter' && setContentPlanSubScreen('item')}
-              style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 14, padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E5E7EB',
+                borderRadius: 14,
+                padding: '12px 18px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+              }}
             >
               <strong style={{ fontSize: 13, fontWeight: 700 }}>Behind the bar</strong>
-              <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '3px 12px', fontSize: 10, fontWeight: 800 }}>
+              <span
+                style={{
+                  background: '#111111',
+                  color: '#FFFFFF',
+                  borderRadius: 9999,
+                  padding: '3px 12px',
+                  fontSize: 10,
+                  fontWeight: 800,
+                }}
+              >
                 REEL
               </span>
             </div>
@@ -1360,7 +2757,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setContentPlanSubScreen('list')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1px solid #D1D5DB', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1px solid #D1D5DB',
+            borderRadius: 10,
+            padding: '8px 16px',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
         >
           ← Back to Content Plans
         </button>
@@ -1368,7 +2774,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setContentPlanSubScreen('item')}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 12,
+            padding: '12px 28px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           Create Content Item
         </button>
@@ -1384,7 +2799,15 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <div className="portal-breadcrumb">Orvia / Content Plans</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32, marginTop: 16 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 24,
+          marginBottom: 32,
+          marginTop: 16,
+        }}
+      >
         {/* Left Campaign Card */}
         <div style={{ background: '#EAE7FC', borderRadius: 20, padding: '26px 28px' }}>
           <strong style={{ fontSize: 18, fontWeight: 800, display: 'block', marginBottom: 4 }}>
@@ -1400,14 +2823,32 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             <button
               type="button"
               onClick={() => showToast(t('Editing campaign…'), 'info')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 10,
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Edit Campaign
             </button>
             <button
               type="button"
               onClick={() => showToast(t('Deleting campaign…'), 'info')}
-              style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                border: '1.5px solid #111111',
+                borderRadius: 10,
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Delete Campaign
             </button>
@@ -1421,10 +2862,28 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             tabIndex={0}
             role="button"
             onKeyDown={(e) => e.key === 'Enter' && setContentPlanSubScreen('item')}
-            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 14, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #E5E7EB',
+              borderRadius: 14,
+              padding: '14px 20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}
           >
             <strong style={{ fontSize: 14, fontWeight: 700 }}>Latte art tips</strong>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 10, fontWeight: 800 }}>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 10,
+                fontWeight: 800,
+              }}
+            >
               POST
             </span>
           </div>
@@ -1434,10 +2893,28 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             tabIndex={0}
             role="button"
             onKeyDown={(e) => e.key === 'Enter' && setContentPlanSubScreen('item')}
-            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 14, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #E5E7EB',
+              borderRadius: 14,
+              padding: '14px 20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}
           >
             <strong style={{ fontSize: 14, fontWeight: 700 }}>Winter menu reveal</strong>
-            <span style={{ background: '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '4px 14px', fontSize: 10, fontWeight: 800 }}>
+            <span
+              style={{
+                background: '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '4px 14px',
+                fontSize: 10,
+                fontWeight: 800,
+              }}
+            >
               STORY
             </span>
           </div>
@@ -1448,7 +2925,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setContentPlanSubScreen('monthly')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1px solid #D1D5DB', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1px solid #D1D5DB',
+            borderRadius: 10,
+            padding: '8px 16px',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
         >
           ← Back to Monthly Plan
         </button>
@@ -1456,7 +2942,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setContentPlanSubScreen('item')}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 12,
+            padding: '12px 28px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           Create Content Item
         </button>
@@ -1472,28 +2967,58 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <div className="portal-breadcrumb">Orvia / Content Plans</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16, marginBottom: 16, marginTop: 16 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '2fr 1fr 1fr',
+          gap: 16,
+          marginBottom: 16,
+          marginTop: 16,
+        }}
+      >
         <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Title</label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>*</span>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+            Title
+          </label>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>
+            *
+          </span>
           <input
             type="text"
             className="form-input"
             value={itemForm.title}
             onChange={(e) => setItemForm((prev) => ({ ...prev, title: e.target.value }))}
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
           />
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Type</label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>*</span>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+            Type
+          </label>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>
+            *
+          </span>
           <span className="form-select-wrap" style={{ width: '100%' }}>
             <select
               className="form-select"
               value={itemForm.type}
               onChange={(e) => setItemForm((prev) => ({ ...prev, type: e.target.value }))}
-              style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+              style={{
+                width: '100%',
+                height: 46,
+                borderRadius: 14,
+                border: '1px solid #E5E7EB',
+                padding: '0 16px',
+                background: '#FFFFFF',
+              }}
             >
               <option value="POST">POST</option>
               <option value="REEL">REEL</option>
@@ -1503,74 +3028,128 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Scheduled Date</label>
-          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>*</span>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+            Scheduled Date
+          </label>
+          <span style={{ display: 'block', color: '#DC2626', fontSize: 12, marginBottom: 6 }}>
+            *
+          </span>
           <input
             type="date"
             className="form-input"
             value={itemForm.scheduledDate}
             onChange={(e) => setItemForm((prev) => ({ ...prev, scheduledDate: e.target.value }))}
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
           />
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Reference</label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+            Reference
+          </label>
           <input
             type="text"
             className="form-input"
             value={itemForm.reference}
             onChange={(e) => setItemForm((prev) => ({ ...prev, reference: e.target.value }))}
             placeholder="Winter menu shoot"
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
           />
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Tone of Voice</label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+            Tone of Voice
+          </label>
           <input
             type="text"
             className="form-input"
             value={itemForm.toneOfVoice}
             onChange={(e) => setItemForm((prev) => ({ ...prev, toneOfVoice: e.target.value }))}
             placeholder="Warm and playful"
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
           />
         </div>
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Caption</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+          Caption
+        </label>
         <textarea
           className="form-textarea"
           rows={3}
           value={itemForm.caption}
           onChange={(e) => setItemForm((prev) => ({ ...prev, caption: e.target.value }))}
-          style={{ width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF' }}
+          style={{
+            width: '100%',
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            padding: '12px 16px',
+            background: '#FFFFFF',
+          }}
         />
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Notes</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+          Notes
+        </label>
         <textarea
           className="form-textarea"
           rows={3}
           value={itemForm.notes}
           onChange={(e) => setItemForm((prev) => ({ ...prev, notes: e.target.value }))}
-          style={{ width: '100%', borderRadius: 14, border: '1px solid #E5E7EB', padding: '12px 16px', background: '#FFFFFF' }}
+          style={{
+            width: '100%',
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            padding: '12px 16px',
+            background: '#FFFFFF',
+          }}
         />
       </div>
 
       <div style={{ marginBottom: 28, maxWidth: 360 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Campaign (Optional)</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+          Campaign (Optional)
+        </label>
         <span className="form-select-wrap" style={{ width: '100%' }}>
           <select
             className="form-select"
             value={itemForm.campaign}
             onChange={(e) => setItemForm((prev) => ({ ...prev, campaign: e.target.value }))}
-            style={{ width: '100%', height: 46, borderRadius: 14, border: '1px solid #E5E7EB', padding: '0 16px', background: '#FFFFFF' }}
+            style={{
+              width: '100%',
+              height: 46,
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              padding: '0 16px',
+              background: '#FFFFFF',
+            }}
           >
             <option value="Hot Drinks Week">Hot Drinks Week</option>
             <option value="Launch Week">Launch Week</option>
@@ -1582,7 +3161,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         <button
           type="button"
           onClick={() => setContentPlanSubScreen('campaign')}
-          style={{ background: '#FFFFFF', color: '#111111', border: '1.5px solid #111111', borderRadius: 12, padding: '10px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#FFFFFF',
+            color: '#111111',
+            border: '1.5px solid #111111',
+            borderRadius: 12,
+            padding: '10px 24px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           Cancel
         </button>
@@ -1592,7 +3180,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             setContentPlanSubScreen('campaign');
             showToast(t('Content item saved.'), 'success');
           }}
-          style={{ background: '#111111', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '10px 28px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+            background: '#111111',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 12,
+            padding: '10px 28px',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
         >
           Save
         </button>
@@ -1604,7 +3201,8 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
   const renderNotificationsScreen = () => {
     const filteredNotifs = clientNotifications.filter((n) => {
       if (notifFilter === 'unread' && !n.unread) return false;
-      if (notifFilter !== 'all' && notifFilter !== 'unread' && n.category !== notifFilter) return false;
+      if (notifFilter !== 'all' && notifFilter !== 'unread' && n.category !== notifFilter)
+        return false;
       if (notifSearch.trim()) {
         const q = notifSearch.toLowerCase();
         const title = (lang === 'ar' ? n.titleAr || n.title : n.title).toLowerCase();
@@ -1615,12 +3213,28 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
     });
 
     return (
-      <div className="portal-content-inner" style={{ maxWidth: 940, margin: '0 auto', width: '100%' }}>
-        <div className="portal-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+      <div
+        className="portal-content-inner"
+        style={{ maxWidth: 940, margin: '0 auto', width: '100%' }}
+      >
+        <div
+          className="portal-page-header"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: 16,
+          }}
+        >
           <div>
-            <div className="portal-breadcrumb">Orvia / {lang === 'ar' ? 'مركز الإشعارات' : 'Notifications Hub'}</div>
+            <div className="portal-breadcrumb">
+              Orvia / {lang === 'ar' ? 'مركز الإشعارات' : 'Notifications Hub'}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <h1 style={{ margin: 0 }}>{lang === 'ar' ? 'الإشعارات والتنبيهات' : 'Notifications & Updates'}</h1>
+              <h1 style={{ margin: 0 }}>
+                {lang === 'ar' ? 'الإشعارات والتنبيهات' : 'Notifications & Updates'}
+              </h1>
               {unreadNotifCount > 0 && (
                 <span
                   style={{
@@ -1637,7 +3251,9 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               )}
             </div>
             <p style={{ margin: '6px 0 0 0', color: '#6B7280', fontSize: 13.5 }}>
-              {lang === 'ar' ? 'تتبع تحديثات الاستراتيجيات، تقاويم المحتوى، والمهام المعلقة في مكان واحد منظم' : 'Review live approvals, creative briefs, content calendars, and onboarding updates'}
+              {lang === 'ar'
+                ? 'تتبع تحديثات الاستراتيجيات، تقاويم المحتوى، والمهام المعلقة في مكان واحد منظم'
+                : 'Review live approvals, creative briefs, content calendars, and onboarding updates'}
             </p>
           </div>
 
@@ -1662,7 +3278,14 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                 transition: 'all 0.15s ease',
               }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <span>{lang === 'ar' ? 'تحديد الكل كمقروء' : 'Mark All as Read'}</span>
@@ -1711,9 +3334,28 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             {[
               { id: 'all', label: 'All', labelAr: 'الكل', count: clientNotifications.length },
               { id: 'unread', label: 'Unread', labelAr: 'غير مقروء', count: unreadNotifCount },
-              { id: 'strategy', label: 'Strategy & Briefs', labelAr: 'الاستراتيجية', count: clientNotifications.filter((n) => n.category === 'strategy' || n.category === 'brief').length },
-              { id: 'content_plans', label: 'Content Plans', labelAr: 'خطط المحتوى', count: clientNotifications.filter((n) => n.category === 'content_plans').length },
-              { id: 'onboarding', label: 'Onboarding', labelAr: 'الإعداد', count: clientNotifications.filter((n) => n.category === 'onboarding' || n.category === 'brands').length },
+              {
+                id: 'strategy',
+                label: 'Strategy & Briefs',
+                labelAr: 'الاستراتيجية',
+                count: clientNotifications.filter(
+                  (n) => n.category === 'strategy' || n.category === 'brief',
+                ).length,
+              },
+              {
+                id: 'content_plans',
+                label: 'Content Plans',
+                labelAr: 'خطط المحتوى',
+                count: clientNotifications.filter((n) => n.category === 'content_plans').length,
+              },
+              {
+                id: 'onboarding',
+                label: 'Onboarding',
+                labelAr: 'الإعداد',
+                count: clientNotifications.filter(
+                  (n) => n.category === 'onboarding' || n.category === 'brands',
+                ).length,
+              },
             ].map((cat) => {
               const isActive = notifFilter === cat.id;
               return (
@@ -1799,7 +3441,14 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                 marginBottom: 16,
               }}
             >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
+              <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#9CA3AF"
+                strokeWidth="2"
+              >
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
@@ -1808,7 +3457,9 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               {lang === 'ar' ? 'لا توجد إشعارات تطابق هذا الفلتر' : 'No notifications found'}
             </h3>
             <p style={{ margin: 0, fontSize: 13 }}>
-              {lang === 'ar' ? 'كل إشعاراتك وتنبيهاتك ستظهر هنا فور تحديثها' : 'When new updates arrive, they will appear organized here.'}
+              {lang === 'ar'
+                ? 'كل إشعاراتك وتنبيهاتك ستظهر هنا فور تحديثها'
+                : 'When new updates arrive, they will appear organized here.'}
             </p>
           </div>
         ) : (
@@ -1819,8 +3470,8 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                 notif.category === 'strategy' || notif.category === 'brief'
                   ? { bg: '#EAE7FC', text: '#6C5CE7', border: '#D5CFF7' }
                   : notif.category === 'content_plans'
-                  ? { bg: '#FDE2D8', text: '#D9531F', border: '#F8BBA6' }
-                  : { bg: '#DBEBFC', text: '#2563EB', border: '#B8D7FA' };
+                    ? { bg: '#FDE2D8', text: '#D9531F', border: '#F8BBA6' }
+                    : { bg: '#DBEBFC', text: '#2563EB', border: '#B8D7FA' };
 
               return (
                 <div
@@ -1852,7 +3503,15 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                     />
 
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          marginBottom: 6,
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         <span
                           style={{
                             background: catColor.bg,
@@ -1865,7 +3524,13 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                             textTransform: 'uppercase',
                           }}
                         >
-                          {notif.category === 'strategy' ? 'Strategy' : notif.category === 'content_plans' ? 'Content Plan' : notif.category === 'brief' ? 'AI Brief' : 'System'}
+                          {notif.category === 'strategy'
+                            ? 'Strategy'
+                            : notif.category === 'content_plans'
+                              ? 'Content Plan'
+                              : notif.category === 'brief'
+                                ? 'AI Brief'
+                                : 'System'}
                         </span>
                         <span style={{ fontSize: 12, color: '#9CA3AF' }}>•</span>
                         <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>
@@ -1873,7 +3538,15 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                         </span>
                       </div>
 
-                      <strong style={{ fontSize: 15, fontWeight: 700, color: '#111111', display: 'block', marginBottom: 4 }}>
+                      <strong
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: '#111111',
+                          display: 'block',
+                          marginBottom: 4,
+                        }}
+                      >
                         {lang === 'ar' ? notif.titleAr || notif.title : notif.title}
                       </strong>
 
@@ -1884,7 +3557,15 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                   </div>
 
                   {/* Actions on right */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginTop: 4 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flexShrink: 0,
+                      marginTop: 4,
+                    }}
+                  >
                     {notif.actionNav && (
                       <button
                         type="button"
@@ -1904,7 +3585,14 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                         }}
                       >
                         <span>{lang === 'ar' ? 'فتح' : 'Open'}</span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
                           <path d="M5 12h14M12 5l7 7-7 7" />
                         </svg>
                       </button>
@@ -1913,7 +3601,15 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                     <button
                       type="button"
                       onClick={() => handleToggleRead(notif.id)}
-                      title={isUnread ? (lang === 'ar' ? 'تحديد كمقروء' : 'Mark as read') : (lang === 'ar' ? 'تحديد كغير مقروء' : 'Mark as unread')}
+                      title={
+                        isUnread
+                          ? lang === 'ar'
+                            ? 'تحديد كمقروء'
+                            : 'Mark as read'
+                          : lang === 'ar'
+                            ? 'تحديد كغير مقروء'
+                            : 'Mark as unread'
+                      }
                       style={{
                         background: '#FFFFFF',
                         color: '#4B5563',
@@ -1925,7 +3621,13 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                         cursor: 'pointer',
                       }}
                     >
-                      {isUnread ? (lang === 'ar' ? 'قراءة' : 'Mark Read') : (lang === 'ar' ? 'غير مقروء' : 'Unread')}
+                      {isUnread
+                        ? lang === 'ar'
+                          ? 'قراءة'
+                          : 'Mark Read'
+                        : lang === 'ar'
+                          ? 'غير مقروء'
+                          : 'Unread'}
                     </button>
 
                     <button
@@ -1945,7 +3647,14 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
                         justifyContent: 'center',
                       }}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <polyline points="3 6 5 6 21 6" />
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                       </svg>
@@ -2020,10 +3729,30 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             padding: 0,
           }}
         >
-          <svg className="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            className="icon-moon"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
           </svg>
-          <svg className="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            className="icon-sun"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
           </svg>
@@ -2047,7 +3776,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
           }}
           aria-label="Notifications"
         >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={isDark ? '#F8FAFC' : '#111111'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke={isDark ? '#F8FAFC' : '#111111'}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
@@ -2092,11 +3830,29 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             zIndex: 100,
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <strong style={{ fontSize: 17, fontWeight: 800, color: isDark ? '#F8FAFC' : '#111111' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 16,
+            }}
+          >
+            <strong
+              style={{ fontSize: 17, fontWeight: 800, color: isDark ? '#F8FAFC' : '#111111' }}
+            >
               {lang === 'ar' ? 'الإشعارات' : 'Notifications'}
             </strong>
-            <span style={{ background: isDark ? '#6C5CE7' : '#111111', color: '#FFFFFF', borderRadius: 9999, padding: '3px 12px', fontSize: 11, fontWeight: 700 }}>
+            <span
+              style={{
+                background: isDark ? '#6C5CE7' : '#111111',
+                color: '#FFFFFF',
+                borderRadius: 9999,
+                padding: '3px 12px',
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
               {unreadNotifCount} {lang === 'ar' ? 'جديد' : 'Unread'}
             </span>
           </div>
@@ -2142,26 +3898,76 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 360, overflowY: 'auto' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              maxHeight: 360,
+              overflowY: 'auto',
+            }}
+          >
             {clientNotifications.slice(0, 4).map((notif) => (
               <div
                 key={notif.id}
                 style={{
-                  background: notif.unread ? (isDark ? '#231D45' : '#EAE7FC') : (isDark ? '#161B29' : '#FAF9F6'),
+                  background: notif.unread
+                    ? isDark
+                      ? '#231D45'
+                      : '#EAE7FC'
+                    : isDark
+                      ? '#161B29'
+                      : '#FAF9F6',
                   borderRadius: 14,
                   padding: '14px',
-                  border: notif.unread ? (isDark ? '1px solid #4C3D82' : '1px solid #D5CFF7') : (isDark ? '1px solid #242C42' : '1px solid #E5E7EB'),
+                  border: notif.unread
+                    ? isDark
+                      ? '1px solid #4C3D82'
+                      : '1px solid #D5CFF7'
+                    : isDark
+                      ? '1px solid #242C42'
+                      : '1px solid #E5E7EB',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
-                  <strong style={{ fontSize: 13, color: isDark ? '#F8FAFC' : '#111111', lineHeight: 1.35 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                    marginBottom: 4,
+                  }}
+                >
+                  <strong
+                    style={{
+                      fontSize: 13,
+                      color: isDark ? '#F8FAFC' : '#111111',
+                      lineHeight: 1.35,
+                    }}
+                  >
                     {lang === 'ar' ? notif.titleAr || notif.title : notif.title}
                   </strong>
                   {notif.unread && (
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6C5CE7', flexShrink: 0, marginTop: 4 }} />
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: '#6C5CE7',
+                        flexShrink: 0,
+                        marginTop: 4,
+                      }}
+                    />
                   )}
                 </div>
-                <small style={{ color: isDark ? '#94A3B8' : '#6B7280', display: 'block', marginBottom: 8, fontSize: 11 }}>
+                <small
+                  style={{
+                    color: isDark ? '#94A3B8' : '#6B7280',
+                    display: 'block',
+                    marginBottom: 8,
+                    fontSize: 11,
+                  }}
+                >
                   {lang === 'ar' ? notif.timeAr || notif.time : notif.time}
                 </small>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -2226,14 +4032,32 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               textAlign: 'center',
             }}
           >
-            {lang === 'ar' ? 'عرض جميع الإشعارات (المركز الكامل) ←' : 'View All Notifications Hub →'}
+            {lang === 'ar'
+              ? 'عرض جميع الإشعارات (المركز الكامل) ←'
+              : 'View All Notifications Hub →'}
           </button>
         </div>
       )}
 
       {/* Sidebar matching PDF (pages 1 to 24) */}
-      <aside className="portal-sidebar" style={{ width: 230, padding: '24px 16px', background: isDark ? '#0F121D' : '#F8F7F3', borderRight: isDark ? '1px solid #1E2335' : '1px solid #E8E5DF' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32, paddingLeft: 8 }}>
+      <aside
+        className="portal-sidebar"
+        style={{
+          width: 230,
+          padding: '24px 16px',
+          background: isDark ? '#0F121D' : '#F8F7F3',
+          borderRight: isDark ? '1px solid #1E2335' : '1px solid #E8E5DF',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            marginBottom: 32,
+            paddingLeft: 8,
+          }}
+        >
           <div
             style={{
               width: 32,
@@ -2255,7 +4079,16 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               }}
             />
           </div>
-          <strong style={{ fontSize: 20, color: isDark ? '#FFFFFF' : '#111111', fontWeight: 800, letterSpacing: '-0.02em' }}>Orvia</strong>
+          <strong
+            style={{
+              fontSize: 20,
+              color: isDark ? '#FFFFFF' : '#111111',
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Orvia
+          </strong>
         </div>
 
         <nav className="portal-nav" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -2272,15 +4105,30 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'onboarding' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
-              color: activeNav === 'onboarding' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
+              background:
+                activeNav === 'onboarding' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color:
+                activeNav === 'onboarding'
+                  ? isDark
+                    ? '#FFFFFF'
+                    : '#111111'
+                  : isDark
+                    ? '#94A3B8'
+                    : '#555555',
               fontWeight: activeNav === 'onboarding' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'onboarding' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: activeNav === 'onboarding' ? '#6C5CE7' : isDark ? '#333C53' : '#D1D5DB',
+              }}
+            />
             <span>Onboarding</span>
           </button>
 
@@ -2298,14 +4146,28 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               padding: '10px 14px',
               borderRadius: 12,
               background: activeNav === 'brief' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
-              color: activeNav === 'brief' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
+              color:
+                activeNav === 'brief'
+                  ? isDark
+                    ? '#FFFFFF'
+                    : '#111111'
+                  : isDark
+                    ? '#94A3B8'
+                    : '#555555',
               fontWeight: activeNav === 'brief' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'brief' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: activeNav === 'brief' ? '#6C5CE7' : isDark ? '#333C53' : '#D1D5DB',
+              }}
+            />
             <span>Brief</span>
           </button>
 
@@ -2322,15 +4184,30 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'strategy' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
-              color: activeNav === 'strategy' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
+              background:
+                activeNav === 'strategy' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color:
+                activeNav === 'strategy'
+                  ? isDark
+                    ? '#FFFFFF'
+                    : '#111111'
+                  : isDark
+                    ? '#94A3B8'
+                    : '#555555',
               fontWeight: activeNav === 'strategy' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'strategy' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: activeNav === 'strategy' ? '#6C5CE7' : isDark ? '#333C53' : '#D1D5DB',
+              }}
+            />
             <span>Strategy</span>
           </button>
 
@@ -2344,15 +4221,31 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'notifications' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
-              color: activeNav === 'notifications' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
+              background:
+                activeNav === 'notifications' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color:
+                activeNav === 'notifications'
+                  ? isDark
+                    ? '#FFFFFF'
+                    : '#111111'
+                  : isDark
+                    ? '#94A3B8'
+                    : '#555555',
               fontWeight: activeNav === 'notifications' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'notifications' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background:
+                  activeNav === 'notifications' ? '#6C5CE7' : isDark ? '#333C53' : '#D1D5DB',
+              }}
+            />
             <span>Notifications</span>
           </button>
 
@@ -2370,14 +4263,28 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               padding: '10px 14px',
               borderRadius: 12,
               background: activeNav === 'brands' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
-              color: activeNav === 'brands' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
+              color:
+                activeNav === 'brands'
+                  ? isDark
+                    ? '#FFFFFF'
+                    : '#111111'
+                  : isDark
+                    ? '#94A3B8'
+                    : '#555555',
               fontWeight: activeNav === 'brands' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'brands' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: activeNav === 'brands' ? '#6C5CE7' : isDark ? '#333C53' : '#D1D5DB',
+              }}
+            />
             <span>Brands</span>
           </button>
 
@@ -2394,21 +4301,46 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               gap: 10,
               padding: '10px 14px',
               borderRadius: 12,
-              background: activeNav === 'content_plans' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
-              color: activeNav === 'content_plans' ? (isDark ? '#FFFFFF' : '#111111') : (isDark ? '#94A3B8' : '#555555'),
+              background:
+                activeNav === 'content_plans' ? (isDark ? '#1F253A' : '#EDEAE4') : 'transparent',
+              color:
+                activeNav === 'content_plans'
+                  ? isDark
+                    ? '#FFFFFF'
+                    : '#111111'
+                  : isDark
+                    ? '#94A3B8'
+                    : '#555555',
               fontWeight: activeNav === 'content_plans' ? 700 : 500,
               border: 'none',
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeNav === 'content_plans' ? '#6C5CE7' : (isDark ? '#333C53' : '#D1D5DB') }} />
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background:
+                  activeNav === 'content_plans' ? '#6C5CE7' : isDark ? '#333C53' : '#D1D5DB',
+              }}
+            />
             <span>Content Plans</span>
           </button>
         </nav>
 
         {/* Footer with sign out */}
-        <div style={{ marginTop: 'auto', paddingTop: 18, borderTop: isDark ? '1px solid #1E2335' : '1px solid #E8E5DF', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div
+          style={{
+            marginTop: 'auto',
+            paddingTop: 18,
+            borderTop: isDark ? '1px solid #1E2335' : '1px solid #E8E5DF',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
           <button
             type="button"
             className="button button--ghost"
@@ -2419,7 +4351,7 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               border: isDark ? '1px solid #242C42' : '1px solid #D1D5DB',
               color: isDark ? '#F8FAFC' : '#111111',
               borderRadius: 10,
-              padding: '8px 12px'
+              padding: '8px 12px',
             }}
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
           >
@@ -2437,7 +4369,7 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
               background: isDark ? '#2D1515' : '#FEF2F2',
               borderRadius: 10,
               padding: '8px 12px',
-              fontWeight: 700
+              fontWeight: 700,
             }}
             onClick={handleSignOut}
           >
@@ -2451,7 +4383,10 @@ export default function ClientPortalPage({ token, onSignOut, theme = 'light', on
         {activeNav === 'onboarding' && (
           <>
             {onboardingStep === 'category' && renderPage1Category()}
-            {onboardingStep === 'form' && renderPage2OnboardingSection1()}
+            {onboardingStep === 'form' &&
+              currentSectionIndex === 0 &&
+              renderPage2OnboardingSection1()}
+            {onboardingStep === 'form' && currentSectionIndex > 0 && renderPages4to9Section()}
             {onboardingStep === 'sections' && renderPage3Sections()}
             {onboardingStep === 'confirmation' && renderPage10Confirmation()}
           </>
