@@ -151,6 +151,23 @@ export const TasksController = {
     },
   ),
 
+  submitContentTask: asyncHandler(
+  async (req, res) => {
+    const task =
+      await TasksService.submitContentTask(
+        req.params.id,
+        req.body,
+        req.user,
+      );
+
+    res.status(200).json({
+      success: true,
+      message: 'Content submitted for review successfully',
+      data: task,
+    });
+  },
+),
+
   remove: asyncHandler(
     async (req, res) => {
       const task =

@@ -127,7 +127,7 @@ export const TasksService = {
   },
 
   async assignContentItemTasks(contentItemIdValue, input, currentUser) {
-    const createdBy = parseId(currentUserId, 'User id');
+    const createdBy = parseId(currentUser.id, 'User id');
 
     const contentItemId = parseId(contentItemIdValue, 'Content item id');
 
@@ -138,7 +138,7 @@ export const TasksService = {
     }
 
     if (
-      getRoleName(currentUser) === 'ACCOUNT_MANAGER' &&
+  currentUser.role === 'ACCOUNT_MANAGER' &&
       contentItem.contentPlan?.brand?.accountManagerId !== currentUser.id
     ) {
       throw new ApiError(403, 'You can only assign tasks to content items of your assigned brands');
@@ -224,105 +224,127 @@ export const TasksService = {
   },
 
   async list(filters, currentUser) {
-    const where = {};
+  const roleName = currentUser.role;
 
-    if (roleName === 'ADMIN') {
-      scopeWhere = null;
-    } else if (roleName === 'ACCOUNT_MANAGER') {
-      scopeWhere = {
-        OR: [
-          { assignedTo: currentUser.id },
-          { createdBy: currentUser.id },
-          {
-            contentItem: {
-              contentPlan: {
-                brand: {
-                  accountManagerId: currentUser.id,
+  const scopeWhere =
+    roleName === 'ADMIN'
+      ? null
+      : roleName === 'ACCOUNT_MANAGER'
+        ? {
+            OR: [
+              {
+                assignedTo: currentUser.id,
+              },
+              {
+                createdBy: currentUser.id,
+              },
+              {
+                contentItem: {
+                  contentPlan: {
+                    brand: {
+                      accountManagerId:
+                        currentUser.id,
+                    },
+                  },
                 },
               },
-            },
-          },
+            ],
+          }
+        : {
+            assignedTo: currentUser.id,
+          };
+
+  const filtersWhere = {};
+
+  if (
+    (roleName === 'ADMIN' ||
+      roleName === 'ACCOUNT_MANAGER') &&
+    filters.assignedTo !== undefined
+  ) {
+    filtersWhere.assignedTo = parseId(
+      filters.assignedTo,
+      'Assignee id',
+    );
+  }
+
+  if (filters.myTasks) {
+    filtersWhere.assignedTo = currentUser.id;
+  }
+
+  if (filters.createdBy !== undefined) {
+    filtersWhere.createdBy = parseId(
+      filters.createdBy,
+      'Creator id',
+    );
+  }
+
+  if (filters.contentItemId !== undefined) {
+    filtersWhere.contentItemId = parseId(
+      filters.contentItemId,
+      'Content item id',
+    );
+  }
+
+  if (filters.type) {
+    filtersWhere.type = filters.type;
+  }
+
+  if (filters.status) {
+    filtersWhere.status = filters.status;
+  }
+
+  if (filters.priority) {
+    filtersWhere.priority = filters.priority;
+  }
+
+  if (filters.needsReview) {
+    filtersWhere.assignedTo =
+      currentUser.id;
+
+    filtersWhere.type = 'REVIEW';
+
+    filtersWhere.status = {
+      in: [
+        'TODO',
+        'IN_REVIEW',
+        'NEEDS_CHANGES',
+      ],
+    };
+  }
+
+  if (filters.overdue) {
+    filtersWhere.assignedTo =
+      currentUser.id;
+
+    filtersWhere.status = {
+      notIn: [
+        'COMPLETED',
+        'CANCELLED',
+      ],
+    };
+
+    filtersWhere.effectiveDeadline = {
+      lt: new Date(),
+    };
+  }
+
+  const where = scopeWhere
+    ? {
+        AND: [
+          filtersWhere,
+          scopeWhere,
         ],
-      };
-    } else {
-      scopeWhere = {
-        assignedTo: currentUser.id,
-      };
-    }
+      }
+    : filtersWhere;
 
-    const filtersWhere = {};
-
-    if (
-      (roleName === 'ADMIN' || roleName === 'ACCOUNT_MANAGER') &&
-      filters.assignedTo !== undefined
-    ) {
-      filtersWhere.assignedTo = parseId(filters.assignedTo, 'Assignee id');
-    }
-
-    if (filters.myTasks) {
-      filtersWhere.assignedTo = currentUser.id;
-    }
-
-    if (filters.createdBy !== undefined) {
-      filtersWhere.createdBy = parseId(filters.createdBy, 'Creator id');
-    }
-
-    if (filters.contentItemId !== undefined) {
-      filtersWhere.contentItemId = parseId(filters.contentItemId, 'Content item id');
-    }
-
-    if (filters.type) {
-      filtersWhere.type = filters.type;
-    }
-
-    if (filters.status) {
-      filtersWhere.status = filters.status;
-    }
-
-    if (filters.priority) {
-      filtersWhere.priority = filters.priority;
-    }
-
-    if (filters.needsReview) {
-      filtersWhere.assignedTo = currentUser.id;
-      filtersWhere.type = 'REVIEW';
-      filtersWhere.status = {
-        in: ['TODO', 'IN_REVIEW', 'NEEDS_CHANGES'],
-      };
-    }
-
-    if (filters.overdue) {
-      filtersWhere.assignedTo = currentUser.id;
-      filtersWhere.status = {
-        notIn: ['COMPLETED', 'CANCELLED'],
-      };
-
-      filtersWhere.effectiveDeadline = {
-        lt: new Date(),
-      };
-    }
-
-    // CREATIVE users can only see tasks assigned to them.
-    // This is applied last so query filters cannot override it.
-    if (role === 'CREATIVE') {
-      where.assignedTo = currentUser.id;
-    }
-
-    const where = scopeWhere
-      ? {
-          AND: [filtersWhere, scopeWhere],
-        }
-      : filtersWhere;
-
-    return TasksModel.list(where);
-  },
-
+  return TasksModel.list(where);
+},
   async getById(value) {
     return getTaskOrThrow(value);
   },
 
   async update(value, input, currentUser) {
-    const role = getRole(currentUser);
+  const role = currentUser.role;
 
     // CREATIVE users must use the dedicated status endpoint.
     // They cannot edit task fields through PATCH /:id.
@@ -400,7 +422,157 @@ export const TasksService = {
     }
   },
 
-  async changeStatus(task, newStatus, currentUser) {
+  async submitContentTask(
+  value,
+  input,
+  currentUser,
+) {
+  const task = await getTaskOrThrow(value);
+
+  const role = currentUser.role;
+
+  // Only the assigned creative user can submit the content task.
+  if (role !== 'CREATIVE') {
+    throw new ApiError(
+      403,
+      'Only creative users can submit content tasks',
+    );
+  }
+
+  // The task must be assigned to the current user.
+  if (task.assignedTo !== currentUser.id) {
+    throw new ApiError(
+      403,
+      'You can only submit tasks assigned to you',
+    );
+  }
+
+  // Only content creation tasks can be submitted this way.
+  if (task.type !== 'CONTENT_CREATION') {
+    throw new ApiError(
+      400,
+      'Only content creation tasks can be submitted',
+    );
+  }
+
+  // A task cannot be submitted after it is completed or cancelled.
+  if (
+    task.status === 'COMPLETED' ||
+    task.status === 'CANCELLED'
+  ) {
+    throw new ApiError(
+      400,
+      'This task can no longer be submitted',
+    );
+  }
+
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const submittedAt = new Date();
+
+        const updatedTask =
+          await tx.task.update({
+            where: {
+              id: task.id,
+            },
+
+            data: {
+              submissionUrl: input.submissionUrl,
+              submissionNotes:
+                input.submissionNotes ?? null,
+              submittedAt,
+              status: 'SUBMITTED',
+            },
+
+            select: {
+              id: true,
+              contentItemId: true,
+              type: true,
+              title: true,
+              description: true,
+              assignedTo: true,
+              createdBy: true,
+              status: true,
+              priority: true,
+              plannedDeadline: true,
+              effectiveDeadline: true,
+              startedAt: true,
+              completedAt: true,
+              submissionUrl: true,
+              submissionNotes: true,
+              submittedAt: true,
+              dependsOnTaskId: true,
+              createdAt: true,
+              updatedAt: true,
+
+              contentItem: {
+                select: {
+                  id: true,
+                  title: true,
+                  type: true,
+                  scheduledDate: true,
+                  contentPlanId: true,
+                  reference: true,
+                  toneOfVoice: true,
+                  caption: true,
+                  notes: true,
+                },
+              },
+            },
+          });
+
+        // Find the review task connected to this content item.
+        const reviewTask =
+          await tx.task.findFirst({
+            where: {
+              contentItemId:
+                task.contentItemId,
+
+              type: 'REVIEW',
+
+              status: {
+                notIn: [
+                  'COMPLETED',
+                  'CANCELLED',
+                ],
+              },
+            },
+
+            orderBy: {
+              createdAt: 'asc',
+            },
+          });
+
+        // Move the review task into the review stage.
+        if (reviewTask) {
+          await tx.task.update({
+            where: {
+              id: reviewTask.id,
+            },
+
+            data: {
+              status: 'IN_REVIEW',
+            },
+          });
+        }
+
+        return updatedTask;
+      },
+    );
+  } catch (error) {
+    mapPrismaError(error);
+  }
+},
+
+  async changeStatus(
+  task,
+  newStatus,
+  currentUser,
+) {
+  const role = currentUser.role;
+
+  if (!VALID_STATUSES.has(newStatus)) {
     if (!VALID_STATUSES.has(newStatus)) {
       throw new ApiError(400, 'Invalid task status');
     }
@@ -440,8 +612,20 @@ export const TasksService = {
       const updatedTask = await TasksModel.update(task.id, data);
 
       if (newStatus === 'SUBMITTED') {
-        await this.handleTaskSubmission(updatedTask);
-      }
+  if (
+    updatedTask.type === 'CONTENT_CREATION' &&
+    currentUser.role === 'CREATIVE'
+  ) {
+    throw new ApiError(
+      400,
+      'Use the content submission endpoint to submit this task',
+    );
+  }
+
+  await this.handleTaskSubmission(
+    updatedTask,
+  );
+}
 
       if (newStatus === 'COMPLETED' && updatedTask.type === 'REVIEW') {
         await this.handleReviewCompletion(updatedTask);
@@ -451,7 +635,7 @@ export const TasksService = {
     } catch (error) {
       mapPrismaError(error);
     }
-  },
+  }},
 
   async handleTaskSubmission(task) {
     if (task.type !== 'CONTENT_CREATION') {
@@ -479,7 +663,7 @@ export const TasksService = {
     }
 
     const effectiveDeadline = calculateDeadline(
-      task.completedAt ?? new Date(),
+      task.submittedAt ?? new Date(),
       reviewRule.offsetMinutes * -1,
     );
 
@@ -500,7 +684,7 @@ export const TasksService = {
 
   async remove(value, currentUser) {
     const task = await getTaskOrThrow(value);
-    const role = getRole(currentUser);
+    
 
     const isAdmin = currentUser.role === 'ADMIN';
 
