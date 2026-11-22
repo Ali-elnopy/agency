@@ -83,7 +83,10 @@ function buildTemplate(mainCategory, activityType) {
         ? selectedActivity.composition
         : category.template_code;
 
-    const templateCodes = templateBundle.compositions[compositionKey];
+    const templateCodes =
+        templateBundle.compositions[compositionKey] ??
+        templateBundle.compositions[category.code] ??
+        (templateBundle.templates[compositionKey] ? [compositionKey] : null);
 
     if (!Array.isArray(templateCodes) || templateCodes.length === 0) {
         throw new ApiError(500, 'Onboarding template composition is invalid');
@@ -397,12 +400,10 @@ export const ClientOnboardingService = {
             validateAnswer(question, item.answer);
         }
 
-        for (const item of answers) {
-            await ClientOnboardingModel.upsertAnswers(
-                onboarding.id,
-                answers,
-            );
-        }
+        await ClientOnboardingModel.upsertAnswers(
+            onboarding.id,
+            answers,
+        );
 
         return ClientOnboardingModel.findByBrandId(brand.id);
     },
