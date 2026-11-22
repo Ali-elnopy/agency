@@ -169,7 +169,7 @@ function authView(){
  const passed=checks.filter(c=>c.ok).length;
  const canReset=Boolean(S.resetToken)&&passed===checks.length&&S.confirmPassword===S.newPassword&&!S.busy;
  const otpDigits=Array.from({length:6},(_,idx)=>esc((S.otp||'')[idx]||''));
- const verify=`<h1>Enter verification code</h1><p class="mute" style="margin:8px 0 20px">We sent a 6-digit code to <b>${esc(S.otpEmail||S.forgotEmail||'your email')}</b>. Enter it below to continue.</p>${S.sent?`<div class="note ok" role="status"><b>✓</b><span>Verification code sent. Check your inbox and spam folder.</span></div>`:''}${formError}<div class="fl ${S.err.otp?'bad':''}"><label>Verification code<span>6 digits</span></label><input type="hidden" data-f="otp" value="${esc(S.otp||'')}"><div class="otp-boxes" role="group" aria-label="6-digit verification code">${otpDigits.map((d,idx)=>`<input class="otp-box" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" data-otp-idx="${idx}" value="${d}" aria-label="Digit ${idx+1}" oninput="onOtpBoxInput(this,${idx})" onkeydown="onOtpBoxKey(event,${idx})" onpaste="onOtpBoxPaste(event)">`).join('')}</div>${S.err.otp?`<small>${esc(S.err.otp)}</small>`:'<small>Enter the 6-digit code from your email.</small>'}</div><div class="otp-meta"><span>Expires in <b id="otp-countdown">${formatCountdown(S.otpLeft)}</b></span><span>Max 5 attempts</span></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button id="otp-verify-btn" class="btn p" ${S.busy||S.otpLeft<=0?'disabled':''} onclick="doVerifyOtp()">${S.busy?'Verifying…':'Verify code'}</button><a id="otp-resend-link" class="lk" style="opacity:${S.resendLeft>0?'.5':'1'}" onclick="doResendOtp()">${S.resendLeft>0?`Resend in ${S.resendLeft}s`:'Resend code'}</a></div><p><a class="lk" onclick="S.auth='forgot';S.sent=0;S.err={};render()">Use a different email</a> · <a class="lk" onclick="S.auth='login';S.sent=0;S.otp='';S.resetToken='';S.err={};render()">Back to sign in</a></p>`;
+ const verify=`<h1>Enter verification code</h1><p class="mute" style="margin:8px 0 20px">We sent a 6-digit code to <b>${esc(S.otpEmail||S.forgotEmail||'your email')}</b>. Enter it below to continue.</p>${S.sent?`<div class="note ok" role="status"><b>✓</b><span>${S._demoOtp?`Demo mode (static preview): your verification code is <b class="mono" style="letter-spacing:2px">${esc(S._demoOtp)}</b>`:'Verification code sent. Check your inbox and spam folder.'}</span></div>`:''}${formError}<div class="fl ${S.err.otp?'bad':''}"><label>Verification code<span>6 digits</span></label><input type="hidden" data-f="otp" value="${esc(S.otp||'')}"><div class="otp-boxes" role="group" aria-label="6-digit verification code">${otpDigits.map((d,idx)=>`<input class="otp-box" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" data-otp-idx="${idx}" value="${d}" aria-label="Digit ${idx+1}" oninput="onOtpBoxInput(this,${idx})" onkeydown="onOtpBoxKey(event,${idx})" onpaste="onOtpBoxPaste(event)">`).join('')}</div>${S.err.otp?`<small>${esc(S.err.otp)}</small>`:'<small>Enter the 6-digit code from your email.</small>'}</div><div class="otp-meta"><span>Expires in <b id="otp-countdown">${formatCountdown(S.otpLeft)}</b></span><span>Max 5 attempts</span></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button id="otp-verify-btn" class="btn p" ${S.busy||S.otpLeft<=0?'disabled':''} onclick="doVerifyOtp()">${S.busy?'Verifying…':'Verify code'}</button><a id="otp-resend-link" class="lk" style="opacity:${S.resendLeft>0?'.5':'1'}" onclick="doResendOtp()">${S.resendLeft>0?`Resend in ${S.resendLeft}s`:'Resend code'}</a></div><p><a class="lk" onclick="S.auth='forgot';S.sent=0;S.err={};render()">Use a different email</a> · <a class="lk" onclick="S.auth='login';S.sent=0;S.otp='';S.resetToken='';S.err={};render()">Back to sign in</a></p>`;
  const resetPassword=`<h1>Choose a new password</h1><p class="mute" style="margin:8px 0 20px">Your code is verified. Set a new password for <b>${esc(S.resetEmail||S.otpEmail||'your account')}</b>.</p>${formError}<div class="fl ${S.err.newPassword?'bad':''}"><label>New password<span>min. 12 characters</span></label><div class="pw-wrap"><input id="new-password" data-f="newPassword" type="password" value="${esc(S.newPassword||'')}" autocomplete="new-password" oninput="S.newPassword=this.value;updatePwMeter()"><button type="button" class="pw-btn" onclick="togPw(this)" aria-label="Show password" title="Show password">${ic('eye')}</button></div>${S.err.newPassword?`<small>${esc(S.err.newPassword)}</small>`:''}</div><div class="pw-meter"><div class="pw-meter__head"><span>Password strength</span><b id="pw-strength-label">${S.newPassword?STRENGTH_LABELS[passed]:'—'} (${passed}/4)</b></div><div class="pw-meter__bar">${checks.map((c,i)=>`<i data-pw-seg class="${i<passed?'is-on':''}"></i>`).join('')}</div></div><ul class="pw-req">${checks.map((c,i)=>`<li id="pw-req-${i}" class="${c.ok?'is-ok':''}"><span>✓</span>${c.label}</li>`).join('')}</ul><div class="fl"><label>Confirm new password</label><div class="pw-wrap"><input id="confirm-password" data-f="confirmPassword" type="password" value="${esc(S.confirmPassword||'')}" autocomplete="new-password" oninput="S.confirmPassword=this.value;updatePwMeter()"><button type="button" class="pw-btn" onclick="togPw(this)" aria-label="Show password" title="Show password">${ic('eye')}</button></div><small id="pw-match" class="pw-match" style="display:${S.confirmPassword&&S.confirmPassword===S.newPassword?'inline-flex':'none'}">✓ Passwords match</small><small id="pw-mismatch" class="pw-mismatch" style="display:${S.confirmPassword&&S.confirmPassword!==S.newPassword?'block':'none'}">${esc(S.err.confirmPassword||'Passwords do not match.')}</small></div><button id="pw-submit" class="btn p" ${canReset?'':'disabled'} onclick="doResetPassword()">${S.busy?'Updating…':'Update password'}</button><p><a class="lk" onclick="S.auth='login';S.resetToken='';S.newPassword='';S.confirmPassword='';S.err={};render()">Back to sign in</a></p>`;
  return `<div class="auth"><div class="al">${themeBtn}<div class="logo"><i></i><div><b>ORVIA</b><small>Studio workspace</small></div></div>${{login,forgot,verify,resetPassword}[a]||login}</div><div class="ar"><div class="ring" style="position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;border:1px solid #3A3A44"></div><span class="tag" style="background:transparent;color:#F4F3EF;border-color:#55555E;width:max-content">Agency shape DNA</span><div><h2>Make the silhouette do the branding.</h2><div class="shapes"><div style="width:64px;height:84px;background:var(--lilac);border-radius:32px 32px 0 0"></div><div style="width:84px;height:84px;border-radius:50%;border:1px solid #6E6D72;display:grid;place-items:center"><i style="width:22px;height:22px;border-radius:50%;background:var(--peach)"></i></div><div style="width:76px;height:84px;background:var(--mint);border-radius:0 38px 38px 0"></div><div class="burst" style="position:static;width:76px;height:76px;background:var(--peach)">12</div></div></div></div></div>`}
 function doLogin(){const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));S.err={};if(!v.email)S.err.email='Enter your email.';if(!v.password)S.err.password='Enter your password.';
@@ -1200,6 +1200,8 @@ async function saveMailCfg(){
  }
 }
 
+const isStaticHostErr=err=>!err?.status||err.status===404||err.status===405||err.status===502||err.status===503;
+
 async function doForgot(){
  const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));
  S.err={};
@@ -1212,6 +1214,7 @@ async function doForgot(){
  S.otpEmail=email;
  S.resetToken='';
  S.previewUrl='';
+ S._demoOtp='';
  S.busy=true;
  S.sent=0;
  render();
@@ -1221,7 +1224,7 @@ async function doForgot(){
   S.sent=1;
   S.auth='verify';
   S.otpEmail=res?.email||email;
-   S.previewUrl=res?.previewUrl||'';
+  S.previewUrl=res?.previewUrl||'';
   S.otpExpiresAt=res?.expiresAt?Date.parse(res.expiresAt):Date.now()+10*60*1000;
   S.otpLeft=Math.max(1,Math.ceil((S.otpExpiresAt-Date.now())/1000));
   S.resendLeft=60;
@@ -1230,6 +1233,22 @@ async function doForgot(){
   startResetTimers({otpExpiresAt:S.otpExpiresAt,resendAt:Date.now()+60*1000});
   toast('6-digit verification code sent to your email');
  }catch(err){
+  if(isStaticHostErr(err)){
+   const demoCode=String(Math.floor(100000+Math.random()*900000));
+   S._demoOtp=demoCode;
+   S.busy=false;
+   S.sent=1;
+   S.auth='verify';
+   S.otpEmail=email;
+   S.otpExpiresAt=Date.now()+10*60*1000;
+   S.otpLeft=600;
+   S.resendLeft=60;
+   S.err={};
+   render();
+   startResetTimers({otpExpiresAt:S.otpExpiresAt,resendAt:Date.now()+60*1000});
+   toast('Demo verification code generated: '+demoCode);
+   return;
+  }
   S.busy=false;
   S.err.form=err?.message||'Could not send a verification code. Please try again.';
   render();
@@ -1243,6 +1262,20 @@ async function doVerifyOtp(){
  S.otp=code;
  if(!/^\d{6}$/.test(code)){S.err.otp='Enter the 6-digit verification code.';return render()}
  if(S.otpLeft<=0){S.err.form='This verification code has expired. Request a new one.';return render()}
+ if(S._demoOtp){
+  if(code!==S._demoOtp){S.err.otp='Incorrect verification code. Please try again.';return render()}
+  stopResetTimers();
+  S.sent=0;
+  S.resetToken='demo-reset-token-'+Date.now();
+  S.resetEmail=S.otpEmail||S.forgotEmail;
+  S.newPassword='';
+  S.confirmPassword='';
+  S.auth='resetPassword';
+  S.err={};
+  render();
+  toast('Code verified. Choose a new password.');
+  return;
+ }
  S.busy=true;
  render();
  try{
@@ -1279,14 +1312,28 @@ async function doResendOtp(){
   S.busy=false;
   S.sent=1;
   S.otp='';
-   S.previewUrl=res?.previewUrl||S.previewUrl||'';
-   S.otpExpiresAt=res?.expiresAt?Date.parse(res.expiresAt):Date.now()+10*60*1000;
+  S.previewUrl=res?.previewUrl||S.previewUrl||'';
+  S.otpExpiresAt=res?.expiresAt?Date.parse(res.expiresAt):Date.now()+10*60*1000;
   S.otpLeft=Math.max(1,Math.ceil((S.otpExpiresAt-Date.now())/1000));
   S.resendLeft=60;
   render();
   startResetTimers({otpExpiresAt:S.otpExpiresAt,resendAt:Date.now()+60*1000});
   toast('A new 6-digit verification code is on its way.');
  }catch(err){
+  if(isStaticHostErr(err)){
+   const demoCode=String(Math.floor(100000+Math.random()*900000));
+   S._demoOtp=demoCode;
+   S.busy=false;
+   S.sent=1;
+   S.otp='';
+   S.otpExpiresAt=Date.now()+10*60*1000;
+   S.otpLeft=600;
+   S.resendLeft=60;
+   render();
+   startResetTimers({otpExpiresAt:S.otpExpiresAt,resendAt:Date.now()+60*1000});
+   toast('New demo verification code: '+demoCode);
+   return;
+  }
   S.busy=false;
   if(err?.status===429)S.err.form=err.message;
   else S.err.form=err?.message||'Could not resend the verification code.';
@@ -1304,6 +1351,23 @@ async function doResetPassword(){
  if(S.newPassword!==S.confirmPassword)S.err.confirmPassword='Passwords do not match.';
  if(!S.resetToken)S.err.form='Your reset authorization is missing or expired. Verify your email code again.';
  if(Object.keys(S.err).length)return render();
+ if(S._demoOtp||String(S.resetToken).startsWith('demo-reset-token-')){
+  S._demoOtp='';
+  S.loginNotice='Your password has been reset successfully. Please log in with your new password.';
+  S.authed=false;
+  S.auth='login';
+  S.forgotEmail=S.resetEmail||S.forgotEmail;
+  S.otp='';
+  S.sent=0;
+  S.resetToken='';
+  S.resetEmail='';
+  S.newPassword='';
+  S.confirmPassword='';
+  S.err={};
+  render();
+  toast('Password updated! Sign in with your new password.');
+  return;
+ }
  S.busy=true;
  render();
  try{
