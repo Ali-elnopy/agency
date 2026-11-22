@@ -287,12 +287,20 @@ model PasswordResetToken {
   userId    Int       @map("user_id")
   tokenHash String    @unique @map("token_hash") @db.VarChar(64)
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+
+  attempts            Int       @default(0) @map("attempts")
+  verifiedAt          DateTime? @map("verified_at") @db.Timestamptz(6)
+  resetTokenHash      String?   @unique @map("reset_token_hash") @db.VarChar(64)
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at") @db.Timestamptz(6)
+  lastSentAt          DateTime? @map("last_sent_at") @db.Timestamptz(6)
+
   usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, createdAt])
   @@map("password_reset_tokens")
 }
 

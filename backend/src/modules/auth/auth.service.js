@@ -9,10 +9,44 @@ import { env } from '../../config/env.js';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
-const RESET_TOKEN_TTL_MINUTES = 30;
+
+/**
+ * Password reset lifecycle:
+ *   OTP (6 digits, 10 min, max 5 wrong attempts)
+ *     → short-lived single-use reset token (10 min)
+ *       → new password.
+ *
+ * Only SHA-256 hashes of the OTP and reset token are persisted. The raw values
+ * exist only in the email message and in the verify-otp response.
+ */
+const OTP_TTL_MINUTES = 10;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_COOLDOWN_SECONDS = 60;
+const RESET_TOKEN_TTL_MINUTES = 10;
 
 const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
-const inMemoryResetTokens = new Map();
+
+const timingSafeHashEqual = (left, right) => {
+  if (typeof left !== 'string' || typeof right !== 'string') return false;
+  if (left.length !== right.length) return false;
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(left, 'hex'), Buffer.from(right, 'hex'));
+  } catch {
+    return false;
+  }
+};
+
+const generateOtp = () => String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+
+const normalizeEmail = (value) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase();
+
+/** Database-offline fallback state (kept in memory, never written to disk). */
+const inMemoryOtpByEmail = new Map();
+const inMemoryResetByHash = new Map();
 const inMemoryPasswords = new Map();
 const FALLBACK_USERS = {
   'mohamedabdelsamad057@gmail.com': { id: 'usr-admin-mohamed', fullName: 'Mohamed Abdelsamad', email: 'mohamedabdelsamad057@gmail.com', isActive: true, role: { name: 'ADMIN' }, jobTitle: { name: 'Workspace Owner' } },
@@ -230,7 +264,7 @@ export const AuthService = {
   },
 
   /**
-   * Starts the "forgot password" flow.
+   * Starts the "forgot password" flow by emailing a 6-digit OTP.
    *
    * The response is identical for known and unknown addresses so the endpoint
    * cannot be used to enumerate workspace accounts.
@@ -244,149 +278,474 @@ export const AuthService = {
     }
 
     const genericMessage =
-      'If an account exists for that address, a reset link is on its way. Check your inbox and spam folder.';
+      'If an account exists for that address, a verification code is on its way. Check your inbox and spam folder.';
 
-    const email = String(rawEmail ?? '')
-      .trim()
-      .toLowerCase();
+    const email = normalizeEmail(rawEmail);
 
     if (!email) {
       throw new ApiError(400, 'Email is required.');
     }
 
-    let user = null;
-    try {
-      user = await AuthModel.findUserByEmail(email);
-    } catch {
-      // Database offline — use hybrid mode so email delivery & reset flow still work
+    const { user, dbOffline } = await findUserForReset(email);
+
+    // In production a database outage must never turn the endpoint into an
+    // open relay; the generic response keeps the failure silent.
+    if (dbOffline && process.env.NODE_ENV === 'production') {
+      return { message: genericMessage };
     }
 
-    if (user && !user.isActive) return { message: genericMessage };
+    if (!dbOffline && (!user || !user.isActive)) {
+      // Deliberately identical to the known-account response.
+      return { message: genericMessage };
+    }
 
-    // Generate a 6-digit numeric verification code (e.g. "482915")
-    const token = String(crypto.randomInt(100000, 1000000));
-    const tokenHash = hashResetToken(token);
-    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000);
+    const { code, expiresAt } = await createOtpRequest({ user, email, dbOffline });
 
-    inMemoryResetTokens.set(tokenHash, {
-      email,
-      userId: user?.id ?? null,
-      expiresAt,
-      usedAt: null,
-    });
+    let mailMeta = {};
+    let mailError = '';
+    try {
+      mailMeta = await sendPasswordResetEmail({
+        to: user?.email || email,
+        fullName: user?.fullName || FALLBACK_USERS[email]?.fullName || email.split('@')[0],
+        token: code,
+        expiresInMinutes: OTP_TTL_MINUTES,
+      });
+    } catch (error) {
+      // Keep the response generic even when the provider fails: revealing the
+      // failure would also reveal that the account exists.
+      mailError = error?.message || String(error);
+      console.error('[auth] password reset email failed:', mailError);
+    }
 
-    if (user?.id) {
-      try {
-        await AuthModel.createPasswordResetToken({
-          userId: user.id,
-          tokenHash,
-          expiresAt,
-        });
-      } catch {
-        // Handled by inMemoryResetTokens fallback
+    return {
+      message: genericMessage,
+      provider: mailMeta?.provider || 'unknown',
+      previewUrl: mailMeta?.previewUrl || '',
+      expiresInMinutes: OTP_TTL_MINUTES,
+      ...(process.env.NODE_ENV !== 'production'
+        ? {
+            code,
+            email,
+            expiresAt: expiresAt.toISOString(),
+            ...(mailError ? { mailError } : {}),
+          }
+        : {}),
+    };
+  },
+
+  /**
+   * Issues a new OTP for an existing reset request. A short cooldown prevents
+   * inbox flooding; the route-level limiter adds an IP-wide budget on top.
+   */
+  async resendOtp({ email: rawEmail }) {
+    if (!isMailerConfigured()) {
+      throw new ApiError(
+        503,
+        'Password reset email is not configured yet. Ask your workspace admin for help.',
+      );
+    }
+
+    const genericMessage =
+      'If an account exists for that address, a new verification code is on its way. Check your inbox and spam folder.';
+
+    const email = normalizeEmail(rawEmail);
+
+    if (!email) {
+      throw new ApiError(400, 'Email is required.');
+    }
+
+    const { user, dbOffline } = await findUserForReset(email);
+
+    if (dbOffline && process.env.NODE_ENV === 'production') {
+      return { message: genericMessage };
+    }
+
+    if (!dbOffline && (!user || !user.isActive)) {
+      return { message: genericMessage };
+    }
+
+    const latest = await findLatestOtp({ user, email, dbOffline });
+
+    if (latest && !latest.usedAt) {
+      const lastSentAt = latest.lastSentAt || latest.createdAt;
+      const elapsedMs = Date.now() - new Date(lastSentAt).getTime();
+      const waitMs = OTP_RESEND_COOLDOWN_SECONDS * 1000 - elapsedMs;
+
+      if (waitMs > 0) {
+        throw new ApiError(
+          429,
+          `Please wait ${Math.ceil(waitMs / 1000)} seconds before requesting another verification code.`,
+        );
       }
     }
+
+    const { code, expiresAt } = await createOtpRequest({ user, email, dbOffline });
 
     let mailMeta = {};
     try {
       mailMeta = await sendPasswordResetEmail({
         to: user?.email || email,
         fullName: user?.fullName || FALLBACK_USERS[email]?.fullName || email.split('@')[0],
-        token,
-        expiresInMinutes: RESET_TOKEN_TTL_MINUTES,
+        token: code,
+        expiresInMinutes: OTP_TTL_MINUTES,
       });
     } catch (error) {
-      console.error('[auth] password reset email failed:', error?.message || error);
-      throw new ApiError(
-        502,
-        `Could not send verification email (${error?.message || 'SMTP error'}). Check SMTP_USER / SMTP_PASS in backend/.env.`,
-      );
+      console.error('[auth] verification code resend failed:', error?.message || error);
     }
 
     return {
       message: genericMessage,
-      provider: mailMeta?.provider || 'in-app',
+      provider: mailMeta?.provider || 'unknown',
       previewUrl: mailMeta?.previewUrl || '',
+      expiresInMinutes: OTP_TTL_MINUTES,
       ...(process.env.NODE_ENV !== 'production'
         ? {
-            code: token,
+            code,
             email,
+            expiresAt: expiresAt.toISOString(),
           }
         : {}),
     };
   },
 
-  async resetPassword({ token, newPassword }, requestMeta = {}) {
-    const tokenIsMissing = !token || typeof token !== 'string';
+  /**
+   * Verifies the 6-digit OTP and exchanges it for a short-lived, single-use
+   * password-reset authorization token.
+   */
+  async verifyOtp({ email: rawEmail, otp }) {
+    const email = normalizeEmail(rawEmail);
 
-    if (tokenIsMissing) {
-      throw new ApiError(400, 'This reset link is invalid. Request a new one.');
+    if (!email) {
+      throw new ApiError(400, 'Email is required.');
     }
 
-    const tokenHash = hashResetToken(token.trim());
+    const providedOtp = String(otp ?? '').trim();
+
+    if (!/^\d{6}$/.test(providedOtp)) {
+      throw new ApiError(400, 'Enter the 6-digit verification code from your email.');
+    }
+
+    const { user, dbOffline } = await findUserForReset(email);
+
+    if (!dbOffline && (!user || !user.isActive)) {
+      throw invalidOtpError();
+    }
+
+    const { record, usedDb } = await findLatestOtpWithSource({ user, email, dbOffline });
+
+    if (!record) throw invalidOtpError();
+
+    if (record.usedAt || record.verifiedAt) {
+      throw new ApiError(
+        400,
+        'This verification code has already been used. Request a new code.',
+      );
+    }
+
+    const expiresAt = new Date(record.expiresAt);
+
+    if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+      throw new ApiError(
+        400,
+        'This verification code has expired. Request a new verification code.',
+      );
+    }
+
+    const attempts = Number(record.attempts || 0);
+
+    if (attempts >= OTP_MAX_ATTEMPTS) {
+      await invalidateOtpRecord({ record, usedDb });
+      throw new ApiError(
+        429,
+        'Too many incorrect attempts. Request a new verification code.',
+      );
+    }
+
+    const providedHash = hashResetToken(providedOtp);
+    const expectedHash = record.tokenHash || record.otpHash;
+
+    if (!timingSafeHashEqual(expectedHash, providedHash)) {
+      const nextAttempts = attempts + 1;
+
+      if (usedDb) {
+        try {
+          await AuthModel.incrementPasswordResetAttempts(record.id);
+        } catch {
+          // Best-effort counter update; the response stays the same.
+        }
+      } else {
+        record.attempts = nextAttempts;
+      }
+
+      if (nextAttempts >= OTP_MAX_ATTEMPTS) {
+        await invalidateOtpRecord({ record, usedDb });
+        throw new ApiError(
+          429,
+          'Too many incorrect attempts. Request a new verification code.',
+        );
+      }
+
+      const remaining = OTP_MAX_ATTEMPTS - nextAttempts;
+      throw new ApiError(
+        400,
+        `Incorrect verification code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`,
+      );
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = hashResetToken(resetToken);
+    const resetTokenExpiresAt = new Date(
+      Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000,
+    );
+
+    let issuedInDb = false;
+
+    if (usedDb) {
+      try {
+        await AuthModel.issueResetToken({
+          tokenId: record.id,
+          resetTokenHash,
+          resetTokenExpiresAt,
+        });
+        issuedInDb = true;
+      } catch {
+        // Fall back to the in-memory store below.
+      }
+    }
+
+    if (!issuedInDb) {
+      const memoryRecord = {
+        ...record,
+        email: record.email || email,
+        userId: record.userId ?? user?.id ?? null,
+        resetTokenHash,
+        resetTokenExpiresAt,
+        verifiedAt: new Date(),
+        usedAt: null,
+      };
+
+      inMemoryResetByHash.set(resetTokenHash, memoryRecord);
+      inMemoryOtpByEmail.set(memoryRecord.email, memoryRecord);
+    }
+
+    return {
+      message: 'Verification successful. Choose a new password.',
+      resetToken,
+      email: user?.email || email,
+      expiresInMinutes: RESET_TOKEN_TTL_MINUTES,
+    };
+  },
+
+  /**
+   * Consumes a verified reset token, updates the password, invalidates the OTP
+   * and revokes every existing session for that account.
+   */
+  async resetPassword({ resetToken, token, newPassword }, requestMeta = {}) {
+    const rawToken = String(resetToken || token || '').trim();
+
+    if (!/^[a-f0-9]{64}$/i.test(rawToken)) {
+      throw new ApiError(
+        400,
+        'This reset authorization is invalid or has expired. Verify your email code again.',
+      );
+    }
+
+    const resetTokenHash = hashResetToken(rawToken);
     let record = null;
+    let usedDb;
 
     try {
-      record = await AuthModel.findPasswordResetToken(tokenHash);
+      record = await AuthModel.findPasswordResetByResetTokenHash(resetTokenHash);
+      usedDb = true;
     } catch {
-      // Database offline — fall back to in-memory token store
+      usedDb = false;
+    }
+
+    if (!usedDb) {
+      record = inMemoryResetByHash.get(resetTokenHash) || null;
     }
 
     if (!record) {
-      const mem = inMemoryResetTokens.get(tokenHash);
-      if (!mem || mem.usedAt || mem.expiresAt.getTime() <= Date.now()) {
-        throw new ApiError(400, 'Invalid or expired verification code. Please check the 6-digit code sent to your email.');
-      }
-      const prevHash = inMemoryPasswords.get(mem.email);
-      if (prevHash && (await bcrypt.compare(newPassword, prevHash))) {
-        throw new ApiError(400, 'Choose a password you have not used before.');
-      }
-      const passwordHash = await bcrypt.hash(newPassword, 12);
-      mem.usedAt = new Date();
-      inMemoryPasswords.set(mem.email, passwordHash);
-      return {
-        message: 'Password updated. Sign in with your new password.',
-        email: mem.email,
-      };
+      throw new ApiError(
+        400,
+        'This reset authorization is invalid or has expired. Verify your email code again.',
+      );
     }
+
+    const resetExpiresAt = record.resetTokenExpiresAt
+      ? new Date(record.resetTokenExpiresAt)
+      : null;
 
     const expired =
-      !record || Boolean(record.usedAt) || record.expiresAt.getTime() <= Date.now();
+      Boolean(record.usedAt) ||
+      !record.resetTokenHash ||
+      !resetExpiresAt ||
+      Number.isNaN(resetExpiresAt.getTime()) ||
+      resetExpiresAt.getTime() <= Date.now();
 
     if (expired) {
-      throw new ApiError(400, 'Invalid or expired verification code. Please check the 6-digit code sent to your email.');
+      throw new ApiError(
+        400,
+        'This reset authorization has expired or was already used. Verify your email code again.',
+      );
     }
 
-    if (!record.user?.isActive) {
+    const memoryUser = {
+      id: record.userId,
+      email: record.email,
+      isActive: true,
+      passwordHash: record.email ? inMemoryPasswords.get(record.email) : null,
+    };
+    const user = record.user || memoryUser;
+
+    if (!user || user.isActive === false) {
       throw new ApiError(400, 'This account is no longer active.');
     }
 
-    const reusesCurrentPassword = await bcrypt.compare(newPassword, record.user.passwordHash);
+    if (user.passwordHash) {
+      const reusesCurrentPassword = await bcrypt.compare(newPassword, user.passwordHash);
 
-    if (reusesCurrentPassword) {
-      throw new ApiError(400, 'Choose a password you have not used before.');
+      if (reusesCurrentPassword) {
+        throw new ApiError(400, 'Choose a password you have not used before.');
+      }
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    const result = await AuthModel.consumePasswordResetToken({
-      tokenId: record.id,
-      userId: record.user.id,
-      passwordHash,
-      ipAddress: requestMeta.ipAddress,
-      userAgent: requestMeta.userAgent,
-    });
+    if (usedDb && user.id) {
+      const result = await AuthModel.consumePasswordResetToken({
+        tokenId: record.id,
+        userId: user.id,
+        passwordHash,
+        ipAddress: requestMeta.ipAddress,
+        userAgent: requestMeta.userAgent,
+      });
 
-    if (!result.applied) {
-      throw new ApiError(400, 'This reset link is invalid or has expired. Request a new one.');
+      if (!result.applied) {
+        throw new ApiError(
+          400,
+          'This reset authorization was already used or has expired. Verify your email code again.',
+        );
+      }
+    } else {
+      record.usedAt = new Date();
+      if (record.email) {
+        inMemoryPasswords.set(record.email, passwordHash);
+        const otpRecord = inMemoryOtpByEmail.get(record.email);
+        if (otpRecord && otpRecord !== record) otpRecord.usedAt = new Date();
+      }
+      inMemoryResetByHash.delete(resetTokenHash);
     }
 
-    const mem = inMemoryResetTokens.get(tokenHash);
-    if (mem) mem.usedAt = new Date();
+    const email = user.email || record.email;
+
+    if (email) {
+      inMemoryOtpByEmail.delete(email);
+    }
 
     return {
       message: 'Password updated. Sign in with your new password.',
-      email: record.user?.email,
+      email,
     };
   },
 };
+
+/* ------------------------------------------------------------------------- *
+ * Password-reset helpers
+ * ------------------------------------------------------------------------- */
+
+async function findUserForReset(email) {
+  try {
+    return { user: await AuthModel.findUserByEmail(email), dbOffline: false };
+  } catch {
+    // Database offline — hybrid mode keeps the reset flow usable locally.
+    return { user: null, dbOffline: true };
+  }
+}
+
+async function findLatestOtp({ user, email, dbOffline }) {
+  const { record } = await findLatestOtpWithSource({ user, email, dbOffline });
+  return record;
+}
+
+async function findLatestOtpWithSource({ user, email, dbOffline }) {
+  if (!dbOffline && user?.id) {
+    try {
+      return {
+        record: await AuthModel.findLatestOtpForUser(user.id),
+        usedDb: true,
+      };
+    } catch {
+      // Fall through to the in-memory store.
+    }
+  }
+
+  return { record: inMemoryOtpByEmail.get(email) || null, usedDb: false };
+}
+
+async function createOtpRequest({ user, email, dbOffline }) {
+  const code = generateOtp();
+  const tokenHash = hashResetToken(code);
+  const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+
+  let persisted = false;
+
+  if (!dbOffline && user?.id) {
+    try {
+      await AuthModel.createPasswordResetToken({
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      });
+      persisted = true;
+    } catch {
+      // Fall back to memory.
+    }
+  }
+
+  if (!persisted) {
+    const previous = inMemoryOtpByEmail.get(email);
+
+    if (previous && !previous.usedAt) {
+      previous.usedAt = new Date();
+    }
+
+    inMemoryOtpByEmail.set(email, {
+      id: crypto.randomUUID(),
+      email,
+      userId: user?.id ?? null,
+      otpHash: tokenHash,
+      expiresAt,
+      attempts: 0,
+      usedAt: null,
+      verifiedAt: null,
+      resetTokenHash: null,
+      resetTokenExpiresAt: null,
+      createdAt: new Date(),
+      lastSentAt: new Date(),
+    });
+  }
+
+  return { code, expiresAt };
+}
+
+async function invalidateOtpRecord({ record, usedDb }) {
+  if (!record) return;
+
+  record.usedAt = record.usedAt || new Date();
+
+  if (usedDb && record.id) {
+    try {
+      await AuthModel.markPasswordResetTokenUsed(record.id);
+    } catch {
+      // Nothing else to do; the token also fails closed on expiry.
+    }
+  }
+}
+
+function invalidOtpError() {
+  return new ApiError(
+    400,
+    'Invalid or expired verification code. Request a new verification code.',
+  );
+}

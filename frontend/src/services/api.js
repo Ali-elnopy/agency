@@ -188,13 +188,15 @@ export async function forgotPasswordApi(email) {
       success: true,
       message:
         body?.message ||
-        'If the email exists, a verification link has been dispatched to your inbox.',
+        'If the email exists, a verification code has been dispatched to your inbox.',
+      data: body?.data || {},
     };
   } catch (error) {
     if (MOCK_ENABLED && isUnavailable(error)) {
       return {
         success: true,
         message: 'Mock mode: the reset email was simulated. No message left this device.',
+        data: {},
       };
     }
 
@@ -208,23 +210,81 @@ export async function forgotPasswordApi(email) {
   }
 }
 
-export async function resetPasswordApi({ token, newPassword }) {
+export async function resendOtpApi(email) {
+  try {
+    const body = await apiRequest('/auth/resend-otp', {
+      method: 'POST',
+      body: { email },
+      auth: false,
+    });
+
+    return {
+      success: true,
+      message: body?.message || 'A new verification code is on its way.',
+      data: body?.data || {},
+    };
+  } catch (error) {
+    if (MOCK_ENABLED && isUnavailable(error)) {
+      return {
+        success: true,
+        message: 'Mock mode: the resend was simulated. No message left this device.',
+        data: {},
+      };
+    }
+
+    return {
+      success: false,
+      message:
+        error instanceof ApiError
+          ? error.message
+          : 'Cannot reach the account service. Check your connection and try again.',
+    };
+  }
+}
+
+export async function verifyOtpApi({ email, otp }) {
+  try {
+    const body = await apiRequest('/auth/verify-otp', {
+      method: 'POST',
+      body: { email, otp },
+      auth: false,
+    });
+
+    return {
+      success: true,
+      message: body?.message || 'Verification successful. Choose a new password.',
+      data: body?.data || {},
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof ApiError
+          ? error.message
+          : 'Cannot reach the account service. Check your connection and try again.',
+    };
+  }
+}
+
+export async function resetPasswordApi({ resetToken, token, newPassword }) {
   try {
     const body = await apiRequest('/auth/reset-password', {
       method: 'POST',
-      body: { token, newPassword },
+      body: { resetToken: resetToken || token, newPassword },
       auth: false,
     });
 
     return {
       success: true,
       message: body?.message || 'Password updated. Sign in with your new password.',
+      data: body?.data || {},
     };
   } catch (error) {
     if (MOCK_ENABLED && isUnavailable(error)) {
       return {
         success: true,
         message: 'Mock mode: the password update was simulated. No account was changed.',
+        data: {},
       };
     }
 

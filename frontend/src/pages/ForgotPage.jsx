@@ -91,7 +91,7 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme, onEmailSu
 
           <ol className="stepper">
             <li className={submitted ? '' : 'is-active'}>{t('Forgot Password')}</li>
-            <li className={submitted ? 'is-active' : ''}>{t('Sent ✓')}</li>
+            <li className={submitted ? 'is-active' : ''}>{t('Code sent ✓')}</li>
           </ol>
         </div>
       </header>
@@ -113,7 +113,7 @@ export default function ForgotPage({ onNavigate, theme, onToggleTheme, onEmailSu
 
         <h1 className="login__title">{t('Forgot your password?')}</h1>
         <p className="login__subtitle">
-          {t('Enter the work email your agency uses and we\'ll send you a secure reset link.')}
+          {t('Enter the work email your agency uses and we\'ll send you a secure 6-digit verification code.')}
         </p>
 
         {submitted ? (

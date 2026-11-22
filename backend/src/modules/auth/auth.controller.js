@@ -1,7 +1,45 @@
 import { AuthService } from './auth.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
+import { getMailConfig, setRuntimeSmtpConfig } from '../../utils/mailer.js';
 
 export const AuthController = {
+  mailStatus: asyncHandler(async (req, res) => {
+    const cfg = getMailConfig();
+    res.status(200).json({
+      success: true,
+      data: {
+        configured: Boolean(cfg.provider),
+        provider: cfg.provider,
+        smtpUser: cfg.smtp?.user || '',
+        from: cfg.from || '',
+      },
+    });
+  }),
+
+  updateMailConfig: asyncHandler(async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        success: false,
+        message: 'Runtime mail configuration is disabled in production.',
+      });
+    }
+    const { email, appPassword, resendApiKey, mailFrom } = req.body || {};
+    setRuntimeSmtpConfig({ email, appPassword, resendApiKey, mailFrom });
+    const cfg = getMailConfig();
+    res.status(200).json({
+      success: true,
+      message: cfg.provider
+        ? `Real email delivery activated via ${cfg.provider.toUpperCase()}!`
+        : 'Mail configuration saved.',
+      data: {
+        configured: Boolean(cfg.provider),
+        provider: cfg.provider,
+        smtpUser: cfg.smtp?.user || '',
+        from: cfg.from || '',
+      },
+    });
+  }),
+
   login: asyncHandler(async (req, res) => {
     const result = await AuthService.login(req.body);
 
@@ -52,11 +90,33 @@ export const AuthController = {
 
   forgotPassword: asyncHandler(async (req, res) => {
     const result = await AuthService.requestPasswordReset(req.body);
+    const { code: _omitCode, ...publicData } = result || {};
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: publicData,
+    });
+  }),
+
+  verifyOtp: asyncHandler(async (req, res) => {
+    const result = await AuthService.verifyOtp(req.body);
 
     res.status(200).json({
       success: true,
       message: result.message,
       data: result,
+    });
+  }),
+
+  resendOtp: asyncHandler(async (req, res) => {
+    const result = await AuthService.resendOtp(req.body);
+    const { code: _omitCode, ...publicData } = result || {};
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: publicData,
     });
   }),
 
