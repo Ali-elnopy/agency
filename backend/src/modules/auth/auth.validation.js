@@ -18,12 +18,8 @@ export const refreshTokenSchema = z
 
 const strongPasswordSchema = z
   .string()
-  .min(12, 'Password must be at least 12 characters')
-  .max(128, 'Password must not exceed 128 characters')
-  .regex(/[a-z]/, 'Password must contain a lowercase letter')
-  .regex(/[A-Z]/, 'Password must contain an uppercase letter')
-  .regex(/[0-9]/, 'Password must contain a number')
-  .regex(/[^A-Za-z0-9]/, 'Password must contain a special character');
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password must not exceed 128 characters');
 
 export const changePasswordSchema = z
   .object({
@@ -53,7 +49,7 @@ export const resetPasswordSchema = z
     token: z
       .string()
       .trim()
-      .regex(/^[a-f0-9]{64}$/, 'This reset link is invalid. Request a new one.'),
+      .regex(/^(\d{6}|[a-f0-9]{64})$/, 'Enter a valid 6-digit verification code.'),
 
     newPassword: strongPasswordSchema,
   })

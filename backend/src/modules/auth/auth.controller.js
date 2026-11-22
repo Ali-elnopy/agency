@@ -56,6 +56,7 @@ export const AuthController = {
     res.status(200).json({
       success: true,
       message: result.message,
+      data: result,
     });
   }),
 
@@ -68,6 +69,7 @@ export const AuthController = {
     res.status(200).json({
       success: true,
       message: result.message,
+      data: result,
     });
   }),
 };

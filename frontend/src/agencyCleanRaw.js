@@ -141,9 +141,9 @@ function render(){const a=$('#app');if(!S.authed){a.innerHTML=authView();return}
  <main><header class="top"><button class="btn sm t menu" onclick="S.open=!S.open;render()" aria-label="Menu">☰</button><div class="crumb">Agency workspace / <b>${N[S.page][0]}</b></div><label class="search">${ic('search')}<input placeholder="Search this page…" value="${S.q}" oninput="S.q=this.value;view(false)"></label><div class="seg" role="group" aria-label="Preview role">${Object.entries(ROLES).map(([k,v])=>`<button class="${S.role===k?'on':''}" onclick="setRole('${k}')">${v}</button>`).join('')}</div></header><section id="view"></section></main>`;
  view();const si=$('.search input');}
 /* auth */
-function authView(){const a=S.auth,E=S.err;const login=`<h1>Welcome back</h1><p class="mute" style="margin:8px 0 20px">Sign in to your ORVIA workspace.</p><div class="mono mute" style="margin-bottom:6px">PREVIEW AS</div><div class="rolechips">${Object.entries(ROLES).map(([k,v])=>`<button class="${S.role===k?'on':''}" onclick="S.role='${k}';render()">${v}</button>`).join('')}</div>${F('email','Email','email','','')}${F('password','Password','password')}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><a class="lk" onclick="S.auth='forgot';S.err={};render()">Forgot password?</a><button class="btn p" onclick="doLogin()">Sign in</button></div>`;
- const forgot=`<h1>Reset your password</h1><p class="mute" style="margin:8px 0 20px">Enter your email and we’ll send a reset link.</p>${S.sent?'<div class="note ok"><b>✓</b><span>Check your inbox. If the email exists, a reset link is on its way.</span></div>':''}${F('email','Email','email')}<div style="display:flex;gap:8px;align-items:center"><button class="btn p" onclick="S.sent=1;S.err={};render()">Send reset link</button><a class="lk" onclick="S.auth='reset';S.sent=0;render()">I have a token</a></div><p><a class="lk" onclick="S.auth='login';S.sent=0;render()">Back to sign in</a></p>`;
- const reset=`<h1>Choose a new password</h1><p class="mute" style="margin:8px 0 20px">Paste the token from your email.</p>${F('token','Reset token','text')}${F('newPassword','New password','password','At least 8 characters')}<button class="btn p" onclick="S.auth='login';render();toast('Password reset. Sign in again.')">Reset password</button><p><a class="lk" onclick="S.auth='login';render()">Back to sign in</a></p>`;
+function authView(){const a=S.auth,E=S.err;const login=`<h1>Welcome back</h1><p class="mute" style="margin:8px 0 20px">Sign in to your ORVIA workspace.</p><div class="mono mute" style="margin-bottom:6px">PREVIEW AS</div><div class="rolechips">${Object.entries(ROLES).map(([k,v])=>`<button class="${S.role===k?'on':''}" onclick="S.role='${k}';render()">${v}</button>`).join('')}</div>${F('email','Email','email','',S.forgotEmail||'')}${F('password','Password','password')}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><a class="lk" onclick="S.auth='forgot';S.err={};render()">Forgot password?</a><button class="btn p" onclick="doLogin()">Sign in</button></div>`;
+ const forgot=`<h1>Reset your password</h1><p class="mute" style="margin:8px 0 20px">Enter your email and we’ll send a 6-digit verification code to your inbox.</p>${F('email','Email','email','',S.forgotEmail||'')}<div style="display:flex;gap:12px;align-items:center"><button class="btn p" onclick="doForgot()">Send verification code</button><a class="lk" onclick="S.auth='reset';S.err={};render()">I have a code</a></div><p><a class="lk" onclick="S.auth='login';S.sent=0;S.err={};render()">Back to sign in</a></p>`;
+ const reset=`<h1>Enter verification code</h1><p class="mute" style="margin:8px 0 20px">Type the 6-digit verification code sent to your email, then choose your new password.</p>${S.sent?`<div class="note ok"><b>✓</b><span>Verification code sent to <b>${esc(S.forgotEmail||'your email')}</b>. Check your inbox and enter the 6-digit code below.</span></div>`:''}${F('token','Verification code (6 digits)','text','Enter the 6-digit code from your email',S.resetToken||'')}${F('newPassword','New password','password','At least 8 characters')}<div style="display:flex;gap:12px;align-items:center"><button class="btn p" onclick="doReset()">Verify &amp; change password</button><a class="lk" onclick="S.auth='forgot';S.sent=0;S.err={};render()">Resend code</a></div><p><a class="lk" onclick="S.auth='login';S.sent=0;S.err={};render()">Back to sign in</a></p>`;
  return `<div class="auth"><div class="al"><div class="logo"><i></i><div><b>ORVIA</b><small>Studio workspace</small></div></div>${{login,forgot,reset}[a]}</div><div class="ar"><div class="ring" style="position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;border:1px solid #3A3A44"></div><span class="tag" style="background:transparent;color:#F4F3EF;border-color:#55555E;width:max-content">Agency shape DNA</span><div><h2>Make the silhouette do the branding.</h2><div class="shapes"><div style="width:64px;height:84px;background:var(--lilac);border-radius:32px 32px 0 0"></div><div style="width:84px;height:84px;border-radius:50%;border:1px solid #6E6D72;display:grid;place-items:center"><i style="width:22px;height:22px;border-radius:50%;background:var(--peach)"></i></div><div style="width:76px;height:84px;background:var(--mint);border-radius:0 38px 38px 0"></div><div class="burst" style="position:static;width:76px;height:76px;background:var(--peach)">12</div></div></div></div></div>`}
 function doLogin(){const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));S.err={};if(!v.email)S.err.email='Enter your email.';if(!v.password)S.err.password='Enter your password.';
  if(Object.keys(S.err).length)return render();S.authed=true;S.page=NAV[S.role][0];render()}
@@ -741,7 +741,9 @@ doLogin=async function(){
   }
  }catch(err){
   if(err?.status===401||err?.status===423){
+   S.err.password=err.message||'Invalid email or password.';
    toast(err.message||'Invalid credentials');
+   return render();
   }
  }
  _origDoLogin();
@@ -1034,6 +1036,79 @@ D.plans.run=function(a,r){
   apiCall('/content-plans/'+r._id+'/status',{method:'PATCH',body:{status:apiStatus}}).catch(()=>{});
  }
 };
+
+function showInAppMailToast(email,code,provider){
+ document.querySelectorAll('.orvia-mail-pop').forEach(e=>e.remove());
+ const pop=document.createElement('div');
+ pop.className='orvia-mail-pop';
+ pop.style.cssText='position:fixed;top:20px;right:20px;z-index:9999;width:360px;max-width:calc(100vw - 32px);background:#FFFFFF;border:2px solid #17171C;border-radius:20px;padding:18px 20px;box-shadow:0 18px 42px rgba(23,23,28,0.18);font-family:inherit;color:#17171C;animation:fadeIn .25s ease';
+ pop.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="display:flex;gap:8px;align-items:center"><span style="width:28px;height:28px;border-radius:8px;background:#EA4335;color:#fff;display:grid;place-items:center;font-weight:800;font-size:14px">M</span><div><b style="font-size:13px;display:block">Gmail · ORVIA Workspace</b><span class="mute" style="font-size:11px">To: ${esc(email)}</span></div></div><button onclick="this.closest('.orvia-mail-pop').remove()" style="border:none;background:transparent;font-size:18px;cursor:pointer;color:#6E6D72;line-height:1">×</button></div>
+ <div style="font-size:13px;color:#45454d;margin-bottom:10px">Here is your 6-digit verification code to reset your ORVIA password:</div>
+ <div style="background:#F4F3EF;border:1.5px dashed #17171C;border-radius:14px;padding:12px;text-align:center;margin-bottom:10px"><div class="mono mute" style="font-size:10px;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">Verification Code · رمز التحقق</div><div class="mono" style="font-size:28px;font-weight:800;letter-spacing:8px;color:#17171C">${esc(code)}</div></div>
+ <div style="display:flex;justify-content:space-between;align-items:center"><span class="mute" style="font-size:11px">${provider==='smtp'?'✓ Delivered to Gmail & In-App':'✓ In-App Mail Inbox · Valid 30m'}</span><button class="btn sm" onclick="navigator.clipboard?.writeText('${esc(code)}');toast('Code copied: ${esc(code)}')">Copy code</button></div>`;
+ document.body.appendChild(pop);
+}
+
+async function doForgot(){
+ const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));
+ S.err={};
+ if(!(v.email||'').trim()){S.err.email='Enter your email.';return render()}
+ S.forgotEmail=v.email.trim();
+ S.resetToken='';
+ try{
+  const res=await apiCall('/auth/forgot-password',{method:'POST',body:{email:v.email.trim()},auth:false});
+  S.sent=1;
+  S.auth='reset';
+  render();
+  if(res?.code){
+   showInAppMailToast(S.forgotEmail,res.code,res.provider);
+  }else{
+   toast('6-digit verification code sent to your email');
+  }
+ }catch(err){
+  S.err.email=err?.message||'Could not send verification code. Please check your email settings.';
+  render();
+ }
+}
+
+async function doReset(){
+ const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));
+ S.err={};
+ const code=(v.token||'').trim();
+ if(!code)S.err.token='Enter the 6-digit verification code sent to your email.';
+ else if(!/^(\d{6}|[a-f0-9]{64})$/i.test(code))S.err.token='Verification code must be 6 digits.';
+ if((v.newPassword||'').length<8)S.err.newPassword='Use at least 8 characters.';
+ if(Object.keys(S.err).length){S.resetToken=code;return render()}
+ try{
+  const res=await apiCall('/auth/reset-password',{method:'POST',body:{token:code,newPassword:v.newPassword},auth:false});
+  if(res?.email)S.forgotEmail=res.email;
+  document.querySelectorAll('.orvia-mail-pop').forEach(e=>e.remove());
+  S.auth='login';
+  S.sent=0;
+  S.resetToken='';
+  if(window.location.hash.startsWith('#reset'))history.replaceState(null,'',window.location.pathname);
+  render();
+  toast('Password updated! Sign in with your new password.');
+ }catch(err){
+  S.resetToken=code;
+  S.err.token=err?.message||'Invalid or expired verification code.';
+  render();
+ }
+}
+
+window.addEventListener('hashchange',()=>{
+ if(window.location.hash.startsWith('#reset')){
+  const q=new URLSearchParams(window.location.hash.split('?')[1]||'');
+  const tk=q.get('token');
+  if(tk){S.authed=false;S.auth='reset';S.resetToken=tk;render()}
+ }
+});
+
+if(window.location.hash.startsWith('#reset')){
+ const q=new URLSearchParams(window.location.hash.split('?')[1]||'');
+ const tk=q.get('token');
+ if(tk){S.authed=false;S.auth='reset';S.resetToken=tk}
+}
 
 render();
 if(getApiToken())hydrateFromBackend();

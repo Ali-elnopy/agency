@@ -14,18 +14,14 @@ async function startServer() {
     // Execute a lightweight database query
     await prisma.$queryRaw`SELECT 1`;
 
-    console.log('Connected to Supabase PostgreSQL successfully');
-
-    server = app.listen(PORT, () => {
-      console.log(`Orvia API running on port ${PORT}`);
-    });
+    console.log('Connected to PostgreSQL successfully');
   } catch (error) {
-    console.error('Failed to connect to PostgreSQL:');
-    console.error(error);
-
-    await prisma.$disconnect();
-    process.exit(1);
+    console.warn('PostgreSQL is not reachable right now — starting API in hybrid/mailer mode:', error?.message || error);
   }
+
+  server = app.listen(PORT, () => {
+    console.log(`Orvia API running on port ${PORT}`);
+  });
 }
 
 async function shutdown() {

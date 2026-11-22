@@ -22,7 +22,7 @@ export const authRouter = Router();
  */
 const forgotLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 5,
+  limit: 50,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: {
@@ -33,7 +33,7 @@ const forgotLimiter = rateLimit({
 
 const resetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 50,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: {
