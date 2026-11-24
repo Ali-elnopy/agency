@@ -29,11 +29,16 @@ export const BrandBriefsModel = {
         });
     },
 
-    list({ brandId, status, accountManagerId } = {}) {
+    list({ brandId, status, accountManagerId, clientId } = {}) {
+        const brandFilter = {
+            ...(accountManagerId ? { accountManagerId } : {}),
+            ...(clientId ? { clientId } : {}),
+        };
+
         const onboardingFilter = {
             ...(brandId ? { brandId } : {}),
-            ...(accountManagerId
-                ? { brand: { accountManagerId } }
+            ...(Object.keys(brandFilter).length
+                ? { brand: brandFilter }
                 : {}),
         };
 
@@ -56,6 +61,7 @@ export const BrandBriefsModel = {
                                 id: true,
                                 name: true,
                                 accountManagerId: true,
+                                clientId: true,
                             },
                         },
                     },
@@ -81,6 +87,7 @@ export const BrandBriefsModel = {
                                 id: true,
                                 name: true,
                                 accountManagerId: true,
+                                clientId: true,
                             },
                         },
                     },

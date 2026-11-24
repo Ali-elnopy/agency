@@ -72,39 +72,15 @@ const getPublicUser = (user) => ({
 export const AuthService = {
   async login({ email, password }) {
     const normalizedEmail = email.toLowerCase();
-    let user = null;
-    let dbOffline = false;
+    let user;
+
     try {
       user = await AuthModel.findUserByEmail(normalizedEmail);
     } catch {
-      dbOffline = true;
-    }
-
-    if (dbOffline) {
-      const memHash = inMemoryPasswords.get(normalizedEmail);
-      if (memHash) {
-        const valid = await bcrypt.compare(password, memHash);
-        if (!valid) {
-          throw new ApiError(401, 'Invalid email or password');
-        }
-      }
-      const fbUser = FALLBACK_USERS[normalizedEmail] || {
-        id: 'usr-fallback',
-        fullName: normalizedEmail.split('@')[0],
-        email: normalizedEmail,
-        isActive: true,
-        role: { name: 'ADMIN' },
-        jobTitle: { name: 'Workspace Owner' },
-      };
-      const sessionId = crypto.randomUUID();
-      const accessToken = generateAccessToken(fbUser, sessionId);
-      const refreshToken = generateRefreshToken();
-      return {
-        user: getPublicUser({ ...fbUser, lastLoginAt: new Date() }),
-        accessToken,
-        refreshToken,
-        offlineMode: true,
-      };
+      throw new ApiError(
+        503,
+        'Authentication service is temporarily unavailable. Please try again later.',
+      );
     }
 
     if (!user) {
@@ -325,11 +301,11 @@ export const AuthService = {
       expiresInMinutes: OTP_TTL_MINUTES,
       ...(process.env.NODE_ENV !== 'production'
         ? {
-            code,
-            email,
-            expiresAt: expiresAt.toISOString(),
-            ...(mailError ? { mailError } : {}),
-          }
+          code,
+          email,
+          expiresAt: expiresAt.toISOString(),
+          ...(mailError ? { mailError } : {}),
+        }
         : {}),
     };
   },
@@ -401,10 +377,10 @@ export const AuthService = {
       expiresInMinutes: OTP_TTL_MINUTES,
       ...(process.env.NODE_ENV !== 'production'
         ? {
-            code,
-            email,
-            expiresAt: expiresAt.toISOString(),
-          }
+          code,
+          email,
+          expiresAt: expiresAt.toISOString(),
+        }
         : {}),
     };
   },

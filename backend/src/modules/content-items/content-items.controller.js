@@ -1,3 +1,4 @@
+
 import { ContentItemsService } from './content-items.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { ApiError } from '../../utils/ApiError.js';
@@ -53,6 +54,7 @@ export const ContentItemsController = {
 
     const items = await ContentItemsService.list(
       filters,
+      req.user,
     );
 
     res.status(200).json({
@@ -65,10 +67,10 @@ export const ContentItemsController = {
   }),
 
   getById: asyncHandler(async (req, res) => {
-    const item =
-      await ContentItemsService.getById(
-        req.params.id,
-      );
+    const item = await ContentItemsService.getById(
+      req.params.id,
+      req.user,
+    );
 
     res.status(200).json({
       success: true,
@@ -77,11 +79,10 @@ export const ContentItemsController = {
   }),
 
   update: asyncHandler(async (req, res) => {
-    const item =
-      await ContentItemsService.update(
-        req.params.id,
-        req.body,
-      );
+    const item = await ContentItemsService.update(
+      req.params.id,
+      req.body,
+    );
 
     res.status(200).json({
       success: true,
@@ -91,10 +92,9 @@ export const ContentItemsController = {
   }),
 
   remove: asyncHandler(async (req, res) => {
-    const item =
-      await ContentItemsService.remove(
-        req.params.id,
-      );
+    const item = await ContentItemsService.remove(
+      req.params.id,
+    );
 
     res.status(200).json({
       success: true,

@@ -200,6 +200,11 @@ function assertCanRead(user, brand) {
         return;
     }
 
+    // Client can only read briefs belonging to their own brand.
+    if (roleName === 'CLIENT' && brand?.clientId === user.id) {
+        return;
+    }
+
     // Preserve the existing explicit employee read permission for a brief ID.
     if (roleName === 'EMPLOYEE') return;
 
@@ -219,18 +224,18 @@ function parseBriefId(value) {
 export const BrandBriefsService = {
     async list(user, filters = {}) {
         const roleName = getRoleName(user);
-        let accountManagerId;
+
+        const modelFilters = { ...filters };
 
         if (roleName === 'ACCOUNT_MANAGER') {
-            accountManagerId = user.id;
+            modelFilters.accountManagerId = user.id;
+        } else if (roleName === 'CLIENT') {
+            modelFilters.clientId = user.id;
         } else if (roleName !== 'ADMIN') {
             throw new ApiError(403, 'You cannot read Brand Briefs.');
         }
 
-        const briefs = await BrandBriefsModel.list({
-            ...filters,
-            accountManagerId,
-        });
+        const briefs = await BrandBriefsModel.list(modelFilters);
 
         return {
             briefs: briefs.map(toBriefDto),
@@ -308,6 +313,7 @@ export const BrandBriefsService = {
             user,
         );
     },
+
     async generate(brandId, user) {
         const parsedBrandId = Number(brandId);
 

@@ -1,6 +1,7 @@
 import { ContentPlansModel } from './content-plans.model.js';
 import { ApiError } from '../../utils/ApiError.js';
-
+import { prisma } from '../../config/prisma.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 const CONTENT_PLAN_STATUSES = new Set([
   'DRAFT',
   'IN_REVIEW',
@@ -85,9 +86,9 @@ async function getPlanOrThrow(value, user) {
     user?.role?.name === 'ADMIN'
       ? await ContentPlansModel.findById(id)
       : await ContentPlansModel.findAccessibleById(
-          id,
-          accessWhere,
-        );
+        id,
+        accessWhere,
+      );
 
   if (!plan) {
     throw new ApiError(404, 'Content plan not found');
@@ -281,17 +282,17 @@ export const ContentPlansService = {
     const brandId =
       input.brandId !== undefined
         ? parseId(
-            input.brandId,
-            'Brand id',
-          )
+          input.brandId,
+          'Brand id',
+        )
         : plan.brandId;
 
     const platformAccountId =
       input.platformAccountId !== undefined
         ? parseId(
-            input.platformAccountId,
-            'Platform account id',
-          )
+          input.platformAccountId,
+          'Platform account id',
+        )
         : plan.platformAccountId;
 
     if (
@@ -340,51 +341,24 @@ export const ContentPlansService = {
     }
   },
 
-  async updateStatus(
-    value,
-    newStatus,
-    user,
-  ) {
-    const plan = await getPlanOrThrow(
-      value,
-      user,
-    );
 
-    const brand = await validateBrand(
-      plan.brandId,
-      user,
-    );
 
-    ensureCanManageBrand(
-      user,
-      brand,
-    );
+  async updateStatus(value, newStatus, user) {
+    const plan = await getPlanOrThrow(value, user);
+    const brand = await validateBrand(plan.brandId, user);
 
-    if (
-      !CONTENT_PLAN_STATUSES.has(
-        newStatus,
-      )
-    ) {
-      throw new ApiError(
-        400,
-        'Invalid content plan status',
-      );
+    ensureCanManageBrand(user, brand);
+
+    if (!CONTENT_PLAN_STATUSES.has(newStatus)) {
+      throw new ApiError(400, 'Invalid content plan status');
     }
 
-    const role =
-      user?.role?.name;
+    const role = user?.role?.name;
 
-    // Content Creator can submit a plan
-    // for review.
-    if (
-      !MANAGEMENT_ROLES.has(role) &&
-      newStatus === 'IN_REVIEW'
-    ) {
+    if (!MANAGEMENT_ROLES.has(role) && newStatus === 'IN_REVIEW') {
       const canSubmit =
-        (
-          plan.status === 'DRAFT' ||
-          plan.status === 'NEEDS_CHANGES'
-        );
+        plan.status === 'DRAFT' ||
+        plan.status === 'NEEDS_CHANGES';
 
       if (!canSubmit) {
         throw new ApiError(
@@ -394,30 +368,15 @@ export const ContentPlansService = {
       }
     }
 
-    // Admin / Account Manager can approve
-    // or request changes.
-    if (
-      MANAGEMENT_ROLES.has(role)
-    ) {
+    if (MANAGEMENT_ROLES.has(role)) {
       const allowedTransitions = {
-        DRAFT: [
-          'IN_REVIEW',
-        ],
-        IN_REVIEW: [
-          'APPROVED',
-          'NEEDS_CHANGES',
-        ],
-        NEEDS_CHANGES: [
-          'IN_REVIEW',
-        ],
+        DRAFT: ['IN_REVIEW'],
+        IN_REVIEW: ['APPROVED', 'NEEDS_CHANGES'],
+        NEEDS_CHANGES: ['IN_REVIEW'],
         APPROVED: [],
       };
 
-      if (
-        !allowedTransitions[
-          plan.status
-        ]?.includes(newStatus)
-      ) {
+      if (!allowedTransitions[plan.status]?.includes(newStatus)) {
         throw new ApiError(
           400,
           `Cannot change content plan status from ${plan.status} to ${newStatus}`,
@@ -425,17 +384,75 @@ export const ContentPlansService = {
       }
     }
 
+    const notificationDetails = {
+      IN_REVIEW: {
+        type: 'CONTENT_PLAN_SUBMITTED',
+        title: 'Content Plan Submitted',
+        message: `The content plan "${plan.title}" has been submitted for review.`,
+      },
+      APPROVED: {
+        type: 'CONTENT_PLAN_APPROVED',
+        title: 'Content Plan Approved',
+        message: `The content plan "${plan.title}" has been approved.`,
+      },
+      NEEDS_CHANGES: {
+        type: 'CONTENT_PLAN_NEEDS_CHANGES',
+        title: 'Content Plan Needs Changes',
+        message: `The content plan "${plan.title}" needs changes.`,
+      },
+    };
+
+    const notification = notificationDetails[newStatus];
+
     try {
-      return await ContentPlansModel.update(
-        plan.id,
-        {
-          status: newStatus,
-        },
-      );
+      return await prisma.$transaction(async (tx) => {
+        const updatedPlan = await ContentPlansModel.update(
+          plan.id,
+          { status: newStatus },
+          tx,
+        );
+
+        if (notification) {
+          if (!plan.brand.clientId || !plan.brand.accountManagerId) {
+            throw new ApiError(
+              500,
+              'Brand client or account manager is missing',
+            );
+          }
+
+          const recipientIds =
+            newStatus === 'IN_REVIEW'
+              ? [plan.brand.clientId, plan.brand.accountManagerId]
+              : [plan.brand.clientId];
+
+          const uniqueRecipientIds = [...new Set(recipientIds)];
+
+          await Promise.all(
+            uniqueRecipientIds.map((recipientId) =>
+              NotificationsService.create(
+                {
+                  recipientId,
+                  ...notification,
+                  data: {
+                    contentPlanId: plan.id,
+                    brandId: plan.brandId,
+                    status: newStatus,
+                  },
+                },
+                tx,
+              ),
+            ),
+          );
+        }
+
+        return updatedPlan;
+      });
     } catch (error) {
       mapPrismaError(error);
     }
   },
+
+
 
   async remove(value, user) {
     const plan = await getPlanOrThrow(
