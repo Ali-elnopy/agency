@@ -1,3 +1,4 @@
+
 import { ContentItemsModel } from './content-items.model.js';
 import { ApiError } from '../../utils/ApiError.js';
 
@@ -14,10 +15,25 @@ function parseId(value, label = 'Id') {
   return id;
 }
 
-async function getContentItemOrThrow(value) {
+function isClient(user) {
+  const roleName = String(
+    user?.role?.name || user?.role || '',
+  ).toUpperCase();
+
+  return roleName === 'CLIENT';
+}
+
+async function getContentItemOrThrow(value, user) {
   const id = parseId(value, 'Content item id');
 
-  const item = await ContentItemsModel.findById(id);
+  const clientId = isClient(user)
+    ? parseId(user.id, 'User id')
+    : undefined;
+
+  const item = await ContentItemsModel.findById(
+    id,
+    clientId,
+  );
 
   if (!item) {
     throw new ApiError(404, 'Content item not found');
@@ -124,8 +140,7 @@ export const ContentItemsService = {
       return await ContentItemsModel.create({
         ...input,
         contentPlanId,
-        campaignId:
-          input.campaignId ?? null,
+        campaignId: input.campaignId ?? null,
         createdBy,
         reference: input.reference ?? null,
         toneOfVoice: input.toneOfVoice ?? null,
@@ -137,7 +152,7 @@ export const ContentItemsService = {
     }
   },
 
-  async list(filters) {
+  async list(filters, user) {
     const parsedFilters = {
       ...filters,
     };
@@ -156,11 +171,18 @@ export const ContentItemsService = {
       );
     }
 
+    if (isClient(user)) {
+      parsedFilters.clientId = parseId(
+        user.id,
+        'User id',
+      );
+    }
+
     return ContentItemsModel.list(parsedFilters);
   },
 
-  async getById(value) {
-    return getContentItemOrThrow(value);
+  async getById(value, user) {
+    return getContentItemOrThrow(value, user);
   },
 
   async update(value, input) {
@@ -169,14 +191,13 @@ export const ContentItemsService = {
     const contentPlanId =
       input.contentPlanId !== undefined
         ? parseId(
-            input.contentPlanId,
-            'Content plan id',
-          )
+          input.contentPlanId,
+          'Content plan id',
+        )
         : item.contentPlanId;
 
     const scheduledDate =
-      input.scheduledDate ??
-      item.scheduledDate;
+      input.scheduledDate ?? item.scheduledDate;
 
     await validateContentPlan(contentPlanId);
 
@@ -208,9 +229,9 @@ export const ContentItemsService = {
         input.campaignId === null
           ? null
           : parseId(
-              input.campaignId,
-              'Campaign id',
-            );
+            input.campaignId,
+            'Campaign id',
+          );
     }
 
     try {

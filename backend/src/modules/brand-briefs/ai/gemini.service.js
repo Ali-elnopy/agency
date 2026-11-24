@@ -12,14 +12,19 @@ let ai = null;
 
 function getAiClient() {
     const apiKey = process.env.GEMINI_API_KEY;
-    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    const modelName = 'gemini-2.5-flash';
 
     if (!apiKey) {
         throw new Error('GEMINI_API_KEY is not configured.');
     }
 
     if (!ai) {
-        ai = new GoogleGenAI({ apiKey });
+        ai = new GoogleGenAI({
+            apiKey,
+            httpOptions: {
+                apiVersion: 'v1beta',
+            },
+        });
     }
 
     return { ai, modelName };

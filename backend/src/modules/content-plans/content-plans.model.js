@@ -18,6 +18,8 @@ const contentPlanSelect = {
     select: {
       id: true,
       name: true,
+      clientId: true,
+      accountManagerId: true,
     },
   },
   platformAccount: {
@@ -47,50 +49,50 @@ export const ContentPlansModel = {
   },
 
   list({
-  brandId,
-  platformAccountId,
-  year,
-  month,
-  status,
-  accessWhere,
-} = {}) {
-  const where = {};
+    brandId,
+    platformAccountId,
+    year,
+    month,
+    status,
+    accessWhere,
+  } = {}) {
+    const where = {};
 
-  if (accessWhere) {
-    where.brand = accessWhere;
-  }
+    if (accessWhere) {
+      where.brand = accessWhere;
+    }
 
-  if (brandId !== undefined) {
-    where.brandId = brandId;
-  }
+    if (brandId !== undefined) {
+      where.brandId = brandId;
+    }
 
-  if (platformAccountId !== undefined) {
-    where.platformAccountId =
-      platformAccountId;
-  }
+    if (platformAccountId !== undefined) {
+      where.platformAccountId =
+        platformAccountId;
+    }
 
-  if (year !== undefined) {
-    where.year = year;
-  }
+    if (year !== undefined) {
+      where.year = year;
+    }
 
-  if (month !== undefined) {
-    where.month = month;
-  }
+    if (month !== undefined) {
+      where.month = month;
+    }
 
-  if (status) {
-    where.status = status;
-  }
+    if (status) {
+      where.status = status;
+    }
 
-  return prisma.contentPlan.findMany({
-    where,
-    select: contentPlanSelect,
-    orderBy: [
-      { year: 'desc' },
-      { month: 'desc' },
-      { createdAt: 'desc' },
-    ],
-  });
-},
+    return prisma.contentPlan.findMany({
+      where,
+      select: contentPlanSelect,
+      orderBy: [
+        { year: 'desc' },
+        { month: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+  },
 
   findById(id) {
     return prisma.contentPlan.findUnique({
@@ -99,8 +101,8 @@ export const ContentPlansModel = {
     });
   },
 
-  update(id, data) {
-    return prisma.contentPlan.update({
+  update(id, data, db = prisma) {
+    return db.contentPlan.update({
       where: { id },
       data,
       select: contentPlanSelect,
@@ -132,35 +134,35 @@ export const ContentPlansModel = {
     });
   },
   findAccessibleById(id, accessWhere) {
-  return prisma.contentPlan.findFirst({
-    where: {
-      id,
-      brand: accessWhere,
-    },
-    select: contentPlanSelect,
-  });
-},
+    return prisma.contentPlan.findFirst({
+      where: {
+        id,
+        brand: accessWhere,
+      },
+      select: contentPlanSelect,
+    });
+  },
 
-findAccessibleBrandById(id, accessWhere) {
-  return prisma.brand.findFirst({
-    where: {
-      id,
-      ...accessWhere,
-    },
-    select: {
-      id: true,
-      accountManagerId: true,
-      teamId: true,
-      team: {
-        select: {
-          memberships: {
-            select: {
-              userId: true,
+  findAccessibleBrandById(id, accessWhere) {
+    return prisma.brand.findFirst({
+      where: {
+        id,
+        ...accessWhere,
+      },
+      select: {
+        id: true,
+        accountManagerId: true,
+        teamId: true,
+        team: {
+          select: {
+            memberships: {
+              select: {
+                userId: true,
+              },
             },
           },
         },
       },
-    },
-  });
-},
+    });
+  },
 };

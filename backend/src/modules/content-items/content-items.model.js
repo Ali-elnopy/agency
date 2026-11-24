@@ -1,3 +1,4 @@
+
 import { prisma } from '../../config/prisma.js';
 
 const contentItemSelect = {
@@ -53,7 +54,7 @@ export const ContentItemsModel = {
     });
   },
 
-  list({ contentPlanId, campaignId, type } = {}) {
+  list({ contentPlanId, campaignId, type, clientId } = {}) {
     const where = {};
 
     if (contentPlanId !== undefined) {
@@ -68,6 +69,14 @@ export const ContentItemsModel = {
       where.type = type;
     }
 
+    if (clientId !== undefined) {
+      where.contentPlan = {
+        brand: {
+          clientId,
+        },
+      };
+    }
+
     return prisma.contentItem.findMany({
       where,
       select: contentItemSelect,
@@ -78,9 +87,21 @@ export const ContentItemsModel = {
     });
   },
 
-  findById(id) {
-    return prisma.contentItem.findUnique({
-      where: { id },
+  findById(id, clientId) {
+    const where = {
+      id,
+    };
+
+    if (clientId !== undefined) {
+      where.contentPlan = {
+        brand: {
+          clientId,
+        },
+      };
+    }
+
+    return prisma.contentItem.findFirst({
+      where,
       select: contentItemSelect,
     });
   },

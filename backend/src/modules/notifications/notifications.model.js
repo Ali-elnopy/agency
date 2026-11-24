@@ -13,6 +13,13 @@ const notificationSelect = {
 };
 
 export const NotificationsModel = {
+    create(data, db = prisma) {
+        return db.notification.create({
+            data,
+            select: notificationSelect,
+        });
+    },
+
     listForUser(recipientId) {
         return prisma.notification.findMany({
             where: { recipientId },
