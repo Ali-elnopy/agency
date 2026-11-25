@@ -293,7 +293,33 @@ function account(){const m=ME[S.role];return `<div class="ph"><div><span class="
 <div class="card"><h2>Change password</h2><p class="mute" style="margin:4px 0 20px">Use at least 8 characters.</p>${F('currentPassword','Current password','password')}${F('newPassword','New password','password','At least 8 characters')}<button class="btn p" onclick="chg()">Update password</button></div></div>`}
 const F=(n,l,t='text',h='',v='')=>`<div class="fl ${S.err[n]?'bad':''}"><label>${esc(l)}<span>${esc(n)}</span></label>${t==='password'?`<div class="pw-wrap"><input data-f="${esc(n)}" type="password" value="${esc(v)}" autocomplete="current-password"><button type="button" class="pw-btn" onclick="togPw(this)" aria-label="Show password" title="Show password">${ic('eye')}</button></div>`:`<input data-f="${esc(n)}" type="${esc(t)}" value="${esc(v)}" autocomplete="off">`}${S.err[n]?`<small>${esc(S.err[n])}</small>`:h?`<small>${esc(h)}</small>`:''}</div>`;
 function togPw(b){const i=b.previousElementSibling,sh=i.type==='password';i.type=sh?'text':'password';b.innerHTML=ic(sh?'eyeOff':'eye');b.setAttribute('aria-label',sh?'Hide password':'Show password');b.title=sh?'Hide password':'Show password'}
-let chg=function(){const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));S.err={};if(!v.currentPassword)S.err.currentPassword='Enter your current password.';if((v.newPassword||'').length<8)S.err.newPassword='Use at least 8 characters.';if(Object.keys(S.err).length)return view(false);toast('Password updated')};
+const DEMO_PW_KEY='orvia_demo_pw_hashes_v1';
+function hashDemoPw(email,pw){
+ const s=String(email||'').trim().toLowerCase()+'::'+String(pw||'');
+ let h1=0xdeadbeef^s.length,h2=0x41c6ce57^s.length;
+ for(let i=0;i<s.length;i++){
+  const ch=s.charCodeAt(i);
+  h1=Math.imul(h1^ch,2654435761);
+  h2=Math.imul(h2^ch,1597334677);
+ }
+ h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+ h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+ return (h2>>>0).toString(16).padStart(8,'0')+(h1>>>0).toString(16).padStart(8,'0');
+}
+function loadDemoPwMap(){try{return JSON.parse(localStorage.getItem(DEMO_PW_KEY)||'{}')||{}}catch{return{}}}
+function saveDemoPw(email,pw){
+ const em=String(email||'').trim().toLowerCase();
+ if(!em||!pw)return;
+ const map=loadDemoPwMap();
+ map[em]=hashDemoPw(em,pw);
+ try{localStorage.setItem(DEMO_PW_KEY,JSON.stringify(map))}catch{/* ignore */}
+}
+function checkDemoPw(email,pw){
+ const em=String(email||'').trim().toLowerCase();
+ const map=loadDemoPwMap();
+ return Boolean(map[em]&&map[em]===hashDemoPw(em,pw));
+}
+let chg=function(){const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));S.err={};if(!v.currentPassword)S.err.currentPassword='Enter your current password.';if((v.newPassword||'').length<8)S.err.newPassword='Use at least 8 characters.';if(Object.keys(S.err).length)return view(false);if(S.currentEmail)saveDemoPw(S.currentEmail,v.newPassword);toast('Password updated')};
 const PAGES={dashboard,onboarding,account};
 /* forms */
 function field(n,t,o,v){const r=S.err[n];const c=`<div class="fl ${r?'bad':''}"><label>${esc(hum(n))}<span>${esc(n)}</span></label>`;const e=r?`<small>${esc(r)}</small>`:'';
@@ -324,7 +350,7 @@ let save=function(k,i){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;co
  const rawPassword=o.password;
  delete o.password;
  const inv=Boolean(o.sendInvite);delete o.sendInvite;
- if(k==='users'&&i==null){S._pendingUserPassword=rawPassword||'';S._pendingUserInvite=inv;S._localPasswords=S._localPasswords||{};if(rawPassword)S._localPasswords[o.email]=rawPassword;o.isActive=true;o.teamId=o.teamId||'—'}
+ if(k==='users'&&i==null){S._pendingUserPassword=rawPassword||'';S._pendingUserInvite=inv;if(rawPassword)saveDemoPw(o.email,rawPassword);o.isActive=true;o.teamId=o.teamId||'—'}
  if(i==null){if(S.brand&&!o.brandId&&['files','platform','briefs'].includes(k))o.brandId=S.brand;E.rows.unshift(o)}else Object.assign(E.rows[i],o);close();
  if(k==='users'&&i==null){
   if(!getApiToken())toast(inv?'User added (demo mode — connect backend to send invitation email)':'User added');
@@ -394,7 +420,9 @@ let doLogin=function(){
  if(Object.keys(S.err).length)return render();
  const demo=DEMO_ACCOUNTS[email];
  if(demo){
-  if(pw!==demo.password){S.err.password='Invalid email or password.';return render()}
+  const pwMap=loadDemoPwMap();
+  const pwOk=pwMap[email]?checkDemoPw(email,pw):(pw===demo.password);
+  if(!pwOk){S.err.password='Invalid email or password.';return render()}
   S.role=demo.role;
   S.currentEmail=email;
   ME[S.role]=[demo.fullName,demo.subtitle];
@@ -403,8 +431,7 @@ let doLogin=function(){
   return render();
  }
  const createdRow=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===email);
- const localPw=S._localPasswords&&S._localPasswords[email];
- if(createdRow&&localPw&&pw===localPw){
+ if(createdRow&&checkDemoPw(email,pw)){
   if(createdRow.isActive===false){S.err.password='This account is inactive.';return render()}
   const rk=UI_ROLE_KEY[createdRow.roleId]||'emp';
   S.role=rk;
@@ -1852,6 +1879,7 @@ async function doResetPassword(){
  if(!S.resetToken)S.err.form='Your reset authorization is missing or expired. Verify your email code again.';
  if(Object.keys(S.err).length)return render();
  if(S._demoOtp||String(S.resetToken).startsWith('demo-reset-token-')){
+  saveDemoPw(S.resetEmail||S.otpEmail||S.forgotEmail,S.newPassword);
   S._demoOtp='';
   S.loginNotice='Your password has been reset successfully. Please log in with your new password.';
   S.authed=false;
@@ -1872,6 +1900,7 @@ async function doResetPassword(){
  render();
  try{
   await apiCall('/auth/reset-password',{method:'POST',body:{resetToken:S.resetToken,newPassword:S.newPassword},auth:false});
+  saveDemoPw(S.resetEmail||S.otpEmail||S.forgotEmail,S.newPassword);
   document.querySelectorAll('.orvia-mail-pop').forEach(e=>e.remove());
   S.busy=false;
   S.loginNotice='Your password has been reset successfully. Please log in with your new password.';
