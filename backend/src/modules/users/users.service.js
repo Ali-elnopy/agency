@@ -2,6 +2,7 @@
 import bcrypt from 'bcryptjs';
 import { UsersModel } from './users.model.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { isMailerConfigured, sendUserInvitationEmail } from '../../utils/mailer.js';
 
 import { prisma } from '../../config/prisma.js';
 
@@ -259,7 +260,25 @@ export const UsersService = {
         }
       }
 
-      return await UsersModel.findById(created.id);
+      const fullUser = await UsersModel.findById(created.id);
+
+      let invitationSent = false;
+      if (input.sendInvite !== false && isMailerConfigured()) {
+        try {
+          await sendUserInvitationEmail({
+            to: fullUser.email,
+            fullName: fullUser.fullName,
+            roleName: fullUser.role?.name || input.roleName,
+            jobTitle: fullUser.jobTitle?.name || input.customJobTitle || '',
+            tempPassword: input.password,
+          });
+          invitationSent = true;
+        } catch (mailError) {
+          console.error('[users] invitation email failed:', mailError?.message || mailError);
+        }
+      }
+
+      return { ...fullUser, invitationSent };
     } catch (error) {
       mapPrismaError(error);
     }

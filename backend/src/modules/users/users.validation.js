@@ -37,6 +37,7 @@ export const createUserSchema = z
     jobTitleId: z.number().int().positive().nullable().optional(),
     customJobTitle: z.string().trim().min(1).max(100).nullable().optional(),
     teamId: z.number().int().positive().nullable().optional(),
+    sendInvite: z.boolean().optional(),
   })
   .strict();
 

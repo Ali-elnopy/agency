@@ -36,15 +36,32 @@ app.set('trust proxy', 1);
 
 app.use(helmet());
 
+const configuredOrigins = (
+  process.env.CLIENT_URL ||
+  process.env.CORS_ORIGINS ||
+  'http://localhost:5173,http://localhost:5174,http://localhost:3000'
+)
+  .split(',')
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+const isDevLocalOrigin = (origin) =>
+  /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/i.test(
+    origin,
+  );
+
 app.use(
   cors({
-    origin: (
-      process.env.CLIENT_URL ||
-      process.env.CORS_ORIGINS ||
-      'http://localhost:5173,http://localhost:3000'
-    )
-      .split(',')
-      .map((url) => url.trim()),
+    origin(origin, callback) {
+      if (
+        !origin ||
+        configuredOrigins.includes(origin) ||
+        (process.env.NODE_ENV !== 'production' && isDevLocalOrigin(origin))
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
   }),
 );

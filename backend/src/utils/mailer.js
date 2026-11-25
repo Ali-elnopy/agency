@@ -348,3 +348,71 @@ export async function sendPasswordResetEmail({ to, fullName, token, expiresInMin
     previewUrl: mailResult?.previewUrl || '',
   };
 }
+
+export async function sendUserInvitationEmail({
+  to,
+  fullName,
+  roleName,
+  jobTitle,
+  tempPassword,
+}) {
+  const name = fullName || 'there';
+  const product = appName();
+  const loginUrl = frontendBaseUrl();
+  const roleLabel = [roleName, jobTitle].filter(Boolean).join(' · ');
+
+  const text = [
+    `Hello ${name},`,
+    '',
+    `You have been invited to join ${product}.`,
+    roleLabel ? `Assigned role: ${roleLabel}` : '',
+    '',
+    `Sign in at: ${loginUrl}`,
+    `Email: ${to}`,
+    tempPassword ? `Temporary password: ${tempPassword}` : '',
+    '',
+    'For security, please change your password after your first sign-in.',
+    '',
+    'Best regards,',
+    `${product} Team`,
+  ]
+    .filter((line, idx, arr) => line !== '' || arr[idx - 1] !== '')
+    .join('\n');
+
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Welcome to ${product}</title>
+  </head>
+  <body style="margin:0;padding:32px 16px;background:#F4F3EF;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17171C;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#FFFFFF;border-radius:24px;padding:36px;border:1px solid #E5E3DE;">
+      <tr><td>
+        <p style="margin:0 0 20px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#6E6D72;font-weight:700;">${product} · WORKSPACE INVITATION</p>
+        <h1 style="margin:0 0 14px;font-size:26px;line-height:1.2;color:#17171C;">You’re invited to ${product}</h1>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#45454d;">Hello <strong>${name}</strong>,</p>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#45454d;">An administrator has created your account${roleLabel ? ` as <strong>${roleLabel}</strong>` : ''}.</p>
+        <div style="background:#F4F3EF;border-radius:16px;padding:18px 20px;margin:0 0 22px;">
+          <div style="font-size:13px;color:#45454d;margin-bottom:6px;"><strong>Email:</strong> ${to}</div>
+          ${tempPassword ? `<div style="font-size:13px;color:#45454d;"><strong>Password:</strong> <code style="font-family:Consolas,monospace;background:#fff;padding:2px 6px;border-radius:6px;">${tempPassword}</code></div>` : ''}
+        </div>
+        <p style="margin:0 0 20px;"><a href="${loginUrl}" style="display:inline-block;background:#17171C;color:#FFFFFF;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px;">Sign in to ${product}</a></p>
+        <p style="margin:0;font-size:12px;line-height:1.6;color:#6E6D72;">For security, please change your password after signing in.</p>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+
+  const mailResult = await sendMail({
+    to,
+    subject: `Welcome to ${product} — Your workspace account is ready`,
+    text,
+    html,
+  });
+
+  return {
+    provider: mailResult?.provider || 'smtp',
+    previewUrl: mailResult?.previewUrl || '',
+  };
+}
