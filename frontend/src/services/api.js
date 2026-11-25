@@ -1,7 +1,11 @@
 import { ApiError, apiRequest } from './http';
 import { clearSession, getAccessToken, setSession } from './tokenStorage';
+import { sanitizeTextInput, stripSensitiveUserFields } from '../utils/security';
+import { isValidEmail } from '../utils/validation';
 
-const MOCK_ENABLED = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API === 'true';
+const MAX_EMAIL_LENGTH = 254;
+const MAX_OTP_LENGTH = 12;
+const MAX_RESET_TOKEN_LENGTH = 2048;
 
 const MOCK_ACCOUNTS = [
   {
@@ -76,8 +80,19 @@ const MOCK_ACCOUNTS = [
   },
 ];
 
+/**
+ * Trims, removes control characters, enforces RFC 5321 max length, and lowercases
+ * an email input prior to validation or API transmission.
+ *
+ * @param {unknown} email
+ * @returns {string}
+ */
+export function normalizeEmailInput(email) {
+  return sanitizeTextInput(email, MAX_EMAIL_LENGTH).toLowerCase();
+}
+
 export function isMockApiEnabled() {
-  return MOCK_ENABLED;
+  return import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API === 'true';
 }
 
 /**
@@ -92,11 +107,22 @@ function isUnavailable(error) {
   return error instanceof ApiError && (error.status === 0 || error.status >= 500);
 }
 
-function mockLogin(email, password) {
+function normalizeSessionUser(rawUser) {
+  const cleaned = stripSensitiveUserFields(rawUser);
+  if (!cleaned) return null;
+
+  return {
+    ...cleaned,
+    role: cleaned.role?.name ?? cleaned.role,
+    roleId: cleaned.role?.id ?? cleaned.roleId ?? null,
+  };
+}
+
+function mockLogin(normalizedEmail, password) {
   const account = MOCK_ACCOUNTS.find(
     (candidate) =>
       candidate.password &&
-      candidate.email.toLowerCase() === String(email).trim().toLowerCase() &&
+      candidate.email.toLowerCase() === normalizedEmail &&
       candidate.password === password,
   );
 
@@ -108,44 +134,62 @@ function mockLogin(email, password) {
     };
   }
 
+  const safeUser = stripSensitiveUserFields(account.user);
+
   setSession({
     accessToken: 'mock-access-token',
     refreshToken: 'mock-refresh-token',
-    user: account.user,
+    user: safeUser,
   });
 
-  return { success: true, data: { user: account.user, isMock: true } };
+  return { success: true, data: { user: safeUser, isMock: true } };
 }
 
-export async function loginApi({ email, password }) {
+export async function loginApi({ email, password } = {}) {
+  const normalizedEmail = normalizeEmailInput(email);
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+    return {
+      success: false,
+      message: 'Enter a valid email address.',
+    };
+  }
+
+  if (typeof password !== 'string' || password.length === 0) {
+    return {
+      success: false,
+      message: 'Invalid email or password',
+    };
+  }
+
   // The public demo build has no API behind it. Resolve mock accounts locally
   // instead of waiting for a network failure, because a static host answers
   // unknown POST routes with 405 rather than a 5xx. `MOCK_ENABLED` is a
   // compile-time false in production builds, so this branch is dropped there.
-  if (MOCK_ENABLED) return mockLogin(email, password);
+  if (import.meta.env.DEV && isMockApiEnabled()) return mockLogin(normalizedEmail, password);
 
   try {
     const body = await apiRequest('/auth/login', {
       method: 'POST',
-      body: { email, password },
+      body: { email: normalizedEmail, password },
       auth: false,
     });
 
     if (body?.success && body.data?.user) {
       // The API returns `role` as a `{ id, name }` record; the shell components
       // (Sidebar / Topbar / Settings) compare the role name as a string.
-      const sessionUser = {
-        ...body.data.user,
-        role: body.data.user.role?.name ?? body.data.user.role,
-        roleId: body.data.user.role?.id ?? null,
-      };
+      const sessionUser = normalizeSessionUser(body.data.user);
 
       setSession({
         accessToken: body.data.accessToken,
         refreshToken: body.data.refreshToken,
         user: sessionUser,
       });
-      return { success: true, data: { ...body.data, user: sessionUser } };
+
+      const safeData = { ...body.data, user: sessionUser };
+      delete safeData.accessToken;
+      delete safeData.refreshToken;
+
+      return { success: true, data: safeData };
     }
 
     return {
@@ -153,8 +197,8 @@ export async function loginApi({ email, password }) {
       message: body?.message || 'Invalid email or password',
     };
   } catch (error) {
-    if (MOCK_ENABLED && isUnavailable(error)) {
-      return mockLogin(email, password);
+    if (import.meta.env.DEV && isMockApiEnabled() && isUnavailable(error)) {
+      return mockLogin(normalizedEmail, password);
     }
 
     return {
@@ -168,10 +212,18 @@ export async function loginApi({ email, password }) {
 }
 
 export async function forgotPasswordApi(email) {
+  const normalizedEmail = normalizeEmailInput(email);
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+    return {
+      success: false,
+      message: 'Enter a valid email address.',
+    };
+  }
+
   try {
     const body = await apiRequest('/auth/forgot-password', {
       method: 'POST',
-      body: { email },
+      body: { email: normalizedEmail },
       auth: false,
     });
 
@@ -183,7 +235,7 @@ export async function forgotPasswordApi(email) {
       data: body?.data || {},
     };
   } catch (error) {
-    if (MOCK_ENABLED && isUnavailable(error)) {
+    if (import.meta.env.DEV && isMockApiEnabled() && isUnavailable(error)) {
       return {
         success: true,
         message: 'Mock mode: the reset email was simulated. No message left this device.',
@@ -202,10 +254,18 @@ export async function forgotPasswordApi(email) {
 }
 
 export async function resendOtpApi(email) {
+  const normalizedEmail = normalizeEmailInput(email);
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+    return {
+      success: false,
+      message: 'Enter a valid email address.',
+    };
+  }
+
   try {
     const body = await apiRequest('/auth/resend-otp', {
       method: 'POST',
-      body: { email },
+      body: { email: normalizedEmail },
       auth: false,
     });
 
@@ -215,7 +275,7 @@ export async function resendOtpApi(email) {
       data: body?.data || {},
     };
   } catch (error) {
-    if (MOCK_ENABLED && isUnavailable(error)) {
+    if (import.meta.env.DEV && isMockApiEnabled() && isUnavailable(error)) {
       return {
         success: true,
         message: 'Mock mode: the resend was simulated. No message left this device.',
@@ -233,11 +293,27 @@ export async function resendOtpApi(email) {
   }
 }
 
-export async function verifyOtpApi({ email, otp }) {
+export async function verifyOtpApi({ email, otp } = {}) {
+  const normalizedEmail = normalizeEmailInput(email);
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+    return {
+      success: false,
+      message: 'Enter a valid email address.',
+    };
+  }
+
+  const normalizedOtp = sanitizeTextInput(otp, MAX_OTP_LENGTH);
+  if (!normalizedOtp) {
+    return {
+      success: false,
+      message: 'Enter the verification code.',
+    };
+  }
+
   try {
     const body = await apiRequest('/auth/verify-otp', {
       method: 'POST',
-      body: { email, otp },
+      body: { email: normalizedEmail, otp: normalizedOtp },
       auth: false,
     });
 
@@ -257,11 +333,26 @@ export async function verifyOtpApi({ email, otp }) {
   }
 }
 
-export async function resetPasswordApi({ resetToken, token, newPassword }) {
+export async function resetPasswordApi({ resetToken, token, newPassword } = {}) {
+  const resolvedToken = sanitizeTextInput(resetToken || token, MAX_RESET_TOKEN_LENGTH);
+  if (!resolvedToken) {
+    return {
+      success: false,
+      message: 'Reset token is missing or invalid.',
+    };
+  }
+
+  if (typeof newPassword !== 'string' || newPassword.length === 0) {
+    return {
+      success: false,
+      message: 'Enter a valid new password.',
+    };
+  }
+
   try {
     const body = await apiRequest('/auth/reset-password', {
       method: 'POST',
-      body: { resetToken: resetToken || token, newPassword },
+      body: { resetToken: resolvedToken, newPassword },
       auth: false,
     });
 
@@ -271,7 +362,7 @@ export async function resetPasswordApi({ resetToken, token, newPassword }) {
       data: body?.data || {},
     };
   } catch (error) {
-    if (MOCK_ENABLED && isUnavailable(error)) {
+    if (import.meta.env.DEV && isMockApiEnabled() && isUnavailable(error)) {
       return {
         success: true,
         message: 'Mock mode: the password update was simulated. No account was changed.',
@@ -290,7 +381,7 @@ export async function resetPasswordApi({ resetToken, token, newPassword }) {
 }
 
 export async function fetchCurrentUserApi() {
-  if (MOCK_ENABLED) return null;
+  if (import.meta.env.DEV && isMockApiEnabled()) return null;
 
   const body = await apiRequest('/auth/me');
   const user = body?.data?.user;
@@ -299,11 +390,7 @@ export async function fetchCurrentUserApi() {
 
   // Keep the same normalised shape that login stores: `role` is the role name
   // string and `roleId` the numeric id, because the shell compares strings.
-  return {
-    ...user,
-    role: user.role?.name ?? user.role,
-    roleId: user.role?.id ?? null,
-  };
+  return normalizeSessionUser(user);
 }
 
 export function logout() {

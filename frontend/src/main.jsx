@@ -5,7 +5,13 @@ import AuthProvider from './auth/AuthProvider';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+
+if (!rootElement) {
+  throw new Error('Failed to initialize application: #root container not found.');
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
