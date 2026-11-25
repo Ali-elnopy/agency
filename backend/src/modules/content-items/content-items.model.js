@@ -13,6 +13,8 @@ const contentItemSelect = {
   toneOfVoice: true,
   caption: true,
   notes: true,
+  clientReviewStatus: true,
+  clientApprovedAt: true,
   createdAt: true,
   updatedAt: true,
 

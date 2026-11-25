@@ -4,6 +4,7 @@ const positiveId = z.coerce.number().int().positive();
 
 const taskType = z.enum([
   'CONTENT_CREATION',
+  'CONTENT_MODIFICATION',
   'REVIEW',
   'PUBLISH',
   'DIRECT',

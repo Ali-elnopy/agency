@@ -85,6 +85,9 @@ model User {
 
   createdTasks Task[] @relation("TaskCreator")
 
+  submittedChangeRequests ClientChangeRequest[] @relation("ClientChangeRequestClient")
+  managedChangeRequests   ClientChangeRequest[] @relation("ClientChangeRequestManager")
+
   @@index([roleId])
   @@index([jobTitleId])
   @@map("users")
@@ -178,8 +181,9 @@ model Brand {
   platformAccounts PlatformAccount[]
   contentPlans     ContentPlan[]
 
-  onboarding ClientOnboarding?
-  strategies Strategy[]
+  onboarding           ClientOnboarding?
+  strategies           Strategy[]
+  clientChangeRequests ClientChangeRequest[]
 
   @@index([accountManagerId])
   @@index([teamId])
@@ -390,7 +394,11 @@ model ContentItem {
   caption     String? @db.Text
   notes       String? @db.Text
 
-  tasks Task[]
+  clientReviewStatus String    @default("NOT_READY") @map("client_review_status") @db.VarChar(30)
+  clientApprovedAt   DateTime? @map("client_approved_at") @db.Timestamptz(6)
+
+  tasks                Task[]
+  clientChangeRequests ClientChangeRequest[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -403,6 +411,7 @@ model ContentItem {
   @@index([campaignId])
   @@index([createdBy])
   @@index([scheduledDate])
+  @@index([clientReviewStatus])
   @@map("content_items")
 }
 
@@ -509,11 +518,12 @@ model Task {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  contentItem    ContentItem? @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
-  assignee       User         @relation("TaskAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
-  creator        User         @relation("TaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  dependsOn      Task?        @relation("TaskDependency", fields: [dependsOnTaskId], references: [id], onDelete: SetNull)
-  dependentTasks Task[]       @relation("TaskDependency")
+  contentItem         ContentItem?         @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  assignee            User                 @relation("TaskAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
+  creator             User                 @relation("TaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  dependsOn           Task?                @relation("TaskDependency", fields: [dependsOnTaskId], references: [id], onDelete: SetNull)
+  dependentTasks      Task[]               @relation("TaskDependency")
+  clientChangeRequest ClientChangeRequest? @relation("ClientChangeRequestTask")
 
   @@index([contentItemId])
   @@index([assignedTo])
@@ -541,4 +551,33 @@ model TaskDeadlineRule {
   @@index([contentType])
   @@index([taskType])
   @@map("task_deadline_rules")
+}
+
+model ClientChangeRequest {
+  id                  Int       @id @default(autoincrement())
+  contentItemId       Int       @map("content_item_id")
+  brandId             Int       @map("brand_id")
+  clientId            Int       @map("client_id")
+  accountManagerId    Int       @map("account_manager_id")
+  status              String    @default("PENDING") @db.VarChar(20)
+  clientNotes         String    @map("client_notes") @db.Text
+  accountManagerNotes String?   @map("account_manager_notes") @db.Text
+  relatedTaskId       Int?      @unique @map("related_task_id")
+  resolvedAt          DateTime? @map("resolved_at") @db.Timestamptz(6)
+  forwardedAt         DateTime? @map("forwarded_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  contentItem    ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  brand          Brand       @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  client         User        @relation("ClientChangeRequestClient", fields: [clientId], references: [id], onDelete: Restrict)
+  accountManager User        @relation("ClientChangeRequestManager", fields: [accountManagerId], references: [id], onDelete: Restrict)
+  relatedTask    Task?       @relation("ClientChangeRequestTask", fields: [relatedTaskId], references: [id], onDelete: SetNull)
+
+  @@index([contentItemId])
+  @@index([brandId])
+  @@index([clientId])
+  @@index([accountManagerId])
+  @@index([status])
+  @@map("client_change_requests")
 }

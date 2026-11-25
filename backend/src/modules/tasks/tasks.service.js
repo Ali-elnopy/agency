@@ -6,6 +6,11 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 
 const ACCOUNT_MANAGER_ROLES = new Set(['ADMIN', 'ACCOUNT_MANAGER']);
 
+const CREATION_TASK_TYPES = new Set([
+  'CONTENT_CREATION',
+  'CONTENT_MODIFICATION',
+]);
+
 const VALID_STATUSES = new Set([
   'TODO',
   'IN_PROGRESS',
@@ -108,6 +113,35 @@ async function validateAssignee(userId) {
   return user;
 }
 
+function assertAccountManagerBrandAccess(task, currentUser, { allowAssigneeOrCreator = true } = {}) {
+  if (getRoleName(currentUser) !== 'ACCOUNT_MANAGER') {
+    return;
+  }
+
+  const brandAccountManagerId =
+    task.contentItem?.contentPlan?.brand?.accountManagerId;
+
+  if (brandAccountManagerId === undefined || brandAccountManagerId === null) {
+    return;
+  }
+
+  if (brandAccountManagerId === currentUser.id) {
+    return;
+  }
+
+  if (
+    allowAssigneeOrCreator &&
+    (task.assignedTo === currentUser.id || task.createdBy === currentUser.id)
+  ) {
+    return;
+  }
+
+  throw new ApiError(
+    403,
+    'You can only access or manage tasks for your assigned brands',
+  );
+}
+
 function assertCanChangeStatus(task, newStatus, currentUser) {
   ensureNotClient(currentUser);
 
@@ -129,9 +163,11 @@ function assertCanChangeStatus(task, newStatus, currentUser) {
     throw new ApiError(403, 'You are not allowed to change this task status');
   }
 
+  assertAccountManagerBrandAccess(task, currentUser);
+
   if (
     newStatus === 'SUBMITTED' &&
-    task.type === 'CONTENT_CREATION' &&
+    CREATION_TASK_TYPES.has(task.type) &&
     (roleName === 'CREATIVE' || isContentCreatorUser(currentUser))
   ) {
     throw new ApiError(
@@ -141,7 +177,7 @@ function assertCanChangeStatus(task, newStatus, currentUser) {
   }
 
   if (
-    (task.type === 'CONTENT_CREATION' || task.type === 'REVIEW') &&
+    (CREATION_TASK_TYPES.has(task.type) || task.type === 'REVIEW') &&
     (newStatus === 'COMPLETED' || newStatus === 'NEEDS_CHANGES') &&
     !isAdmin &&
     !isAccountManager
@@ -149,6 +185,16 @@ function assertCanChangeStatus(task, newStatus, currentUser) {
     throw new ApiError(
       403,
       'Only admins and account managers can approve or request changes on content workflow tasks',
+    );
+  }
+
+  if (
+    task.type === 'REVIEW' &&
+    (newStatus === 'COMPLETED' || newStatus === 'NEEDS_CHANGES')
+  ) {
+    throw new ApiError(
+      400,
+      'Use the review endpoint (PATCH /api/v1/tasks/:id/review) to complete or request changes on a review task',
     );
   }
 }
@@ -377,6 +423,8 @@ export const TasksService = {
       throw new ApiError(403, 'You are not allowed to view this task');
     }
 
+    assertAccountManagerBrandAccess(task, currentUser);
+
     return task;
   },
 
@@ -401,6 +449,8 @@ export const TasksService = {
     if (!isAdmin && !isAccountManager && !isAssignee && !isCreator) {
       throw new ApiError(403, 'You are not allowed to update this task');
     }
+
+    assertAccountManagerBrandAccess(task, currentUser);
 
     if (input.status !== undefined) {
       assertCanChangeStatus(task, input.status, currentUser);
@@ -481,9 +531,9 @@ export const TasksService = {
       throw new ApiError(403, 'You can only submit tasks assigned to you');
     }
 
-    // Only content creation tasks can be submitted this way.
-    if (task.type !== 'CONTENT_CREATION') {
-      throw new ApiError(400, 'Only content creation tasks can be submitted');
+    // Only content creation or modification tasks can be submitted this way.
+    if (!CREATION_TASK_TYPES.has(task.type)) {
+      throw new ApiError(400, 'Only content creation or modification tasks can be submitted');
     }
 
     // A task cannot be submitted after it is completed or cancelled.
@@ -566,16 +616,25 @@ export const TasksService = {
     let creationTask = null;
     let reviewTask = null;
 
-    if (targetTask.type === 'CONTENT_CREATION') {
+    if (CREATION_TASK_TYPES.has(targetTask.type)) {
       creationTask = targetTask;
-      reviewTask = await prisma.task.findFirst({
-        where: {
-          contentItemId: targetTask.contentItemId,
-          type: 'REVIEW',
-          status: { not: 'CANCELLED' },
-        },
-        orderBy: { createdAt: 'asc' },
-      });
+      reviewTask =
+        (await prisma.task.findFirst({
+          where: {
+            dependsOnTaskId: targetTask.id,
+            type: 'REVIEW',
+            status: { not: 'CANCELLED' },
+          },
+          orderBy: { createdAt: 'desc' },
+        })) ??
+        (await prisma.task.findFirst({
+          where: {
+            contentItemId: targetTask.contentItemId,
+            type: 'REVIEW',
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          orderBy: { createdAt: 'desc' },
+        }));
     } else if (targetTask.type === 'REVIEW') {
       reviewTask = targetTask;
       creationTask = targetTask.dependsOnTaskId
@@ -583,12 +642,12 @@ export const TasksService = {
         : await prisma.task.findFirst({
             where: {
               contentItemId: targetTask.contentItemId,
-              type: 'CONTENT_CREATION',
+              type: { in: ['CONTENT_CREATION', 'CONTENT_MODIFICATION'] },
             },
-            orderBy: { createdAt: 'asc' },
+            orderBy: { createdAt: 'desc' },
           });
     } else {
-      throw new ApiError(400, 'Only content creation or review tasks can be reviewed');
+      throw new ApiError(400, 'Only content creation, modification, or review tasks can be reviewed');
     }
 
     if (!creationTask) {
@@ -653,6 +712,24 @@ export const TasksService = {
           data: reviewUpdateData,
         });
 
+        let updatedContentItem = null;
+
+        if (isApproved && creationTask.contentItemId && tx.contentItem?.update) {
+          updatedContentItem = await tx.contentItem.update({
+            where: { id: creationTask.contentItemId },
+            data: {
+              clientReviewStatus: 'PENDING_CLIENT_REVIEW',
+              clientApprovedAt: null,
+            },
+            select: {
+              id: true,
+              title: true,
+              clientReviewStatus: true,
+              clientApprovedAt: true,
+            },
+          });
+        }
+
         await NotificationsService.create(
           {
             recipientId: creationTask.assignedTo,
@@ -672,9 +749,31 @@ export const TasksService = {
           tx,
         );
 
+        const brandClientId =
+          creationTask.contentItem?.contentPlan?.brand?.clientId ??
+          reviewTask.contentItem?.contentPlan?.brand?.clientId;
+
+        if (isApproved && brandClientId) {
+          await NotificationsService.create(
+            {
+              recipientId: brandClientId,
+              type: 'CONTENT_READY_FOR_CLIENT_REVIEW',
+              title: 'Content Ready for Review',
+              message: `"${creationTask.contentItem?.title ?? creationTask.title}" is ready for your review.`,
+              data: {
+                contentItemId: creationTask.contentItemId,
+                taskId: creationTask.id,
+                reviewTaskId: reviewTask.id,
+              },
+            },
+            tx,
+          );
+        }
+
         return {
           creationTask: updatedCreationTask,
           reviewTask: updatedReviewTask,
+          ...(updatedContentItem ? { contentItem: updatedContentItem } : {}),
         };
       });
     } catch (error) {
@@ -723,22 +822,35 @@ export const TasksService = {
   },
 
   async handleTaskSubmission(task, db = prisma) {
-    if (task.type !== 'CONTENT_CREATION' || !task.contentItemId) {
+    if (!CREATION_TASK_TYPES.has(task.type) || !task.contentItemId) {
       return;
     }
 
-    const reviewTask = await db.task.findFirst({
-      where: {
-        contentItemId: task.contentItemId,
-        type: 'REVIEW',
-        status: {
-          notIn: ['COMPLETED', 'CANCELLED'],
+    const reviewTask =
+      (await db.task.findFirst({
+        where: {
+          dependsOnTaskId: task.id,
+          type: 'REVIEW',
+          status: {
+            notIn: ['COMPLETED', 'CANCELLED'],
+          },
         },
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+      })) ??
+      (await db.task.findFirst({
+        where: {
+          contentItemId: task.contentItemId,
+          type: 'REVIEW',
+          status: {
+            notIn: ['COMPLETED', 'CANCELLED'],
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }));
 
     if (!reviewTask) {
       return;
@@ -801,6 +913,10 @@ export const TasksService = {
     ensureAccountManager(currentUser);
 
     const task = await getTaskOrThrow(value);
+
+    assertAccountManagerBrandAccess(task, currentUser, {
+      allowAssigneeOrCreator: false,
+    });
 
     try {
       return await TasksModel.remove(task.id);

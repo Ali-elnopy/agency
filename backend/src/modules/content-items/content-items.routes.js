@@ -12,6 +12,8 @@ import {
 import { authenticate } from '../../middlewares/auth.js';
 import { requireCreator } from '../../middlewares/requireCreator.js';
 import { validate } from '../../middlewares/validate.js';
+import { ClientChangeRequestsController } from '../client-change-requests/client-change-requests.controller.js';
+import { clientReviewSchema } from '../client-change-requests/client-change-requests.validation.js';
 
 export const contentItemsRouter =
   Router();
@@ -40,6 +42,12 @@ contentItemsRouter.patch(
   requireCreator,
   validate(updateContentItemSchema),
   ContentItemsController.update,
+);
+
+contentItemsRouter.post(
+  '/:id/client-review',
+  validate(clientReviewSchema),
+  ClientChangeRequestsController.submitClientReview,
 );
 
 contentItemsRouter.delete(

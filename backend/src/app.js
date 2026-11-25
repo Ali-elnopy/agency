@@ -24,6 +24,7 @@ import {
   contentItemsRouter,
 } from './modules/content-items/content-items.routes.js';
 import { tasksRouter } from './modules/tasks/tasks.routes.js';
+import { clientChangeRequestsRouter } from './modules/client-change-requests/client-change-requests.routes.js';
 
 const app = express();
 
@@ -136,6 +137,9 @@ app.use('/api/strategies', strategiesRouter);
 app.use('/api/v1/strategies', strategiesRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/v1/tasks', tasksRouter);
+
+app.use('/api/client-change-requests', clientChangeRequestsRouter);
+app.use('/api/v1/client-change-requests', clientChangeRequestsRouter);
 
 app.use(notFound);
 app.use(errorHandler);
