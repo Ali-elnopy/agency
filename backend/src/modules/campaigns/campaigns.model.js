@@ -39,11 +39,17 @@ export const CampaignsModel = {
     });
   },
 
-  list({ contentPlanId } = {}) {
+  list({ contentPlanId, accessWhere } = {}) {
     const where = {};
 
     if (contentPlanId !== undefined) {
       where.contentPlanId = contentPlanId;
+    }
+
+    if (accessWhere && Object.keys(accessWhere).length > 0) {
+      where.contentPlan = {
+        brand: accessWhere,
+      };
     }
 
     return prisma.campaign.findMany({
@@ -56,9 +62,17 @@ export const CampaignsModel = {
     });
   },
 
-  findById(id) {
-    return prisma.campaign.findUnique({
-      where: { id },
+  findById(id, accessWhere) {
+    const where = { id };
+
+    if (accessWhere && Object.keys(accessWhere).length > 0) {
+      where.contentPlan = {
+        brand: accessWhere,
+      };
+    }
+
+    return prisma.campaign.findFirst({
+      where,
       select: campaignSelect,
     });
   },
@@ -70,6 +84,23 @@ export const CampaignsModel = {
         id: true,
         brandId: true,
         platformAccountId: true,
+        brand: {
+          select: {
+            id: true,
+            clientId: true,
+            accountManagerId: true,
+            teamId: true,
+            team: {
+              select: {
+                memberships: {
+                  select: {
+                    userId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
   },

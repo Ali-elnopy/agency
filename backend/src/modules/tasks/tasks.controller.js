@@ -168,6 +168,26 @@ export const TasksController = {
   },
 ),
 
+  review: asyncHandler(
+    async (req, res) => {
+      const result =
+        await TasksService.reviewTask(
+          req.params.id,
+          req.body,
+          req.user,
+        );
+
+      res.status(200).json({
+        success: true,
+        message:
+          req.body.decision === 'COMPLETED'
+            ? 'Task approved and completed successfully'
+            : 'Changes requested for task successfully',
+        data: result,
+      });
+    },
+  ),
+
   remove: asyncHandler(
     async (req, res) => {
       const task =

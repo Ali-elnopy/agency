@@ -24,7 +24,7 @@ export const ContentItemsController = {
   create: asyncHandler(async (req, res) => {
     const item = await ContentItemsService.create(
       req.body,
-      req.user.id,
+      req.user,
     );
 
     res.status(201).json({
@@ -82,6 +82,7 @@ export const ContentItemsController = {
     const item = await ContentItemsService.update(
       req.params.id,
       req.body,
+      req.user,
     );
 
     res.status(200).json({
@@ -94,6 +95,7 @@ export const ContentItemsController = {
   remove: asyncHandler(async (req, res) => {
     const item = await ContentItemsService.remove(
       req.params.id,
+      req.user,
     );
 
     res.status(200).json({

@@ -1,28 +1,30 @@
 
 import { PlatformAccountsModel } from './platform-accounts.model.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { getRoleName, isContentCreatorUser } from '../../utils/roles.js';
+
 const MANAGEMENT_ROLES = new Set(['ADMIN', 'ACCOUNT_MANAGER']);
+
 function getBrandAccessWhere(user) {
-  if (user.role === 'ADMIN') {
+  const role = getRoleName(user);
+
+  if (role === 'ADMIN') {
     return {};
   }
 
-  if (user.role === 'ACCOUNT_MANAGER') {
+  if (role === 'ACCOUNT_MANAGER') {
     return {
       accountManagerId: user.id,
     };
   }
 
-  if (user.role === 'CLIENT') {
+  if (role === 'CLIENT') {
     return {
       clientId: user.id,
     };
   }
 
-  if (
-    user.role === 'EMPLOYEE' &&
-    user.jobTitle?.name === 'Content Creator'
-  ) {
+  if (isContentCreatorUser(user)) {
     return {
       team: {
         is: {
@@ -91,7 +93,7 @@ export const PlatformAccountsService = {
 
   const accessWhere = getBrandAccessWhere(user);
 
-  if (user.role !== 'ADMIN' && user.role !== 'ACCOUNT_MANAGER') {
+  if (!MANAGEMENT_ROLES.has(getRoleName(user))) {
     throw new ApiError(
       403,
       'Only Admins and Account Managers can create platform accounts',
@@ -134,7 +136,7 @@ export const PlatformAccountsService = {
   async update(value, input, user) {
   const account = await getAccountOrThrow(value, user);
 
-  if (!MANAGEMENT_ROLES.has(user.role)) {
+  if (!MANAGEMENT_ROLES.has(getRoleName(user))) {
     throw new ApiError(
       403,
       'Only Admins and Account Managers can update platform accounts',
@@ -175,7 +177,7 @@ export const PlatformAccountsService = {
   async updateStatus(value, isActive, user) {
   const account = await getAccountOrThrow(value, user);
 
-  if (!MANAGEMENT_ROLES.has(user.role)) {
+  if (!MANAGEMENT_ROLES.has(getRoleName(user))) {
     throw new ApiError(
       403,
       'Only Admins and Account Managers can update platform account status',
@@ -195,7 +197,7 @@ export const PlatformAccountsService = {
   async remove(value, user) {
   const account = await getAccountOrThrow(value, user);
 
-  if (!MANAGEMENT_ROLES.has(user.role)) {
+  if (!MANAGEMENT_ROLES.has(getRoleName(user))) {
     throw new ApiError(
       403,
       'Only Admins and Account Managers can delete platform accounts',

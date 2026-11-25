@@ -1,5 +1,6 @@
 import { CampaignsModel } from './campaigns.model.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { getRoleName, isContentCreatorUser } from '../../utils/roles.js';
 
 function parseId(value, label = 'Id') {
   const id = Number(value);
@@ -11,10 +12,61 @@ function parseId(value, label = 'Id') {
   return id;
 }
 
-async function getCampaignOrThrow(value) {
-  const id = parseId(value, 'Campaign id');
+function getBrandAccessWhere(user) {
+  const role = getRoleName(user);
 
-  const campaign = await CampaignsModel.findById(id);
+  if (role === 'ADMIN') {
+    return {};
+  }
+
+  if (role === 'ACCOUNT_MANAGER') {
+    return {
+      accountManagerId: user.id,
+    };
+  }
+
+  if (role === 'CLIENT') {
+    return {
+      clientId: user.id,
+    };
+  }
+
+  if (isContentCreatorUser(user) || role === 'CREATIVE' || role === 'EMPLOYEE') {
+    return {
+      team: {
+        is: {
+          memberships: {
+            some: {
+              userId: user.id,
+            },
+          },
+        },
+      },
+    };
+  }
+
+  throw new ApiError(403, 'You are not authorized to access campaigns');
+}
+
+function assertCreatorTeamAccess(contentPlan, user) {
+  const userId = parseId(user?.id, 'User id');
+  const isMember = contentPlan.brand?.team?.memberships?.some(
+    (membership) => membership.userId === userId,
+  );
+
+  if (!isMember) {
+    throw new ApiError(
+      403,
+      'You can only manage campaigns for brands assigned to your team',
+    );
+  }
+}
+
+async function getCampaignOrThrow(value, user) {
+  const id = parseId(value, 'Campaign id');
+  const accessWhere = user ? getBrandAccessWhere(user) : undefined;
+
+  const campaign = await CampaignsModel.findById(id, accessWhere);
 
   if (!campaign) {
     throw new ApiError(404, 'Campaign not found');
@@ -23,13 +75,17 @@ async function getCampaignOrThrow(value) {
   return campaign;
 }
 
-async function validateContentPlan(contentPlanId) {
+async function validateContentPlan(contentPlanId, user) {
   const contentPlan = await CampaignsModel.findContentPlanById(
     contentPlanId,
   );
 
   if (!contentPlan) {
     throw new ApiError(400, 'Selected content plan does not exist');
+  }
+
+  if (user) {
+    assertCreatorTeamAccess(contentPlan, user);
   }
 
   return contentPlan;
@@ -48,15 +104,15 @@ function mapPrismaError(error) {
 }
 
 export const CampaignsService = {
-  async create(input, userId) {
+  async create(input, user) {
     const contentPlanId = parseId(
       input.contentPlanId,
       'Content plan id',
     );
 
-    const createdBy = parseId(userId, 'User id');
+    const createdBy = parseId(user?.id, 'User id');
 
-    await validateContentPlan(contentPlanId);
+    await validateContentPlan(contentPlanId, user);
 
     try {
       return await CampaignsModel.create({
@@ -70,23 +126,29 @@ export const CampaignsService = {
     }
   },
 
-  async list(filters) {
-    if (filters.contentPlanId !== undefined) {
-      filters.contentPlanId = parseId(
-        filters.contentPlanId,
+  async list(filters, user) {
+    const parsedFilters = { ...filters };
+
+    if (parsedFilters.contentPlanId !== undefined) {
+      parsedFilters.contentPlanId = parseId(
+        parsedFilters.contentPlanId,
         'Content plan id',
       );
     }
 
-    return CampaignsModel.list(filters);
+    parsedFilters.accessWhere = getBrandAccessWhere(user);
+
+    return CampaignsModel.list(parsedFilters);
   },
 
-  async getById(value) {
-    return getCampaignOrThrow(value);
+  async getById(value, user) {
+    return getCampaignOrThrow(value, user);
   },
 
-  async update(value, input) {
-    const campaign = await getCampaignOrThrow(value);
+  async update(value, input, user) {
+    const campaign = await getCampaignOrThrow(value, user);
+
+    await validateContentPlan(campaign.contentPlanId, user);
 
     const data = { ...input };
 
@@ -96,7 +158,7 @@ export const CampaignsService = {
         'Content plan id',
       );
 
-      await validateContentPlan(contentPlanId);
+      await validateContentPlan(contentPlanId, user);
 
       data.contentPlanId = contentPlanId;
     }
@@ -129,8 +191,10 @@ export const CampaignsService = {
     }
   },
 
-  async remove(value) {
-    const campaign = await getCampaignOrThrow(value);
+  async remove(value, user) {
+    const campaign = await getCampaignOrThrow(value, user);
+
+    await validateContentPlan(campaign.contentPlanId, user);
 
     try {
       return await CampaignsModel.remove(campaign.id);

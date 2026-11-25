@@ -1,6 +1,7 @@
 
 import { ContentItemsModel } from './content-items.model.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { getRoleName } from '../../utils/roles.js';
 
 function parseId(value, label = 'Id') {
   const id = Number(value);
@@ -16,11 +17,21 @@ function parseId(value, label = 'Id') {
 }
 
 function isClient(user) {
-  const roleName = String(
-    user?.role?.name || user?.role || '',
-  ).toUpperCase();
+  return getRoleName(user) === 'CLIENT';
+}
 
-  return roleName === 'CLIENT';
+function assertCreatorTeamAccess(plan, user) {
+  const userId = parseId(user?.id, 'User id');
+  const isMember = plan.brand?.team?.memberships?.some(
+    (membership) => membership.userId === userId,
+  );
+
+  if (!isMember) {
+    throw new ApiError(
+      403,
+      'You can only manage content items for brands assigned to your team',
+    );
+  }
 }
 
 async function getContentItemOrThrow(value, user) {
@@ -42,7 +53,7 @@ async function getContentItemOrThrow(value, user) {
   return item;
 }
 
-async function validateContentPlan(contentPlanId) {
+async function validateContentPlan(contentPlanId, user) {
   const plan = await ContentItemsModel.findContentPlanById(
     contentPlanId,
   );
@@ -53,6 +64,12 @@ async function validateContentPlan(contentPlanId) {
       'Selected content plan does not exist',
     );
   }
+
+  if (user) {
+    assertCreatorTeamAccess(plan, user);
+  }
+
+  return plan;
 }
 
 async function validateCampaign(
@@ -108,20 +125,23 @@ function mapPrismaError(error) {
 }
 
 export const ContentItemsService = {
-  async create(input, userId) {
+  async create(input, user) {
     const contentPlanId = parseId(
       input.contentPlanId,
       'Content plan id',
     );
 
     const createdBy = parseId(
-      userId,
+      typeof user === 'object' ? user?.id : user,
       'User id',
     );
 
     const scheduledDate = input.scheduledDate;
 
-    await validateContentPlan(contentPlanId);
+    await validateContentPlan(
+      contentPlanId,
+      typeof user === 'object' ? user : null,
+    );
 
     if (input.campaignId !== undefined && input.campaignId !== null) {
       const campaignId = parseId(
@@ -185,8 +205,12 @@ export const ContentItemsService = {
     return getContentItemOrThrow(value, user);
   },
 
-  async update(value, input) {
+  async update(value, input, user) {
     const item = await getContentItemOrThrow(value);
+
+    if (user) {
+      await validateContentPlan(item.contentPlanId, user);
+    }
 
     const contentPlanId =
       input.contentPlanId !== undefined
@@ -199,7 +223,9 @@ export const ContentItemsService = {
     const scheduledDate =
       input.scheduledDate ?? item.scheduledDate;
 
-    await validateContentPlan(contentPlanId);
+    if (contentPlanId !== item.contentPlanId || !user) {
+      await validateContentPlan(contentPlanId, user);
+    }
 
     const campaignId =
       input.campaignId !== undefined
@@ -244,8 +270,12 @@ export const ContentItemsService = {
     }
   },
 
-  async remove(value) {
+  async remove(value, user) {
     const item = await getContentItemOrThrow(value);
+
+    if (user) {
+      await validateContentPlan(item.contentPlanId, user);
+    }
 
     try {
       return await ContentItemsModel.remove(item.id);

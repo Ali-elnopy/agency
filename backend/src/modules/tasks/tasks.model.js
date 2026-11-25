@@ -24,19 +24,30 @@ const taskSelect = {
   updatedAt: true,
 
   contentItem: {
-  select: {
-    id: true,
-    title: true,
-    type: true,
-    scheduledDate: true,
-    contentPlanId: true,
-
-    reference: true,
-    toneOfVoice: true,
-    caption: true,
-    notes: true,
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      scheduledDate: true,
+      contentPlanId: true,
+      reference: true,
+      toneOfVoice: true,
+      caption: true,
+      notes: true,
+      contentPlan: {
+        select: {
+          id: true,
+          brandId: true,
+          brand: {
+            select: {
+              id: true,
+              accountManagerId: true,
+            },
+          },
+        },
+      },
+    },
   },
-},
 
   assignee: {
     select: {
