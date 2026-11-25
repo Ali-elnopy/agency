@@ -368,12 +368,16 @@ function authView(){
  return `<div class="auth"><div class="al">${themeBtn}<div class="logo"><i></i><div><b>ORVIA</b><small>Studio workspace</small></div></div>${{login,forgot,verify,resetPassword}[a]||login}</div><div class="ar"><div class="ring" style="position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;border:1px solid #3A3A44"></div><span class="tag" style="background:transparent;color:#F4F3EF;border-color:#55555E;width:max-content">Agency shape DNA</span><div><h2>Make the silhouette do the branding.</h2><div class="shapes"><div style="width:64px;height:84px;background:var(--lilac);border-radius:32px 32px 0 0"></div><div style="width:84px;height:84px;border-radius:50%;border:1px solid #6E6D72;display:grid;place-items:center"><i style="width:22px;height:22px;border-radius:50%;background:var(--peach)"></i></div><div style="width:76px;height:84px;background:var(--mint);border-radius:0 38px 38px 0"></div><div class="burst" style="position:static;width:76px;height:76px;background:var(--peach)">12</div></div></div></div></div>`}
 const DEMO_ACCOUNTS={
  'elena@agency-clean.co':{password:'Admin123456!',role:'admin',fullName:'Elena Vance',subtitle:'Workspace owner'},
+ 'elena@agency-clean.com':{password:'Admin123456!',role:'admin',fullName:'Elena Vance',subtitle:'Workspace owner'},
  'admin@orvia.com':{password:'Admin123456!',role:'admin',fullName:'Elena Vance',subtitle:'Workspace owner'},
  'omar@agency-clean.co':{password:'Manager123456!',role:'am',fullName:'Omar Haddad',subtitle:'Account Manager'},
+ 'omar@agency-clean.com':{password:'Manager123456!',role:'am',fullName:'Omar Haddad',subtitle:'Account Manager'},
  'am@orvia.com':{password:'Manager123456!',role:'am',fullName:'Omar Haddad',subtitle:'Account Manager'},
  'lina@agency-clean.co':{password:'Creator123456!',role:'cc',fullName:'Lina Aziz',subtitle:'Content Creator'},
+ 'lina@agency-clean.com':{password:'Creator123456!',role:'cc',fullName:'Lina Aziz',subtitle:'Content Creator'},
  'cc@orvia.com':{password:'Creator123456!',role:'cc',fullName:'Lina Aziz',subtitle:'Content Creator'},
  'karim@agency-clean.co':{password:'Creative123456!',role:'emp',fullName:'Karim Fouad',subtitle:'Creative · Video Editor'},
+ 'karim@agency-clean.com':{password:'Creative123456!',role:'emp',fullName:'Karim Fouad',subtitle:'Creative · Video Editor'},
  'creative@orvia.com':{password:'Creative123456!',role:'emp',fullName:'Karim Fouad',subtitle:'Creative · Video Editor'},
  'sara@lumen.com':{password:'Client123456!',role:'client',fullName:'Sara Nabil',subtitle:'Client · Lumen Skincare'},
  'client@orvia.com':{password:'Client123456!',role:'client',fullName:'Sara Nabil',subtitle:'Client · Lumen Skincare'}
