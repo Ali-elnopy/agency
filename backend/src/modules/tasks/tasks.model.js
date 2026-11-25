@@ -34,6 +34,8 @@ const taskSelect = {
       toneOfVoice: true,
       caption: true,
       notes: true,
+      clientReviewStatus: true,
+      clientApprovedAt: true,
       contentPlan: {
         select: {
           id: true,
@@ -41,6 +43,7 @@ const taskSelect = {
           brand: {
             select: {
               id: true,
+              clientId: true,
               accountManagerId: true,
             },
           },
