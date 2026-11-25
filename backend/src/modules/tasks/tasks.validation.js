@@ -110,3 +110,14 @@ export const submitContentTaskSchema = z.object({
     .nullable()
     .optional(),
 }).strict();
+
+export const reviewTaskSchema = z.object({
+  decision: z.enum(['COMPLETED', 'NEEDS_CHANGES']),
+
+  notes: z
+    .string()
+    .trim()
+    .max(5000)
+    .nullable()
+    .optional(),
+}).strict();

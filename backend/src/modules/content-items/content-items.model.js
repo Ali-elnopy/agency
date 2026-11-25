@@ -111,6 +111,22 @@ export const ContentItemsModel = {
       where: { id },
       select: {
         id: true,
+        brandId: true,
+        brand: {
+          select: {
+            id: true,
+            teamId: true,
+            team: {
+              select: {
+                memberships: {
+                  select: {
+                    userId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
   },

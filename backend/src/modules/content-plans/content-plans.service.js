@@ -2,6 +2,7 @@ import { ContentPlansModel } from './content-plans.model.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { prisma } from '../../config/prisma.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { getRoleName, isContentCreatorUser } from '../../utils/roles.js';
 const CONTENT_PLAN_STATUSES = new Set([
   'DRAFT',
   'IN_REVIEW',
@@ -28,7 +29,7 @@ function parseId(value, label = 'Id') {
  * Determines which brands the authenticated user can access.
  */
 function getBrandAccessWhere(user) {
-  const role = user?.role?.name;
+  const role = getRoleName(user);
 
   // Admin can access all brands.
   if (role === 'ADMIN') {
@@ -43,10 +44,7 @@ function getBrandAccessWhere(user) {
   }
 
   // Content Creator can access brands assigned to their team.
-  if (
-    role === 'EMPLOYEE' &&
-    user?.jobTitle?.name === 'Content Creator'
-  ) {
+  if (isContentCreatorUser(user)) {
     return {
       team: {
         is: {
@@ -83,7 +81,7 @@ async function getPlanOrThrow(value, user) {
   const accessWhere = getBrandAccessWhere(user);
 
   const plan =
-    user?.role?.name === 'ADMIN'
+    getRoleName(user) === 'ADMIN'
       ? await ContentPlansModel.findById(id)
       : await ContentPlansModel.findAccessibleById(
         id,
@@ -105,7 +103,7 @@ async function getPlanOrThrow(value, user) {
  * has access to the selected brand.
  */
 function ensureCanManageBrand(user, brand) {
-  const role = user?.role?.name;
+  const role = getRoleName(user);
 
   if (role === 'ADMIN') {
     return;
@@ -119,8 +117,7 @@ function ensureCanManageBrand(user, brand) {
   }
 
   if (
-    role === 'EMPLOYEE' &&
-    user?.jobTitle?.name === 'Content Creator' &&
+    isContentCreatorUser(user) &&
     brand.team?.memberships?.some(
       (membership) => membership.userId === user.id,
     )
@@ -353,9 +350,16 @@ export const ContentPlansService = {
       throw new ApiError(400, 'Invalid content plan status');
     }
 
-    const role = user?.role?.name;
+    const role = getRoleName(user);
 
-    if (!MANAGEMENT_ROLES.has(role) && newStatus === 'IN_REVIEW') {
+    if (!MANAGEMENT_ROLES.has(role)) {
+      if (newStatus !== 'IN_REVIEW') {
+        throw new ApiError(
+          403,
+          `Only Admins and Account Managers can change content plan status to ${newStatus}`,
+        );
+      }
+
       const canSubmit =
         plan.status === 'DRAFT' ||
         plan.status === 'NEEDS_CHANGES';

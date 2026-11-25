@@ -20,7 +20,7 @@ export const CampaignsController = {
   create: asyncHandler(async (req, res) => {
     const campaign = await CampaignsService.create(
       req.body,
-      req.user.id,
+      req.user,
     );
 
     res.status(201).json({
@@ -38,7 +38,7 @@ export const CampaignsController = {
       ),
     };
 
-    const campaigns = await CampaignsService.list(filters);
+    const campaigns = await CampaignsService.list(filters, req.user);
 
     res.status(200).json({
       success: true,
@@ -52,6 +52,7 @@ export const CampaignsController = {
   getById: asyncHandler(async (req, res) => {
     const campaign = await CampaignsService.getById(
       req.params.id,
+      req.user,
     );
 
     res.status(200).json({
@@ -64,6 +65,7 @@ export const CampaignsController = {
     const campaign = await CampaignsService.update(
       req.params.id,
       req.body,
+      req.user,
     );
 
     res.status(200).json({
@@ -76,6 +78,7 @@ export const CampaignsController = {
   remove: asyncHandler(async (req, res) => {
     const campaign = await CampaignsService.remove(
       req.params.id,
+      req.user,
     );
 
     res.status(200).json({

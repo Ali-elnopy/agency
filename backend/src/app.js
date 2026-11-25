@@ -135,6 +135,7 @@ app.use('/api/v1/content-items', contentItemsRouter);
 app.use('/api/strategies', strategiesRouter);
 app.use('/api/v1/strategies', strategiesRouter);
 app.use('/api/tasks', tasksRouter);
+app.use('/api/v1/tasks', tasksRouter);
 
 app.use(notFound);
 app.use(errorHandler);

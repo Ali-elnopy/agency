@@ -8,7 +8,9 @@ import {
   assignContentItemTasksSchema,
   updateTaskSchema,
   updateTaskStatusSchema,
+  taskListQuerySchema,
   submitContentTaskSchema,
+  reviewTaskSchema,
 } from './tasks.validation.js';
 
 import { authenticate } from '../../middlewares/auth.js';
@@ -20,6 +22,7 @@ tasksRouter.use(authenticate);
 
 tasksRouter.get(
   '/',
+  validate(taskListQuerySchema, 'query'),
   TasksController.list,
 );
 
@@ -44,6 +47,12 @@ tasksRouter.post(
   '/:id/submit',
   validate(submitContentTaskSchema),
   TasksController.submitContentTask,
+);
+
+tasksRouter.patch(
+  '/:id/review',
+  validate(reviewTaskSchema),
+  TasksController.review,
 );
 
 tasksRouter.patch(
