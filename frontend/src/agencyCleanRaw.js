@@ -41,10 +41,11 @@ brands:{t:'Brands',n:'brand',d:'Brands, their owners and everything linked to th
  cols:[['name','Brand'],['industry','Industry'],['teamId','Team'],['accountManagerId','Account manager'],['status','Status']],
  f:[['name','text'],['industry','text'],['websiteUrl','text'],['description','textarea'],['status','select',['ACTIVE','PAUSED','ONBOARDING']],['email','email'],['password','password'],['accountManagerId','fk',['Omar Haddad']],['teamId','fk',T]],req:['name','status'],
  rows:BR.map((b,i)=>({name:b,industry:['Beauty','Food & Beverage','Fitness','Retail','Lifestyle','Travel','Tech'][i],teamId:T[[0,0,1,1,2,3,4][i]],accountManagerId:'Omar Haddad',status:i==5?'ONBOARDING':i==6?'PAUSED':'ACTIVE',email:i===0?'sara@lumen.com':'',clientId:i===0?'Sara Nabil':''}))},
-briefs:{t:'Brand Briefs',n:'brief',d:'AI-generated briefs per brand, with version and approval status.',api:['GET /brand-briefs','PATCH /brand-briefs/:id','POST /brand-briefs/:id/approve','POST /brand-briefs/:brandId/generate'],noCreate:true,gen:true,
- cols:[['brandId','Brand'],['version','Version'],['status','Status'],['updatedAt','Updated']],f:[['status','select',['DRAFT','GENERATING','READY','APPROVED','FAILED']],['errorMessage','text']],req:['status'],
- rows:[{brandId:'Lumen Skincare',version:'v3',status:'READY',updatedAt:'2026-11-15',content:{audience:'Women 25–40',pillars:['Clean ingredients','Skin education'],tone:'Warm, expert'}},{brandId:'Nord Coffee',version:'v2',status:'APPROVED',updatedAt:'2026-11-10',content:{audience:'Urban professionals',pillars:['Craft','Ritual'],tone:'Calm, confident'}},{brandId:'Atlas Fitness',version:'v1',status:'FAILED',updatedAt:'2026-11-14',errorMessage:'Generation timed out',content:{}},{brandId:'Kiwa Kids',version:'v1',status:'GENERATING',updatedAt:'2026-11-16',content:{}}],
- acts:r=>r.status==='READY'&&S.role==='am'?[['Approve','ap']]:[],run(a,r){r.status='APPROVED';toast('Brief approved')}},
+briefs:{t:'Brand Briefs',n:'brief',d:'AI-generated briefs per brand, with version and approval status.',api:['GET /brand-briefs','GET /brand-briefs/:id','PATCH /brand-briefs/:id','POST /brand-briefs/:id/approve','POST /brand-briefs/:brandId/generate'],noCreate:true,noDelete:true,gen:true,
+ cols:[['brandId','Brand'],['version','Version'],['status','Status'],['updatedAt','Updated']],f:[['status','select',['GENERATED','APPROVED','NEEDS_CHANGES','REJECTED']],['notes','textarea']],req:['status'],
+ rows:[{brandId:'Lumen Skincare',version:'v3',status:'GENERATED',updatedAt:'2026-11-15',content:{targetAudience:'Women 25–40',toneOfVoice:'Warm, expert',objectives:['Clean ingredients','Skin education']}},{brandId:'Nord Coffee',version:'v2',status:'APPROVED',updatedAt:'2026-11-10',content:{targetAudience:'Urban professionals',toneOfVoice:'Calm, confident',objectives:['Craft','Ritual']}},{brandId:'Atlas Fitness',version:'v1',status:'FAILED',updatedAt:'2026-11-14',errorMessage:'Generation timed out',content:{}}],
+ acts:r=>['GENERATED','READY','NEEDS_CHANGES'].includes(r.status)&&(S.role==='am'||S.role==='admin')?[['Approve','ap'],...(r.status!=='NEEDS_CHANGES'?[['Request changes','nc']]:[])]:[],
+ run(a,r){if(a==='nc'){r.status='NEEDS_CHANGES';toast('Brief marked as needs changes')}else{r.status='APPROVED';toast('Brief approved')}}},
 campaigns:{t:'Campaigns',n:'campaign',d:'Campaigns linked to monthly content plans.',api:['GET /campaigns','POST /campaigns','PATCH /campaigns/:id'],
  cols:[['name','Campaign'],['objective','Objective'],['startDate','Start'],['endDate','End'],['contentPlanId','Plan']],f:[['name','text'],['objective','textarea'],['startDate','date'],['endDate','date'],['contentPlanId','fk',['Nov · Lumen Skincare','Nov · Nord Coffee']]],req:['name','startDate','endDate'],
  rows:[{name:'Winter Glow',objective:'Drive holiday gift-set sales',startDate:'2026-11-20',endDate:'2026-12-24',contentPlanId:'Nov · Lumen Skincare'},{name:'Cold Brew Club',objective:'Grow subscription sign-ups',startDate:'2026-11-01',endDate:'2026-11-30',contentPlanId:'Nov · Nord Coffee'}]},
@@ -213,7 +214,7 @@ function clearSearch(){
  view(false);
 }
 const hum=s=>s.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()).replace(/ Id$/,'');
-const PL={ok:['ACTIVE','READY','APPROVED','DONE','PUBLISHED'],wn:['REVIEW','IN_PROGRESS','GENERATING','MEDIUM','PAUSED','ONBOARDING'],er:['FAILED','HIGH'],lc:['DRAFT'],in:['TODO','SUBMITTED']};
+const PL={ok:['ACTIVE','READY','APPROVED','DONE','PUBLISHED'],wn:['REVIEW','IN_PROGRESS','GENERATING','MEDIUM','PAUSED','ONBOARDING','NEEDS_CHANGES'],er:['FAILED','HIGH','REJECTED'],lc:['DRAFT'],in:['TODO','SUBMITTED','GENERATED']};
 const pill=v=>{if(typeof v==='boolean')return v?'<span class="pill ok">Active</span>':'<span class="pill er">Inactive</span>';const c=Object.keys(PL).find(k=>PL[k].includes(v))||'';return `<span class="pill ${c}">${esc(String(v??'').replace('_',' ').toLowerCase().replace(/^./,x=>x.toUpperCase()))}</span>`};
 const PK=['status','priority','isActive'];
 function cell(k,v,_E,first,_row){let h;if(k==='isRead')h=v?'<span class="pill">Read</span>':'<span class="pill in">Unread</span>';else if(PK.includes(k))h=pill(v);else if(/date|deadline|updatedAt/i.test(k))h=`<span class="mono">${esc(v||'—')}</span>`;else if((k==='accountUrl'||k==='websiteUrl')&&v){const su=safeUrl(v);h=su?`<a class="lk" href="${esc(su)}" target="_blank" rel="noopener noreferrer">${esc(v)}</a>`:esc(v)}else h=v==null||v===''?'—':esc(v);
@@ -238,8 +239,155 @@ function modal(h){
 }
 const close=()=>{document.querySelectorAll('.ov').forEach(o=>o.remove());if(_lastModalTrigger&&document.contains(_lastModalTrigger)){try{_lastModalTrigger.focus({preventScroll:true})}catch{/* ignore */}}_lastModalTrigger=null};
 /* pages */
+function getBrandBriefState(brandName){
+ const target=brandName||S.brand||BR[0]||'';
+ const list=D.briefs.rows.filter(r=>!target||r.brandId===target);
+ const generating=Boolean(S.briefGenBusy)||list.some(r=>r.status==='GENERATING');
+ const hasActiveBrief=list.some(r=>['GENERATING','GENERATED','READY','APPROVED','NEEDS_CHANGES','DRAFT'].includes(r.status));
+ const hasFailedOnly=!hasActiveBrief&&list.some(r=>r.status==='FAILED'||r.status==='REJECTED');
+ return {target,list,generating,hasActiveBrief,hasFailedOnly};
+}
+const BRIEF_SECTION_LABELS={
+ brandOverview:'Brand Overview',
+ targetAudience:'Target Audience',
+ brandGoals:'Brand Goals',
+ competitiveAdvantage:'Competitive Advantage',
+ brandCommunication:'Brand Communication',
+ marketingStrategy:'Marketing Strategy',
+ contentDirection:'Content Direction',
+};
+function normalizeBriefRow(bf,fallbackBrand=''){
+ if(!bf)return null;
+ const rawId=bf.serverId??bf.id;
+ const numId=typeof rawId==='number'?rawId:Number(String(rawId||'').replace(/^brief-/,''));
+ const serverId=Number.isSafeInteger(numId)&&numId>0?numId:undefined;
+ const bName=bf.brandName||bf.onboarding?.brand?.name||fallbackBrand||D.brands.rows.find(b=>String(b._id)===String(bf.brandId))?.name||S.brand||BR[0]||'—';
+ const statusRaw=bf.backendStatus||bf.status||'GENERATED';
+ const status=String(statusRaw).toUpperCase();
+ let content=bf.content&&typeof bf.content==='object'?{...bf.content}:{};
+ if(bf.sections&&typeof bf.sections==='object'){
+  content={...content,...bf.sections};
+ }
+ if(Array.isArray(bf.objectives)&&bf.objectives.length&&!content.objectives)content.objectives=bf.objectives;
+ if(bf.targetAudience&&!content.targetAudience)content.targetAudience=bf.targetAudience;
+ if(bf.competitors&&!content.competitors)content.competitors=bf.competitors;
+ if(bf.toneOfVoice&&!content.toneOfVoice)content.toneOfVoice=bf.toneOfVoice;
+ if(Array.isArray(bf.suggestedQuestions)&&bf.suggestedQuestions.length&&!content.suggestedQuestions)content.suggestedQuestions=bf.suggestedQuestions;
+ if(bf.notes&&!content.notes)content.notes=bf.notes;
+ if(bf.approvedBy&&!content.approvedBy)content.approvedBy=bf.approvedBy;
+ if(bf.approvedAt&&!content.approvedAt)content.approvedAt=bf.approvedAt;
+ return {
+  ...(serverId?{_id:serverId}:{}),
+  brandId:bName,
+  version:typeof bf.version==='string'&&bf.version.startsWith('v')?bf.version:'v'+(bf.version||1),
+  status,
+  updatedAt:bf.generatedAt?String(bf.generatedAt).slice(0,10):(bf.updatedAt?String(bf.updatedAt).slice(0,10):(typeof TODAY!=='undefined'?TODAY:'2026-11-18')),
+  ...(bf.errorMessage?{errorMessage:bf.errorMessage}:{}),
+  ...(bf.modelName?{modelName:bf.modelName}:{}),
+  ...(bf.generatedBy?{generatedBy:typeof bf.generatedBy==='object'?bf.generatedBy.fullName:bf.generatedBy}:{}),
+  content,
+ };
+}
+function buildDemoBriefContent(brandName){
+ const b=D.brands.rows.find(x=>x.name===brandName)||{name:brandName,industry:'General',description:''};
+ const obSnap=(typeof OB_BY_BRAND!=='undefined'&&OB_BY_BRAND[brandName])||((typeof _obBrand!=='undefined'&&_obBrand===brandName)?OB:null);
+ const a=obSnap?.a||{};
+ const ind=b.industry||'General';
+ return {
+  brandOverview:{
+   clientInformation:[
+    `${b.name} operates in the ${ind} industry.`,
+    ...(b.description?[b.description]:[]),
+    ...(a.q2?[a.q2]:[]),
+   ],
+   aiAnalysis:[
+    `${b.name} is positioned to build strong audience recognition in ${ind} through consistent visual and editorial storytelling.`,
+   ],
+   recommendations:[
+    'Anchor all monthly content pillars around clear product value and brand proof points.',
+    'Maintain a unified brand identity across every active social channel.',
+   ],
+  },
+  targetAudience:{
+   clientInformation:[a.q6||`Core customers interested in ${ind} solutions.`, ...(a.q7?[`Age range: ${a.q7}`]:[]), ...(a.q8?[`Location: ${a.q8}`]:[])],
+   aiAnalysis:['Audience engagement peaks when educational value is paired with relatable lifestyle moments.'],
+   recommendations:['Segment messaging between first-time discovery reels and retention-focused carousels.'],
+  },
+  brandGoals:{
+   clientInformation:[a.q9||'Increase brand awareness, engagement, and qualified conversions.', ...(a.q10?[`12-month goal: ${a.q10}`]:[])],
+   aiAnalysis:['Balanced awareness and conversion campaigns will accelerate sustainable monthly growth.'],
+   recommendations:['Track reach, saves, and conversion clicks per monthly content plan.'],
+  },
+  competitiveAdvantage:{
+   clientInformation:[a.q14||`${b.name} differentiates through quality, clarity, and customer experience.`, ...(a.q12?[`Key competitors: ${a.q12}`]:[])],
+   aiAnalysis:['Highlighting concrete differentiators reduces price sensitivity and builds trust faster.'],
+   recommendations:['Feature before/after stories, social proof, and behind-the-scenes craft regularly.'],
+  },
+  brandCommunication:{
+   clientInformation:[a.q15||'Clear, confident, and audience-first communication.', ...(a.q16?[`Tone words: ${a.q16}`]:[])],
+   aiAnalysis:['Consistent tone of voice reinforces brand recall across short-form video and captions.'],
+   recommendations:['Use concise hooks in the first 3 seconds and clear calls to action in every caption.'],
+  },
+  marketingStrategy:{
+   clientInformation:[a.q18||'Full-funnel social growth and community engagement.', ...(a.q19?[`Priority platforms: ${a.q19}`]:[])],
+   aiAnalysis:['Combining organic short-form reels with structured monthly campaigns drives compounding results.'],
+   recommendations:['Run one hero campaign per month supported by weekly educational and community posts.'],
+  },
+  contentDirection:{
+   clientInformation:[a.q20||'Consistent weekly mix of Reels, Carousels, and Stories.'],
+   aiAnalysis:['Short-form video drives discovery while carousels and stories deepen consideration.'],
+   recommendations:['Plan 40% educational, 35% product/offer, and 25% community/behind-the-scenes content.'],
+  },
+  targetAudienceSummary:a.q6||`Core ${ind} audience`,
+  toneOfVoice:a.q16||'Clear, warm, confident',
+ };
+}
+function renderBriefContent(r){
+ const c=r?.content&&typeof r.content==='object'?r.content:{};
+ const secKeys=Object.keys(BRIEF_SECTION_LABELS).filter(k=>c[k]&&typeof c[k]==='object');
+ const listHtml=arr=>Array.isArray(arr)&&arr.length?`<ul style="margin:6px 0 0 18px;padding:0;display:grid;gap:4px">${arr.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="mute" style="margin:4px 0 0">—</p>';
+ let html='';
+ if(r?.errorMessage){
+  html+=`<div class="note wn" style="margin-top:16px;background:var(--eb);color:var(--et)"><b>!</b><span>${esc(r.errorMessage)}</span></div>`;
+ }
+ if(secKeys.length){
+  html+=`<div style="display:grid;gap:14px;margin-top:16px">${secKeys.map(k=>{
+   const sec=c[k]||{};
+   return `<div class="card"><h2 style="margin-bottom:10px">${esc(BRIEF_SECTION_LABELS[k])}</h2>
+    <div style="display:grid;gap:12px">
+     <div><div class="mono mute">Client information</div>${listHtml(sec.clientInformation)}</div>
+     <div><div class="mono mute">AI analysis</div>${listHtml(sec.aiAnalysis)}</div>
+     <div><div class="mono mute">Recommendations</div>${listHtml(sec.recommendations)}</div>
+    </div></div>`;
+  }).join('')}</div>`;
+ }
+ const metaRows=[];
+ if(typeof c.targetAudience==='string'&&c.targetAudience)metaRows.push(['Target audience',esc(c.targetAudience)]);
+ if(typeof c.audience==='string'&&c.audience)metaRows.push(['Target audience',esc(c.audience)]);
+ if(typeof c.toneOfVoice==='string'&&c.toneOfVoice)metaRows.push(['Tone of voice',esc(c.toneOfVoice)]);
+ if(typeof c.tone==='string'&&c.tone)metaRows.push(['Tone of voice',esc(c.tone)]);
+ if(typeof c.competitors==='string'&&c.competitors)metaRows.push(['Competitors',esc(c.competitors)]);
+ if(Array.isArray(c.objectives)&&c.objectives.length)metaRows.push(['Objectives',esc(c.objectives.join(' · '))]);
+ if(Array.isArray(c.pillars)&&c.pillars.length)metaRows.push(['Content pillars',esc(c.pillars.join(' · '))]);
+ if(Array.isArray(c.suggestedQuestions)&&c.suggestedQuestions.length)metaRows.push(['Suggested questions',listHtml(c.suggestedQuestions)]);
+ if(c.notes)metaRows.push(['Notes',esc(c.notes)]);
+ if(c.approvedBy)metaRows.push(['Approved by',esc(c.approvedBy)+(c.approvedAt?' · '+esc(String(c.approvedAt).slice(0,10)):'')]);
+ if(metaRows.length){
+  html+=`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:10px">Brief summary &amp; notes</h2><dl class="kv" style="margin:0">${metaRows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>`;
+ }
+ if(!html){
+  html=`<div class="card" style="margin-top:16px"><p class="mute" style="margin:0">${r?.status==='GENERATING'?'Brief content is being generated…':'No content generated for this brief yet.'}</p></div>`;
+ }
+ return html;
+}
 function head(E,w,k){const a=[];if(w&&!E.noCreate)a.push(`<button class="btn p" onclick="act('${k}',null,'new')">+ ${k==='users'?'Add user':'New '+esc(E.n)}</button>`);
- if(E.gen&&can(k))a.push(`<button class="btn p" onclick="gen()">Generate brief</button>`);
+ if(E.gen&&can(k)){
+  const bs=getBrandBriefState(S.brand);
+  if(bs.generating)a.push(`<button class="btn p" disabled>Generating brief…</button>`);
+  else if(bs.hasActiveBrief)a.push(`<button class="btn" disabled title="A brief already exists for this brand">Brief generated</button>`);
+  else if(bs.hasFailedOnly)a.push(`<button class="btn p" onclick="gen()">Retry generate brief</button>`);
+  else a.push(`<button class="btn p" onclick="gen()">Generate brief</button>`);
+ }
  if(E.upload)a.push(`<button class="btn" disabled title="Not available in the backend yet">Upload strategy</button>`);
  const lk=locked(k)&&!E.ro;
  return `<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>${esc(E.t)}</h1><p>${esc(E.d)}</p></div><div style="display:flex;gap:8px">${a.join('')}</div></div>${lk?`<div class="note wn"><b>🔒</b><span>View-only for your role. You can open and read these records, but not create, edit, delete or change them.</span></div>`:''}${E.note?`<div class="note"><b>ⓘ</b><span>${esc(E.note)}</span></div>`:''}`}
@@ -532,7 +680,21 @@ function brandForm(i){
 </div>
 <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="save('brands',${i})">${i==null?'Save brand':'Save changes'}</button></div>`;
 }
-function form(k,i){if(k==='users')return userForm(i);if(k==='brands')return brandForm(i);const E=D[k],r=i==null?{}:E.rows[i];return `<h2>${i==null?'New '+esc(E.n):'Edit '+esc(E.n)}</h2><p class="mute" style="margin:0 0 20px">Fields use the exact API names.</p><div class="pg">${E.f.filter(f=>!(f[0]==='password'&&i!=null)).map(f=>field(f[0],f[1],f[2],r[f[0]])).join('')}</div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="save('${k}',${i})">Save ${esc(E.n)}</button></div>`}
+function briefForm(i){
+ const r=i==null?{}:D.briefs.rows[i];
+ const c=r.content&&typeof r.content==='object'?r.content:{};
+ const statuses=['GENERATED','APPROVED','NEEDS_CHANGES','REJECTED'];
+ const curStatus=statuses.includes(r.status)?r.status:'GENERATED';
+ return `<h2>Edit brief</h2><p class="mute" style="margin:0 0 20px">Update the brief status and notes for ${esc(r.brandId||'this brand')}.</p>
+<div class="pg">
+ <div class="fl"><label><b style="font-weight:600">Status <em style="color:var(--et);font-style:normal">*</em></b></label><select data-f="status">${statuses.map(x=>`<option value="${esc(x)}" ${x===curStatus?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+ <div class="fl"><label>Tone of Voice</label><input data-f="toneOfVoice" type="text" value="${esc(c.toneOfVoice||c.tone||'')}" placeholder="e.g. Warm, expert"></div>
+ <div class="fl" style="grid-column:1/-1"><label>Target Audience</label><input data-f="targetAudience" type="text" value="${esc(typeof c.targetAudience==='string'?c.targetAudience:(c.audience||''))}" placeholder="e.g. Women 25–40"></div>
+ <div class="fl" style="grid-column:1/-1"><label>Notes</label><textarea data-f="notes" placeholder="Review notes or revision guidance…">${esc(c.notes||'')}</textarea></div>
+</div>
+<div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="save('briefs',${i})">Save brief</button></div>`;
+}
+function form(k,i){if(k==='users')return userForm(i);if(k==='brands')return brandForm(i);if(k==='briefs')return briefForm(i);const E=D[k],r=i==null?{}:E.rows[i];return `<h2>${i==null?'New '+esc(E.n):'Edit '+esc(E.n)}</h2><p class="mute" style="margin:0 0 20px">Fields use the exact API names.</p><div class="pg">${E.f.filter(f=>!(f[0]==='password'&&i!=null)).map(f=>field(f[0],f[1],f[2],r[f[0]])).join('')}</div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="save('${k}',${i})">Save ${esc(E.n)}</button></div>`}
 let save=function(k,i){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;const E=D[k],o=Object.fromEntries([...dlg.querySelectorAll('[data-f]')].map(x=>[x.dataset.f,x.dataset.b!==undefined?x.checked:x.value]));
  const pm=[...dlg.querySelectorAll('[data-pm]:checked')].map(x=>x.dataset.pm);if(E.f.some(f=>f[0]==='permissions'))o.permissions=pm;
  S.err={};(E.req||[]).forEach(n=>{if(o[n]===''||o[n]==null)S.err[n]='This field is required.'});
@@ -587,6 +749,14 @@ let save=function(k,i){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;co
   }
   saveDemoBrand(o);
  }
+ if(k==='briefs'&&i!=null){
+  const curContent=E.rows[i]?.content&&typeof E.rows[i].content==='object'?{...E.rows[i].content}:{};
+  if(o.notes!==undefined)curContent.notes=o.notes;
+  if(o.toneOfVoice!==undefined&&o.toneOfVoice.trim())curContent.toneOfVoice=o.toneOfVoice.trim();
+  if(o.targetAudience!==undefined&&o.targetAudience.trim())curContent.targetAudience=o.targetAudience.trim();
+  delete o.notes;delete o.toneOfVoice;delete o.targetAudience;
+  o.content=curContent;
+ }
  if(i==null){if(S.brand&&!o.brandId&&['files','platform','briefs'].includes(k))o.brandId=S.brand;E.rows.unshift(o)}else Object.assign(E.rows[i],o);close();
  if(k==='users'&&i==null){
   if(!getApiToken())toast(inv?'User added (demo mode — connect backend to send invitation email)':'User added');
@@ -596,13 +766,33 @@ let save=function(k,i){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;co
   toast(i==null?'Saved':'Changes saved');
  }
  view(false)};
-function detail(k,r){const E=D[k];return `<h2>${esc(E.t.replace(/s$/,''))} details</h2><dl class="kv">${Object.entries(r).filter(([a])=>a!=='content'&&a!=='_id').map(([a,v])=>`<dt>${esc(hum(a))}</dt><dd>${a==='status'||a==='isActive'?pill(v):(a==='accountUrl'||a==='websiteUrl')&&safeUrl(v)?`<a class="lk" href="${esc(safeUrl(v))}" target="_blank" rel="noopener noreferrer">${esc(v)}</a>`:Array.isArray(v)?esc(v.join(', ')):esc(v)}</dd>`).join('')}</dl>${r.content?`<div class="mono mute" style="margin-bottom:8px">content (JSON)</div><pre>${esc(JSON.stringify(r.content,null,2))}</pre>`:''}<div class="ft"><button class="btn p" onclick="closeM()">Close</button></div>`}
+function detail(k,r){const E=D[k];return `<h2>${esc(E.t.replace(/s$/,''))} details</h2><dl class="kv">${Object.entries(r).filter(([a])=>a!=='content'&&a!=='_id'&&a!=='errorMessage').map(([a,v])=>`<dt>${esc(hum(a))}</dt><dd>${a==='status'||a==='isActive'?pill(v):(a==='accountUrl'||a==='websiteUrl')&&safeUrl(v)?`<a class="lk" href="${esc(safeUrl(v))}" target="_blank" rel="noopener noreferrer">${esc(v)}</a>`:Array.isArray(v)?esc(v.join(', ')):esc(v)}</dd>`).join('')}</dl>${k==='briefs'?renderBriefContent(r):(r.content?`<div class="mono mute" style="margin-bottom:8px">content (JSON)</div><pre>${esc(JSON.stringify(r.content,null,2))}</pre>`:'')}<div class="ft"><button class="btn p" onclick="closeM()">Close</button></div>`}
 let act=function(k,i,a){S.err={};const E=D[k];if(k==='brands'&&a==='view'){S.brand=E.rows[i].name;S.sub=null;S.q='';return render(false)}if(a==='new')return modal(`<div class="dlg">${form(k,null)}</div>`);const r=E.rows[i];
  if(a==='view')return modal(`<div class="dlg">${detail(k,r)}</div>`);if(a==='edit')return modal(`<div class="dlg">${form(k,i)}</div>`);
  if(a==='del')return modal(`<div class="dlg"><h2>Delete this ${esc(E.n)}?</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="E_del('${k}',${i})">Delete ${esc(E.n)}</button></div></div>`);
  E.run(a,r);view(false)};
 let E_del=function(k,i){D[k].rows.splice(i,1);close();toast('Deleted');view(false)};
-let gen=function(){D.briefs.rows.unshift({brandId:BR[Math.floor(Math.random()*4)],version:'v'+(D.briefs.rows.length+1),status:'GENERATING',updatedAt:'2026-11-16',content:{}});toast('Generating a new brief…');view(false)};
+let gen=function(){
+ const bs=getBrandBriefState(S.brand);
+ if(!bs.target)return toast('Open a brand first to generate its brief.');
+ if(bs.generating)return toast('A brief is already being generated for this brand.');
+ if(bs.hasActiveBrief)return toast('A brief already exists for '+bs.target+'.');
+ S.briefGenBusy=true;
+ const nextVer=bs.list.reduce((mx,r)=>Math.max(mx,parseInt(String(r.version||'0').replace(/\D/g,''),10)||0),0)+1;
+ const todayStr=typeof TODAY!=='undefined'?TODAY:new Date().toISOString().slice(0,10);
+ const row={
+  brandId:bs.target,
+  version:'v'+nextVer,
+  status:'GENERATED',
+  updatedAt:todayStr,
+  generatedBy:typeof MEN!=='undefined'?MEN[S.role]:'',
+  content:buildDemoBriefContent(bs.target),
+ };
+ D.briefs.rows.unshift(row);
+ S.briefGenBusy=false;
+ toast('Brand Brief generated successfully.');
+ view(false);
+};
 /* shell */
 let go=function(p){const allowed=NAV[S.role]||NAV.admin;S.page=isAllowedPage(S.role,p)?p:allowed[0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.open=false;S.err={};render()};
 let setRole=function(r){S.role=r;S.page=NAV[r][0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}render()};
@@ -986,7 +1176,7 @@ const dp=(t,pl,kv,ex='',bt='')=>`${bk('S.det=null;view(false)',t)}<div class="ph
 /* detail pages */
 function rowDet(k,i){const E=D[k],r=E.rows[i];if(!r)return null;const w=can(k),del=w&&!E.noDelete&&(k!=='users'||S.role==='admin'),ac=E.acts?E.acts(r):[];
  const ent=Object.entries(r).filter(([a])=>a!=='content'&&a!=='_id').map(([a,v])=>[esc(hum(a)),a==='status'||a==='isActive'?pill(v):(a==='accountUrl'||a==='websiteUrl')&&safeUrl(v)?`<a class="lk" href="${esc(safeUrl(v))}" target="_blank" rel="noopener noreferrer">${esc(v)}</a>`:Array.isArray(v)?esc(v.join(', ')):esc(v)]);
- const ex=(r.content?`<div class="card" style="margin-top:16px"><div class="mono mute" style="margin-bottom:8px">content (JSON)</div><pre>${esc(JSON.stringify(r.content,null,2))}</pre></div>`:'')+(k==='platform'?`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Content items on this platform</h2>${itTable(brItems(r.brandId).filter(([x])=>x.platform===r.accountName))}</div>`:'');
+ const ex=(k==='briefs'?renderBriefContent(r):(r.content?`<div class="card" style="margin-top:16px"><div class="mono mute" style="margin-bottom:8px">content (JSON)</div><pre>${esc(JSON.stringify(r.content,null,2))}</pre></div>`:''))+(k==='platform'?`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Content items on this platform</h2>${itTable(brItems(r.brandId).filter(([x])=>x.platform===r.accountName))}</div>`:'');
  const bt=`<div style="display:flex;gap:8px;flex-wrap:wrap">${ac.map(a=>`<button class="btn" onclick="act('${k}',${i},'${a[1]}')">${esc(a[0])}</button>`).join('')}${w?`<button class="btn" onclick="act('${k}',${i},'edit')">Edit</button>`:''}${del?`<button class="btn dg" onclick="act('${k}',${i},'del')">Delete</button>`:''}</div>`;
  return dp(esc(r.name||r.title||r.fullName||r.accountName||r.fileName||r.key||r[E.cols[0][0]]),`<span class="tag lc">${esc(E.n)}</span>`+(r.status!==undefined?pill(r.status):''),kvh(ent),ex,bt)}
 function campDet(pid,n){const p=PLANS.find(x=>x.id===pid),c=p&&p.campaigns[n];if(!c)return null;const l=p.items.filter(i=>i.campaign===c.name).map(i=>[i,p]);
@@ -1007,7 +1197,7 @@ const detPage=()=>{const d=S.det;return d.t==='row'?rowDet(d.k,d.i):d.t==='item'
 const _v=view,_go=go,_sr=setRole,_gt=goTo,_act=act,_ed=E_del,_sp=subPage;
 view=function(sk=true){enforceRoleRoute();const v=$('#view');if(S.det&&v){let h=null;try{h=detPage()}catch{/* ignore */}if(h){v.innerHTML=h;return}S.det=null}_v(sk)};
 go=p=>{S.det=null;_go(p)};setRole=r=>{S.det=null;_sr(r)};goTo=l=>{S.det=null;_gt(l)};
-act=(k,i,a)=>{if(a==='view'&&k!=='brands'&&D[k].rows[i])return openD({t:'row',k,i});return _act(k,i,a)};
+act=(k,i,a)=>{if(a==='view'&&k!=='brands'&&D[k].rows[i]){const r=D[k].rows[i];openD({t:'row',k,i});if(k==='briefs'&&r?._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){apiCall('/brand-briefs/'+r._id).then(fresh=>{const mapped=normalizeBriefRow(fresh,r.brandId);if(mapped){Object.assign(r,mapped);if(S.det?.t==='row'&&S.det?.k==='briefs'&&S.det?.i===i)view(false)}}).catch(()=>{})}return}return _act(k,i,a)};
 E_del=(k,i)=>{S.det=null;_ed(k,i)};
 tdet=id=>openD({t:'task',id});teamView=n=>openD({t:'team',n});
 subPage=b=>S.sub==='platforms'?bk("S.sub=null;S.q='';view(false)",'Social media platforms',b.name,[['Brands',"S.sub=null;S.q='';S.brand=null;view(false)"],[b.name,"S.sub=null;S.q='';view(false)"]])+platformsPage(b):_sp(b);
@@ -1469,13 +1659,7 @@ async function hydrateFromBackend(){
   }
   if(briefsData){
    const brfList=Array.isArray(briefsData)?briefsData:(briefsData.briefs||[]);
-   if(brfList.length){
-    D.briefs.rows=brfList.map(bf=>({
-     _id:bf.id,brandId:bf.brandName||bf.onboarding?.brand?.name||BR[0]||'—',
-     version:'v'+(bf.version||1),status:(bf.backendStatus||bf.status||'READY').toUpperCase(),
-     updatedAt:bf.generatedAt?String(bf.generatedAt).slice(0,10):TODAY,content:bf.sections||bf.content||{}
-    }));
-   }
+   D.briefs.rows=brfList.map(bf=>normalizeBriefRow(bf)).filter(Boolean);
   }
   if(stratsData){
    const sList=Array.isArray(stratsData)?stratsData:(stratsData.strategies||[]);
@@ -1717,6 +1901,25 @@ save=function(k,i){
     }else if(prevRow?._id){
      await apiCall('/brands/'+prevRow._id,{method:'PATCH',body:{name:row.name,industry:row.industry||null,websiteUrl:row.websiteUrl||null,description:row.description||null,status:(row.status||'ACTIVE').toLowerCase(),teamId:teamId||null,accountManagerId:accountManagerId||null}});
     }
+   }else if(k==='briefs'){
+    if(prevRow?._id){
+     const validStatuses=['GENERATED','APPROVED','NEEDS_CHANGES','REJECTED'];
+     const body={};
+     if(validStatuses.includes(row.status))body.status=row.status;
+     if(row.content&&typeof row.content==='object')body.content=row.content;
+     if(Object.keys(body).length){
+      try{
+       const updated=await apiCall('/brand-briefs/'+prevRow._id,{method:'PATCH',body});
+       const mapped=normalizeBriefRow(updated,row.brandId);
+       if(mapped)Object.assign(row,mapped);
+       view(false);
+      }catch(briefErr){
+       Object.assign(row,prevRow);
+       view(false);
+       throw briefErr;
+      }
+     }
+    }
    }else if(k==='platform'){
     const brandId=API_CACHE.brandsByName[row.brandId];
     if(i==null&&beforeLen<E.rows.length&&brandId){
@@ -1936,12 +2139,32 @@ arch=function(i){
 };
 
 const _origGen=gen;
-gen=function(){
- _origGen();
- const first=D.briefs.rows[0];
- const brandId=API_CACHE.brandsByName[first?.brandId];
- if(brandId&&getApiToken()){
-  apiCall('/brand-briefs/'+brandId+'/generate',{method:'POST'}).then(res=>{if(res?.id)first._id=res.id}).catch(()=>{});
+gen=async function(){
+ const bs=getBrandBriefState(S.brand);
+ if(!bs.target)return toast('Open a brand first to generate its brief.');
+ if(bs.generating)return toast('A brief is already being generated for this brand.');
+ if(bs.hasActiveBrief)return toast('A brief already exists for '+bs.target+'.');
+ if(!getApiToken()||S.offlineMode)return _origGen();
+ const brandId=API_CACHE.brandsByName[bs.target]||D.brands.rows.find(b=>b.name===bs.target)?._id;
+ if(!brandId)return toast('Could not find this brand on the server.');
+ S.briefGenBusy=true;
+ toast('Generating Brand Brief…');
+ view(false);
+ try{
+  const res=await apiCall('/brand-briefs/'+brandId+'/generate',{method:'POST'});
+  const mapped=normalizeBriefRow(res,bs.target);
+  if(mapped){
+   const existingIdx=D.briefs.rows.findIndex(r=>r._id&&mapped._id&&r._id===mapped._id);
+   if(existingIdx>=0)D.briefs.rows[existingIdx]=mapped;
+   else D.briefs.rows.unshift(mapped);
+  }
+  S.briefGenBusy=false;
+  toast('Brand Brief generated successfully.');
+  view(false);
+ }catch(err){
+  S.briefGenBusy=false;
+  toast(err?.message||'Brand Brief generation failed. Please try again.');
+  view(false);
  }
 };
 
@@ -1954,10 +2177,27 @@ D.users.run=function(a,r){
 };
 
 const _origBriefsRun=D.briefs.run;
-D.briefs.run=function(a,r){
- _origBriefsRun.call(D.briefs,a,r);
- if(r?._id&&getApiToken()){
-  apiCall('/brand-briefs/'+r._id+'/approve',{method:'POST',body:{comment:null}}).catch(()=>{});
+D.briefs.run=async function(a,r){
+ if(!r)return;
+ if(!getApiToken()||S.offlineMode||!r._id)return _origBriefsRun.call(D.briefs,a,r);
+ const prevStatus=r.status;
+ try{
+  let updated;
+  if(a==='nc'){
+   updated=await apiCall('/brand-briefs/'+r._id,{method:'PATCH',body:{status:'NEEDS_CHANGES'}});
+   toast('Brief marked as needs changes');
+  }else{
+   updated=await apiCall('/brand-briefs/'+r._id+'/approve',{method:'POST',body:{comment:null}});
+   toast('Brand Brief approved successfully.');
+  }
+  const mapped=normalizeBriefRow(updated,r.brandId);
+  if(mapped)Object.assign(r,mapped);
+  else r.status=a==='nc'?'NEEDS_CHANGES':'APPROVED';
+  view(false);
+ }catch(err){
+  r.status=prevStatus;
+  toast(err?.message||'Could not update Brand Brief.');
+  view(false);
  }
 };
 
