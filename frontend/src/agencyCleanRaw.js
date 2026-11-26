@@ -5,7 +5,7 @@ const ic=n=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="f
 const T=['Brand Strategy & Growth','Creative & Motion Studio','Performance Ops','Social & Community','Editorial & Brand Voice'];
 const ROLES={admin:'Admin',am:'Account Manager',cc:'Content Creator',emp:'Creative',client:'Client'};
 const ME={admin:['Elena Vance','Workspace owner'],am:['Omar Haddad','Account Manager'],cc:['Lina Aziz','Content Creator'],emp:['Karim Fouad','Creative · Video Editor'],client:['Sara Nabil','Client · Lumen Skincare']};
-const S={authed:false,role:'admin',p:{CREATE_CONTENT:true,MANAGE_CONTENT:true,REVIEW_CONTENT:false,PUBLISH_CONTENT:false},page:'dashboard',auth:'login',q:'',nf:'all',open:false,err:{},brand:null,sub:null,
+const S={authed:false,role:'admin',p:{CREATE_CONTENT:true,MANAGE_CONTENT:true,REVIEW_CONTENT:false,PUBLISH_CONTENT:false},page:'dashboard',auth:'login',q:'',nf:'all',open:false,err:{},brand:null,clientBrand:null,sub:null,
  forgotEmail:'',otp:'',otpEmail:'',otpExpiresAt:0,otpLeft:0,resendAt:0,resendLeft:0,sent:0,busy:false,resetToken:'',resetEmail:'',newPassword:'',confirmPassword:'',loginNotice:'',
  mailCfg:{loaded:false,configured:false,provider:null,smtpUser:'',from:'',showSetup:false,tab:'resend'},
  theme:(()=>{try{return localStorage.getItem('orvia_theme')||'light'}catch{return 'light'}})()};
@@ -39,8 +39,8 @@ users:{t:'Users',n:'user',d:'Add people to the workspace and manage their role, 
  acts:r=>[[r.isActive?'Deactivate':'Reactivate','tog']],run(a,r){r.isActive=!r.isActive;toast(r.isActive?'Reactivated':'Deactivated')}},
 brands:{t:'Brands',n:'brand',d:'Brands, their owners and everything linked to them.',api:['GET /brands','GET /brands/:id','POST /brands'],
  cols:[['name','Brand'],['industry','Industry'],['teamId','Team'],['accountManagerId','Account manager'],['status','Status']],
- f:[['name','text'],['industry','text'],['websiteUrl','text'],['description','textarea'],['status','select',['ACTIVE','PAUSED','ONBOARDING']],['clientId','fk',['Sara Nabil']],['accountManagerId','fk',['Omar Haddad']],['teamId','fk',T]],req:['name','status'],
- rows:BR.map((b,i)=>({name:b,industry:['Beauty','Food & Beverage','Fitness','Retail','Lifestyle','Travel','Tech'][i],teamId:T[[0,0,1,1,2,3,4][i]],accountManagerId:'Omar Haddad',status:i==5?'ONBOARDING':i==6?'PAUSED':'ACTIVE'}))},
+ f:[['name','text'],['industry','text'],['websiteUrl','text'],['description','textarea'],['status','select',['ACTIVE','PAUSED','ONBOARDING']],['email','email'],['password','password'],['accountManagerId','fk',['Omar Haddad']],['teamId','fk',T]],req:['name','status'],
+ rows:BR.map((b,i)=>({name:b,industry:['Beauty','Food & Beverage','Fitness','Retail','Lifestyle','Travel','Tech'][i],teamId:T[[0,0,1,1,2,3,4][i]],accountManagerId:'Omar Haddad',status:i==5?'ONBOARDING':i==6?'PAUSED':'ACTIVE',email:i===0?'sara@lumen.com':'',clientId:i===0?'Sara Nabil':''}))},
 briefs:{t:'Brand Briefs',n:'brief',d:'AI-generated briefs per brand, with version and approval status.',api:['GET /brand-briefs','PATCH /brand-briefs/:id','POST /brand-briefs/:id/approve','POST /brand-briefs/:brandId/generate'],noCreate:true,gen:true,
  cols:[['brandId','Brand'],['version','Version'],['status','Status'],['updatedAt','Updated']],f:[['status','select',['DRAFT','GENERATING','READY','APPROVED','FAILED']],['errorMessage','text']],req:['status'],
  rows:[{brandId:'Lumen Skincare',version:'v3',status:'READY',updatedAt:'2026-11-15',content:{audience:'Women 25–40',pillars:['Clean ingredients','Skin education'],tone:'Warm, expert'}},{brandId:'Nord Coffee',version:'v2',status:'APPROVED',updatedAt:'2026-11-10',content:{audience:'Urban professionals',pillars:['Craft','Ritual'],tone:'Calm, confident'}},{brandId:'Atlas Fitness',version:'v1',status:'FAILED',updatedAt:'2026-11-14',errorMessage:'Generation timed out',content:{}},{brandId:'Kiwa Kids',version:'v1',status:'GENERATING',updatedAt:'2026-11-16',content:{}}],
@@ -112,8 +112,8 @@ function collectSearchResults(q){
  }
  if(isAllowedPage(S.role,'brands')){
   D.brands.rows.forEach((b,i)=>{
-   if(S.role==='client'&&b.name!==CLIENT_BRAND)return;
-   if([b.name,b.industry,b.teamId,b.accountManagerId,b.status].join(' ').toLowerCase().includes(q)){
+   if(S.role==='client'&&b.name!==curClientBrand())return;
+   if([b.name,b.industry,b.teamId,b.accountManagerId,b.status,b.email].join(' ').toLowerCase().includes(q)){
     out.push({group:'Brands',title:b.name,sub:[b.industry,b.teamId].filter(Boolean).join(' · '),tag:b.status||'',run:()=>{S.page='brands';S.q='';act('brands',i,'view')}});
    }
   });
@@ -137,7 +137,7 @@ function collectSearchResults(q){
  }
  if(typeof PLANS!=='undefined'){
   PLANS.forEach(p=>{
-   if(S.role==='client'&&p.brand!==CLIENT_BRAND)return;
+   if(S.role==='client'&&p.brand!==curClientBrand())return;
    (p.items||[]).forEach(it=>{
     if([it.title,it.type,it.platform,it.assignee,it.stage,p.brand,p.title].join(' ').toLowerCase().includes(q)){
      out.push({group:'Content items',title:it.title,sub:[p.brand,it.platform,it.type].filter(Boolean).join(' · '),tag:it.stage||'DRAFT',run:()=>{S.q='';if(typeof openD==='function')openD({t:'item',id:it.id})}});
@@ -147,7 +147,7 @@ function collectSearchResults(q){
  }
  if(isAllowedPage(S.role,'requests')&&typeof REQ!=='undefined'){
   REQ.forEach(r=>{
-   if(S.role==='client'&&r.brand!==CLIENT_BRAND)return;
+   if(S.role==='client'&&r.brand!==curClientBrand())return;
    if([r.text,r.brand,r.kind,r.st,r.team].join(' ').toLowerCase().includes(q)){
     out.push({group:'Requests',title:r.text,sub:[r.brand,r.kind].filter(Boolean).join(' · '),tag:r.st||'',run:()=>{S.page='requests';S.q='';render(false)}});
    }
@@ -243,7 +243,7 @@ function head(E,w,k){const a=[];if(w&&!E.noCreate)a.push(`<button class="btn p" 
  if(E.upload)a.push(`<button class="btn" disabled title="Not available in the backend yet">Upload strategy</button>`);
  const lk=locked(k)&&!E.ro;
  return `<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>${esc(E.t)}</h1><p>${esc(E.d)}</p></div><div style="display:flex;gap:8px">${a.join('')}</div></div>${lk?`<div class="note wn"><b>🔒</b><span>View-only for your role. You can open and read these records, but not create, edit, delete or change them.</span></div>`:''}${E.note?`<div class="note"><b>ⓘ</b><span>${esc(E.note)}</span></div>`:''}`}
-let listPage=function(k){const E=D[k],w=can(k),q=(S.q||'').trim().toLowerCase();let rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>!S.brand||!r.brandId||r.brandId===S.brand).filter(({r})=>k!=='brands'||S.role!=='client'||r.name===CLIENT_BRAND).filter(({r})=>k!=='notifications'||S.role!=='client'||r.title.includes(CLIENT_BRAND)).filter(({r})=>{if(!q)return true;const txt=Object.entries(r).filter(([a])=>a!=='_id'&&a!=='password').map(([a,v])=>a==='isActive'?(v?'active':'inactive'):typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).join(' ').toLowerCase();return txt.includes(q)});
+let listPage=function(k){const E=D[k],w=can(k),q=(S.q||'').trim().toLowerCase();let rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>!S.brand||!r.brandId||r.brandId===S.brand).filter(({r})=>k!=='brands'||S.role!=='client'||r.name===curClientBrand()).filter(({r})=>k!=='notifications'||S.role!=='client'||r.title.includes(curClientBrand())).filter(({r})=>{if(!q)return true;const txt=Object.entries(r).filter(([a])=>a!=='_id'&&a!=='password').map(([a,v])=>a==='isActive'?(v?'active':'inactive'):typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).join(' ').toLowerCase();return txt.includes(q)});
  if(k==='notifications'&&S.nf==='unread')rows=rows.filter(({r})=>!r.isRead);
  let h=head(E,w,k);
  if(k==='notifications')h+=`<div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view()">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`;
@@ -287,9 +287,146 @@ function onboarding(){return `<div class="ph"><div><span class="eb">Client</span
 <div class="g2" style="grid-template-columns:1.4fr 1fr"><div class="card tk" style="overflow:visible"><span class="eb" style="background:var(--lilac);color:#17171C">Lumen Skincare</span><h2 style="font-size:28px;margin:8px 0 4px">Onboarding summary</h2><div class="dash"></div>
 <dl class="kv" style="margin:0"><dt>Main category</dt><dd>Beauty & Personal Care</dd><dt>Activity type</dt><dd>E-commerce</dd><dt>Template version</dt><dd class="mono" style="font-size:13px">v2.1</dd><dt>Status</dt><dd>${pill('SUBMITTED')}</dd><dt>Submitted at</dt><dd class="mono" style="font-size:13px">2026-10-28 14:20</dd></dl></div>
 <div class="card" style="background:var(--lilac);border-color:var(--lilac);color:#17171C"><div class="arch" style="background:#F2EFFF"><i style="background:var(--lilac)"></i></div><h2 style="margin-top:100px">What happens next</h2><p style="max-width:260px">Your account manager reviews your answers and prepares your brand brief.</p><button class="btn" disabled style="margin-top:16px;background:#fff">Submit answers</button></div></div>`}
-function account(){const m=ME[S.role];return `<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>Profile & password</h1><p>Your account details and sign-in security.</p></div><button class="btn" onclick="logout()">Log out</button></div>
-<div class="g2" style="grid-template-columns:1fr 1fr"><div class="card"><div style="display:flex;gap:16px;align-items:center"><div class="av" style="width:56px;height:56px;font-size:18px">${esc(m[0].split(' ').map(x=>x[0]).join(''))}</div><div><h2>${esc(m[0])}</h2><span class="mute">${esc(m[1])}</span></div></div>
-<dl class="kv"><dt>Email</dt><dd>${esc(S.currentEmail||(m[0].split(' ')[0].toLowerCase()+'@agency-clean.co'))}</dd><dt>Role</dt><dd>${esc(ROLES[S.role])}</dd><dt>Access</dt><dd>${S.role==='admin'?'Full access (bypasses permission checks)':'Granted by role permissions'}</dd><dt>Session</dt><dd><span class="pill ok">Signed in</span></dd></dl></div>
+const PROFILE_STORE_KEY='orvia_profiles_v1';
+function loadProfilesMap(){try{return JSON.parse(localStorage.getItem(PROFILE_STORE_KEY)||'{}')||{}}catch{return{}}}
+function saveProfileStore(email,patch){
+ const em=String(email||'').trim().toLowerCase();
+ if(!em)return;
+ const map=loadProfilesMap();
+ map[em]={...(map[em]||{}),...patch};
+ try{localStorage.setItem(PROFILE_STORE_KEY,JSON.stringify(map))}catch{/* ignore */}
+}
+function getCurrentEmail(){
+ const m=ME[S.role]||['User',''];
+ return String(S.currentEmail||(m[0].split(' ')[0].toLowerCase()+'@agency-clean.co')).trim().toLowerCase();
+}
+function getCurrentProfile(){
+ const m=ME[S.role]||['User',''];
+ const em=getCurrentEmail();
+ const stored=loadProfilesMap()[em]||{};
+ const userRow=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===em)||{};
+ return {
+  fullName:stored.fullName||m[0],
+  title:stored.title!==undefined?stored.title:m[1],
+  email:em,
+  phone:stored.phone!==undefined?stored.phone:(userRow.phone||''),
+  photo:stored.photo||'',
+ };
+}
+function applyStoredProfile(email){
+ const em=String(email||'').trim().toLowerCase();
+ if(!em)return;
+ const stored=loadProfilesMap()[em];
+ if(!stored)return;
+ if(stored.fullName){
+  ME[S.role]=[stored.fullName,stored.title!==undefined?stored.title:(ME[S.role]?.[1]||ROLES[S.role])];
+  if(typeof MEN!=='undefined')MEN[S.role]=stored.fullName;
+ }else if(stored.title!==undefined&&ME[S.role]){
+  ME[S.role]=[ME[S.role][0],stored.title];
+ }
+}
+function avatarHtml(name,photo,extraStyle=''){
+ const ini=String(name||'U').split(' ').filter(Boolean).map(x=>x[0]).join('').slice(0,2).toUpperCase();
+ if(photo&&/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(photo)){
+  return `<div class="av" style="overflow:hidden;padding:0;${extraStyle}"><img src="${photo}" alt="${esc(name)}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`;
+ }
+ return `<div class="av"${extraStyle?` style="${extraStyle}"`:''}>${esc(ini)}</div>`;
+}
+let _pendingPhoto=null;
+function onProfilePhoto(inp){
+ const f=inp?.files?.[0];
+ if(!f)return;
+ if(!f.type.startsWith('image/'))return toast('Please choose an image file.');
+ if(f.size>4*1024*1024)return toast('Image must be smaller than 4 MB.');
+ const reader=new FileReader();
+ reader.onload=()=>{
+  const img=new Image();
+  img.onload=()=>{
+   try{
+    const max=240;
+    const scale=Math.min(1,max/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');
+    c.width=Math.max(1,Math.round(img.width*scale));
+    c.height=Math.max(1,Math.round(img.height*scale));
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    _pendingPhoto=c.toDataURL('image/jpeg',0.85);
+   }catch{
+    _pendingPhoto=String(reader.result||'');
+   }
+   const prev=document.getElementById('ep-avatar-preview');
+   if(prev)prev.outerHTML=`<div id="ep-avatar-preview" class="av" style="width:68px;height:68px;font-size:22px;overflow:hidden;padding:0;flex-shrink:0"><img src="${_pendingPhoto}" alt="Preview" style="width:100%;height:100%;object-fit:cover;display:block"></div>`;
+   const rmBtn=document.getElementById('ep-remove-photo');
+   if(rmBtn)rmBtn.style.display='inline-flex';
+  };
+  img.src=String(reader.result||'');
+ };
+ reader.readAsDataURL(f);
+}
+function removeProfilePhoto(){
+ _pendingPhoto='';
+ const p=getCurrentProfile();
+ const ini=String(p.fullName||'U').split(' ').filter(Boolean).map(x=>x[0]).join('').slice(0,2).toUpperCase();
+ const prev=document.getElementById('ep-avatar-preview');
+ if(prev)prev.outerHTML=`<div id="ep-avatar-preview" class="av" style="width:68px;height:68px;font-size:22px;flex-shrink:0">${esc(ini)}</div>`;
+ const rmBtn=document.getElementById('ep-remove-photo');
+ if(rmBtn)rmBtn.style.display='none';
+ const fileInput=document.getElementById('ep-photo-file');
+ if(fileInput)fileInput.value='';
+}
+function editProfile(){
+ const p=getCurrentProfile();
+ _pendingPhoto=null;
+ const ini=String(p.fullName||'U').split(' ').filter(Boolean).map(x=>x[0]).join('').slice(0,2).toUpperCase();
+ const avPrev=p.photo&&/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(p.photo)
+  ?`<div id="ep-avatar-preview" class="av" style="width:68px;height:68px;font-size:22px;overflow:hidden;padding:0;flex-shrink:0"><img src="${p.photo}" alt="${esc(p.fullName)}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`
+  :`<div id="ep-avatar-preview" class="av" style="width:68px;height:68px;font-size:22px;flex-shrink:0">${esc(ini)}</div>`;
+ modal(`<div class="dlg"><h2>Edit profile</h2><p class="mute" style="margin:0 0 20px">Update your photo, name, title, and phone number.</p>
+  <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+   ${avPrev}
+   <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+     <label class="btn sm" style="cursor:pointer">Upload photo<input id="ep-photo-file" type="file" accept="image/*" style="display:none" onchange="onProfilePhoto(this)"></label>
+     <button id="ep-remove-photo" type="button" class="btn sm dg" style="display:${p.photo?'inline-flex':'none'}" onclick="removeProfilePhoto()">Remove photo</button>
+    </div>
+    <span class="mute" style="font-size:12px">PNG, JPG or WEBP · up to 4 MB</span>
+   </div>
+  </div>
+  <div class="pg">
+   <div class="fl"><label><b style="font-weight:600">Full Name <em style="color:var(--et);font-style:normal">*</em></b></label><input id="ep-name" type="text" value="${esc(p.fullName)}" placeholder="Your full name"></div>
+   <div class="fl"><label>Phone Number</label><input id="ep-phone" type="tel" value="${esc(p.phone)}" placeholder="e.g. +20 100 000 0000"></div>
+   <div class="fl"><label>Title / Subtitle</label><input id="ep-title" type="text" value="${esc(p.title)}" placeholder="e.g. Workspace owner"></div>
+   <div class="fl"><label>Email</label><input type="email" value="${esc(p.email)}" readonly style="opacity:.75"></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="saveProfile()">Save changes</button></div>
+ </div>`);
+}
+function saveProfile(){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const fullName=($('#ep-name')?.value||'').trim();
+ const phone=($('#ep-phone')?.value||'').trim();
+ const title=($('#ep-title')?.value||'').trim();
+ if(fullName.length<2)return toast('Full name must be at least 2 characters.');
+ if(phone.length>30)return toast('Phone number must not exceed 30 characters.');
+ dlg._submitted=true;
+ const p=getCurrentProfile();
+ const nextPhoto=_pendingPhoto!==null?_pendingPhoto:p.photo;
+ const nextTitle=title||p.title||ROLES[S.role];
+ saveProfileStore(p.email,{fullName,phone,title:nextTitle,photo:nextPhoto});
+ ME[S.role]=[fullName,nextTitle];
+ if(typeof MEN!=='undefined')MEN[S.role]=fullName;
+ const uRow=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===p.email);
+ if(uRow){uRow.fullName=fullName;uRow.phone=phone}
+ _pendingPhoto=null;
+ closeM();
+ toast('Profile updated');
+ render(false);
+ if(getApiToken()&&!S.offlineMode){
+  apiCall('/auth/me',{method:'PATCH',body:{fullName,phone:phone||null}}).catch(()=>{});
+ }
+}
+function account(){const p=getCurrentProfile();return `<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>Profile & password</h1><p>Your account details and sign-in security.</p></div><button class="btn" onclick="logout()">Log out</button></div>
+<div class="g2" style="grid-template-columns:1fr 1fr"><div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="display:flex;gap:16px;align-items:center">${avatarHtml(p.fullName,p.photo,'width:56px;height:56px;font-size:18px;flex-shrink:0')}<div><h2>${esc(p.fullName)}</h2><span class="mute">${esc(p.title)}</span></div></div><button type="button" class="btn sm" onclick="editProfile()">Edit profile</button></div>
+<dl class="kv"><dt>Email</dt><dd>${esc(p.email)}</dd><dt>Phone</dt><dd>${esc(p.phone||'—')}</dd><dt>Role</dt><dd>${esc(ROLES[S.role])}</dd><dt>Access</dt><dd>${S.role==='admin'?'Full access (bypasses permission checks)':'Granted by role permissions'}</dd><dt>Session</dt><dd><span class="pill ok">Signed in</span></dd></dl></div>
 <div class="card"><h2>Change password</h2><p class="mute" style="margin:4px 0 20px">Use at least 8 characters.</p>${F('currentPassword','Current password','password')}${F('newPassword','New password','password','At least 8 characters')}<button class="btn p" onclick="chg()">Update password</button></div></div>`}
 const F=(n,l,t='text',h='',v='')=>`<div class="fl ${S.err[n]?'bad':''}"><label>${esc(l)}<span>${esc(n)}</span></label>${t==='password'?`<div class="pw-wrap"><input data-f="${esc(n)}" type="password" value="${esc(v)}" autocomplete="current-password"><button type="button" class="pw-btn" onclick="togPw(this)" aria-label="Show password" title="Show password">${ic('eye')}</button></div>`:`<input data-f="${esc(n)}" type="${esc(t)}" value="${esc(v)}" autocomplete="off">`}${S.err[n]?`<small>${esc(S.err[n])}</small>`:h?`<small>${esc(h)}</small>`:''}</div>`;
 function togPw(b){const i=b.previousElementSibling,sh=i.type==='password';i.type=sh?'text':'password';b.innerHTML=ic(sh?'eyeOff':'eye');b.setAttribute('aria-label',sh?'Hide password':'Show password');b.title=sh?'Hide password':'Show password'}
@@ -319,7 +456,49 @@ function checkDemoPw(email,pw){
  const map=loadDemoPwMap();
  return Boolean(map[em]&&map[em]===hashDemoPw(em,pw));
 }
-let chg=function(){const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));S.err={};if(!v.currentPassword)S.err.currentPassword='Enter your current password.';if((v.newPassword||'').length<8)S.err.newPassword='Use at least 8 characters.';if(Object.keys(S.err).length)return view(false);if(S.currentEmail)saveDemoPw(S.currentEmail,v.newPassword);toast('Password updated')};
+const DEMO_BRANDS_KEY='orvia_demo_brands_v1';
+function loadDemoBrands(){try{const a=JSON.parse(localStorage.getItem(DEMO_BRANDS_KEY)||'[]');return Array.isArray(a)?a:[]}catch{return[]}}
+function saveDemoBrand(brand){
+ if(!brand||!brand.name)return;
+ const list=loadDemoBrands().filter(x=>String(x.name||'').toLowerCase()!==String(brand.name||'').toLowerCase());
+ list.unshift({name:brand.name,industry:brand.industry||'',websiteUrl:brand.websiteUrl||'',description:brand.description||'',status:brand.status||'ACTIVE',email:String(brand.email||'').trim().toLowerCase(),clientId:brand.clientId||brand.name,accountManagerId:brand.accountManagerId||'',teamId:brand.teamId||'—'});
+ try{localStorage.setItem(DEMO_BRANDS_KEY,JSON.stringify(list))}catch{/* ignore */}
+}
+(function hydrateDemoBrands(){
+ const saved=loadDemoBrands();
+ saved.slice().reverse().forEach(b=>{
+  if(!b?.name)return;
+  if(!D.brands.rows.some(x=>String(x.name||'').toLowerCase()===String(b.name||'').toLowerCase())){
+   D.brands.rows.unshift({...b});
+   if(!BR.includes(b.name))BR.push(b.name);
+  }
+  if(b.email&&!D.users.rows.some(u=>String(u.email||'').trim().toLowerCase()===b.email)){
+   D.users.rows.push({fullName:b.name,email:b.email,roleId:'Client',jobTitleId:'Client',teamId:'—',isActive:true,brandName:b.name});
+  }
+ });
+})();
+let chg=function(){
+ const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));
+ S.err={};
+ const cur=String(v.currentPassword||'');
+ const next=String(v.newPassword||'');
+ if(!cur)S.err.currentPassword='Enter your current password.';
+ if(next.length<8)S.err.newPassword='Use at least 8 characters.';
+ else if(cur&&next===cur)S.err.newPassword='New password must differ from current password.';
+ if(Object.keys(S.err).length)return view(false);
+ const em=getCurrentEmail();
+ const pwMap=loadDemoPwMap();
+ const demo=DEMO_ACCOUNTS[em];
+ const currentOk=pwMap[em]?checkDemoPw(em,cur):Boolean(demo&&cur===demo.password);
+ if(!currentOk){
+  S.err.currentPassword='Current password is incorrect.';
+  toast('Current password is incorrect.');
+  return view(false);
+ }
+ if(em)saveDemoPw(em,next);
+ toast('Password updated');
+ view(false);
+};
 const PAGES={dashboard,onboarding,account};
 /* forms */
 function field(n,t,o,v){const r=S.err[n];const c=`<div class="fl ${r?'bad':''}"><label>${esc(hum(n))}<span>${esc(n)}</span></label>`;const e=r?`<small>${esc(r)}</small>`:'';
@@ -328,7 +507,32 @@ function field(n,t,o,v){const r=S.err[n];const c=`<div class="fl ${r?'bad':''}">
  else if(t==='switch')return `<div class="fl"><label>${esc(hum(n))}<span>${esc(n)}</span></label><div class="sw"><input type="checkbox" data-f="${esc(n)}" data-b ${v!==false?'checked':''} id="sw"><label for="sw" style="font-weight:600">Active account</label></div></div>`;
  else if(t==='perms')return `<div class="fl" style="grid-column:1/-1"><label>Permissions<span>permissions[]</span></label><div style="display:flex;gap:8px;flex-wrap:wrap">${PERM.map(p=>`<label class="sw" style="font-weight:600"><input type="checkbox" data-pm="${esc(p)}" ${(v||[]).includes(p)?'checked':''}>${esc(p)}</label>`).join('')}</div><small>Only used for Employee accounts. Job title is never a permission.</small></div>`;
  else i=`<input data-f="${esc(n)}" type="${esc(t)}" value="${esc(v??'')}">`;return c+i+e+'</div>'}
-function form(k,i){if(k==='users')return userForm(i);const E=D[k],r=i==null?{}:E.rows[i];return `<h2>${i==null?'New '+esc(E.n):'Edit '+esc(E.n)}</h2><p class="mute" style="margin:0 0 20px">Fields use the exact API names.</p><div class="pg">${E.f.filter(f=>!(f[0]==='password'&&i!=null)).map(f=>field(f[0],f[1],f[2],r[f[0]])).join('')}</div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="save('${k}',${i})">Save ${esc(E.n)}</button></div>`}
+function brandForm(i){
+ const E=D.brands,r=i==null?{status:'ACTIVE'}:E.rows[i];
+ const bad=n=>S.err[n]?'bad':'',msg=n=>S.err[n]?`<small>${esc(S.err[n])}</small>`:'',lb=t=>`<label><b style="font-weight:600">${t} <em style="color:var(--et);font-style:normal">*</em></b></label>`;
+ const ams=[...new Set(['Omar Haddad',...D.users.rows.filter(u=>u.roleId==='Account Manager').map(u=>u.fullName)])];
+ const statuses=['ACTIVE','PAUSED','ONBOARDING'];
+ return `<h2>${i==null?'New brand':'Edit brand'}</h2><p class="mute" style="margin:0 0 20px">${i==null?'Create the brand workspace and set its dedicated login credentials.':'Update brand details.'}</p>
+<div class="pg">
+ <div class="fl ${bad('name')}">${lb('Brand Name')}<input data-f="name" value="${esc(r.name??'')}" placeholder="e.g. Nova Studio">${msg('name')}</div>
+ <div class="fl ${bad('industry')}"><label>Industry</label><input data-f="industry" value="${esc(r.industry??'')}" placeholder="e.g. Beauty, Tech, Food">${msg('industry')}</div>
+ <div class="fl ${bad('websiteUrl')}"><label>Website URL</label><input data-f="websiteUrl" type="url" value="${esc(r.websiteUrl??'')}" placeholder="https://example.com">${msg('websiteUrl')}</div>
+ <div class="fl ${bad('status')}">${lb('Status')}<select data-f="status">${statuses.map(x=>`<option value="${esc(x)}" ${(r.status||'ACTIVE')===x?'selected':''}>${esc(x)}</option>`).join('')}</select>${msg('status')}</div>
+ <div class="fl"><label>Account Manager</label><select data-f="accountManagerId"><option value="">Select…</option>${ams.map(x=>`<option value="${esc(x)}" ${x===r.accountManagerId?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+ <div class="fl"><label>Team</label><select data-f="teamId"><option value="—">—</option>${T.map(x=>`<option value="${esc(x)}" ${x===r.teamId?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+ <div class="fl" style="grid-column:1/-1"><label>Description</label><textarea data-f="description" placeholder="Short overview of the brand…">${esc(r.description??'')}</textarea></div>
+</div>
+<div style="border-top:1px solid var(--line);margin:4px 0 16px;padding-top:20px">
+ <h2 style="font-size:17px">Brand account credentials</h2>
+ <p class="mute" style="margin:2px 0 16px">${i==null?'This brand will sign in with its own email and password to open its dedicated brand pages.':'Dedicated login email linked to this brand.'}</p>
+ <div class="pg">
+  <div class="fl ${bad('email')}"${i!=null?' style="grid-column:1/-1"':''}>${i==null?lb('Brand Email'):'<label>Brand Email</label>'}<input data-f="email" type="email" value="${esc(r.email??'')}" placeholder="brand@company.com"${i!=null?' readonly style="opacity:.75"':''}>${msg('email')}</div>
+  ${i==null?`<div class="fl ${bad('password')}">${lb('Password')}<div class="pw-wrap"><input data-f="password" type="password" value="" autocomplete="new-password" placeholder="Min. 12 chars (A-Z, a-z, 0-9, symbol)"><button type="button" class="pw-btn" onclick="togPw(this)" aria-label="Show password" title="Show password">${ic('eye')}</button></div>${msg('password')||'<small>At least 12 characters with uppercase, lowercase, number, and symbol.</small>'}</div>`:''}
+ </div>
+</div>
+<div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="save('brands',${i})">${i==null?'Save brand':'Save changes'}</button></div>`;
+}
+function form(k,i){if(k==='users')return userForm(i);if(k==='brands')return brandForm(i);const E=D[k],r=i==null?{}:E.rows[i];return `<h2>${i==null?'New '+esc(E.n):'Edit '+esc(E.n)}</h2><p class="mute" style="margin:0 0 20px">Fields use the exact API names.</p><div class="pg">${E.f.filter(f=>!(f[0]==='password'&&i!=null)).map(f=>field(f[0],f[1],f[2],r[f[0]])).join('')}</div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="save('${k}',${i})">Save ${esc(E.n)}</button></div>`}
 let save=function(k,i){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;const E=D[k],o=Object.fromEntries([...dlg.querySelectorAll('[data-f]')].map(x=>[x.dataset.f,x.dataset.b!==undefined?x.checked:x.value]));
  const pm=[...dlg.querySelectorAll('[data-pm]:checked')].map(x=>x.dataset.pm);if(E.f.some(f=>f[0]==='permissions'))o.permissions=pm;
  S.err={};(E.req||[]).forEach(n=>{if(o[n]===''||o[n]==null)S.err[n]='This field is required.'});
@@ -345,15 +549,49 @@ let save=function(k,i){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;co
    else if(!/[a-z]/.test(pw)||!/[A-Z]/.test(pw)||!/\d/.test(pw)||!/[^A-Za-z0-9]/.test(pw))S.err.password='Include uppercase, lowercase, a number, and a special character.';
   }
  }
+ if(k==='brands'){
+  o.name=(o.name||'').trim();
+  o.email=(o.email||'').trim().toLowerCase();
+  if(o.name&&D.brands.rows.some((b,idx)=>idx!==i&&String(b.name||'').trim().toLowerCase()===o.name.toLowerCase())){
+   S.err.name='A brand with this name already exists.';
+  }
+  if(i==null){
+   if(!o.email)S.err.email='Brand email is required.';
+   else if(!/^\S+@\S+\.\S+$/.test(o.email))S.err.email='Enter a valid brand email.';
+   else if(
+    D.users.rows.some(u=>String(u.email||'').trim().toLowerCase()===o.email)||
+    D.brands.rows.some(b=>String(b.email||'').trim().toLowerCase()===o.email)
+   ){
+    S.err.email='This email is already in use by another account.';
+   }
+   const pw=String(o.password||'');
+   if(!pw)S.err.password='Password is required.';
+   else if(pw.length<12)S.err.password='Password must be at least 12 characters.';
+   else if(!/[a-z]/.test(pw)||!/[A-Z]/.test(pw)||!/\d/.test(pw)||!/[^A-Za-z0-9]/.test(pw))S.err.password='Include uppercase, lowercase, a number, and a special character.';
+  }
+ }
  if(Object.keys(S.err).length){const ov=$('.ov');ov.innerHTML=`<div class="dlg">${form(k,i).replace(/value="[^"]*"/g,m=>m)}</div>`;{const rs=ov.querySelector('[data-f=roleId]');if(rs&&k==='users'){rs.value=o.roleId;roleCh(rs)}}ov.querySelectorAll('[data-f]').forEach(x=>{if(x.dataset.b!==undefined)x.checked=o[x.dataset.f];else x.value=o[x.dataset.f]??''});return}
  dlg._submitted=true;
  const rawPassword=o.password;
  delete o.password;
  const inv=Boolean(o.sendInvite);delete o.sendInvite;
  if(k==='users'&&i==null){S._pendingUserPassword=rawPassword||'';S._pendingUserInvite=inv;if(rawPassword)saveDemoPw(o.email,rawPassword);o.isActive=true;o.teamId=o.teamId||'—'}
+ if(k==='brands'&&i==null){
+  S._pendingBrandPassword=rawPassword||'';
+  if(rawPassword)saveDemoPw(o.email,rawPassword);
+  o.clientId=o.name;
+  o.teamId=o.teamId||'—';
+  if(!BR.includes(o.name))BR.push(o.name);
+  if(!D.users.rows.some(u=>String(u.email||'').trim().toLowerCase()===o.email)){
+   D.users.rows.push({fullName:o.name,email:o.email,roleId:'Client',jobTitleId:'Client',teamId:'—',isActive:true,brandName:o.name});
+  }
+  saveDemoBrand(o);
+ }
  if(i==null){if(S.brand&&!o.brandId&&['files','platform','briefs'].includes(k))o.brandId=S.brand;E.rows.unshift(o)}else Object.assign(E.rows[i],o);close();
  if(k==='users'&&i==null){
   if(!getApiToken())toast(inv?'User added (demo mode — connect backend to send invitation email)':'User added');
+ }else if(k==='brands'&&i==null){
+  toast('Brand created with its own login account');
  }else{
   toast(i==null?'Saved':'Changes saved');
  }
@@ -368,14 +606,14 @@ let gen=function(){D.briefs.rows.unshift({brandId:BR[Math.floor(Math.random()*4)
 /* shell */
 let go=function(p){const allowed=NAV[S.role]||NAV.admin;S.page=isAllowedPage(S.role,p)?p:allowed[0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.open=false;S.err={};render()};
 let setRole=function(r){S.role=r;S.page=NAV[r][0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}render()};
-let logout=function(){S.authed=false;S.auth='login';render()};
-let view=function(sk=true){enforceRoleRoute();const v=$('#view');if(!v)return;if(S.role==='client')S.brand=CLIENT_BRAND;const k=S.page,f=()=>{v.innerHTML=PAGES[k]?PAGES[k]():listPage(k)};if(sk){v.innerHTML='<div class="sk" style="width:40%;height:34px"></div><div class="sk" style="width:60%"></div><div class="card"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>';setTimeout(f,260)}else f()};
+let logout=function(){S.authed=false;S.auth='login';S.clientBrand=null;S.brand=null;render()};
+let view=function(sk=true){enforceRoleRoute();const v=$('#view');if(!v)return;if(S.role==='client')S.brand=curClientBrand();const k=S.page,f=()=>{v.innerHTML=PAGES[k]?PAGES[k]():listPage(k)};if(sk){v.innerHTML='<div class="sk" style="width:40%;height:34px"></div><div class="sk" style="width:60%"></div><div class="card"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>';setTimeout(f,260)}else f()};
 let render=function(){const a=$('#app');if(!a)return;if(!S.authed){a.innerHTML=authView();return}enforceRoleRoute();
  const m=ME[S.role],nav=NAV[S.role];
  a.innerHTML=`<aside class="side ${S.open?'open':''}"><div class="logo"><i></i><div><b>ORVIA</b><small>${esc(ROLES[S.role])}</small></div></div><div class="nl">Workspace</div><nav class="nav">${nav.map(p=>`<button class="${S.page===p?'on':''}"${S.page===p?' aria-current="page"':''} onclick="go('${p}')">${ic(N[p][1])}${N[p][0]}${p==='notifications'?'<span class="dot"></span>':''}</button>`).join('')}</nav>
  <div class="sf">${S.role==='emp'?`<div class="mini"><div class="mono mute" style="margin-bottom:8px">UserPermission</div>${PERM.map(p=>`<label style="display:flex;gap:8px;align-items:center;font-size:12px;font-weight:600;padding:3px 0"><input type="checkbox" ${S.p[p]?'checked':''} onchange="S.p['${p}']=this.checked;render()" style="accent-color:#17171C">${p}</label>`).join('')}</div>`:S.role==='admin'?`<div class="mini"><div class="mono mute">SETUP PROGRESS</div><div style="display:flex;justify-content:space-between;margin:4px 0 8px"><b>43%</b><span class="mute">complete</span></div><div class="bar"><i style="width:43%"></i></div></div>`:''}
  <div class="me"><div class="av">${esc(m[0].split(' ').map(x=>x[0]).join(''))}</div><div style="min-width:0;flex:1"><b>${esc(m[0])}</b><div class="mute" style="font-size:12px">${esc(m[1])}</div></div><button type="button" class="btn sm t" onclick="logout()" title="Log out" aria-label="Log out" style="width:34px;height:34px;padding:0;justify-content:center;flex-shrink:0;border-radius:10px">${ic('logout')}</button></div></div></aside>
- <main><header class="top"><button class="btn sm t menu" onclick="S.open=!S.open;render()" aria-label="Menu">☰</button><div class="crumb">Agency workspace / <b>${N[S.page][0]}</b></div><div class="search-wrap"><label class="search">${ic('search')}<input aria-label="Search this page" placeholder="Search this page…" value="${esc(S.q)}" oninput="onSearch(this.value,this)" onfocus="openSearchDD()" onblur="setTimeout(closeSearchDD,140)" onkeydown="if(event.key==='Escape'){if(S.q){event.preventDefault();clearSearch()}else closeSearchDD()}"><button type="button" class="search-clr" onclick="clearSearch()" aria-label="Clear search" title="Clear search" style="display:${S.q?'inline-flex':'none'};border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 4px">×</button></label><div id="search-dd" class="search-dd" role="listbox" aria-label="Search results"></div></div></header><section id="view" aria-live="polite"></section></main>`;
+ <main><header class="top"><div class="crumb">Agency workspace / <b>${N[S.page][0]}</b></div><div class="search-wrap"><label class="search">${ic('search')}<input aria-label="Search this page" placeholder="Search this page…" value="${esc(S.q)}" oninput="onSearch(this.value,this)" onfocus="openSearchDD()" onblur="setTimeout(closeSearchDD,140)" onkeydown="if(event.key==='Escape'){if(S.q){event.preventDefault();clearSearch()}else closeSearchDD()}"><button type="button" class="search-clr" onclick="clearSearch()" aria-label="Clear search" title="Clear search" style="display:${S.q?'inline-flex':'none'};border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 4px">×</button></label><div id="search-dd" class="search-dd" role="listbox" aria-label="Search results"></div></div></header><section id="view" aria-live="polite"></section></main>`;
  view()};
 /* auth */
 function authView(){
@@ -383,7 +621,7 @@ function authView(){
  const formError=S.err.form?`<div class="note wn" role="alert"><b>!</b><span>${esc(S.err.form)}</span></div>`:'';
  const loginNotice=S.loginNotice?`<div class="note ok" role="status"><b>✓</b><span>${esc(S.loginNotice)}</span></div>`:'';
  const themeBtn=`<div class="auth-top"><span class="mono mute">Secure account recovery</span><button type="button" class="btn sm t" onclick="toggleTheme()">${S.theme==='dark'?'☀ Light':'☾ Dark'}</button></div>`;
- const login=`<h1>Welcome back</h1><p class="mute" style="margin:8px 0 20px">Sign in to your ORVIA workspace.</p>${loginNotice}${F('email','Email','email','',S.forgotEmail||'')}${F('password','Password','password')}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><a class="lk" onclick="S.auth='forgot';S.loginNotice='';S.err={};render()">Forgot password?</a><button class="btn p" ${S.busy?'disabled':''} onclick="doLogin()">Sign in</button></div>`;
+ const login=`<h1>Welcome back</h1><p class="mute" style="margin:8px 0 20px">Sign in to your ORVIA workspace.</p>${loginNotice}${F('email','Email','email','',S.loginEmail||S.forgotEmail||'')}${F('password','Password','password')}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><a class="lk" onclick="S.auth='forgot';S.loginNotice='';S.err={};render()">Forgot password?</a><button class="btn p" ${S.busy?'disabled':''} onclick="doLogin()">Sign in</button></div>`;
  const forgot=`<h1>Reset your password</h1><p class="mute" style="margin:8px 0 20px">Enter the work email registered to your account and we’ll send a 6-digit verification code.</p>${formError}${F('email','Email','email','',S.forgotEmail||'')}<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn p" ${S.busy?'disabled':''} onclick="doForgot()">${S.busy?'Sending…':'Send verification code'}</button><a class="lk" onclick="S.auth='verify';S.sent=0;S.err={};render()">I have a code</a></div><div class="note" style="margin-top:14px"><b>i</b><span>For security, we never confirm whether an account exists with this email.</span></div><p><a class="lk" onclick="S.auth='login';S.sent=0;S.otp='';S.resetToken='';S.err={};render()">Back to sign in</a></p>`;
  const checks=passwordChecks(S.newPassword||'');
  const passed=checks.filter(c=>c.ok).length;
@@ -415,7 +653,9 @@ let doLogin=function(){
  S.err={};
  const email=(v.email||'').trim().toLowerCase();
  const pw=String(v.password||'');
+ S.loginEmail=(v.email||'').trim();
  if(!email)S.err.email='Enter your email.';
+ else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))S.err.email='Please enter a valid email address.';
  if(!pw)S.err.password='Enter your password.';
  if(Object.keys(S.err).length)return render();
  const demo=DEMO_ACCOUNTS[email];
@@ -423,11 +663,38 @@ let doLogin=function(){
   const pwMap=loadDemoPwMap();
   const pwOk=pwMap[email]?checkDemoPw(email,pw):(pw===demo.password);
   if(!pwOk){S.err.password='Invalid email or password.';return render()}
+  const matchingUser=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===email||u.fullName===demo.fullName);
+  if(matchingUser&&matchingUser.isActive===false){
+   S.err.password='This account is inactive.';
+   toast('This account is inactive.');
+   return render();
+  }
   S.role=demo.role;
   S.currentEmail=email;
+  S.clientBrand=demo.role==='client'?CLIENT_BRAND:null;
+  if(demo.role==='client'&&typeof switchClientOnboarding==='function')switchClientOnboarding(S.clientBrand);
   ME[S.role]=[demo.fullName,demo.subtitle];
   if(typeof MEN!=='undefined')MEN[S.role]=demo.fullName;
-  S.authed=true;S.page=NAV[S.role][0];S.brand=null;S.sub=null;S.det=null;
+  applyStoredProfile(email);
+  S.authed=true;S.page=NAV[S.role][0];S.brand=demo.role==='client'?S.clientBrand:null;S.sub=null;S.det=null;
+  return render();
+ }
+ const brandRow=D.brands.rows.find(b=>String(b.email||'').trim().toLowerCase()===email);
+ if(brandRow&&checkDemoPw(email,pw)){
+  const brandUser=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===email);
+  if(brandUser&&brandUser.isActive===false){
+   S.err.password='This account is inactive.';
+   toast('This account is inactive.');
+   return render();
+  }
+  S.role='client';
+  S.currentEmail=email;
+  S.clientBrand=brandRow.name;
+  if(typeof switchClientOnboarding==='function')switchClientOnboarding(brandRow.name);
+  ME.client=[brandRow.name,'Client · '+brandRow.name];
+  if(typeof MEN!=='undefined')MEN.client=brandRow.name;
+  applyStoredProfile(email);
+  S.authed=true;S.page=NAV.client[0];S.brand=brandRow.name;S.sub=null;S.det=null;
   return render();
  }
  const createdRow=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===email);
@@ -436,8 +703,20 @@ let doLogin=function(){
   const rk=UI_ROLE_KEY[createdRow.roleId]||'emp';
   S.role=rk;
   S.currentEmail=email;
+  if(rk==='client'){
+   const linkedBrand=createdRow.brandName||D.brands.rows.find(b=>String(b.email||'').trim().toLowerCase()===email)?.name||CLIENT_BRAND;
+   S.clientBrand=linkedBrand;
+   if(typeof switchClientOnboarding==='function')switchClientOnboarding(linkedBrand);
+   ME.client=[createdRow.fullName,'Client · '+linkedBrand];
+   if(typeof MEN!=='undefined')MEN.client=createdRow.fullName;
+   applyStoredProfile(email);
+   S.authed=true;S.page=NAV.client[0];S.brand=linkedBrand;S.sub=null;S.det=null;
+   return render();
+  }
+  S.clientBrand=null;
   ME[rk]=[createdRow.fullName,createdRow.jobTitleId||ROLES[rk]];
   if(typeof MEN!=='undefined')MEN[rk]=createdRow.fullName;
+  applyStoredProfile(email);
   S.authed=true;S.page=NAV[S.role][0];S.brand=null;S.sub=null;S.det=null;
   return render();
  }
@@ -447,6 +726,7 @@ let doLogin=function(){
 /* ===== v2: brand workspace, strategy flow, content plans, role-based tasks ===== */
 const closeM=close;
 const CLIENT_BRAND='Lumen Skincare',EMP=['Lina Aziz','Karim Fouad','Mona Saeed'],TS2=['TODO','IN_PROGRESS','REVIEW','DONE'];
+function curClientBrand(){return S.clientBrand||CLIENT_BRAND}
 const MEN={admin:'Elena Vance',am:'Omar Haddad',cc:'Lina Aziz',emp:'Karim Fouad',client:'Sara Nabil'};
 let IDN=10;
 const STR={'Lumen Skincare':{st:'client',v:1,file:'q4-growth-strategy-v1.pdf',reason:'',log:['v1 uploaded · Content Creator','Sent to the Account Manager · Content Creator','Sent to the client · Account Manager']},
@@ -466,14 +746,14 @@ function askOk(){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;const v=
 /* shell */
 go=function(p){const allowed=NAV[S.role]||NAV.admin;S.page=isAllowedPage(S.role,p)?p:allowed[0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.open=false;S.err={};S.brand=null;S.sub=null;render()};
 setRole=function(r){S.role=r;S.page=NAV[r][0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.brand=null;S.sub=null;render()};
-view=function(sk=true){const redirected=enforceRoleRoute();const v=$('#view');if(!v)return;if(redirected){document.querySelectorAll('.nav button').forEach(b=>{const on=b.getAttribute('onclick')===`go('${S.page}')`;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')})}if(S.role==='client')S.brand=CLIENT_BRAND;const f=()=>{v.innerHTML=S.page==='brands'&&S.brand?brandPage():PAGES[S.page]?PAGES[S.page]():listPage(S.page)};if(sk){v.innerHTML='<div class="sk" style="width:40%;height:34px"></div><div class="card"><div class="sk"></div><div class="sk"></div></div>';setTimeout(f,200)}else f()};
+view=function(sk=true){const redirected=enforceRoleRoute();const v=$('#view');if(!v)return;if(redirected){document.querySelectorAll('.nav button').forEach(b=>{const on=b.getAttribute('onclick')===`go('${S.page}')`;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')})}if(S.role==='client')S.brand=curClientBrand();const f=()=>{v.innerHTML=S.page==='brands'&&S.brand?brandPage():PAGES[S.page]?PAGES[S.page]():listPage(S.page)};if(sk){v.innerHTML='<div class="sk" style="width:40%;height:34px"></div><div class="card"><div class="sk"></div><div class="sk"></div></div>';setTimeout(f,200)}else f()};
 render=function(sk=true){const a=$('#app');if(!a)return;if(!S.authed){applyTheme();a.innerHTML=authView();return}try{delete document.documentElement.dataset.theme}catch{/* ignore */}enforceRoleRoute();
-const m=ME[S.role],nav=NAV[S.role],un=D.notifications.rows.filter(n=>!n.isRead).length,ini=m[0].split(' ').map(x=>x[0]).join('');
-a.innerHTML=`<aside class="side ${S.open?'open':''}"><div class="logo"><i></i><div><b>ORVIA</b><small>${esc(ROLES[S.role])}</small></div></div><nav class="nav">${nav.map(p=>(p==='tasks'?'<div class="nl" style="margin:18px 0 6px">Execution &amp; Review</div>':'')+`<button class="${S.page===p?'on':''}"${S.page===p?' aria-current="page"':''} onclick="go('${p}')">${ic(N[p][1])}${N[p][0]}</button>`).join('')}</nav>
-<div class="sf"><div class="me"><div class="av">${esc(ini)}</div><div style="min-width:0;flex:1"><b>${esc(m[0])}</b><div class="mute" style="font-size:12px">${esc(m[1])}</div></div><button type="button" class="btn sm t" onclick="logout()" title="Log out" aria-label="Log out" style="width:34px;height:34px;padding:0;justify-content:center;flex-shrink:0;border-radius:10px">${ic('logout')}</button></div></div></aside>
-<main><header class="top"><button class="btn sm t menu" onclick="S.open=!S.open;render(false)" aria-label="Menu">☰</button><div class="search-wrap"><label class="search">${ic('search')}<input aria-label="Search this page" placeholder="Search this page…" value="${esc(S.q)}" oninput="onSearch(this.value,this)" onfocus="openSearchDD()" onblur="setTimeout(closeSearchDD,140)" onkeydown="if(event.key==='Escape'){if(S.q){event.preventDefault();clearSearch()}else closeSearchDD()}"><button type="button" class="search-clr" onclick="clearSearch()" aria-label="Clear search" title="Clear search" style="display:${S.q?'inline-flex':'none'};border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 4px">×</button></label><div id="search-dd" class="search-dd" role="listbox" aria-label="Search results"></div></div>
+const p=getCurrentProfile(),nav=NAV[S.role],un=D.notifications.rows.filter(n=>!n.isRead).length;
+a.innerHTML=`<aside class="side ${S.open?'open':''}"><div class="logo"><i></i><div><b>ORVIA</b><small>${esc(ROLES[S.role])}</small></div></div><nav class="nav">${nav.map(pg=>(pg==='tasks'?'<div class="nl" style="margin:18px 0 6px">Execution &amp; Review</div>':'')+`<button class="${S.page===pg?'on':''}"${S.page===pg?' aria-current="page"':''} onclick="go('${pg}')">${ic(N[pg][1])}${N[pg][0]}</button>`).join('')}</nav>
+<div class="sf"><div class="me">${avatarHtml(p.fullName,p.photo)}<div style="min-width:0;flex:1"><b>${esc(p.fullName)}</b><div class="mute" style="font-size:12px">${esc(p.title)}</div></div><button type="button" class="btn sm t" onclick="logout()" title="Log out" aria-label="Log out" style="width:34px;height:34px;padding:0;justify-content:center;flex-shrink:0;border-radius:10px">${ic('logout')}</button></div></div></aside>
+<main><header class="top"><div class="search-wrap"><label class="search">${ic('search')}<input aria-label="Search this page" placeholder="Search this page…" value="${esc(S.q)}" oninput="onSearch(this.value,this)" onfocus="openSearchDD()" onblur="setTimeout(closeSearchDD,140)" onkeydown="if(event.key==='Escape'){if(S.q){event.preventDefault();clearSearch()}else closeSearchDD()}"><button type="button" class="search-clr" onclick="clearSearch()" aria-label="Clear search" title="Clear search" style="display:${S.q?'inline-flex':'none'};border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 4px">×</button></label><div id="search-dd" class="search-dd" role="listbox" aria-label="Search results"></div></div>
 <button class="btn sm t" onclick="go('notifications')" aria-label="Notifications" style="margin-left:auto;position:relative;width:38px;height:38px;padding:0;justify-content:center;border-radius:50%">${ic('bell')}${un?`<span style="position:absolute;top:-5px;right:-5px;background:#6B5FC7;color:#fff;border-radius:99px;font-size:10px;min-width:18px;height:18px;display:grid;place-items:center">${un}</span>`:''}</button>
-<div style="display:flex;gap:10px;align-items:center"><div style="text-align:right;line-height:1.25"><b>${esc(m[0])}</b><div class="mute" style="font-size:12px">${esc(ROLES[S.role])}</div></div><div class="av" style="background:var(--lilac)">${esc(ini)}</div></div></header><section id="view" aria-live="polite"></section></main>`;view(sk)};
+<div style="display:flex;gap:10px;align-items:center;cursor:pointer" onclick="go('account')" title="Profile &amp; password"><div style="text-align:right;line-height:1.25"><b>${esc(p.fullName)}</b><div class="mute" style="font-size:12px">${esc(ROLES[S.role])}</div></div>${avatarHtml(p.fullName,p.photo,'background:var(--lilac)')}</div></header><section id="view" aria-live="polite"></section></main>`;view(sk)};
 /* brand workspace */
 function brandPage(){if(S.role==='client')return clientBrand();const i=D.brands.rows.findIndex(x=>x.name===S.brand);if(i<0){S.brand=null;return listPage('brands')}
 const b=D.brands.rows[i],R=S.role,s=sg(b.name),n=k=>D[k].rows.filter(r=>r.brandId===b.name).length,ps=PLANS.filter(p=>p.brand===b.name),it=ps.reduce((a,p)=>a+p.items.length,0);
@@ -573,26 +853,36 @@ const OBS=[['Brand Information',[['q0','What is your brand name?',1],['q1','When
 ['Brand Personality',[['q15','Describe your brand personality',1],['q16','Which 3 words describe your tone?',1],['q17','Any colors or styles you prefer?',0,1]]],
 ['Marketing Objectives',[['q18','What is your main marketing objective?',1],['q19','Which platforms matter most?',1],['q20','Monthly content volume you expect?',0,1]]]];
 const OB={step:'category',cat:'Beauty & Personal Care',act:'E-commerce',sec:0,a:{},done:[],err:{},submitted:false};
+const OB_BY_BRAND={};
+let _obBrand=CLIENT_BRAND;
+function switchClientOnboarding(brandName){
+ const next=brandName||CLIENT_BRAND;
+ if(_obBrand===next)return;
+ OB_BY_BRAND[_obBrand]={step:OB.step,cat:OB.cat,act:OB.act,sec:OB.sec,a:{...OB.a},done:[...OB.done],err:{},submitted:OB.submitted};
+ const saved=OB_BY_BRAND[next]||{step:'category',cat:'Beauty & Personal Care',act:'E-commerce',sec:0,a:{},done:[],err:{},submitted:false};
+ OB.step=saved.step;OB.cat=saved.cat;OB.act=saved.act;OB.sec=saved.sec;OB.a={...saved.a};OB.done=[...saved.done];OB.err={};OB.submitted=Boolean(saved.submitted);
+ _obBrand=next;
+}
 const secSt=i=>OB.done.includes(i)?'done':OBS[i][1].some(q=>(OB.a[q[0]]||'').trim())?'inc':'none';
-const obTop=(t,sub)=>`<div class="ph"><div><span class="eb">Client</span><h1>${esc(t)}</h1><p>${esc(sub)}</p></div></div>`,CRUMB=CLIENT_BRAND+' / Onboarding';
-function obCat(){const acts=CATS[OB.cat]||Object.values(CATS)[0];return obTop('Select category',CRUMB)+`<div class="card"><div class="pg"><div class="fl"><label>Main category</label><select onchange="OB.cat=this.value;OB.act=(CATS[OB.cat]||[])[0]||'';view(false)">${Object.keys(CATS).map(c=>`<option value="${esc(c)}" ${c===OB.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div><div class="fl"><label>Activity type</label><select onchange="OB.act=this.value">${acts.map(a=>`<option value="${esc(a)}" ${a===OB.act?'selected':''}>${esc(a)}</option>`).join('')}</select></div></div><div class="ft"><button class="btn p" onclick="OB.step='form';view(false)">Continue</button></div></div>`}
+const obTop=(t,sub)=>`<div class="ph"><div><span class="eb">Client</span><h1>${esc(t)}</h1><p>${esc(sub)}</p></div></div>`,obCrumb=()=>curClientBrand()+' / Onboarding';
+function obCat(){const acts=CATS[OB.cat]||Object.values(CATS)[0];return obTop('Select category',obCrumb())+`<div class="card"><div class="pg"><div class="fl"><label>Main category</label><select onchange="OB.cat=this.value;OB.act=(CATS[OB.cat]||[])[0]||'';view(false)">${Object.keys(CATS).map(c=>`<option value="${esc(c)}" ${c===OB.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div><div class="fl"><label>Activity type</label><select onchange="OB.act=this.value">${acts.map(a=>`<option value="${esc(a)}" ${a===OB.act?'selected':''}>${esc(a)}</option>`).join('')}</select></div></div><div class="ft"><button class="btn p" onclick="OB.step='form';view(false)">Continue</button></div></div>`}
 function obForm(){const i=OB.sec,[t,qs]=OBS[i],pct=Math.round((i+1)/7*100);
-return obTop('Onboarding form',CRUMB)+`<div class="obh"><div class="ban"><b>${esc(t)}</b><div class="mono mute">Section ${i+1} of 7</div></div><div style="text-align:right"><div class="mono mute" style="margin-bottom:6px">Progress: ${pct}%</div><div class="pbar"><i style="width:${pct}%"></i></div></div></div>
+return obTop('Onboarding form',obCrumb())+`<div class="obh"><div class="ban"><b>${esc(t)}</b><div class="mono mute">Section ${i+1} of 7</div></div><div style="text-align:right"><div class="mono mute" style="margin-bottom:6px">Progress: ${pct}%</div><div class="pbar"><i style="width:${pct}%"></i></div></div></div>
 <div class="card">${qs.map(q=>{const e=OB.err[q[0]],v=esc(OB.a[q[0]]);return `<div class="fl ${e?'bad':''}"><label><b style="font-weight:600">${esc(q[1])}</b></label>${q[2]?'<span class="mono" style="color:var(--et)">Required</span>':''}${q[3]?`<textarea placeholder="Your answer" oninput="OB.a['${q[0]}']=this.value">${v}</textarea>`:`<input placeholder="Your answer" value="${v}" oninput="OB.a['${q[0]}']=this.value">`}${e?'<small>This field is required.</small>':''}</div>`}).join('')}
 <div class="ft"><button class="btn" onclick="OB.err={};OB.step='sections';view(false)">Form sections</button><button class="btn" onclick="toast('Draft saved')">Save draft</button><button class="btn p" onclick="obSubmit()">${i<6?'Save and continue':'Save section'}</button></div></div>`}
 let obSubmit=function(){const i=OB.sec;OB.err={};OBS[i][1].forEach(q=>{if(q[2]&&!(OB.a[q[0]]||'').trim())OB.err[q[0]]=1});
 if(Object.keys(OB.err).length){toast('Answer the required questions');return view(false)}
 if(!OB.done.includes(i))OB.done.push(i);if(i<6){OB.sec=i+1;toast('Section saved')}else{OB.step='sections';toast('Last section saved')}view(false);window.scrollTo(0,0)};
 function obSecs(){const d=OB.done.length,pct=Math.round(d/7*100),B={done:['ok','Done'],inc:['wn','Incomplete'],none:['','Not started']};
-return obTop('Form sections',CRUMB)+`<div class="obh"><span class="mute">Progress: ${d} of 7 sections complete · ${pct}%</span><div class="pbar" style="width:240px"><i style="width:${pct}%"></i></div></div>
+return obTop('Form sections',obCrumb())+`<div class="obh"><span class="mute">Progress: ${d} of 7 sections complete · ${pct}%</span><div class="pbar" style="width:240px"><i style="width:${pct}%"></i></div></div>
 <div class="secg">${OBS.map((x,i)=>{const b=B[secSt(i)];return `<button class="secbtn" onclick="OB.sec=${i};OB.step='form';view(false)"><span>${esc(x[0])}</span><span class="pill ${b[0]}">${b[1]}</span></button>`}).join('')}</div>
 <div class="ft" style="margin-top:20px"><button class="btn" onclick="toast('Draft saved')">Save draft</button><button class="btn p" ${d<7?'disabled title="Complete all 7 sections first"':''} onclick="obFinish()">Submit onboarding</button></div>${d<7?'<p class="mute" style="text-align:right;margin:8px 0 0">Complete every section to submit.</p>':''}`}
-let obFinish=function(){OB.submitted=true;D.notifications.rows.unshift({title:CLIENT_BRAND+': Client onboarding submitted',createdAt:'just now',isRead:false});toast('Submitted · Account Manager notified');render(false)};
-function obDone(){return obTop('Onboarding',CRUMB)+`<div class="note ok"><b>✓</b><span>Submitted. Your account manager has been notified and will prepare your brand brief.</span></div><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><h2>Your answers</h2><span class="pill ok">Submitted</span></div><dl class="kv" style="margin:0 0 8px"><dt>Main category</dt><dd>${esc(OB.cat)}</dd><dt>Activity type</dt><dd>${esc(OB.act)}</dd></dl>${OBS.map(x=>`<div class="dash"></div><h2 style="font-size:16px">${esc(x[0])}</h2><dl class="kv" style="margin:12px 0 0">${x[1].map(q=>`<dt>${esc(q[1])}</dt><dd>${esc(OB.a[q[0]])||'—'}</dd>`).join('')}</dl>`).join('')}</div>`}
+let obFinish=function(){OB.submitted=true;D.notifications.rows.unshift({title:curClientBrand()+': Client onboarding submitted',createdAt:'just now',isRead:false});toast('Submitted · Account Manager notified');render(false)};
+function obDone(){return obTop('Onboarding',obCrumb())+`<div class="note ok"><b>✓</b><span>Submitted. Your account manager has been notified and will prepare your brand brief.</span></div><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><h2>Your answers</h2><span class="pill ok">Submitted</span></div><dl class="kv" style="margin:0 0 8px"><dt>Main category</dt><dd>${esc(OB.cat)}</dd><dt>Activity type</dt><dd>${esc(OB.act)}</dd></dl>${OBS.map(x=>`<div class="dash"></div><h2 style="font-size:16px">${esc(x[0])}</h2><dl class="kv" style="margin:12px 0 0">${x[1].map(q=>`<dt>${esc(q[1])}</dt><dd>${esc(OB.a[q[0]])||'—'}</dd>`).join('')}</dl>`).join('')}</div>`}
 function obPage(){return OB.submitted?obDone():OB.step==='category'?obCat():OB.step==='sections'?obSecs():obForm()}
-function clientBrand(){const b=D.brands.rows.find(x=>x.name===CLIENT_BRAND)||D.brands.rows[0]||{name:CLIENT_BRAND,status:'ACTIVE',industry:'—',accountManagerId:'—'},s=sg(b.name),SL={none:'Not started',uploaded:'Being prepared',am:'Being prepared',client:'Waiting for your decision',answered:'Your answer was sent',forwarded:s.out==='approved'?'Approved':'Revision in progress'}[s.st];
-return `<div class="ph"><div><span class="eb">Client</span><h1>Brands</h1><p>Your brand at a glance. This page is view-only.</p></div></div><div class="bh"><div class="lg">${esc(b.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</div><div style="flex:1"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h1 style="font-size:26px">${esc(b.name)}</h1>${pill(b.status)}</div><div class="mute">${esc(b.industry)}</div></div></div>
-<div class="card"><dl class="kv" style="margin:0"><dt>Industry</dt><dd>${esc(b.industry)}</dd><dt>Account manager</dt><dd>${esc(b.accountManagerId)}</dd><dt>Onboarding</dt><dd>${OB.submitted?pill('SUBMITTED'):OB.done.length+' of 7 sections done'}</dd><dt>Strategy</dt><dd>${esc(SL)}</dd></dl></div>`}
+function clientBrand(){const cb=curClientBrand(),b=D.brands.rows.find(x=>x.name===cb)||D.brands.rows[0]||{name:cb,status:'ACTIVE',industry:'—',accountManagerId:'—'},s=sg(b.name),SL={none:'Not started',uploaded:'Being prepared',am:'Being prepared',client:'Waiting for your decision',answered:'Your answer was sent',forwarded:s.out==='approved'?'Approved':'Revision in progress'}[s.st];
+return `<div class="ph"><div><span class="eb">Client</span><h1>Brands</h1><p>Your brand at a glance. This page is view-only.</p></div></div><div class="bh"><div class="lg">${esc(b.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</div><div style="flex:1"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h1 style="font-size:26px">${esc(b.name)}</h1>${pill(b.status)}</div><div class="mute">${esc(b.industry||'—')}</div></div></div>
+<div class="card"><dl class="kv" style="margin:0"><dt>Industry</dt><dd>${esc(b.industry||'—')}</dd><dt>Account manager</dt><dd>${esc(b.accountManagerId||'—')}</dd>${b.email?`<dt>Brand email</dt><dd>${esc(b.email)}</dd>`:''}<dt>Onboarding</dt><dd>${OB.submitted?pill('SUBMITTED'):OB.done.length+' of 7 sections done'}</dd><dt>Strategy</dt><dd>${esc(SL)}</dd></dl></div>`}
 PAGES.onboarding=obPage;PAGES.brief=()=>listPage('briefs');PAGES.strategy=()=>stratPage();PAGES.plans=()=>contentPage();
 
 /* ===== v4: Tasks / My Work, Teams, Notifications, role dashboards ===== */
@@ -662,18 +952,18 @@ let goTo=function(l){const R=S.role,cl=R==='client',m={strategy:['strategy','str
  if(l.k!=='tasks'&&m){if(cl)p=m[0];else if(NAV[R].includes('brands')){p='brands';b=l.brand;s=m[1]}}
  const allowed=NAV[R]||NAV.admin;S.page=isAllowedPage(R,p)?p:allowed[0];S.brand=b;S.sub=s;S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.open=false;S.err={};render()};
 let nview=function(i){const r=D.notifications.rows[i];r.isRead=true;goTo(r.link||{k:'tasks'})};
-function notifPage(){const R=S.role,q=S.q.toLowerCase();let L=D.notifications.rows.map((r,i)=>({r,i})).filter(({r})=>(!r.to||r.to.includes(R))&&(R!=='client'||(r.title.includes(CLIENT_BRAND)&&!r.internal))).filter(({r})=>r.title.toLowerCase().includes(q)&&(S.nf!=='unread'||!r.isRead));
+function notifPage(){const R=S.role,q=S.q.toLowerCase(),cb=curClientBrand();let L=D.notifications.rows.map((r,i)=>({r,i})).filter(({r})=>(!r.to||r.to.includes(R))&&(R!=='client'||(r.title.includes(cb)&&!r.internal))).filter(({r})=>r.title.toLowerCase().includes(q)&&(S.nf!=='unread'||!r.isRead));
  return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Notifications</h1><p>Press View to jump to the screen where you handle it.</p></div><button class="btn" onclick="D.notifications.rows.forEach(r=>r.isRead=true);render(false)">Mark all as read</button></div><div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view(false)">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`+
  (L.length?`<div class="card" style="padding:8px 20px">${L.map(({r,i})=>`<div style="display:flex;gap:14px;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line);flex-wrap:wrap"><div style="min-width:220px;flex:1"><div style="font-weight:${r.isRead?500:700}">${esc(r.title)}</div><div class="mute" style="font-size:12px">${esc(r.createdAt)} · opens ${esc(DEST[(r.link||{k:'tasks'}).k]||'Tasks')}</div></div>${r.isRead?'<span class="pill">Read</span>':'<span class="pill in">Unread</span>'}<button class="btn sm p" onclick="nview(${i})">View →</button></div>`).join('')}</div>`:`<div class="card empty"><span class="chip">${ic('bell')}</span><h2>All caught up</h2></div>`)}
 PAGES.notifications=notifPage;
 const _sgo=sgo;sgo=function(a){const n=D.notifications.rows.length;_sgo(a);const r=D.notifications.rows[0];if(D.notifications.rows.length>n)r.link={k:'strategy',brand:S.brand}};
-const _obf=obFinish;obFinish=function(){_obf();D.notifications.rows[0].link={k:'onboarding',brand:CLIENT_BRAND}};
+const _obf=obFinish;obFinish=function(){_obf();D.notifications.rows[0].link={k:'onboarding',brand:curClientBrand()}};
 /* dashboards for Content Creator, Creative and Client */
 function roleDash(){const R=S.role,me=MEN[R],mine=TK.filter(t=>t.assignee===me),open=mine.filter(t=>!DONE4.includes(t.status)).sort((a,b)=>a.eff<b.eff?-1:1),od=open.filter(isOd).length,
  S4=(a)=>`<div class="stats">${a.map(s=>`<div class="stat ${s[2]?'al':''}"><span class="mono mute">${s[0]}</span><b>${s[1]}</b></div>`).join('')}</div>`,
  hd=(_t,p)=>`<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Dashboard</h1><p>${esc(p)}</p></div></div>`;
- if(R==='client'){const s=sg(CLIENT_BRAND),un=D.notifications.rows.filter(r=>!r.isRead&&r.title.includes(CLIENT_BRAND)),SL={none:'Not started',uploaded:'Being prepared',am:'Being prepared',client:'Waiting for your decision',answered:'Your answer was sent',forwarded:s.out==='approved'?'Approved':'Revision in progress'}[s.st],p=Math.round(OB.done.length/7*100);
-  return hd(0,CLIENT_BRAND+' at a glance.')+S4([['Onboarding',p+'%'],['Strategy',SL.split(' ')[0]],['Unread updates',un.length]])+`<div class="g2" style="grid-template-columns:1fr 1fr"><div class="card"><h2>Onboarding</h2><p class="mute">${OB.submitted?'Submitted. Your account manager is preparing the brief.':OB.done.length+' of 7 sections done.'}</p><div class="pbar" style="width:100%;margin:12px 0"><i style="width:${p}%"></i></div><button class="btn p" onclick="goTo({k:'onboarding'})">${OB.submitted?'View answers':'Continue onboarding'}</button></div><div class="card"><h2>Strategy</h2><p class="mute">${esc(SL)}</p><div class="dash"></div><button class="btn ${s.st==='client'?'p':''}" onclick="goTo({k:'strategy'})">${s.st==='client'?'Review & decide':'Open strategy'}</button></div></div>`}
+ if(R==='client'){const cb=curClientBrand(),s=sg(cb),un=D.notifications.rows.filter(r=>!r.isRead&&r.title.includes(cb)),SL={none:'Not started',uploaded:'Being prepared',am:'Being prepared',client:'Waiting for your decision',answered:'Your answer was sent',forwarded:s.out==='approved'?'Approved':'Revision in progress'}[s.st],p=Math.round(OB.done.length/7*100);
+  return hd(0,cb+' at a glance.')+S4([['Onboarding',p+'%'],['Strategy',SL.split(' ')[0]],['Unread updates',un.length]])+`<div class="g2" style="grid-template-columns:1fr 1fr"><div class="card"><h2>Onboarding</h2><p class="mute">${OB.submitted?'Submitted. Your account manager is preparing the brief.':OB.done.length+' of 7 sections done.'}</p><div class="pbar" style="width:100%;margin:12px 0"><i style="width:${p}%"></i></div><button class="btn p" onclick="goTo({k:'onboarding'})">${OB.submitted?'View answers':'Continue onboarding'}</button></div><div class="card"><h2>Strategy</h2><p class="mute">${esc(SL)}</p><div class="dash"></div><button class="btn ${s.st==='client'?'p':''}" onclick="goTo({k:'strategy'})">${s.st==='client'?'Review & decide':'Open strategy'}</button></div></div>`}
  const extra=R==='cc'?`<div class="card"><h2>Strategy per brand</h2>${D.brands.rows.slice(0,3).map(b=>{const s=sg(b.name);return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line)"><b>${esc(b.name)}</b><span class="pill ${s.st==='forwarded'&&s.out==='approved'?'ok':'wn'}">${s.st==='none'?'No strategy':s.st==='forwarded'&&s.out==='approved'?'Approved':'In flow'}</span><button class="btn sm t" onclick="goTo({k:'strategy',brand:decodeURIComponent('${encodeURIComponent(b.name)}')})">Open</button></div>`}).join('')}</div>`:`<div class="card"><h2>By status</h2>${['TODO','IN_PROGRESS','SUBMITTED','NEEDS_CHANGES','COMPLETED'].map(x=>{const c=mine.filter(t=>t.status===x).length;return `<div class="tb" style="grid-template-columns:130px 1fr 30px"><span>${lab(x)}</span><div class="bar"><i style="width:${mine.length?c/mine.length*100:0}%"></i></div><b>${c}</b></div>`}).join('')}</div>`;
  return hd(0,R==='cc'?'Your work, strategies and deadlines.':'Your tasks and deadlines.')+S4([['Open tasks',open.length],['Overdue',od,1],['Needs changes',mine.filter(t=>t.status==='NEEDS_CHANGES').length],['Completed',mine.filter(t=>t.status==='COMPLETED').length]])+`<div class="g2" style="grid-template-columns:1.3fr 1fr"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Up next</h2><button class="btn sm t" onclick="go('tasks')">Open My Work</button></div>${open.slice(0,4).map(t=>`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)"><div><b>${esc(t.title)}</b><div class="mute" style="font-size:12px">${dl(t)}</div></div>${pill(t.status)}<button class="btn sm" onclick="tdet(${t.id})">Details</button></div>`).join('')||'<p class="mute">Nothing pending.</p>'}</div>${extra}</div>`}
 const _d=dashboard;PAGES.dashboard=()=>S.role==='admin'||S.role==='am'?_d():roleDash();
@@ -817,7 +1107,7 @@ itemDet=function(id){const b=_id(id);if(!b)return b;const[i]=fItem(id),R=S.role,
  +cd('Previous versions ('+(i.vers||[]).length+')',(i.vers||[]).slice().reverse().map(x=>`<details style="padding:8px 0;border-top:1px solid var(--line)"><summary><b>Version ${esc(x.v)}</b> <span class="mute">${esc(x.at)}</span></summary><dl class="kv" style="margin:8px 0 0">${kvh(Object.entries(x.s).filter(([k,v])=>v&&typeof v!=='object'&&!['id','platform','assignee','priority','status'].includes(k)).map(([k,v])=>[esc(FL[k]||k),esc(v).replace(/\n/g,'<br>')]))}</dl></details>`).join('')||'<p class="mute" style="margin:0">No earlier versions yet.</p>')+cd('Decision history',i.hist.slice().reverse().map(h=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(h.a)}</b> <span class="mute" style="font-size:12px">${esc(h.by)} · ${esc(h.role)} · v${esc(h.v)} · ${esc(h.at)}</span>${h.r?`<div>${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet. Earlier versions and comments are always kept.</p>')};
 /* shared helpers */
 const allI=()=>PLANS.flatMap(p=>p.items.map(i=>[i,p]));
-const myBrands=()=>{if(S.role==='client')return[CLB];const m=S.role==='am'?D.brands.rows.filter(b=>b.accountManagerId===MEN.am).map(b=>b.name):[];return m.length?m:D.brands.rows.map(b=>b.name)};
+const myBrands=()=>{if(S.role==='client')return[curClientBrand()];const m=S.role==='am'?D.brands.rows.filter(b=>b.accountManagerId===MEN.am).map(b=>b.name):[];return m.length?m:D.brands.rows.map(b=>b.name)};
 const vis=([,p])=>myBrands().includes(p.brand);
 const hdr=(t,s)=>`<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>${t}</h1><p class="mute">${s}</p></div></div>`;
 const crd=(t,x)=>`<div class="card" style="margin-bottom:16px"><h2 style="margin-bottom:10px">${t}</h2>${x}</div>`;
@@ -825,8 +1115,8 @@ const sec=(t,l)=>crd(t+' <span class="mute">('+l.length+')</span>',l.length?`<di
 const by=s=>{const q=(S.q||'').trim().toLowerCase();return allI().filter(vis).filter(([i])=>i.stage===s).filter(([i,p])=>!q||[i.title,i.type,i.platform,i.assignee,i.stage,STG[i.stage],p.brand,p.title].join(' ').toLowerCase().includes(q))};
 /* review pages */
 PAGES.review=()=>{const R=S.role;
- if(R==='client'){const d=allI().filter(vis).flatMap(([i])=>i.hist.filter(h=>h.role==='Client').map(h=>[i,h]));
-  return hdr('Content review','Content delivered to you for approval.')+crd('Content plan shared with you',PLANS.filter(p=>p.brand===CLB).map(p=>bar(p.platform+' · '+p.title,p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,p.items.length)).join('')||'<p class="mute" style="margin:0">No plan shared yet.</p>')+sec('Awaiting your review',by('CLIENT_REVIEW'))+sec('Approved',by('APPROVED'))+sec('Published',by('PUBLISHED'))+crd('Your review history',d.map(([i,h])=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a> · ${esc(h.a)} <span class="mute">${esc(h.at)}</span>${h.r?`<div class="mute">${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')}
+ if(R==='client'){const cb=curClientBrand(),d=allI().filter(vis).flatMap(([i])=>i.hist.filter(h=>h.role==='Client').map(h=>[i,h]));
+  return hdr('Content review','Content delivered to you for approval.')+crd('Content plan shared with you',PLANS.filter(p=>p.brand===cb).map(p=>bar(p.platform+' · '+p.title,p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,p.items.length)).join('')||'<p class="mute" style="margin:0">No plan shared yet.</p>')+sec('Awaiting your review',by('CLIENT_REVIEW'))+sec('Approved',by('APPROVED'))+sec('Published',by('PUBLISHED'))+crd('Your review history',d.map(([i,h])=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a> · ${esc(h.a)} <span class="mute">${esc(h.at)}</span>${h.r?`<div class="mute">${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')}
  if(R==='cc'||R==='emp')return hdr('My review queue','Drafts to send and content returned with changes.')+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Drafts ready to send',by('DRAFT'))+sec('In internal review',by('IN_REVIEW'));
  return hdr('Internal review','Review content, approve it for the client or return it with comments.')+sec('Waiting for internal review',by('IN_REVIEW'))+sec('Waiting for the client',by('CLIENT_REVIEW'))+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Approved — ready to publish',by('APPROVED'))+sec('Published',by('PUBLISHED'))};
 /* calendar */
@@ -839,13 +1129,13 @@ PAGES.calendar=()=>{const q=(S.q||'').trim().toLowerCase(),[y,m]=S.cm.split('-')
 /* client requests */
 let REQ=[{id:1,brand:CLB,kind:'Extra content',text:'Two extra stories for the winter launch week.',st:'SUBMITTED',team:'',reason:'',at:'2026-11-18'}];
 const RQP=s=>`<span class="pill ${{ASSIGNED:'wn',ACCEPTED:'ok',REJECTED:'er',SUBMITTED:'in'}[s]}">${esc(lab(s))}</span>`;
-function reqNew(){ask('New request',[['kind','Request type','select',['Extra content','Plan change','New idea']],['text','Describe what you need','textarea']],v=>{if(!(v.text||'').trim())return toast('Please describe the request');REQ.unshift({id:++IDN,brand:CLB,kind:v.kind,text:v.text.trim(),st:'SUBMITTED',team:'',reason:'',at:TODAY});note('New client request: '+v.kind,CLB,true,['am','admin']);view(false)})}
-function reqOk(id){ask('Assign to a team',[['t','Responsible team','select',T]],v=>{const r=REQ.find(x=>x.id===id);r.st='ASSIGNED';r.team=v.t;note('Your request was accepted and assigned to '+v.t,CLB,false,['client','am','admin']);view(false)})}
-function reqNo(id){ask('Reject request',[['r','Reason *','textarea']],v=>{if(!(v.r||'').trim())return toast('A reason is required');const r=REQ.find(x=>x.id===id);r.st='REJECTED';r.reason=v.r.trim();note('Your request could not be executed: '+r.reason,CLB,false,['client','am','admin']);view(false)})}
+function reqNew(){ask('New request',[['kind','Request type','select',['Extra content','Plan change','New idea']],['text','Describe what you need','textarea']],v=>{if(!(v.text||'').trim())return toast('Please describe the request');const cb=curClientBrand();REQ.unshift({id:++IDN,brand:cb,kind:v.kind,text:v.text.trim(),st:'SUBMITTED',team:'',reason:'',at:TODAY});note('New client request: '+v.kind,cb,true,['am','admin']);view(false)})}
+function reqOk(id){ask('Assign to a team',[['t','Responsible team','select',T]],v=>{const r=REQ.find(x=>x.id===id);r.st='ASSIGNED';r.team=v.t;note('Your request was accepted and assigned to '+v.t,r.brand,false,['client','am','admin']);view(false)})}
+function reqNo(id){ask('Reject request',[['r','Reason *','textarea']],v=>{if(!(v.r||'').trim())return toast('A reason is required');const r=REQ.find(x=>x.id===id);r.st='REJECTED';r.reason=v.r.trim();note('Your request could not be executed: '+r.reason,r.brand,false,['client','am','admin']);view(false)})}
 function reqTask(id){const r=REQ.find(x=>x.id===id);TASKS.unshift({title:r.kind+': '+r.text.slice(0,50),brand:r.brand,priority:'MEDIUM',assignee:MEN[S.role],deadline:'2026-11-30',status:'TODO',by:MEN.am});r.st='ACCEPTED';toast('Task created from the request');view(false)}
 PAGES.requests=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mq=r=>!q||[r.text,r.brand,r.kind,r.st,r.team,r.reason,r.at].join(' ').toLowerCase().includes(q),u=D.users.rows.find(x=>x.fullName===MEN[R])||{},mt=[u.teamId,...T.filter(t=>TX[t]&&TX[t].lead===MEN[R])],
  tb=(l,ac)=>l.length?`<div class="tw"><table><thead><tr><th scope="col">Request</th><th scope="col">Brand</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Team / reason</th><th scope="col"></th></tr></thead><tbody>${l.map(r=>`<tr><td>${esc(r.text)}<div class="mute" style="font-size:12px">${esc(r.at)}</div></td><td>${esc(r.brand)}</td><td><span class="tag">${esc(r.kind)}</span></td><td>${RQP(r.st)}</td><td>${esc(r.team||r.reason)||'—'}</td><td>${ac(r)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">'+(q?'No matching requests.':'Nothing here.')+'</p>';
- if(R==='client')return hdr('Requests','Ask for extra content, a plan change or a new idea, and track where it stands.')+`<button class="btn p" style="margin-bottom:16px" onclick="reqNew()">+ New request</button>`+crd('My requests',tb(REQ.filter(r=>r.brand===CLB&&mq(r)),()=>''));
+ if(R==='client')return hdr('Requests','Ask for extra content, a plan change or a new idea, and track where it stands.')+`<button class="btn p" style="margin-bottom:16px" onclick="reqNew()">+ New request</button>`+crd('My requests',tb(REQ.filter(r=>r.brand===curClientBrand()&&mq(r)),()=>''));
  if(R==='am'||R==='admin')return hdr('Client requests','Decide whether each request is feasible.')+crd('To review',tb(REQ.filter(r=>r.st==='SUBMITTED'&&mq(r)),r=>R!=='am'?'':`<div class="ra"><button class="btn sm p" onclick="reqOk(${r.id})">Feasible</button><button class="btn sm dg" onclick="reqNo(${r.id})">Reject</button></div>`))+crd('Decided',tb(REQ.filter(r=>r.st!=='SUBMITTED'&&mq(r)),()=>''));
  return hdr('Requests','Work requested from you, and client requests assigned to your team.')+crd('Client requests assigned to my team',tb(REQ.filter(r=>mt.includes(r.team)&&mq(r)),r=>r.st==='ASSIGNED'?`<div class="ra"><button class="btn sm p" onclick="reqTask(${r.id})">Turn into task</button><button class="btn sm" onclick="reqItem(${r.id})">Turn into content item</button></div>`:''))};
 /* reports */
@@ -872,7 +1162,7 @@ PAGES.reports=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mgr=R==='am'|
  const prog=crd('Content plan progress',PLANS.filter(p=>myBrands().includes(p.brand)&&(!q||(p.brand+' '+p.title).toLowerCase().includes(q))).map(p=>bar(p.brand+' · '+p.title,p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,p.items.length)).join('')||'<p class="mute" style="margin:0">No matching plans.</p>');
  if(R==='emp')return hdr('My performance','Your own tasks and on-time delivery.')+perfT;
  if(R==='cc')return hdr('Reports','Your content and tasks.')+prog+perfT;
- const rep=MR.filter(r=>(mgr?myBrands().includes(r.brand):r.brand===CLB&&r.ok&&r.sh)&&(!q||(r.brand+' '+r.month+' '+(r.ai||'')).toLowerCase().includes(q))).sort((a,b)=>b.month.localeCompare(a.month));
+ const rep=MR.filter(r=>(mgr?myBrands().includes(r.brand):r.brand===curClientBrand()&&r.ok&&r.sh)&&(!q||(r.brand+' '+r.month+' '+(r.ai||'')).toLowerCase().includes(q))).sort((a,b)=>b.month.localeCompare(a.month));
  if(R==='client')return hdr('Reports','Plan progress, published content and monthly performance.')+prog+sec('Approved and published content',L.filter(([i])=>['APPROVED','PUBLISHED'].includes(i.stage)))+rep.map(r=>repCard(r,false)).join('');
  const st={};tk.forEach(t=>st[t.status]=(st[t.status]||0)+1);const wl={};tk.filter(t=>!dn(t)).forEach(t=>wl[t.assignee]=(wl[t.assignee]||0)+1);const ac={};L.forEach(([i])=>i.hist.forEach(h=>ac[h.a]=(ac[h.a]||0)+1));
  return hdr('Reports & analytics','Tasks, content, workload, approvals and monthly performance.')+crd('Tasks by status · '+tk.filter(dn).length+' completed · '+tk.filter(od).length+' overdue',Object.entries(st).map(([k,v])=>bar(lab(k),v,tk.length)).join('')||'<p class="mute" style="margin:0">No tasks.</p>')+crd('Content by stage',Object.keys(STG).map(s=>bar(STG[s],L.filter(([i])=>i.stage===s).length,L.length)).join(''))+prog+crd('Workload (open tasks)',Object.entries(wl).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>')+crd('Workload by team',(()=>{const w={};tk.filter(t=>!dn(t)).forEach(t=>{const u=D.users.rows.find(x=>x.fullName===t.assignee),k=(u&&u.teamId)||'No team';w[k]=(w[k]||0)+1});return Object.entries(w).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>'})())+crd('Approval activity',Object.entries(ac).map(([k,v])=>bar(k,v,L.length||1)).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')+perfT
@@ -890,12 +1180,12 @@ function reqItem(id){const r=REQ.find(x=>x.id===id),p=PLANS.find(x=>x.brand===r.
 function remind(){TK.forEach(t=>{if(t._rem||DONE4.includes(t.status)||!dl(t))return;const d=String(dl(t)),diff=Math.round((new Date(d)-new Date(TODAY))/864e5);if(diff<0){t._rem=1;note('Task “'+t.title+'” is overdue',t.brand,true,[rl(t.assignee),'am','admin'].filter(Boolean))}else if(diff<=2){t._rem=1;note('Task “'+t.title+'” is due soon ('+d+')',t.brand,true,[rl(t.assignee),'am','admin'].filter(Boolean))}})}
 {const _e=ens;ens=function(){_e();try{remind()}catch{/* ignore */}}}
 /* dashboards: final overview per role */
-function kp(){const R=S.role,L=allI().filter(vis).filter(([i])=>R!=='emp'||i.assignee===MEN[R]),n=s=>L.filter(([i])=>i.stage===s).length,all=R==='admin'||R==='am',tk=TK.filter(t=>all||t.assignee===MEN[R]||(R==='client'&&t.brand===CLB)),dn=t=>DONE4.includes(t.status),
+function kp(){const R=S.role,cb=curClientBrand(),L=allI().filter(vis).filter(([i])=>R!=='emp'||i.assignee===MEN[R]),n=s=>L.filter(([i])=>i.stage===s).length,all=R==='admin'||R==='am',tk=TK.filter(t=>all||t.assignee===MEN[R]||(R==='client'&&t.brand===cb)),dn=t=>DONE4.includes(t.status),
  od=tk.filter(t=>!dn(t)&&dl(t)&&String(dl(t))<TODAY),up=tk.filter(t=>!dn(t)&&dl(t)&&String(dl(t))>=TODAY).sort((p,q)=>String(dl(p)).localeCompare(String(dl(q)))),
  pr=PLANS.filter(p=>myBrands().includes(p.brand)),g=pr.reduce((s,p)=>s+p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,0),tot=pr.reduce((s,p)=>s+p.items.length,0),pc=tot?Math.round(g/tot*100)+'%':'—',rq=REQ.filter(r=>r.st==='SUBMITTED').length,cd=tk.filter(dn).length,
  t=R==='admin'?[['Content awaiting review',n('IN_REVIEW')+n('CLIENT_REVIEW')],['Approved / published',n('APPROVED')+n('PUBLISHED')],['Overdue tasks',od.length],['Open client requests',rq],['Plan completion',pc]]
  :R==='am'?[['Waiting for my review',n('IN_REVIEW')],['Waiting for the client',n('CLIENT_REVIEW')],['Returned with changes',n('CHANGES_REQUESTED')],['Requests to review',rq],['Overdue tasks',od.length]]
- :R==='client'?[['Plan progress',pc],['Awaiting my approval',n('CLIENT_REVIEW')],['Approved',n('APPROVED')],['Published',n('PUBLISHED')],['My open requests',REQ.filter(r=>r.brand===CLB&&['SUBMITTED','ASSIGNED'].includes(r.st)).length]]
+ :R==='client'?[['Plan progress',pc],['Awaiting my approval',n('CLIENT_REVIEW')],['Approved',n('APPROVED')],['Published',n('PUBLISHED')],['My open requests',REQ.filter(r=>r.brand===cb&&['SUBMITTED','ASSIGNED'].includes(r.st)).length]]
  :[['Overdue',od.length],['Upcoming',up.length],['Returned with changes',n('CHANGES_REQUESTED')],['Completed',cd],['On-time delivery',cd+od.length?Math.round(cd/(cd+od.length)*100)+'%':'—']];
  return `<div style="margin-top:24px"><h2 style="margin-bottom:12px">Content & delivery overview</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">${t.map(x=>`<div style="border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff"><div class="mono mute">${x[0]}</div><b style="font-size:26px">${x[1]}</b></div>`).join('')}</div>${R==='client'?'':crd('Upcoming deadlines',up.slice(0,5).map(x=>`<div style="padding:6px 0;border-top:1px solid var(--line)">${esc(x.title)} <span class="mute">· ${esc(x.assignee)} · ${dl(x)}</span></div>`).join('')||'<p class="mute" style="margin:0">Nothing due soon.</p>')}</div>`}
 {const _pd2=PAGES.dashboard;PAGES.dashboard=()=>_pd2()+kp()}
@@ -1065,6 +1355,10 @@ async function hydrateFromBackend(){
  try{
   const me=await apiCall('/auth/me').catch(()=>null);
   if(!me){clearApiTokens();return}
+  if(me.email){
+   const stored=loadProfilesMap()[String(me.email).trim().toLowerCase()]||{};
+   if(me.phone&&stored.phone===undefined)saveProfileStore(me.email,{phone:me.phone});
+  }
   const [rolesData,jobsData,teamsData,usersData,brandsData,platformsData,plansData,campaignsData,itemsData,briefsData,stratsData,tasksData,notifsData]=await Promise.all([
    apiCall('/meta/roles').catch(()=>null),
    apiCall('/meta/job-titles').catch(()=>null),
@@ -1128,8 +1422,15 @@ async function hydrateFromBackend(){
     bList.forEach(b=>{
      API_CACHE.brandsByName[b.name]=b.id;
      BR.push(b.name);
-     D.brands.rows.push({_id:b.id,name:b.name,industry:b.industry||'General',teamId:b.team?.name||T[0]||'—',accountManagerId:b.accountManager?.fullName||MEN.am,status:(b.status||'ACTIVE').toUpperCase()});
+     D.brands.rows.push({_id:b.id,name:b.name,industry:b.industry||'General',websiteUrl:b.websiteUrl||'',description:b.description||'',teamId:b.team?.name||T[0]||'—',accountManagerId:b.accountManager?.fullName||MEN.am,status:(b.status||'ACTIVE').toUpperCase(),email:b.client?.email||'',clientId:b.client?.fullName||''});
     });
+    if(S.role==='client'){
+     S.clientBrand=bList[0].name;
+     S.brand=bList[0].name;
+     switchClientOnboarding(bList[0].name);
+     ME.client=[me?.fullName||bList[0].name,'Client · '+bList[0].name];
+     MEN.client=me?.fullName||bList[0].name;
+    }
    }
   }
   if(platformsData){
@@ -1247,13 +1548,23 @@ doLogin=async function(){
  if(S.busy)return;
  const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));
  S.err={};
- if(!v.email)S.err.email='Enter your email.';
+ const rawEmail=(v.email||'').trim();
+ S.loginEmail=rawEmail;
+ if(!rawEmail)S.err.email='Enter your email.';
+ else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail))S.err.email='Please enter a valid email address.';
  if(!v.password)S.err.password='Enter your password.';
  if(Object.keys(S.err).length)return render();
  S.busy=true;
  try{
-  const data=await apiCall('/auth/login',{method:'POST',body:{email:v.email.trim(),password:v.password},auth:false});
+  const data=await apiCall('/auth/login',{method:'POST',body:{email:rawEmail,password:v.password},auth:false});
   if(data?.accessToken){
+   if(data.user?.isActive===false){
+    clearApiTokens();
+    S.busy=false;
+    S.err.password='This account is inactive.';
+    toast('This account is inactive.');
+    return render();
+   }
    S.offlineMode=Boolean(data.offlineMode);
    if(S.offlineMode){clearApiTokens()}
    else{setApiTokens(data.accessToken,data.refreshToken,data.user)}
@@ -1262,10 +1573,22 @@ doLogin=async function(){
    if(apiRole==='EMPLOYEE'&&apiTitle==='Content Creator')S.role='cc';
    else if(apiRole&&ROLE_API_TO_UI[apiRole])S.role=ROLE_API_TO_UI[apiRole];
    S.currentEmail=data.user?.email||v.email.trim().toLowerCase();
-   if(data.user?.fullName){
-    ME[S.role]=[data.user.fullName,apiTitle||ROLES[S.role]];
-    MEN[S.role]=data.user.fullName;
+   if(S.role==='client'){
+    const cBrand=data.user?.clientBrand?.name||D.brands.rows.find(b=>String(b.email||'').trim().toLowerCase()===S.currentEmail)?.name||CLIENT_BRAND;
+    S.clientBrand=cBrand;
+    S.brand=cBrand;
+    switchClientOnboarding(cBrand);
+    ME.client=[data.user?.fullName||cBrand,'Client · '+cBrand];
+    MEN.client=data.user?.fullName||cBrand;
+   }else{
+    S.clientBrand=null;
+    S.brand=null;
+    if(data.user?.fullName){
+     ME[S.role]=[data.user.fullName,apiTitle||ROLES[S.role]];
+     MEN[S.role]=data.user.fullName;
+    }
    }
+   applyStoredProfile(S.currentEmail);
    S.busy=false;
    S.authed=true;
    S.page=NAV[S.role][0];
@@ -1274,7 +1597,21 @@ doLogin=async function(){
    return;
   }
  }catch(err){
+  if(err?.status===403){
+   S.busy=false;
+   S.err.password=err.message||'This account is inactive.';
+   toast(err.message||'This account is inactive.');
+   return render();
+  }
   if(err?.status===401||err?.status===423){
+   const em=v.email.trim().toLowerCase();
+   const brandMatch=D.brands.rows.find(b=>String(b.email||'').trim().toLowerCase()===em);
+   if(brandMatch&&checkDemoPw(em,v.password)){
+    S.busy=false;
+    S.offlineMode=true;
+    clearApiTokens();
+    return _origDoLogin();
+   }
    S.busy=false;
    S.err.password=err.message||'Invalid email or password.';
    toast(err.message||'Invalid credentials');
@@ -1299,11 +1636,29 @@ logout=function(){
 };
 
 const _origChg=chg;
-chg=function(){
+chg=async function(){
+ if(!getApiToken()||S.offlineMode)return _origChg();
  const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));
- _origChg();
- if(!Object.keys(S.err).length&&getApiToken()){
-  apiCall('/auth/change-password',{method:'POST',body:{currentPassword:v.currentPassword,newPassword:v.newPassword}}).catch(()=>{});
+ S.err={};
+ const cur=String(v.currentPassword||'');
+ const next=String(v.newPassword||'');
+ if(!cur)S.err.currentPassword='Enter your current password.';
+ if(next.length<8)S.err.newPassword='Use at least 8 characters.';
+ else if(cur&&next===cur)S.err.newPassword='New password must differ from current password.';
+ if(Object.keys(S.err).length)return view(false);
+ try{
+  await apiCall('/auth/change-password',{method:'POST',body:{currentPassword:cur,newPassword:next}});
+  const em=getCurrentEmail();
+  if(em)saveDemoPw(em,next);
+  S.err={};
+  toast('Password updated');
+  view(false);
+ }catch(err){
+  const msg=err?.message||'Current password is incorrect.';
+  if(/current/i.test(msg))S.err.currentPassword=msg;
+  else S.err.newPassword=msg;
+  toast(msg);
+  view(false);
  }
 };
 
@@ -1345,10 +1700,22 @@ save=function(k,i){
     const teamId=API_CACHE.teamsByName[row.teamId];
     const accountManagerId=API_CACHE.usersByName[row.accountManagerId];
     if(i==null&&beforeLen<E.rows.length){
-     const created=await apiCall('/brands',{method:'POST',body:{name:row.name,industry:row.industry,websiteUrl:row.websiteUrl||null,description:row.description||null,status:row.status||'ACTIVE',teamId,accountManagerId}});
-     if(created?.id){row._id=created.id;API_CACHE.brandsByName[row.name]=created.id}
+     delete S._pendingBrandPassword;
+     const body={
+      name:row.name,
+      industry:row.industry||null,
+      websiteUrl:row.websiteUrl||null,
+      description:row.description||null,
+      status:(row.status||'ACTIVE').toLowerCase(),
+      teamId:teamId||null,
+      accountManagerId:accountManagerId||null,
+      client:{fullName:row.name,email:row.email},
+     };
+     const created=await apiCall('/brands',{method:'POST',body});
+     const createdBrand=created?.brand||created;
+     if(createdBrand?.id){row._id=createdBrand.id;API_CACHE.brandsByName[row.name]=createdBrand.id}
     }else if(prevRow?._id){
-     await apiCall('/brands/'+prevRow._id,{method:'PATCH',body:{name:row.name,industry:row.industry,status:row.status,teamId,accountManagerId}});
+     await apiCall('/brands/'+prevRow._id,{method:'PATCH',body:{name:row.name,industry:row.industry||null,websiteUrl:row.websiteUrl||null,description:row.description||null,status:(row.status||'ACTIVE').toLowerCase(),teamId:teamId||null,accountManagerId:accountManagerId||null}});
     }
    }else if(k==='platform'){
     const brandId=API_CACHE.brandsByName[row.brandId];
@@ -1360,8 +1727,12 @@ save=function(k,i){
     }
    }
   }catch(err){
-   if(k==='users'&&i==null&&E.rows[0]===row){
+   if((k==='users'||k==='brands')&&i==null&&E.rows[0]===row){
     E.rows.shift();
+    if(k==='brands'&&row.email){
+     const uIdx=D.users.rows.findIndex(u=>String(u.email||'').trim().toLowerCase()===row.email);
+     if(uIdx>=0)D.users.rows.splice(uIdx,1);
+    }
     view(false);
    }
    if(err?.message)toast(err.message);
@@ -1973,4 +2344,4 @@ if(window.location.hash.startsWith('#reset'))applyResetHash();
 
 applyTheme();
 render();
-Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,roleCh,save,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,goTo,openD,itType,itSave,editItem,delItem,delPlan,newPlanP,mv,mvAsk,cmt,setLink,pubRec,cmv,reqNew,reqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
+Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,roleCh,save,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,goTo,openD,itType,itSave,editItem,delItem,delPlan,newPlanP,mv,mvAsk,cmt,setLink,pubRec,cmv,reqNew,reqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
