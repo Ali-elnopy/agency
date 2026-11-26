@@ -285,6 +285,7 @@ function normalizeBriefRow(bf,fallbackBrand=''){
   ...(bf.errorMessage?{errorMessage:bf.errorMessage}:{}),
   ...(bf.modelName?{modelName:bf.modelName}:{}),
   ...(bf.generatedBy?{generatedBy:typeof bf.generatedBy==='object'?bf.generatedBy.fullName:bf.generatedBy}:{}),
+  ...(bf.sourceSnapshot?{sourceSnapshot:bf.sourceSnapshot}:{}),
   content,
  };
 }
@@ -378,7 +379,32 @@ function renderBriefContent(r){
  if(!html){
   html=`<div class="card" style="margin-top:16px"><p class="mute" style="margin:0">${r?.status==='GENERATING'?'Brief content is being generated…':'No content generated for this brief yet.'}</p></div>`;
  }
- return html;
+ const qaList=Array.isArray(r?.sourceSnapshot?.questionsAndAnswers)&&r.sourceSnapshot.questionsAndAnswers.length
+  ?r.sourceSnapshot.questionsAndAnswers
+  :(()=>{
+   const obSnap=(typeof OB_BY_BRAND!=='undefined'&&OB_BY_BRAND[r?.brandId])||((typeof _obBrand!=='undefined'&&_obBrand===r?.brandId)?OB:null);
+   const ansMap=obSnap?.a||{};
+   const out=[];
+   if(typeof OBS!=='undefined'){
+    OBS.forEach(([secTitle,qs])=>{
+     qs.forEach(([code,label])=>{
+      const val=ansMap[code];
+      if(val&&String(val).trim())out.push({section:secTitle,question:label,answer:val});
+     });
+    });
+   }
+   if(!out.length){
+    const b=D.brands.rows.find(x=>x.name===r?.brandId);
+    if(b){
+     out.push({section:'Brand Information',question:'Brand name',answer:b.name});
+     if(b.industry)out.push({section:'Brand Information',question:'Industry',answer:b.industry});
+     if(b.description)out.push({section:'Brand Information',question:'Description',answer:b.description});
+    }
+   }
+   return out;
+  })();
+ const answersCard=`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:4px">Client’s original answers</h2><p class="mute" style="margin:0 0 12px;font-size:13px">Intake responses submitted for ${esc(r?.brandId||'this brand')}.</p>${qaList.length?`<dl class="kv" style="margin:0">${qaList.map(q=>`<dt>${esc(q.question)}${q.section?`<div class="mute" style="font-size:11px;font-weight:400">${esc(q.section)}</div>`:''}</dt><dd>${esc(Array.isArray(q.answer)?q.answer.join(', '):q.answer)}</dd>`).join('')}</dl>`:'<p class="mute" style="margin:0">No client onboarding answers recorded yet.</p>'}</div>`;
+ return `<div class="g2" style="grid-template-columns:1.35fr 1fr;align-items:start"><div>${html}</div><div>${answersCard}</div></div>`;
 }
 function head(E,w,k){const a=[];if(w&&!E.noCreate)a.push(`<button class="btn p" onclick="act('${k}',null,'new')">+ ${k==='users'?'Add user':'New '+esc(E.n)}</button>`);
  if(E.gen&&can(k)){
@@ -938,7 +964,7 @@ go=function(p){const allowed=NAV[S.role]||NAV.admin;S.page=isAllowedPage(S.role,
 setRole=function(r){S.role=r;S.page=NAV[r][0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.brand=null;S.sub=null;render()};
 view=function(sk=true){const redirected=enforceRoleRoute();const v=$('#view');if(!v)return;if(redirected){document.querySelectorAll('.nav button').forEach(b=>{const on=b.getAttribute('onclick')===`go('${S.page}')`;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')})}if(S.role==='client')S.brand=curClientBrand();const f=()=>{v.innerHTML=S.page==='brands'&&S.brand?brandPage():PAGES[S.page]?PAGES[S.page]():listPage(S.page)};if(sk){v.innerHTML='<div class="sk" style="width:40%;height:34px"></div><div class="card"><div class="sk"></div><div class="sk"></div></div>';setTimeout(f,200)}else f()};
 render=function(sk=true){const a=$('#app');if(!a)return;if(!S.authed){applyTheme();a.innerHTML=authView();return}try{delete document.documentElement.dataset.theme}catch{/* ignore */}enforceRoleRoute();
-const p=getCurrentProfile(),nav=NAV[S.role],un=D.notifications.rows.filter(n=>!n.isRead).length;
+ const p=getCurrentProfile(),nav=NAV[S.role],cb=curClientBrand(),un=D.notifications.rows.filter(n=>!n.isRead&&(!n.to||n.to.includes(S.role))&&(S.role!=='client'||(n.title.includes(cb)&&!n.internal))).length;
 a.innerHTML=`<aside class="side ${S.open?'open':''}"><div class="logo"><i></i><div><b>ORVIA</b><small>${esc(ROLES[S.role])}</small></div></div><nav class="nav">${nav.map(pg=>(pg==='tasks'?'<div class="nl" style="margin:18px 0 6px">Execution &amp; Review</div>':'')+`<button class="${S.page===pg?'on':''}"${S.page===pg?' aria-current="page"':''} onclick="go('${pg}')">${ic(N[pg][1])}${N[pg][0]}</button>`).join('')}</nav>
 <div class="sf"><div class="me">${avatarHtml(p.fullName,p.photo)}<div style="min-width:0;flex:1"><b>${esc(p.fullName)}</b><div class="mute" style="font-size:12px">${esc(p.title)}</div></div><button type="button" class="btn sm t" onclick="logout()" title="Log out" aria-label="Log out" style="width:34px;height:34px;padding:0;justify-content:center;flex-shrink:0;border-radius:10px">${ic('logout')}</button></div></div></aside>
 <main><header class="top"><div class="search-wrap"><label class="search">${ic('search')}<input aria-label="Search this page" placeholder="Search this page…" value="${esc(S.q)}" oninput="onSearch(this.value,this)" onfocus="openSearchDD()" onblur="setTimeout(closeSearchDD,140)" onkeydown="if(event.key==='Escape'){if(S.q){event.preventDefault();clearSearch()}else closeSearchDD()}"><button type="button" class="search-clr" onclick="clearSearch()" aria-label="Clear search" title="Clear search" style="display:${S.q?'inline-flex':'none'};border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 4px">×</button></label><div id="search-dd" class="search-dd" role="listbox" aria-label="Search results"></div></div>
@@ -954,8 +980,12 @@ const np=n('platform'),T4=[['brief','Brand Brief','doc','Client data, the collec
 ['files','Files & Assets','file','Logo, visual identity, videos, designs and the rest of the library.',n('files')+' files','var(--peach)'],
 ['platforms','Social Media Platforms','link','Each channel with its content plans, campaigns and content items.',np+' platforms','var(--lilac)']].filter(t=>!['content','files'].includes(t[0])&&(R!=='client'||t[0]==='strategy'));
 const own=R==='admin'||R==='am';
+const obRec=(typeof OB_BY_BRAND!=='undefined'&&OB_BY_BRAND[b.name])||((typeof _obBrand!=='undefined'&&_obBrand===b.name)?OB:null);
+const obDoneCount=obRec?.done?.length||0;
+const obSubmitted=Boolean(obRec?.submitted)||D.briefs.rows.some(br=>br.brandId===b.name&&['GENERATED','READY','APPROVED'].includes(br.status));
+const obBadge=obSubmitted?`<span class="pill ok">Onboarding: Submitted</span>`:`<span class="pill wn">Onboarding: ${obDoneCount} of 7 sections</span>`;
 return `<button class="btn sm" onclick="S.brand=null;view(false)" style="margin-bottom:16px">← All brands</button>
-<div class="bh"><div class="lg">${esc(b.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</div><div style="flex:1;min-width:220px"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h1 style="font-size:26px">${esc(b.name)}</h1>${pill(b.status)}</div><div class="mute" style="font-size:13px">${esc(b.industry)} · ${esc(b.teamId)} · Account manager: ${esc(b.accountManagerId)}<br>${np?np+' social platform'+(np===1?'':'s')+' connected.':'No social platforms yet.'}</div></div>
+<div class="bh"><div class="lg">${esc(b.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</div><div style="flex:1;min-width:220px"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h1 style="font-size:26px">${esc(b.name)}</h1>${pill(b.status)}${own?obBadge:''}</div><div class="mute" style="font-size:13px">${esc(b.industry)} · ${esc(b.teamId)} · Account manager: ${esc(b.accountManagerId)}<br>${np?np+' social platform'+(np===1?'':'s')+' connected.':'No social platforms yet.'}${own&&obRec?.cat?` · Intake: ${esc(obRec.cat)}${obRec.act?' / '+esc(obRec.act):''}`:''}</div></div>
 ${own?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" style="border-radius:99px;border-color:var(--ink)" onclick="act('brands',${i},'edit')">Edit Brand</button><button class="btn sm" style="border-radius:99px;border-color:var(--ink)" onclick="arch(${i})">Archive Brand</button><button class="btn sm" style="border-radius:99px;color:#B5391B;border-color:#E9A494" onclick="delB(${i})">Delete Brand</button></div>`:''}</div>
 <div class="mono mute" style="text-transform:uppercase;margin-bottom:8px">Brand workspace</div><p style="margin:0 0 16px">Everything about ${esc(b.name)} in one place.</p>
 <div class="tiles">${T4.map(t=>`<button class="tile" style="background:${t[5]}" onclick="S.sub='${t[0]}';S.q='';view(false)"><span class="ti">${ic(t[2])}</span><b>${t[1]}</b><span style="color:#45454d">${t[3]}</span><span class="cnt">${t[4]}</span></button>`).join('')}</div>`}
@@ -969,26 +999,39 @@ if(R==='client'&&['none','uploaded','am'].includes(s.st))return `<div class="car
 const L={none:['No strategy uploaded yet','er'],uploaded:['Uploaded · not sent yet','lc'],am:['With the Account Manager','wn'],client:['Waiting for the client’s decision','in'],answered:[(ap?'Client approved':'Client rejected')+' · waiting for the Account Manager','wn'],forwarded:[ap?'Approved · content plan unlocked':'Rejected · a new version is needed',ap?'ok':'er']}[s.st];
 const nx={none:'The Content Creator uploads the strategy file.',uploaded:'The Content Creator sends it to the Account Manager.',am:'The Account Manager downloads it and sends it to the client.',client:'The client downloads it, then approves or rejects with a reason.',answered:'The Account Manager forwards the client’s answer to the Content Creator.',forwarded:ap?'The Content Creator can now build the content plan.':'The Content Creator uploads a revised version.'}[s.st];
 const B=(l,f,c='')=>`<button class="btn ${c}" onclick="${f}">${l}</button>`,up=l=>`<label class="btn ${l[0]==='U'?'p':''}" style="cursor:pointer">${l}<input type="file" hidden onchange="upS(this)"></label>`;
+const linkedBrief=D.briefs.rows.find(x=>x.brandId===b);
 const a=[];if(R==='cc'){if(s.st==='none'||(s.st==='forwarded'&&!ap))a.push(up('Upload strategy'));if(s.st==='uploaded')a.push(B('Send to Account Manager',"sgo('send')",'p'),up('Replace file'));if(s.st==='forwarded'&&ap)a.push(B('Open content plan',"S.sub='platforms';view(false)",'p'))}
-if(R==='am'){if(s.st==='am')a.push(B('Send to client',"sgo('client')",'p'));if(s.st==='answered')a.push(B('Send response to Content Creator',"sgo('fwd')",'p'))}
+if(R==='am'){if(s.st==='am')a.push(B('Approve & send to client',"sgo('client')",'p'));if(s.st==='answered')a.push(B('Send response to Content Creator',"sgo('fwd')",'p'))}
 if(R==='client'&&s.st==='client')a.push(B('Approve',"sgo('approve')",'p'));
 const dl=s.file&&((R==='cc')||(R==='am'&&s.st!=='uploaded')||(R==='client'));if(dl)a.unshift(B('Download',"dlS()",'t'));
-return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Content Strategy</h1><p>${esc(b)} · ${esc(nx)}</p></div></div>
+return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Content Strategy</h1><p>${esc(b)} · ${esc(nx)}</p></div>${linkedBrief&&R!=='client'?`<button class="btn sm" onclick="S.sub='brief';view(false)">Linked brief: ${esc(linkedBrief.version)} · ${esc(linkedBrief.status)}</button>`:''}</div>
 ${R==='admin'?'<div class="note wn"><b>🔒</b><span>View-only for your role.</span></div>':''}
 <div class="card" style="margin-bottom:16px"><div style="display:flex;gap:8px;flex-wrap:wrap">${['Upload','Account Manager','Client review','Decision','Content plan'].map((x,i)=>`<span class="pill" style="background:${i<cur?'var(--ink)':i===cur?'var(--lilac)':'var(--mist)'};color:${i<cur?'#fff':'var(--ink)'}">${x}</span>`).join('')}</div>
-<div class="dash"></div><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div><b>${esc(s.file||'No file yet')}</b><div class="mute">${s.v?'Version '+esc(s.v):''}</div></div><span class="pill ${L[1]}">${esc(L[0])}</span></div>
-${s.reason&&s.out==='rejected'?`<div class="note wn" style="margin:16px 0 0;flex-direction:column;gap:2px"><b>Client’s reason for rejecting</b><span style="font-weight:500">${esc(s.reason)}</span></div>`:''}
-${R==='client'&&s.st==='client'?`<div class="fl" style="margin:16px 0 0"><label>If you reject, tell us why</label><textarea id="rs" placeholder="What didn’t work for you?"></textarea><div>${B('Reject with reason',"sgo('reject')",'dg')}</div></div>`:''}
+<div class="dash"></div><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div><b>${esc(s.file||'No file yet')}</b><div class="mute">${s.v?'Version '+esc(s.v):''}${linkedBrief?` · Linked to Brand Brief ${esc(linkedBrief.version)}`:''}</div></div><span class="pill ${L[1]}">${esc(L[0])}</span></div>
+${s.reason&&s.out==='rejected'?`<div class="note wn" style="margin:16px 0 0;flex-direction:column;gap:2px"><b>Revision feedback</b><span style="font-weight:500">${esc(s.reason)}</span></div>`:''}
+${(R==='client'&&s.st==='client')||(R==='am'&&s.st==='am')?`<div class="fl" style="margin:16px 0 0"><label>${R==='am'?'Internal review — request changes before sending to client':'If you request changes, tell us why'}</label><textarea id="rs" placeholder="${R==='am'?'Write feedback for the Content Creator…':'What needs to change in this strategy?'}"></textarea><div>${B(R==='am'?'Request changes':'Reject with reason',R==='am'?"sgo('am_reject')":"sgo('reject')",'dg')}</div></div>`:''}
 ${a.length?`<div class="sep">${a.join('')}</div>`:''}</div>
 <div class="card"><h2 style="margin-bottom:8px">History</h2>${s.log.length?s.log.map(x=>`<div style="padding:8px 0;border-top:1px solid var(--line)">${esc(x)}</div>`).join(''):'<p class="mute">No activity yet.</p>'}</div>`}
 let upS=function(inp){const f=inp.files[0];if(!f)return;const s=sg(S.brand);s.v++;s.file=f.name;s.url=URL.createObjectURL(f);s.st='uploaded';s.out=null;s.reason='';s.log.push('v'+s.v+' uploaded · '+ROLES[S.role]);toast('Strategy uploaded');render(false)};
-function dlS(){const s=sg(S.brand),a=document.createElement('a'),u=s.url&&(/^blob:/i.test(s.url)||safeUrl(s.url))?s.url:'';a.href=u||URL.createObjectURL(new Blob(['Demo placeholder for '+s.file+' ('+S.brand+')'],{type:'text/plain'}));a.download=u?s.file:s.file+'.txt';a.click();toast('Downloading '+s.file)}
+function dlS(){
+ const s=sg(S.brand);
+ const stratInfo=typeof API_CACHE!=='undefined'?API_CACHE.strategiesByBrand[S.brand]:null;
+ if(stratInfo?.id&&stratInfo?.versionId&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  fetch(`${API_BASE}/strategies/${stratInfo.id}/versions/${stratInfo.versionId}/file`,{headers:{Authorization:'Bearer '+getApiToken()}})
+   .then(res=>{if(!res.ok)throw new Error('Could not download strategy file');return res.blob()})
+   .then(blob=>{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=s.file||'strategy.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Downloading '+s.file)})
+   .catch(err=>toast(err?.message||'Download failed'));
+  return;
+ }
+ const a=document.createElement('a'),u=s.url&&(/^blob:/i.test(s.url)||safeUrl(s.url))?s.url:'';a.href=u||URL.createObjectURL(new Blob(['Demo placeholder for '+s.file+' ('+S.brand+')'],{type:'text/plain'}));a.download=u?s.file:s.file+'.txt';a.click();toast('Downloading '+s.file);
+}
 let sgo=function(a){const s=sg(S.brand);let m;
-if(a==='send'){s.st='am';m='Sent to the Account Manager'}else if(a==='client'){s.st='client';m='Sent to the client'}
+if(a==='send'){s.st='am';m='Sent to the Account Manager'}else if(a==='client'){s.st='client';m='Approved internally · sent to the client'}
+else if(a==='am_reject'){const r=($('#rs')||{}).value||'';if(!r.trim())return toast('Please write revision feedback for the Content Creator');s.st='forwarded';s.out='rejected';s.reason=r.trim();m='Account Manager requested changes · returned to Content Creator'}
 else if(a==='approve'){s.st='answered';s.out='approved';s.reason='';m='Client approved · Account Manager notified'}
-else if(a==='reject'){const r=($('#rs')||{}).value||'';if(!r.trim())return toast('Please write why you rejected it');s.st='answered';s.out='rejected';s.reason=r.trim();m='Client rejected · Account Manager notified'}
+else if(a==='reject'){const r=($('#rs')||{}).value||'';if(!r.trim())return toast('Please write why you requested changes');s.st='answered';s.out='rejected';s.reason=r.trim();m='Client requested changes · Account Manager notified'}
 else{s.st='forwarded';m='Response sent to the Content Creator'}
-s.log.push(m+' · '+ROLES[S.role]);D.notifications.rows.unshift({title:S.brand+': '+m,createdAt:'just now',isRead:false,internal:['send','approve','reject'].includes(a),to:({send:['am','admin'],client:['client','cc','admin'],approve:['am','admin'],reject:['am','admin']}[a]||['cc','admin'])});toast(m);render(false)};
+s.log.push(m+' · '+ROLES[S.role]);D.notifications.rows.unshift({title:S.brand+': '+m,createdAt:'just now',isRead:false,internal:['send','am_reject','approve','reject'].includes(a),to:({send:['am','admin'],am_reject:['cc','admin'],client:['client','cc','admin'],approve:['am','admin'],reject:['am','admin']}[a]||['cc','admin'])});toast(m);render(false)};
 /* content management: plans → campaigns → items */
 function contentPage(){const b=S.brand,s=sg(b);
 if(!(s.st==='forwarded'&&s.out==='approved'))return `<div class="card empty"><span class="chip">${ic('lock')}</span><h2>Content plans are locked</h2><p class="mute">They open once the client approves the strategy and the Account Manager shares the decision with the Content Creator.</p></div>`;
@@ -1055,7 +1098,40 @@ function switchClientOnboarding(brandName){
 }
 const secSt=i=>OB.done.includes(i)?'done':OBS[i][1].some(q=>(OB.a[q[0]]||'').trim())?'inc':'none';
 const obTop=(t,sub)=>`<div class="ph"><div><span class="eb">Client</span><h1>${esc(t)}</h1><p>${esc(sub)}</p></div></div>`,obCrumb=()=>curClientBrand()+' / Onboarding';
-function obCat(){const acts=CATS[OB.cat]||Object.values(CATS)[0];return obTop('Select category',obCrumb())+`<div class="card"><div class="pg"><div class="fl"><label>Main category</label><select onchange="OB.cat=this.value;OB.act=(CATS[OB.cat]||[])[0]||'';view(false)">${Object.keys(CATS).map(c=>`<option value="${esc(c)}" ${c===OB.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div><div class="fl"><label>Activity type</label><select onchange="OB.act=this.value">${acts.map(a=>`<option value="${esc(a)}" ${a===OB.act?'selected':''}>${esc(a)}</option>`).join('')}</select></div></div><div class="ft"><button class="btn p" onclick="OB.step='form';view(false)">Continue</button></div></div>`}
+let OB_API_CATS=null;
+function obCat(){
+ if(Array.isArray(OB_API_CATS)&&OB_API_CATS.length){
+  const curCat=OB_API_CATS.find(c=>c.code===OB.cat)||OB_API_CATS[0];
+  OB.cat=curCat.code;
+  const subs=curCat.requiresSubtype&&Array.isArray(curCat.subtypes)?curCat.subtypes:[];
+  if(subs.length&&!subs.some(s=>s.code===OB.act))OB.act=subs[0].code;
+  if(!subs.length)OB.act='';
+  return obTop('Select category',obCrumb())+`<div class="card"><div class="pg"><div class="fl"><label>Main category</label><select onchange="OB.cat=this.value;const c=OB_API_CATS.find(x=>x.code===this.value);OB.act=c&&c.requiresSubtype&&c.subtypes&&c.subtypes[0]?c.subtypes[0].code:'';view(false)">${OB_API_CATS.map(c=>`<option value="${esc(c.code)}" ${c.code===OB.cat?'selected':''}>${esc(c.label||c.name||c.code)}</option>`).join('')}</select></div>${subs.length?`<div class="fl"><label>Activity type</label><select onchange="OB.act=this.value">${subs.map(a=>`<option value="${esc(a.code)}" ${a.code===OB.act?'selected':''}>${esc(a.label||a.name||a.code)}</option>`).join('')}</select></div>`:''}</div><div class="ft"><button class="btn p" onclick="obSelectCategory()">Continue</button></div></div>`;
+ }
+ const acts=CATS[OB.cat]||Object.values(CATS)[0];
+ return obTop('Select category',obCrumb())+`<div class="card"><div class="pg"><div class="fl"><label>Main category</label><select onchange="OB.cat=this.value;OB.act=(CATS[OB.cat]||[])[0]||'';view(false)">${Object.keys(CATS).map(c=>`<option value="${esc(c)}" ${c===OB.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div><div class="fl"><label>Activity type</label><select onchange="OB.act=this.value">${acts.map(a=>`<option value="${esc(a)}" ${a===OB.act?'selected':''}>${esc(a)}</option>`).join('')}</select></div></div><div class="ft"><button class="btn p" onclick="obSelectCategory()">Continue</button></div></div>`;
+}
+async function obSelectCategory(){
+ if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   const body={mainCategory:OB.cat,...(OB.act?{activityType:OB.act}:{})};
+   await apiCall('/client-onboarding/selection',{method:'PUT',body});
+   const qs=new URLSearchParams({mainCategory:OB.cat,...(OB.act?{activityType:OB.act}:{})});
+   const tpl=await apiCall('/client-onboarding/template?'+qs.toString()).catch(()=>null);
+   if(tpl&&Array.isArray(tpl.sections)&&tpl.sections.length){
+    OBS.length=0;
+    tpl.sections.forEach(sec=>{
+     OBS.push([sec.title,(sec.questions||[]).map(q=>[q.code,q.label,q.required?1:0,q.type==='textarea'?1:0])]);
+    });
+    OB.sec=0;OB.done=[];
+   }
+  }catch(err){
+   if(err?.message)toast(err.message);
+  }
+ }
+ OB.step='form';
+ view(false);
+}
 function obForm(){const i=OB.sec,[t,qs]=OBS[i],pct=Math.round((i+1)/7*100);
 return obTop('Onboarding form',obCrumb())+`<div class="obh"><div class="ban"><b>${esc(t)}</b><div class="mono mute">Section ${i+1} of 7</div></div><div style="text-align:right"><div class="mono mute" style="margin-bottom:6px">Progress: ${pct}%</div><div class="pbar"><i style="width:${pct}%"></i></div></div></div>
 <div class="card">${qs.map(q=>{const e=OB.err[q[0]],v=esc(OB.a[q[0]]);return `<div class="fl ${e?'bad':''}"><label><b style="font-weight:600">${esc(q[1])}</b></label>${q[2]?'<span class="mono" style="color:var(--et)">Required</span>':''}${q[3]?`<textarea placeholder="Your answer" oninput="OB.a['${q[0]}']=this.value">${v}</textarea>`:`<input placeholder="Your answer" value="${v}" oninput="OB.a['${q[0]}']=this.value">`}${e?'<small>This field is required.</small>':''}</div>`}).join('')}
@@ -1080,7 +1156,7 @@ const TODAY='2026-11-18',TY={CREATION:'Content Creation',REVIEW:'Review',PUBLISH
 NAV.cc=['dashboard','brands','tasks','account'];NAV.emp=['dashboard','tasks','account'];NAV.client.unshift('dashboard');
 Object.defineProperty(N,'tasks',{get:()=>[S.role==='cc'||S.role==='emp'?'My Work':'Tasks','check']});
 PL.ok.push('COMPLETED');PL.er.push('NEEDS_CHANGES','URGENT');PL.wn.push('IN_REVIEW');PL.lc.push('CANCELLED');
-S.tw='mine';S.tv='rows';S.ts='all';
+S.tw='team';S.tv='rows';S.ts='all';
 const C1=['Instagram','Nov plan','Winter Glow','Serum routine reel'],C2=['Instagram','Nov plan','Winter Glow','Gift-set carousel'];
 const mk=(id,title,kind,status,priority,assignee,by,brand,ctx,planned,eff,desc,after)=>({id,title,kind,status,priority,assignee,by,brand,ctx,planned,eff,desc,after});
 const TK=[mk(1,'Design serum reel cover','CREATION','IN_PROGRESS','HIGH','Lina Aziz','Omar Haddad','Lumen Skincare',C1,'2026-11-17','2026-11-17','Cover and first frame for the serum reel.'),
@@ -1097,21 +1173,113 @@ function tact(t){const R=S.role,mine=t.assignee===MEN[R],a=[];
  if(mine){if(t.status==='TODO'&&t.kind!=='REVIEW')a.push(['Start','IN_PROGRESS']);if(t.status==='NEEDS_CHANGES')a.push(['Resume','IN_PROGRESS']);
   if(t.status==='IN_PROGRESS')a.push(t.kind==='CREATION'?['Submit','SUBMITTED']:['Complete','COMPLETED']);if(t.status==='IN_REVIEW')a.push(['Approve','COMPLETED'],['Request changes','NEEDS_CHANGES'])}
  if(R==='am'&&!DONE4.includes(t.status))a.push(['Cancel','CANCELLED']);return a}
-let tset=function(id,s){const t=TK.find(x=>x.id===id);if(!t)return;const rv=TK.find(x=>x.after===id),c=t.after&&TK.find(x=>x.id===t.after);
+let tset=function(id,s){
+ const t=TK.find(x=>x.id===id);if(!t)return;
+ const rv=TK.find(x=>x.after===id),c=t.after&&TK.find(x=>x.id===t.after);
  if(s==='SUBMITTED'&&rv){rv.status='IN_REVIEW';rv.eff=TODAY}
- if(c&&s==='COMPLETED')c.status='COMPLETED';if(c&&s==='NEEDS_CHANGES'){c.status='NEEDS_CHANGES';s='TODO'}
- t.status=s;toast('Task updated');closeM();view(false)};
-const tbtn=t=>tact(t).map(a=>`<button class="btn sm ${a[1]==='CANCELLED'?'dg':''}" onclick="tset(${t.id},'${a[1]}')">${a[0]}</button>`).join('');
+ if(c&&s==='COMPLETED')c.status='COMPLETED';
+ if(t.kind==='REVIEW'&&s==='COMPLETED'){
+  const alreadyPub=TK.some(x=>x.kind==='PUBLISH'&&x.after===t.id);
+  if(!alreadyPub){
+   const baseTitle=String(t.title||'').replace(/^Review:\s*/i,'');
+   TK.unshift(mk(++IDN,'Publish: '+baseTitle,'PUBLISH','TODO',t.priority||'MEDIUM',MEN.am,MEN[S.role],t.brand,[...(t.ctx||[])],t.planned,t.eff,'Publish approved content: '+baseTitle,t.id));
+  }
+ }
+ if(c&&s==='NEEDS_CHANGES'){c.status='NEEDS_CHANGES';s='TODO'}
+ t.status=s;
+ toast(t.kind==='REVIEW'&&s==='COMPLETED'?'Approved · Publish task created':'Task updated');
+ closeM();
+ view(false);
+};
+function submitTaskModal(id){
+ const t=TK.find(x=>x.id===id);if(!t)return;
+ modal(`<div class="dlg"><h2>Submit creation task</h2><p class="mute" style="margin:0 0 16px">Attach the deliverable link so the reviewer can inspect “${esc(t.title)}”.</p>
+  <div class="pg">
+   <div class="fl" style="grid-column:1/-1"><label>Submission URL <em style="color:var(--et);font-style:normal">*</em></label><input id="st-url" type="url" value="${esc(t.submissionUrl||'')}" placeholder="https://drive.google.com/…"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Submission Notes</label><textarea id="st-notes" placeholder="Notes for the reviewer…">${esc(t.submissionNotes||'')}</textarea></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="confirmSubmitTask(${t.id})">Submit for review</button></div>
+ </div>`);
+}
+async function confirmSubmitTask(id){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const t=TK.find(x=>x.id===id);if(!t)return;
+ const url=($('#st-url')?.value||'').trim();
+ const notes=($('#st-notes')?.value||'').trim();
+ if(!url||!safeUrl(url))return toast('Enter a valid http:// or https:// submission URL.');
+ dlg._submitted=true;
+ const prevStatus=t.status;
+ t.submissionUrl=url;
+ t.submissionNotes=notes;
+ if(t._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   await apiCall('/tasks/'+t._id+'/submit',{method:'POST',body:{submissionUrl:url,submissionNotes:notes||null}});
+  }catch(err){
+   dlg._submitted=false;
+   toast(err?.message||'Could not submit task');
+   return;
+  }
+ }
+ const rv=TK.find(x=>x.after===id);
+ if(rv){rv.status='IN_REVIEW';rv.eff=TODAY}
+ t.status='SUBMITTED';
+ closeM();
+ toast('Task submitted for review');
+ view(false);
+}
+const tbtn=t=>tact(t).map(a=>`<button class="btn sm ${a[1]==='CANCELLED'?'dg':''}" onclick="${a[1]==='SUBMITTED'&&t.kind==='CREATION'?`submitTaskModal(${t.id})`:`tset(${t.id},'${a[1]}')`}">${a[0]}</button>`).join('');
 const ctxL=t=>[t.brand,...t.ctx].join(' → ');
 let tdet=function(id){const t=TK.find(x=>x.id===id),w=t.after&&TK.find(x=>x.id===t.after);
  modal(`<div class="dlg"><h2>${esc(t.title)}</h2><div style="margin:8px 0">${pill(t.status)} ${pill(t.priority)} <span class="tag">${esc(TY[t.kind]||t.kind)}</span></div><dl class="kv"><dt>Context</dt><dd>${esc(ctxL(t))}</dd><dt>Description</dt><dd>${esc(t.desc)||'—'}</dd><dt>Assigned to</dt><dd>${esc(t.assignee)}</dd><dt>Created by</dt><dd>${esc(t.by)}</dd><dt>Planned deadline</dt><dd>${esc(t.planned)}</dd><dt>Effective deadline</dt><dd>${dl(t)}</dd><dt>Waiting on</dt><dd>${w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing'}</dd></dl><div class="ft"><button class="btn" onclick="closeM()">Close</button>${tbtn(t)}</div></div>`)};
+function editTask(id){
+ const t=TK.find(x=>x.id===id);if(!t)return;
+ const staff=[...new Set([...EMP,MEN.am,...D.users.rows.filter(u=>u.roleId!=='Client'&&u.isActive!==false).map(u=>u.fullName)])];
+ modal(`<div class="dlg"><h2>Edit / Re-assign task</h2><p class="mute" style="margin:0 0 16px">Update owner, priority, or deadline for this task.</p>
+  <div class="pg">
+   <div class="fl" style="grid-column:1/-1"><label>Title *</label><input id="et-title" value="${esc(t.title)}"></div>
+   <div class="fl"><label>Assigned to *</label><select id="et-assignee">${staff.map(u=>`<option value="${esc(u)}" ${u===t.assignee?'selected':''}>${esc(u)}</option>`).join('')}</select></div>
+   <div class="fl"><label>Priority</label><select id="et-priority">${['LOW','MEDIUM','HIGH','URGENT'].map(p=>`<option value="${p}" ${p===t.priority?'selected':''}>${p}</option>`).join('')}</select></div>
+   <div class="fl"><label>Planned deadline *</label><input id="et-deadline" type="date" value="${esc(t.planned||'')}"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Description</label><textarea id="et-desc">${esc(t.desc||'')}</textarea></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="saveEditTask(${t.id})">Save changes</button></div>
+ </div>`);
+}
+async function saveEditTask(id){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const t=TK.find(x=>x.id===id);if(!t)return;
+ const title=($('#et-title')?.value||'').trim();
+ const assignee=$('#et-assignee')?.value||t.assignee;
+ const priority=$('#et-priority')?.value||t.priority;
+ const planned=($('#et-deadline')?.value||'').trim()||t.planned;
+ const desc=($('#et-desc')?.value||'').trim();
+ if(!title||!planned)return toast('Title and deadline are required');
+ dlg._submitted=true;
+ const prev={title:t.title,assignee:t.assignee,priority:t.priority,planned:t.planned,eff:t.eff,desc:t.desc};
+ t.title=title;t.assignee=assignee;t.priority=priority;t.planned=planned;t.eff=planned;t.desc=desc;
+ closeM();
+ if(t._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  const body={title,priority,plannedDeadline:planned,description:desc||null};
+  const assigneeId=API_CACHE.usersByName[assignee];
+  if(assigneeId)body.assignedTo=assigneeId;
+  try{
+   await apiCall('/tasks/'+t._id,{method:'PATCH',body});
+  }catch(err){
+   Object.assign(t,prev);
+   toast(err?.message||'Could not update task');
+   return view(false);
+  }
+ }
+ toast('Task updated');
+ view(false);
+}
 tasksPage=function(){const R=S.role,me=MEN[R],mgr=R==='admin'||R==='am',team=mgr&&S.tw==='team',q=S.q.toLowerCase(),
- base=TK.filter(t=>team?(R==='admin'||t.by===me||t.assignee===me):t.assignee===me&&t.kind!=='DIRECT'),n=f=>base.filter(f).length,
- L=base.filter(t=>(S.ts==='all'||t.status===S.ts)&&[t.title,t.brand,t.assignee].join(' ').toLowerCase().includes(q)),
+ base=TK.filter(t=>team?(R==='admin'||t.by===me||t.assignee===me):t.assignee===me),n=f=>base.filter(f).length,
+ L=base.filter(t=>(S.ts==='all'||t.status===S.ts)&&[t.title,t.brand,t.assignee,...(t.ctx||[])].join(' ').toLowerCase().includes(q)),
  st=[['Total',base.length],['Overdue',n(isOd),1],['In progress',n(t=>t.status==='IN_PROGRESS')],['Needs your action',n(t=>t.assignee===me&&['TODO','NEEDS_CHANGES','IN_REVIEW'].includes(t.status)),0],['Completed',n(t=>t.status==='COMPLETED')]],
  sg2=(k,_v,l)=>`<div class="seg" role="group" style="margin:0">${l.map(x=>`<button class="${S[k]===x[0]?'on':''}" aria-pressed="${S[k]===x[0]}" onclick="S.${k}='${x[0]}';view(false)">${x[1]}</button>`).join('')}</div>`;
- const row=t=>`<tr><td><b>${esc(t.title)}</b><div class="mute" style="font-size:12px">${esc(ctxL(t))}</div></td><td><span class="tag">${esc(TY[t.kind]||t.kind)}</span></td><td>${esc(t.assignee)}</td><td>${pill(t.priority)}</td><td>${dl(t)}</td><td>${pill(t.status)}</td><td><div class="ra"><button class="btn sm t" onclick="tdet(${t.id})">Details</button>${tbtn(t)}</div></td></tr>`,
- card=t=>`<div class="card tc"><div style="display:flex;justify-content:space-between;gap:8px"><span class="tag lc">${esc(TY[t.kind]||t.kind)}</span>${pill(t.status)}</div><b style="font-size:16px">${esc(t.title)}</b><span class="mute" style="font-size:12px">${esc(ctxL(t))}</span><div style="display:flex;justify-content:space-between;align-items:end;gap:8px"><div>${dl(t)}<div class="mute" style="font-size:12px">${esc(t.assignee)}</div></div>${pill(t.priority)}</div><div class="dash" style="margin:2px 0"></div><div class="ra" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn sm t" onclick="tdet(${t.id})">Details</button>${tbtn(t)}</div></div>`;
+ const row=t=>`<tr><td><b>${esc(t.title)}</b><div class="mute" style="font-size:12px">${esc(ctxL(t))}</div></td><td><span class="tag">${esc(TY[t.kind]||t.kind)}</span></td><td>${esc(t.assignee)}</td><td>${pill(t.priority)}</td><td>${dl(t)}</td><td>${pill(t.status)}</td><td><div class="ra"><button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></td></tr>`,
+ card=t=>`<div class="card tc"><div style="display:flex;justify-content:space-between;gap:8px"><span class="tag lc">${esc(TY[t.kind]||t.kind)}</span>${pill(t.status)}</div><b style="font-size:16px">${esc(t.title)}</b><span class="mute" style="font-size:12px">${esc(ctxL(t))}</span><div style="display:flex;justify-content:space-between;align-items:end;gap:8px"><div>${dl(t)}<div class="mute" style="font-size:12px">${esc(t.assignee)}</div></div>${pill(t.priority)}</div><div class="dash" style="margin:2px 0"></div><div class="ra" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></div>`;
  return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>${team?'Tasks':'My Work'}</h1><p>${team?'Who does what: assign, follow and re-assign your team’s work.':'What is required from me: only the tasks assigned to you.'}</p></div>${mgr&&team?`<button class="btn p" onclick="newTask()">+ Direct task</button>`:''}</div>
 <div class="tb2">${mgr?sg2('tw',0,[['mine','My Work'],['team','Tasks']]):''}${sg2('tv',0,[['rows','☰ Rows'],['cards','▦ Cards']])}<select aria-label="Status" onchange="S.ts=this.value;view(false)"><option value="all">All statuses</option>${['TODO','IN_PROGRESS','SUBMITTED','IN_REVIEW','NEEDS_CHANGES','COMPLETED','CANCELLED'].map(x=>`<option value="${x}" ${S.ts===x?'selected':''}>${lab(x)}</option>`).join('')}</select></div>
 <div class="stats">${st.map(s=>`<div class="stat ${s[2]&&s[1]?'al':''}"><span class="mono mute">${s[0]}</span><b>${s[1]}</b></div>`).join('')}</div>`+
@@ -1142,9 +1310,26 @@ let goTo=function(l){const R=S.role,cl=R==='client',m={strategy:['strategy','str
  if(l.k!=='tasks'&&m){if(cl)p=m[0];else if(NAV[R].includes('brands')){p='brands';b=l.brand;s=m[1]}}
  const allowed=NAV[R]||NAV.admin;S.page=isAllowedPage(R,p)?p:allowed[0];S.brand=b;S.sub=s;S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.open=false;S.err={};render()};
 let nview=function(i){const r=D.notifications.rows[i];r.isRead=true;goTo(r.link||{k:'tasks'})};
+function markRead(i){
+ const r=D.notifications.rows[i];
+ if(!r||r.isRead)return;
+ r.isRead=true;
+ if(r._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  apiCall('/notifications/'+r._id+'/read',{method:'PATCH'}).catch(()=>{});
+ }
+ render(false);
+}
+function markAllRead(){
+ D.notifications.rows.forEach(r=>{r.isRead=true});
+ if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  apiCall('/notifications/read-all',{method:'PATCH'}).catch(()=>{});
+ }
+ toast('All notifications marked as read');
+ render(false);
+}
 function notifPage(){const R=S.role,q=S.q.toLowerCase(),cb=curClientBrand();let L=D.notifications.rows.map((r,i)=>({r,i})).filter(({r})=>(!r.to||r.to.includes(R))&&(R!=='client'||(r.title.includes(cb)&&!r.internal))).filter(({r})=>r.title.toLowerCase().includes(q)&&(S.nf!=='unread'||!r.isRead));
- return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Notifications</h1><p>Press View to jump to the screen where you handle it.</p></div><button class="btn" onclick="D.notifications.rows.forEach(r=>r.isRead=true);render(false)">Mark all as read</button></div><div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view(false)">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`+
- (L.length?`<div class="card" style="padding:8px 20px">${L.map(({r,i})=>`<div style="display:flex;gap:14px;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line);flex-wrap:wrap"><div style="min-width:220px;flex:1"><div style="font-weight:${r.isRead?500:700}">${esc(r.title)}</div><div class="mute" style="font-size:12px">${esc(r.createdAt)} · opens ${esc(DEST[(r.link||{k:'tasks'}).k]||'Tasks')}</div></div>${r.isRead?'<span class="pill">Read</span>':'<span class="pill in">Unread</span>'}<button class="btn sm p" onclick="nview(${i})">View →</button></div>`).join('')}</div>`:`<div class="card empty"><span class="chip">${ic('bell')}</span><h2>All caught up</h2></div>`)}
+ return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Notifications</h1><p>Press View to jump to the screen where you handle it.</p></div><button class="btn" onclick="markAllRead()">Mark all as read</button></div><div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view(false)">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`+
+ (L.length?`<div class="card" style="padding:8px 20px">${L.map(({r,i})=>`<div style="display:flex;gap:14px;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line);flex-wrap:wrap"><div style="min-width:220px;flex:1"><div style="font-weight:${r.isRead?500:700}">${esc(r.title)}</div><div class="mute" style="font-size:12px">${esc(r.createdAt)} · opens ${esc(DEST[(r.link||{k:'tasks'}).k]||'Tasks')}</div></div>${r.isRead?'<span class="pill">Read</span>':'<span class="pill in">Unread</span>'}${!r.isRead?`<button class="btn sm" onclick="markRead(${i})">Mark read</button>`:''}<button class="btn sm p" onclick="nview(${i})">View →</button></div>`).join('')}</div>`:`<div class="card empty"><span class="chip">${ic('bell')}</span><h2>All caught up</h2></div>`)}
 PAGES.notifications=notifPage;
 const _sgo=sgo;sgo=function(a){const n=D.notifications.rows.length;_sgo(a);const r=D.notifications.rows[0];if(D.notifications.rows.length>n)r.link={k:'strategy',brand:S.brand}};
 const _obf=obFinish;obFinish=function(){_obf();D.notifications.rows[0].link={k:'onboarding',brand:curClientBrand()}};
@@ -1182,7 +1367,23 @@ function rowDet(k,i){const E=D[k],r=E.rows[i];if(!r)return null;const w=can(k),d
 function campDet(pid,n){const p=PLANS.find(x=>x.id===pid),c=p&&p.campaigns[n];if(!c)return null;const l=p.items.filter(i=>i.campaign===c.name).map(i=>[i,p]);
  return dp(esc(c.name),'<span class="tag lc">Campaign</span>',kvh([['Objective',esc(c.objective)||'—'],['Brand',esc(p.brand)],['Content plan',esc(p.title)],['Content items',l.length]]),`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Content items</h2>${itTable(l)}</div>`)}
 let taskDet=function(id){const t=TK.find(x=>x.id===id);if(!t)return null;const w=t.after&&TK.find(x=>x.id===t.after);
- return dp(esc(t.title),pill(t.status)+pill(t.priority)+`<span class="tag">${esc(TY[t.kind]||t.kind)}</span>`,kvh([['Context',esc(ctxL(t))],['Description',esc(t.desc)||'—'],['Assigned to',esc(t.assignee)],['Created by',esc(t.by)],['Planned deadline',esc(t.planned)],['Effective deadline',dl(t)],['Waiting on',w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing']]),'',`<div style="display:flex;gap:8px;flex-wrap:wrap">${tbtn(t)}</div>`)};
+ const subLink=t.submissionUrl&&safeUrl(t.submissionUrl)?`<a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">${esc(t.submissionUrl)}</a>`:'—';
+ const rows=[['Context',esc(ctxL(t))],['Description',esc(t.desc)||'—'],['Assigned to',esc(t.assignee)],['Created by',esc(t.by)],['Planned deadline',esc(t.planned)],['Effective deadline',dl(t)],['Waiting on',w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing']];
+ if(t.submissionUrl)rows.push(['Submission URL',subLink]);
+ if(t.submissionNotes)rows.push(['Submission notes',esc(t.submissionNotes)]);
+ return dp(esc(t.title),pill(t.status)+pill(t.priority)+`<span class="tag">${esc(TY[t.kind]||t.kind)}</span>`,kvh(rows),'',`<div style="display:flex;gap:8px;flex-wrap:wrap">${tbtn(t)}</div>`)};
+function planDet(pid){
+ const p=pl(pid);if(!p)return null;
+ const R=S.role,cc=R==='cc',s=sg(p.brand),ok=s.st==='forwarded'&&s.out==='approved';
+ const campCards=p.campaigns.map((c,ci)=>{
+  const items=p.items.filter(i=>i.campaign===c.name).map(i=>[i,p]);
+  return `<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px"><div><h2 style="margin:0"><a class="lk" onclick="openD({t:'camp',p:${p.id},n:${ci}})">${esc(c.name)}</a></h2>${c.objective?`<p class="mute" style="margin:4px 0 0">${esc(c.objective)}</p>`:''}</div><span class="tag lc">${items.length} item${items.length===1?'':'s'}</span></div>${itTable(items)}</div>`;
+ }).join('');
+ const unassigned=p.items.filter(i=>!i.campaign||i.campaign==='—'||!p.campaigns.some(c=>c.name===i.campaign)).map(i=>[i,p]);
+ const unassignedCard=`<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px"><h2 style="margin:0">Unassigned to a campaign</h2><span class="tag">${unassigned.length} item${unassigned.length===1?'':'s'}</span></div>${itTable(unassigned)}</div>`;
+ const acts=cc&&ok?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="newCamp(${p.id})">+ Campaign</button><button class="btn p" onclick="newItem(${p.id})">+ Content item</button></div>`:'';
+ return dp(esc(p.title),`<span class="tag lc">${esc(p.month||'Monthly plan')}</span>`+pill(p.status||'DRAFT'),kvh([['Brand',esc(p.brand)],['Platform',esc(p.platform||'—')],['Monthly goals',esc(p.monthlyGoals||'—')],['Campaigns',p.campaigns.length],['Total items',p.items.length]]),campCards+unassignedCard,acts);
+}
 function teamDet(n){const x=TX[n];if(!x)return null;const i=tinfo(n),ad=S.role==='admin',ix=T.indexOf(n),openT=TK.filter(t=>i.m.some(u=>u.fullName===t.assignee)&&!DONE4.includes(t.status)),
  L=(h,b,js)=>`<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><h2>${h}</h2>${ad&&js?`<button class="btn sm" onclick="${js}">Edit</button>`:''}</div>${b}</div>`,e0='<p class="mute" style="margin:0">Nothing here yet.</p>',
  row=(m,s,js)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)"><div>${m}<div class="mute" style="font-size:12px">${s}</div></div><button class="btn sm t" onclick="${js}">View</button></div>`,
@@ -1193,7 +1394,7 @@ function teamDet(n){const x=TX[n];if(!x)return null;const i=tinfo(n),ad=S.role==
   +L('Brands ('+i.b.length+')',i.b.map(b=>row(esc(b.name)+' '+pill(b.status),esc(b.industry||''),`S.det=null;S.page='brands';act('brands',${bi(b.name)},'view')`)).join('')||e0,`teamEditBr(${ix})`)
   +L('Open tasks ('+openT.length+')',openT.map(t=>row(esc(t.title)+' '+pill(t.status),esc(t.assignee)+' · '+(dl(t)||'—'),`openD({t:'task',id:${t.id}})`)).join('')||e0),
   ad?`<div style="display:flex;gap:8px"><button class="btn" onclick="teamEdit(${ix})">Rename / edit all</button><button class="btn dg" onclick="teamDel(${ix})">Delete team</button></div>`:'')}
-const detPage=()=>{const d=S.det;return d.t==='row'?rowDet(d.k,d.i):d.t==='item'?itemDet(d.id):d.t==='camp'?campDet(d.p,d.n):d.t==='sub'?subHtml(d):d.t==='task'?taskDet(d.id):teamDet(d.n)};
+const detPage=()=>{const d=S.det;return d.t==='row'?rowDet(d.k,d.i):d.t==='item'?itemDet(d.id):d.t==='plan'?planDet(d.id):d.t==='camp'?campDet(d.p,d.n):d.t==='sub'?subHtml(d):d.t==='task'?taskDet(d.id):teamDet(d.n)};
 const _v=view,_go=go,_sr=setRole,_gt=goTo,_act=act,_ed=E_del,_sp=subPage;
 view=function(sk=true){enforceRoleRoute();const v=$('#view');if(S.det&&v){let h=null;try{h=detPage()}catch{/* ignore */}if(h){v.innerHTML=h;return}S.det=null}_v(sk)};
 go=p=>{S.det=null;_go(p)};setRole=r=>{S.det=null;_sr(r)};goTo=l=>{S.det=null;_gt(l)};
@@ -1218,25 +1419,161 @@ let itSave=function(pid,eid){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)ret
  if(eid){const it=fItem(eid)[0];Object.assign(it,v);if(it.stage==='APPROVED'){it.stage='IN_REVIEW';snapV(it);it.v=(it.v||1)+1;logH(it,'Edited after approval','Returned to internal review')}}else p.items.push({...v,id:++IDN,platform:p.platform,assignee:'',priority:'MEDIUM',status:'TODO'});closeM();toast(eid?'Changes saved':'Content item created');if(eid)view(false);else openSub('item',p.items[p.items.length-1].id)};
 function editItem(id){const[i,p]=fItem(id);modal(itModal(p.id,{...i},id))}
 const cfm=(t,js)=>modal(`<div class="dlg"><h2>${t}</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="${js}">Delete</button></div></div>`);
-const delItem=id=>cfm('Delete this content item?',`PLANS.forEach(p=>p.items=p.items.filter(i=>i.id!==${id}));closeM();toast('Deleted');S.det=null;view(false)`);
-const delPlan=id=>cfm('Delete this plan and its items?',`PLANS.splice(PLANS.findIndex(p=>p.id===${id}),1);closeM();toast('Plan deleted');view(false)`);
+function doDelItem(id){
+ const found=fItem(id);
+ const item=found?.[0];
+ PLANS.forEach(p=>{p.items=p.items.filter(i=>i.id!==id)});
+ closeM();
+ toast('Deleted');
+ S.det=null;
+ view(false);
+ if(item?._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  apiCall('/content-items/'+item._id,{method:'DELETE'}).catch(err=>{if(err?.message)toast(err.message)});
+ }
+}
+const delItem=id=>cfm('Delete this content item?',`doDelItem(${id})`);
+function doDelPlan(id){
+ const idx=PLANS.findIndex(p=>p.id===id);
+ if(idx<0)return;
+ const plan=PLANS[idx];
+ PLANS.splice(idx,1);
+ closeM();
+ toast('Plan deleted');
+ view(false);
+ if(plan?._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  apiCall('/content-plans/'+plan._id,{method:'DELETE'}).catch(err=>{if(err?.message)toast(err.message)});
+ }
+}
+const delPlan=id=>cfm('Delete this plan and its items?',`doDelPlan(${id})`);
+function parsePlanYm(ym){
+ const m=/^(\d{4})-(\d{2})$/.exec(String(ym||'').trim());
+ if(!m){const d=new Date();return{year:d.getFullYear(),month:d.getMonth()+1,label:d.toLocaleString('en',{month:'short',year:'numeric'})}}
+ const yr=Number(m[1]),mo=Number(m[2]);
+ const lbl=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo-1]+' '+yr;
+ return{year:yr,month:mo,label:lbl};
+}
+function editPlan(id){
+ const p=pl(id);if(!p)return;
+ const ymVal=p.year&&p.month?`${p.year}-${String(p.month).padStart(2,'0')}`:'2026-11';
+ modal(`<div class="dlg"><h2>Edit content plan</h2><p class="mute" style="margin:0 0 16px">${esc(p.platform)} · ${esc(p.brand)}</p>
+  <div class="pg">
+   <div class="fl"><label>Plan title *</label><input id="ep-title" value="${esc(p.title)}"></div>
+   <div class="fl"><label>Month *</label><input id="ep-month" type="month" value="${esc(ymVal)}"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Monthly goals</label><textarea id="ep-goals">${esc(p.monthlyGoals||'')}</textarea></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="saveEditPlan(${p.id})">Save plan</button></div>
+ </div>`);
+}
+async function saveEditPlan(id){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const p=pl(id);if(!p)return;
+ const title=($('#ep-title')?.value||'').trim();
+ const ym=parsePlanYm($('#ep-month')?.value);
+ const monthlyGoals=($('#ep-goals')?.value||'').trim();
+ if(!title)return toast('Plan title is required');
+ dlg._submitted=true;
+ const prev={title:p.title,month:p.month,year:p.year,monthNum:p.monthNum,monthlyGoals:p.monthlyGoals};
+ p.title=title;p.month=ym.label;p.year=ym.year;p.monthNum=ym.month;p.monthlyGoals=monthlyGoals;
+ closeM();
+ if(p._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   await apiCall('/content-plans/'+p._id,{method:'PATCH',body:{title,year:ym.year,month:ym.month,monthlyGoals:monthlyGoals||null}});
+  }catch(err){
+   Object.assign(p,prev);
+   toast(err?.message||'Could not update content plan');
+   return view(false);
+  }
+ }
+ toast('Plan updated');
+ view(false);
+}
+async function setPlanStatus(id,status){
+ const p=pl(id);if(!p)return;
+ const prev=p.status||'DRAFT';
+ p.status=status;
+ if(p._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   await apiCall('/content-plans/'+p._id+'/status',{method:'PATCH',body:{status}});
+  }catch(err){
+   p.status=prev;
+   toast(err?.message||'Could not update plan status');
+   return view(false);
+  }
+ }
+ toast('Plan status updated');
+ view(false);
+}
 newItem=id=>modal(itModal(id,{}));
-let newPlanP=function(i){const a=D.platform.rows[i].accountName;ask('New content plan for '+a,[['title','Plan title'],['month','Month']],v=>PLANS.push({id:++IDN,brand:S.brand,platform:a,title:v.title,month:v.month||'',campaigns:[],items:[]}))};
+let newPlanP=function(i){const a=D.platform.rows[i].accountName;ask('New monthly content plan for '+a,[['title','Plan title *'],['month','Month *','month'],['monthlyGoals','Monthly goals','textarea']],v=>{const ym=parsePlanYm(v.month);PLANS.push({id:++IDN,brand:S.brand,platform:a,title:v.title,month:ym.label,year:ym.year,monthNum:ym.month,monthlyGoals:(v.monthlyGoals||'').trim(),status:'DRAFT',campaigns:[],items:[]})})};
 function platformsPage(b){const E=D.platform,w=can('platform'),q=S.q.toLowerCase(),R=S.role,cc=R==='cc',am=R==='am',s=sg(b.name),ok=s.st==='forwarded'&&s.out==='approved',
  rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>r.brandId===b.name),
  sel=(id,k,o,v)=>`<select style="border:1px solid var(--line);border-radius:10px;padding:5px 8px;background:#fff" onchange="setIt(${id},'${k}',this.value)">${o.map(x=>`<option value="${esc(x)}" ${x===v?'selected':''}>${esc(k==='status'?lab(x):x)}</option>`).join('')}</select>`,
- planH=p=>{const its=p.items.filter(i=>i.title.toLowerCase().includes(q));return `<div style="border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;background:var(--canvas)"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><b style="font-size:16px">${esc(p.title)}</b> <span class="mute">${esc(p.month)}</span></div>${cc&&ok?`<div style="display:flex;gap:8px"><button class="btn sm" onclick="newCamp(${p.id})">+ Campaign</button><button class="btn sm p" onclick="newItem(${p.id})">+ Content item</button><button class="btn sm dg" onclick="delPlan(${p.id})">Delete plan</button></div>`:''}</div>
+ planH=p=>{const its=p.items.filter(i=>i.title.toLowerCase().includes(q)),pst=p.status||'DRAFT';return `<div style="border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;background:var(--canvas)"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><b style="font-size:16px"><a class="lk" onclick="openD({t:'plan',id:${p.id}})">${esc(p.title)}</a></b> <span class="mute">${esc(p.month)}</span> ${pill(pst)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm t" onclick="openD({t:'plan',id:${p.id}})">Full plan</button>${cc&&ok?`<button class="btn sm" onclick="newCamp(${p.id})">+ Campaign</button><button class="btn sm p" onclick="newItem(${p.id})">+ Content item</button><button class="btn sm" onclick="editPlan(${p.id})">Edit plan</button>${pst==='DRAFT'||pst==='NEEDS_CHANGES'?`<button class="btn sm" onclick="setPlanStatus(${p.id},'IN_REVIEW')">Submit for review</button>`:''}<button class="btn sm dg" onclick="delPlan(${p.id})">Delete plan</button>`:''}${am&&pst==='IN_REVIEW'?`<button class="btn sm p" onclick="setPlanStatus(${p.id},'APPROVED')">Approve plan</button><button class="btn sm dg" onclick="setPlanStatus(${p.id},'NEEDS_CHANGES')">Request changes</button>`:''}</div></div>
  <div style="margin:10px 0">${p.campaigns.length?p.campaigns.map((c,ci)=>`<span class="tag lc" style="cursor:pointer" onclick="openD({t:'camp',p:${p.id},n:${ci}})">${esc(c.name)}</span>`).join(''):'<span class="mute">No campaigns yet.</span>'}</div>
  ${its.length?`<div class="tw"><table><thead><tr><th scope="col">Item</th><th scope="col">Type</th><th scope="col">Campaign</th><th scope="col">Date</th><th scope="col">Assigned to</th><th scope="col">Priority</th><th scope="col">Stage</th><th scope="col"></th></tr></thead><tbody>${its.map(i=>`<tr><td><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a></td><td><span class="tag">${esc(i.type)}</span></td><td>${esc(i.campaign||'—')}</td><td><span class="mono">${esc(i.date||'—')}</span></td><td>${am?sel(i.id,'assignee',['Unassigned',...EMP],i.assignee||'Unassigned'):esc(i.assignee)||'—'}</td><td>${am?sel(i.id,'priority',PR,i.priority):pill(i.priority)}</td><td>${SP(i.stage||'DRAFT')}</td><td>${cc&&ok?`<div class="ra"><button class="btn sm" onclick="editItem(${i.id})">Edit</button><button class="btn sm dg" onclick="delItem(${i.id})">Delete</button></div>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No content items in this plan yet.</p>'}</div>`};
  return (cc||am?head(E,w,'platform').replace(/<div class="note wn"><b>🔒<\/b>[\s\S]*?<\/div>/,''):head(E,w,'platform'))+(!ok&&(cc||am)?'<div class="note wn" style="align-items:center"><b>🔒</b><span style="flex:1">New plans and content items open once the client approves the strategy.</span><button class="btn sm" onclick="S.sub=\'strategy\';view(false)">Open strategy</button></div>':'')+
  (rows.length?rows.map(({r,i})=>{const ps=PLANS.filter(p=>p.brand===b.name&&p.platform===r.accountName),n=ps.reduce((a,p)=>a+p.items.length,0);
  return `<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div style="display:flex;align-items:center"><span class="chip" style="background:var(--lilac)">${ic('link')}</span><div><h2><a class="lk" style="text-decoration:none" onclick="act('platform',${i},'view')">${esc(r.accountName)}</a></h2><div style="margin-top:4px"><span class="tag">${esc(r.platform)}</span>${pill(r.isActive)} <span class="mute">${ps.length} plan${ps.length===1?'':'s'} · ${n} item${n===1?'':'s'}</span></div></div></div><div class="ra">${cc&&ok?`<button class="btn sm p" onclick="newPlanP(${i})">+ New plan</button>`:''}<button class="btn sm t" onclick="act('platform',${i},'view')">View</button>${w?`<button class="btn sm" onclick="act('platform',${i},'edit')">Edit</button><button class="btn sm dg" onclick="act('platform',${i},'del')">Delete</button>`:''}</div></div>${ps.length?ps.map(planH).join(''):'<p class="mute" style="margin:14px 0 0">No content plans for this platform yet.</p>'}</div>`}).join(''):'<div class="card empty"><span class="chip">'+ic('link')+'</span><h2>No platforms yet</h2><p class="mute">Add a social account, then build its content plans.</p></div>')}
 const FL=Object.fromEntries(Object.values(FS).flat().concat([['notes','Notes']]).map(f=>[f[0],f[1]]));
+function assignItemTasks(id){
+ const f=fItem(id);if(!f)return;
+ const [it,p]=f;
+ const staff=D.users.rows.filter(u=>u.roleId!=='Client'&&u.isActive!==false).map(u=>u.fullName);
+ const creators=[...new Set([...EMP,...staff])];
+ const reviewers=[...new Set([MEN.am,...staff])];
+ modal(`<div class="dlg"><h2>Assign creation &amp; review tasks</h2><p class="mute" style="margin:0 0 16px">Assign an owner and a reviewer for “${esc(it.title)}” (${esc(p.brand)}).</p>
+  <div class="pg">
+   <div class="fl"><label>Creation Assignee</label><select id="at-creator"><option value="">Select creator…</option>${creators.map(u=>`<option value="${esc(u)}" ${u===it.assignee?'selected':''}>${esc(u)}</option>`).join('')}</select></div>
+   <div class="fl"><label>Reviewer</label><select id="at-reviewer"><option value="">Select reviewer…</option>${reviewers.map(u=>`<option value="${esc(u)}" ${u===MEN.am?'selected':''}>${esc(u)}</option>`).join('')}</select></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="saveItemTasks(${id})">Assign tasks</button></div>
+ </div>`);
+}
+async function saveItemTasks(id){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const creator=$('#at-creator')?.value||'';
+ const reviewer=$('#at-reviewer')?.value||'';
+ if(!creator&&!reviewer)return toast('Select at least a creation assignee or a reviewer.');
+ const f=fItem(id);if(!f)return;
+ const [it,p]=f;
+ dlg._submitted=true;
+ if(creator)it.assignee=creator;
+ const deadline=it.date||TODAY;
+ const ctx=[it.platform||'—',p.title,it.campaign||'—',it.title];
+ let creationId=null;
+ if(creator){
+  creationId=++IDN;
+  TK.unshift(mk(creationId,'Create: '+it.title,'CREATION','TODO',it.priority||'MEDIUM',creator,MEN[S.role],p.brand,ctx,deadline,deadline,'Content creation task for '+it.title));
+ }
+ if(reviewer){
+  const reviewId=++IDN;
+  TK.unshift(mk(reviewId,'Review: '+it.title,'REVIEW','TODO',it.priority||'MEDIUM',reviewer,MEN[S.role],p.brand,ctx,deadline,deadline,'Review task for '+it.title,creationId));
+ }
+ closeM();
+ if(it._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  const body={};
+  const cId=API_CACHE.usersByName[creator];
+  const rId=API_CACHE.usersByName[reviewer];
+  if(cId)body.creationAssigneeId=cId;
+  if(rId)body.reviewerId=rId;
+  if(Object.keys(body).length){
+   try{
+    await apiCall('/tasks/content-items/'+it._id+'/assign',{method:'POST',body});
+   }catch(err){
+    if(err?.message)toast(err.message);
+   }
+  }
+ }
+ toast('Creation & review tasks assigned');
+ view(false);
+}
 let itemDet=function(id){const f=fItem(id);if(!f)return null;const[i,p]=f,
  pi=D.platform.rows.findIndex(r=>r.brandId===p.brand&&r.accountName===i.platform),c=p.campaigns.findIndex(x=>x.name===i.campaign),
  det=[...(FS[i.type]||[]).map(x=>x[0]),'notes'].filter(k=>i[k]).map(k=>[esc(FL[k]||k),esc(i[k]).replace(/\n/g,'<br>')]);
+ const canAssign=S.role==='am'||S.role==='admin';
+ const topAct=canAssign?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" onclick="assignItemTasks(${i.id})">Assign creation &amp; review tasks</button></div>`:'';
  return dp(esc(i.title),`<span class="tag">${esc(i.type)}</span>`+SP(i.stage||'DRAFT')+pill(i.priority),kvh([['Brand',esc(p.brand)],['Platform',pi>=0?`<a class="lk" onclick="openD({t:'row',k:'platform',i:${pi}})">${esc(i.platform)}</a>`:'—'],['Content plan',esc(p.title)],['Campaign',c>=0?`<a class="lk" onclick="openD({t:'camp',p:${p.id},n:${c}})">${esc(i.campaign)}</a>`:'—'],['Scheduled',`<span class="mono">${esc(i.date||'—')}</span>`],['Assigned to',esc(i.assignee)||'Unassigned'],['Priority',pill(i.priority)]]),
- `<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">${esc(lab(i.type))} details</h2>${det.length?`<dl class="kv" style="margin:12px 0 0">${kvh(det)}</dl>`:'<p class="mute" style="margin:0">No details filled in yet.</p>'}</div>`)};
+ `<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">${esc(lab(i.type))} details</h2>${det.length?`<dl class="kv" style="margin:12px 0 0">${kvh(det)}</dl>`:'<p class="mute" style="margin:0">No details filled in yet.</p>'}</div>`,topAct)};
 
 /* ===== v7: brands as cards, richer Creative dashboard ===== */
 S.bv='rows';
@@ -1693,8 +2030,13 @@ async function hydrateFromBackend(){
      const byName=t.creator?.fullName||MEN.am;
      const pDate=t.plannedDeadline?String(t.plannedDeadline).slice(0,10):TODAY;
      const eDate=t.effectiveDeadline?String(t.effectiveDeadline).slice(0,10):pDate;
-     const kindMap={CONTENT_CREATION:'CREATION',REVIEW:'REVIEW',PUBLISH:'PUBLISH',DIRECT:'DIRECT'};
-     const item=mk(t.id,t.title,kindMap[t.type]||'DIRECT',(t.status||'TODO').toUpperCase(),(t.priority||'MEDIUM').toUpperCase(),aName,byName,bName,[],pDate,eDate,t.description||'',t.dependsOnTaskId);
+     const kindMap={CONTENT_CREATION:'CREATION',CONTENT_MODIFICATION:'CREATION',REVIEW:'REVIEW',PUBLISH:'PUBLISH',DIRECT:'DIRECT'};
+     const ctx=[
+      t.contentItem?.contentPlan?.platformAccount?.accountName,
+      t.contentItem?.contentPlan?.title,
+      t.contentItem?.title,
+     ].filter(Boolean);
+     const item=mk(t.id,t.title,kindMap[t.type]||'DIRECT',(t.status||'TODO').toUpperCase(),(t.priority||'MEDIUM').toUpperCase(),aName,byName,bName,ctx,pDate,eDate,t.description||'',t.dependsOnTaskId);
      item._id=t.id;
      TK.push(item);
      D.tasks.rows.push({_id:t.id,title:t.title,priority:(t.priority||'MEDIUM').toUpperCase(),assignedToId:aName,plannedDeadline:pDate,status:(t.status||'TODO').toUpperCase()});
@@ -1712,7 +2054,13 @@ async function hydrateFromBackend(){
    }
   }
   if(S.role==='client'){
-   const obData=await apiCall('/client-onboarding/me').catch(()=>null);
+   const [catData,obData]=await Promise.all([
+    apiCall('/client-onboarding/categories').catch(()=>null),
+    apiCall('/client-onboarding/me').catch(()=>null),
+   ]);
+   if(catData&&Array.isArray(catData.mainCategories)&&catData.mainCategories.length){
+    OB_API_CATS=catData.mainCategories;
+   }
    if(obData){
     if(obData.mainCategory)OB.cat=obData.mainCategory;
     if(obData.activityType)OB.act=obData.activityType;
@@ -1965,7 +2313,9 @@ newPlanP=function(i){
    const platformAccountId=API_CACHE.platformsByAccount[createdPlan.platform];
    if(brandId&&platformAccountId){
     const now=new Date();
-    apiCall('/content-plans',{method:'POST',body:{brandId,platformAccountId,title:createdPlan.title,year:now.getFullYear(),month:now.getMonth()+1}}).then(res=>{if(res?.id)createdPlan._id=res.id}).catch(()=>{});
+    const yr=createdPlan.year||now.getFullYear();
+    const mo=createdPlan.monthNum||(now.getMonth()+1);
+    apiCall('/content-plans',{method:'POST',body:{brandId,platformAccountId,title:createdPlan.title,year:yr,month:mo,monthlyGoals:createdPlan.monthlyGoals||null}}).then(res=>{if(res?.id)createdPlan._id=res.id}).catch(err=>{if(err?.message)toast(err.message)});
    }
   };
  }
@@ -1996,10 +2346,21 @@ itSave=function(pid,eid){
  if(!p)return;
  const item=eid?fItem(eid)?.[0]:p.items[p.items.length-1];
  if(!item)return;
+ const campaignId=item.campaign&&item.campaign!=='—'?API_CACHE.campaignsByName[item.campaign]||null:null;
+ const payload={
+  title:item.title,
+  type:item.type,
+  scheduledDate:item.date||TODAY,
+  caption:item.caption||null,
+  notes:item.notes||null,
+  ...(campaignId?{campaignId}:{}),
+  ...(item.reference?{reference:item.reference}:{}),
+  ...(item.toneOfVoice?{toneOfVoice:item.toneOfVoice}:{}),
+ };
  if(eid&&item._id){
-  apiCall('/content-items/'+item._id,{method:'PATCH',body:{title:item.title,type:item.type,scheduledDate:item.date||TODAY,caption:item.caption||null,notes:item.notes||null}}).catch(()=>{});
+  apiCall('/content-items/'+item._id,{method:'PATCH',body:payload}).catch(err=>{if(err?.message)toast(err.message)});
  }else if(!eid&&p._id){
-  apiCall('/content-items',{method:'POST',body:{contentPlanId:p._id,title:item.title,type:item.type,scheduledDate:item.date||TODAY,caption:item.caption||null,notes:item.notes||null}}).then(res=>{if(res?.id)item._id=res.id}).catch(()=>{});
+  apiCall('/content-items',{method:'POST',body:{contentPlanId:p._id,...payload}}).then(res=>{if(res?.id)item._id=res.id}).catch(err=>{if(err?.message)toast(err.message)});
  }
 };
 
@@ -2019,9 +2380,14 @@ saveTask=function(){
 const _origTset=tset;
 tset=function(id,s){
  const t=TK.find(x=>x.id===id);
+ const prevStatus=t?.status;
  _origTset(id,s);
- if(t?._id&&getApiToken()){
-  apiCall('/tasks/'+t._id+'/status',{method:'PATCH',body:{status:t.status}}).catch(()=>{});
+ if(t?._id&&getApiToken()&&!S.offlineMode){
+  if(t.kind==='REVIEW'&&(s==='COMPLETED'||s==='NEEDS_CHANGES')){
+   apiCall('/tasks/'+t._id+'/review',{method:'PATCH',body:{decision:s,notes:null}}).catch(err=>{if(prevStatus)t.status=prevStatus;if(err?.message)toast(err.message);view(false)});
+  }else{
+   apiCall('/tasks/'+t._id+'/status',{method:'PATCH',body:{status:t.status}}).catch(err=>{if(prevStatus)t.status=prevStatus;if(err?.message)toast(err.message);view(false)});
+  }
  }
 };
 
@@ -2046,7 +2412,9 @@ upS=function(inp){
     const ver=await apiCall('/strategies/'+stratInfo.id+'/versions',{method:'POST',body:fd,isForm:true});
     API_CACHE.strategiesByBrand[bName]={id:stratInfo.id,versionId:ver?.id};
    }
-  }catch{/* ignore */}
+  }catch(err){
+   if(err?.message)toast(err.message);
+  }
  })();
 };
 
@@ -2059,9 +2427,9 @@ sgo=function(a){
  const stratInfo=API_CACHE.strategiesByBrand[bName];
  if(!stratInfo?.id||!stratInfo?.versionId)return;
  if(a==='client'||a==='approve'){
-  apiCall(`/strategies/${stratInfo.id}/versions/${stratInfo.versionId}/approve`,{method:'POST',body:{comment:null}}).catch(()=>{});
- }else if(a==='reject'){
-  apiCall(`/strategies/${stratInfo.id}/versions/${stratInfo.versionId}/feedback`,{method:'POST',body:{message:reason}}).catch(()=>{});
+  apiCall(`/strategies/${stratInfo.id}/versions/${stratInfo.versionId}/approve`,{method:'POST',body:{comment:null}}).catch(err=>{if(err?.message)toast(err.message)});
+ }else if(a==='reject'||a==='am_reject'){
+  apiCall(`/strategies/${stratInfo.id}/versions/${stratInfo.versionId}/feedback`,{method:'POST',body:{message:reason}}).catch(err=>{if(err?.message)toast(err.message)});
  }
 };
 
@@ -2584,4 +2952,4 @@ if(window.location.hash.startsWith('#reset'))applyResetHash();
 
 applyTheme();
 render();
-Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,roleCh,save,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,goTo,openD,itType,itSave,editItem,delItem,delPlan,newPlanP,mv,mvAsk,cmt,setLink,pubRec,cmv,reqNew,reqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
+Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,cmv,reqNew,reqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
