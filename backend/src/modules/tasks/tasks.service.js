@@ -1,4 +1,5 @@
 import { TasksModel } from './tasks.model.js';
+import { ContentItemsModel } from '../content-items/content-items.model.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { prisma } from '../../config/prisma.js';
 import { getRoleName, isContentCreatorUser } from '../../utils/roles.js';
@@ -594,6 +595,31 @@ export const TasksService = {
         });
 
         await this.handleTaskSubmission(updatedTask, tx);
+
+        if (
+          updatedTask.contentItem &&
+          typeof ContentItemsModel.createRevisionSnapshot === 'function'
+        ) {
+          const isModification = updatedTask.type === 'CONTENT_MODIFICATION';
+          await ContentItemsModel.createRevisionSnapshot(
+            {
+              contentItem: updatedTask.contentItem,
+              createdBy: currentUser.id,
+              source: isModification
+                ? 'CONTENT_MODIFICATION_SUBMISSION'
+                : 'CONTENT_CREATION_SUBMISSION',
+              changeReason:
+                submissionNotes ??
+                (isModification
+                  ? 'Content modification submitted'
+                  : 'Initial content creation submitted'),
+              submissionUrl: updatedTask.submissionUrl ?? null,
+              submissionNotes: updatedTask.submissionNotes ?? null,
+              taskId: updatedTask.id,
+            },
+            tx,
+          );
+        }
 
         return updatedTask;
       });

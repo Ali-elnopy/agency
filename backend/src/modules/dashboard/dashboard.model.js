@@ -103,4 +103,140 @@ export const DashboardModel = {
       orderBy: { name: 'asc' },
     });
   },
+
+  // --- Feature #4: Progress Tracking Aggregations ---
+
+  groupTasksByStatus(where) {
+    return prisma.task.groupBy({
+      by: ['status'],
+      where,
+      _count: { _all: true },
+    });
+  },
+
+  countOverdueTasks(where, now = new Date()) {
+    return prisma.task.count({
+      where: {
+        AND: [
+          where,
+          {
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          {
+            OR: [
+              { effectiveDeadline: { lt: now } },
+              {
+                effectiveDeadline: null,
+                plannedDeadline: { lt: now },
+              },
+            ],
+          },
+        ],
+      },
+    });
+  },
+
+  findCompletedTaskTimings(where) {
+    return prisma.task.findMany({
+      where: {
+        AND: [
+          where,
+          {
+            status: 'COMPLETED',
+            completedAt: { not: null },
+          },
+        ],
+      },
+      select: {
+        startedAt: true,
+        createdAt: true,
+        completedAt: true,
+      },
+    });
+  },
+
+  // --- Feature #5: Team Performance Aggregations ---
+
+  groupTasksByAssigneeAndStatus(where) {
+    return prisma.task.groupBy({
+      by: ['assignedTo', 'status'],
+      where,
+      _count: { _all: true },
+    });
+  },
+
+  groupOverdueTasksByAssignee(where, now = new Date()) {
+    return prisma.task.groupBy({
+      by: ['assignedTo'],
+      where: {
+        AND: [
+          where,
+          {
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          {
+            OR: [
+              { effectiveDeadline: { lt: now } },
+              {
+                effectiveDeadline: null,
+                plannedDeadline: { lt: now },
+              },
+            ],
+          },
+        ],
+      },
+      _count: { _all: true },
+    });
+  },
+
+  findCompletedTaskPerformanceTimings(where) {
+    return prisma.task.findMany({
+      where: {
+        AND: [
+          where,
+          {
+            status: 'COMPLETED',
+            completedAt: { not: null },
+          },
+        ],
+      },
+      select: {
+        assignedTo: true,
+        startedAt: true,
+        createdAt: true,
+        completedAt: true,
+        plannedDeadline: true,
+        effectiveDeadline: true,
+      },
+    });
+  },
+
+  findUsersByIds(ids) {
+    if (!ids.length) {
+      return Promise.resolve([]);
+    }
+
+    return prisma.user.findMany({
+      where: {
+        id: { in: ids },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        jobTitle: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  },
 };
