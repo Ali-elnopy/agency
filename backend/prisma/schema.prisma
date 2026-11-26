@@ -1,12 +1,12 @@
 generator client {
-  provider      = "prisma-client-js"
+  provider = "prisma-client-js"
   // binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL") 
+  directUrl = env("DIRECT_URL")
 }
 
 model Role {
@@ -87,6 +87,11 @@ model User {
 
   submittedChangeRequests ClientChangeRequest[] @relation("ClientChangeRequestClient")
   managedChangeRequests   ClientChangeRequest[] @relation("ClientChangeRequestManager")
+
+  // Client Requests
+  submittedClientRequests ClientRequest[] @relation("ClientRequestClient")
+  managedClientRequests   ClientRequest[] @relation("ClientRequestManager")
+  assignedClientRequests  ClientRequest[] @relation("ClientRequestEmployee")
 
   @@index([roleId])
   @@index([jobTitleId])
@@ -184,6 +189,9 @@ model Brand {
   onboarding           ClientOnboarding?
   strategies           Strategy[]
   clientChangeRequests ClientChangeRequest[]
+
+  // Client Requests
+  clientRequests ClientRequest[]
 
   @@index([accountManagerId])
   @@index([teamId])
@@ -287,10 +295,10 @@ model AuthSession {
 }
 
 model PasswordResetToken {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    Int       @map("user_id")
-  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
-  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    Int      @map("user_id")
+  tokenHash String   @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
 
   attempts            Int       @default(0) @map("attempts")
   verifiedAt          DateTime? @map("verified_at") @db.Timestamptz(6)
@@ -488,6 +496,7 @@ model StrategyApproval {
   @@index([approverId])
   @@map("strategy_approvals")
 }
+
 model Task {
   id            Int  @id @default(autoincrement())
   contentItemId Int? @map("content_item_id")
@@ -524,6 +533,9 @@ model Task {
   dependsOn           Task?                @relation("TaskDependency", fields: [dependsOnTaskId], references: [id], onDelete: SetNull)
   dependentTasks      Task[]               @relation("TaskDependency")
   clientChangeRequest ClientChangeRequest? @relation("ClientChangeRequestTask")
+
+  // Client Request relation
+  clientRequest ClientRequest? @relation("ClientRequestTask")
 
   @@index([contentItemId])
   @@index([assignedTo])
@@ -580,4 +592,39 @@ model ClientChangeRequest {
   @@index([accountManagerId])
   @@index([status])
   @@map("client_change_requests")
+}
+
+// Client Requests Module
+model ClientRequest {
+  id               Int  @id @default(autoincrement())
+  brandId          Int  @map("brand_id")
+  clientId         Int  @map("client_id")
+  accountManagerId Int  @map("account_manager_id")
+  employeeId       Int? @map("employee_id")
+
+  type            String  @db.VarChar(30)
+  description     String  @db.Text
+  status          String  @default("PENDING") @db.VarChar(20)
+  rejectionReason String? @map("rejection_reason") @db.Text
+
+  relatedTaskId Int?      @unique @map("related_task_id")
+  resolvedAt    DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  brand          Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  client         User  @relation("ClientRequestClient", fields: [clientId], references: [id], onDelete: Restrict)
+  accountManager User  @relation("ClientRequestManager", fields: [accountManagerId], references: [id], onDelete: Restrict)
+  employee       User? @relation("ClientRequestEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
+
+  relatedTask Task? @relation("ClientRequestTask", fields: [relatedTaskId], references: [id], onDelete: SetNull)
+
+  @@index([brandId])
+  @@index([clientId])
+  @@index([accountManagerId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("client_requests")
 }

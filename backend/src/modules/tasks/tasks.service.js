@@ -200,25 +200,37 @@ function assertCanChangeStatus(task, newStatus, currentUser) {
 }
 
 export const TasksService = {
-  async createDirectTask(input, currentUser) {
+  async createDirectTask(input, currentUser, db = prisma) {
     ensureAccountManager(currentUser);
 
     const createdBy = parseId(currentUser.id, 'User id');
     const assignee = await validateAssignee(input.assignedTo);
     const plannedDeadline = ensureValidDate(input.plannedDeadline, 'Planned deadline');
 
+    const taskData = {
+      contentItemId: null,
+      type: 'DIRECT',
+      title: input.title,
+      description: input.description ?? null,
+      assignedTo: assignee.id,
+      createdBy,
+      status: 'TODO',
+      priority: input.priority ?? 'MEDIUM',
+      plannedDeadline,
+      effectiveDeadline: plannedDeadline,
+    };
+
     try {
-      return await TasksModel.create({
-        contentItemId: null,
-        type: 'DIRECT',
-        title: input.title,
-        description: input.description ?? null,
-        assignedTo: assignee.id,
-        createdBy,
-        status: 'TODO',
-        priority: input.priority ?? 'MEDIUM',
-        plannedDeadline,
-        effectiveDeadline: plannedDeadline,
+      // Preserve the existing model response for normal calls.
+      // When a transaction client is supplied, create the task through
+      // that transaction so it can be committed or rolled back together
+      // with the related ClientRequest update.
+      if (db === prisma) {
+        return await TasksModel.create(taskData);
+      }
+
+      return await db.task.create({
+        data: taskData,
       });
     } catch (error) {
       mapPrismaError(error);
@@ -280,7 +292,7 @@ export const TasksService = {
           data: {
             contentItemId,
             type: 'CONTENT_CREATION',
-            title: `Create: ${contentItem.title}`,
+            title: `Create: ${contentItem.title} `,
             description: null,
             assignedTo: creationAssignee.id,
             createdBy,
@@ -295,7 +307,7 @@ export const TasksService = {
           data: {
             contentItemId,
             type: 'REVIEW',
-            title: `Review: ${contentItem.title}`,
+            title: `Review: ${contentItem.title} `,
             description: null,
             assignedTo: reviewer.id,
             createdBy,
@@ -327,27 +339,27 @@ export const TasksService = {
         ? null
         : roleName === 'ACCOUNT_MANAGER'
           ? {
-              OR: [
-                {
-                  assignedTo: currentUser.id,
-                },
-                {
-                  createdBy: currentUser.id,
-                },
-                {
-                  contentItem: {
-                    contentPlan: {
-                      brand: {
-                        accountManagerId: currentUser.id,
-                      },
+            OR: [
+              {
+                assignedTo: currentUser.id,
+              },
+              {
+                createdBy: currentUser.id,
+              },
+              {
+                contentItem: {
+                  contentPlan: {
+                    brand: {
+                      accountManagerId: currentUser.id,
                     },
                   },
                 },
-              ],
-            }
+              },
+            ],
+          }
           : {
-              assignedTo: currentUser.id,
-            };
+            assignedTo: currentUser.id,
+          };
 
     const filtersWhere = {};
 
@@ -402,8 +414,8 @@ export const TasksService = {
 
     const where = scopeWhere
       ? {
-          AND: [filtersWhere, scopeWhere],
-        }
+        AND: [filtersWhere, scopeWhere],
+      }
       : filtersWhere;
 
     return TasksModel.list(where);
@@ -640,12 +652,12 @@ export const TasksService = {
       creationTask = targetTask.dependsOnTaskId
         ? await TasksModel.findById(targetTask.dependsOnTaskId)
         : await prisma.task.findFirst({
-            where: {
-              contentItemId: targetTask.contentItemId,
-              type: { in: ['CONTENT_CREATION', 'CONTENT_MODIFICATION'] },
-            },
-            orderBy: { createdAt: 'desc' },
-          });
+          where: {
+            contentItemId: targetTask.contentItemId,
+            type: { in: ['CONTENT_CREATION', 'CONTENT_MODIFICATION'] },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
     } else {
       throw new ApiError(400, 'Only content creation, modification, or review tasks can be reviewed');
     }

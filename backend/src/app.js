@@ -18,7 +18,7 @@ import { filesRouter } from './modules/files/files.routes.js';
 import { clientOnboardingRouter } from './modules/client-onboarding/client-onboarding.routes.js';
 import { brandBriefsRouter } from './modules/brand-briefs/brand-briefs.routes.js';
 import { notificationsRouter } from './modules/notifications/notifications.routes.js';
-
+import { clientRequestsRouter } from './modules/client-requests/client-requests.routes.js';
 import { campaignsRouter } from './modules/campaigns/campaigns.routes.js';
 import {
   contentItemsRouter,
@@ -157,6 +157,9 @@ app.use('/api/v1/tasks', tasksRouter);
 
 app.use('/api/client-change-requests', clientChangeRequestsRouter);
 app.use('/api/v1/client-change-requests', clientChangeRequestsRouter);
+
+app.use('/api/client-requests', clientRequestsRouter);
+app.use('/api/v1/client-requests', clientRequestsRouter);
 
 app.use(notFound);
 app.use(errorHandler);
