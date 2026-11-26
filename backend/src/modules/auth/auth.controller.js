@@ -86,6 +86,16 @@ export const AuthController = {
     });
   }),
 
+  updateMe: asyncHandler(async (req, res) => {
+    const user = await AuthService.updateCurrentUserProfile(req.user.id, req.body);
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: { user },
+    });
+  }),
+
   changePassword: asyncHandler(async (req, res) => {
     const result = await AuthService.changePassword(req.user.id, req.authSession.id, req.body, {
       ipAddress: req.ip,

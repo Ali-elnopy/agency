@@ -445,6 +445,13 @@ export function BrandsProvider({ children }) {
       // a server rejection must surface as an error, never become a silent
       // local-only brand (BUG-002).
       if (demo) {
+        const duplicate = brands.some(
+          (item) => String(item.name ?? '').trim().toLowerCase() === name.toLowerCase(),
+        );
+        if (duplicate) {
+          throw new Error('A brand with this name already exists.');
+        }
+
         const brand = {
           id: makeId('brand'),
           name,

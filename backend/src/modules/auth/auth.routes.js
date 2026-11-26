@@ -6,6 +6,7 @@ import {
   loginSchema,
   refreshTokenSchema,
   changePasswordSchema,
+  updateProfileSchema,
   forgotPasswordSchema,
   verifyOtpSchema,
   resendOtpSchema,
@@ -106,6 +107,12 @@ authRouter.post(
 );
 
 authRouter.get('/me', authenticate, AuthController.me);
+authRouter.patch(
+  '/me',
+  authenticate,
+  validate(updateProfileSchema),
+  AuthController.updateMe,
+);
 
 authRouter.post(
   '/change-password',

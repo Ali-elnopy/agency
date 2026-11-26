@@ -128,3 +128,22 @@ export function clearSession() {
   remove(REFRESH_TOKEN_KEY);
   remove(USER_KEY);
 }
+
+function profilePhotoKey(userId) {
+  return `agency_profile_photo_${String(userId ?? '')}`;
+}
+
+export function getStoredProfilePhoto(userId) {
+  if (userId === undefined || userId === null || userId === '') return undefined;
+  const raw = read(profilePhotoKey(userId));
+  return raw === null ? undefined : raw;
+}
+
+export function setStoredProfilePhoto(userId, photo) {
+  if (userId === undefined || userId === null || userId === '') return;
+  if (photo === undefined || photo === null) {
+    remove(profilePhotoKey(userId));
+    return;
+  }
+  write(profilePhotoKey(userId), String(photo));
+}

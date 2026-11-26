@@ -125,6 +125,16 @@ export const BrandsModel = {
     });
   },
 
+  findByNameInsensitive(name, excludeId) {
+    return prisma.brand.findFirst({
+      where: {
+        name: { equals: name, mode: 'insensitive' },
+        ...(excludeId != null ? { id: { not: excludeId } } : {}),
+      },
+      select: { id: true, name: true },
+    });
+  },
+
   findAccessibleById(id, accessWhere) {
     return prisma.brand.findFirst({
       where: { id, ...accessWhere },

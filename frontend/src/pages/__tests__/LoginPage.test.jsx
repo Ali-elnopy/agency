@@ -146,4 +146,18 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password');
     expect(onNavigate).not.toHaveBeenCalled();
   });
+
+  it('shows inline validation for a malformed email without calling loginApi', async () => {
+    const user = userEvent.setup();
+    const onNavigate = renderLogin();
+
+    const emailInput = screen.getByLabelText(/work email/i);
+    await user.type(emailInput, 'not-an-email');
+    await user.tab();
+
+    expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent(/valid email address/i);
+    expect(loginApi).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
 });

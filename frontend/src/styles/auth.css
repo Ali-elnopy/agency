@@ -525,6 +525,18 @@ svg.input__lead {
   border-radius: 10px;
 }
 
+.field__error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #ef4444;
+}
+
+.input--invalid input {
+  border-color: #ef4444;
+}
+
 .quick-login {
   display: flex;
   flex-direction: column;

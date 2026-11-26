@@ -18,27 +18,34 @@ export default function ProfilePage() {
     () => ({
       fullName: user?.fullName || 'Elena Vance',
       email: user?.email || 'elena.vance@orvia-creative.com',
-      phone: user?.phone || '+1 (555) 382-9014',
+      phone: user?.phone ?? '',
     }),
     [user],
   );
 
+  const currentPhoto = user?.photo !== undefined ? user.photo : managerPhoto;
+
   const [profile, setProfile] = useState(currentProfile);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [photo, setPhoto] = useState(managerPhoto);
+  const [photo, setPhoto] = useState(currentPhoto);
 
   useEffect(() => {
     setProfile(currentProfile);
     setErrors({});
   }, [currentProfile]);
 
+  useEffect(() => {
+    setPhoto(currentPhoto);
+  }, [currentPhoto]);
+
   const notify = (message, tone = 'success') => showToast(t(message), tone);
 
   const isDirty =
     profile.fullName !== currentProfile.fullName ||
     profile.email !== currentProfile.email ||
-    profile.phone !== currentProfile.phone;
+    profile.phone !== currentProfile.phone ||
+    photo !== currentPhoto;
 
   const roleName =
     user?.role === 'ACCOUNT_MANAGER' ? 'Account Manager / Ops' : 'Studio Lead / Account Manager';
@@ -59,10 +66,28 @@ export default function ProfilePage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      notify('Please choose a PNG, JPG, or WEBP image.', 'danger');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      notify('Profile photo must be 5MB or smaller.', 'danger');
+      event.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = () => {
-      setPhoto(String(reader.result));
-      notify('Profile photo updated.');
+    reader.onload = async () => {
+      const nextPhoto = String(reader.result);
+      setPhoto(nextPhoto);
+      try {
+        await updateProfile({ photo: nextPhoto });
+        notify('Profile photo updated.');
+      } catch (error) {
+        notify(error.message || 'Could not save your profile photo.', 'danger');
+      }
     };
     reader.readAsDataURL(file);
     event.target.value = '';
@@ -72,9 +97,14 @@ export default function ProfilePage() {
     notify('Crop tool opened.', 'info');
   };
 
-  const handleRemovePhoto = () => {
+  const handleRemovePhoto = async () => {
     setPhoto('');
-    notify('Profile photo removed.', 'info');
+    try {
+      await updateProfile({ photo: '' });
+      notify('Profile photo removed.', 'info');
+    } catch (error) {
+      notify(error.message || 'Could not remove your profile photo.', 'danger');
+    }
   };
 
   const handleSave = async () => {
@@ -90,6 +120,7 @@ export default function ProfilePage() {
         name: profile.fullName.trim(),
         email: profile.email.trim().toLowerCase(),
         phone: profile.phone.trim(),
+        photo,
       });
       notify('Profile changes saved successfully.');
     } catch (error) {
@@ -101,6 +132,7 @@ export default function ProfilePage() {
 
   const handleDiscard = () => {
     setProfile(currentProfile);
+    setPhoto(currentPhoto);
     setErrors({});
     notify('Changes discarded.', 'info');
   };

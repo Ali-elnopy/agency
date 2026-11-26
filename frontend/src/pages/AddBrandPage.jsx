@@ -158,6 +158,11 @@ export default function AddBrandPage({ onBack, onSaved }) {
           }
           return next;
         });
+      } else if (/brand with this name already exists/i.test(error?.message ?? '')) {
+        setErrors((prev) => ({
+          ...prev,
+          name: 'A brand with this name already exists.',
+        }));
       } else if (/email already exists/i.test(error?.message ?? '')) {
         setErrors((prev) => ({
           ...prev,

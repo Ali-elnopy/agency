@@ -202,6 +202,26 @@ export const AuthService = {
     return user;
   },
 
+  async updateCurrentUserProfile(userId, input) {
+    const existing = await AuthModel.findUserById(userId);
+
+    if (!existing || !existing.isActive) {
+      throw new ApiError(401, 'User account is unavailable');
+    }
+
+    const data = {};
+
+    if (input.fullName !== undefined) {
+      data.fullName = input.fullName;
+    }
+
+    if (input.phone !== undefined) {
+      data.phone = input.phone || null;
+    }
+
+    return AuthModel.updateUserProfile(userId, data);
+  },
+
   async changePassword(
     userId,
     currentSessionId,

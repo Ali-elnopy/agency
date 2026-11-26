@@ -3,6 +3,14 @@ import InfoModal from '../components/modals/InfoModal';
 import Logo from '../components/Logo';
 import useAuth from '../hooks/useAuth';
 import { useSprint3 } from '../context/sprint3Store';
+import { isValidEmail } from '../utils/validation';
+
+function validateEmailField(value, { requireNonEmpty = false } = {}) {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return requireNonEmpty ? 'Work email is required.' : '';
+  if (!isValidEmail(trimmed)) return 'Please enter a valid email address.';
+  return '';
+}
 
 export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
   const auth = useAuth();
@@ -15,8 +23,26 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isTrialOpen, setIsTrialOpen] = useState(false);
+
+  const handleEmailChange = (e) => {
+    const nextValue = e.target.value;
+    setEmail(nextValue);
+    if (emailError) {
+      setEmailError(validateEmailField(nextValue));
+    }
+  };
+
+  const handleEmailBlur = () => {
+    setEmailError(validateEmailField(email));
+  };
+
+  const handleEmailInvalid = (e) => {
+    e.preventDefault();
+    setEmailError(validateEmailField(e.target.value, { requireNonEmpty: true }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,6 +58,13 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
       return;
     }
 
+    const nextEmailError = validateEmailField(email, { requireNonEmpty: true });
+    if (nextEmailError) {
+      setEmailError(nextEmailError);
+      return;
+    }
+
+    setEmailError('');
     setLoading(true);
 
     try {
@@ -129,7 +162,7 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
               <label htmlFor="email" className="is-req">
                 {t('Work Email')}
               </label>
-              <div className="input input--icon">
+              <div className={`input input--icon${emailError ? ' input--invalid' : ''}`}>
                 <svg className="input__lead" viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2.5" />
                   <path d="M3.5 7.5l8.5 6 8.5-6" />
@@ -139,12 +172,21 @@ export default function LoginPage({ onNavigate, theme, onToggleTheme }) {
                   id="email"
                   name="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
+                  onBlur={handleEmailBlur}
+                  onInvalid={handleEmailInvalid}
                   placeholder="elena.vance@orvia-partners.agency.com"
                   autoComplete="email"
+                  aria-invalid={Boolean(emailError)}
+                  aria-describedby={emailError ? 'email-error' : undefined}
                   required={!DEV_BYPASS}
                 />
               </div>
+              {emailError && (
+                <span id="email-error" className="field__error" role="alert">
+                  {t(emailError)}
+                </span>
+              )}
             </div>
 
             <div className="field">

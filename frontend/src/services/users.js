@@ -1,6 +1,6 @@
 import { ApiError, apiRequest } from './http';
-import { isMockApiEnabled } from './api';
-import { getAccessToken } from './tokenStorage';
+import { changeMockPassword, isMockApiEnabled } from './api';
+import { getAccessToken, getStoredUser } from './tokenStorage';
 import { DIRECTORY_STATS, DIRECTORY_USERS } from '../data/users';
 import { RBAC_ROLES } from '../data/rbac';
 
@@ -505,6 +505,11 @@ export async function changePassword({ currentPassword, newPassword }) {
     if (!canUseMock(error)) throw error;
 
     await sleep(MOCK_LATENCY);
-    return { success: true };
+    const storedUser = getStoredUser();
+    return changeMockPassword({
+      email: storedUser?.email ?? '',
+      currentPassword,
+      newPassword,
+    });
   }
 }

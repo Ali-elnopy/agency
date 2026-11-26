@@ -145,6 +145,29 @@ function mockLogin(normalizedEmail, password) {
   return { success: true, data: { user: safeUser, isMock: true } };
 }
 
+export function changeMockPassword({ email, currentPassword, newPassword } = {}) {
+  const normalizedEmail = normalizeEmailInput(email);
+  const account = MOCK_ACCOUNTS.find(
+    (candidate) => candidate.email.toLowerCase() === normalizedEmail,
+  );
+
+  const expectedPassword = account?.password ?? 'Password123!';
+
+  if (currentPassword !== expectedPassword) {
+    throw new ApiError('Current password is incorrect', 400);
+  }
+
+  if (newPassword === currentPassword) {
+    throw new ApiError('New password must differ from current password', 400);
+  }
+
+  if (account) {
+    account.password = newPassword;
+  }
+
+  return { success: true, message: 'Password changed successfully' };
+}
+
 export async function loginApi({ email, password } = {}) {
   const normalizedEmail = normalizeEmailInput(email);
   if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
@@ -391,6 +414,30 @@ export async function fetchCurrentUserApi() {
   // Keep the same normalised shape that login stores: `role` is the role name
   // string and `roleId` the numeric id, because the shell compares strings.
   return normalizeSessionUser(user);
+}
+
+export async function updateCurrentUserProfileApi({ fullName, phone } = {}) {
+  const token = getAccessToken();
+  const isLocalSession =
+    !token ||
+    token === 'dev-bypass-token' ||
+    token.startsWith('mock-') ||
+    (import.meta.env.DEV && isMockApiEnabled());
+
+  const payload = {};
+  if (fullName !== undefined) payload.fullName = String(fullName).trim();
+  if (phone !== undefined) payload.phone = String(phone).trim() || null;
+
+  if (isLocalSession) {
+    return payload;
+  }
+
+  const body = await apiRequest('/auth/me', {
+    method: 'PATCH',
+    body: payload,
+  });
+
+  return normalizeSessionUser(body?.data?.user) ?? payload;
 }
 
 export function logout() {

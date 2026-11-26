@@ -105,6 +105,14 @@ export const AuthModel = {
     });
   },
 
+  updateUserProfile(id, data) {
+    return prisma.user.update({
+      where: { id },
+      data,
+      select: publicUserSelect,
+    });
+  },
+
   updateLastLogin(userId) {
     return prisma.user.update({
       where: { id: userId },

@@ -37,6 +37,27 @@ export const changePasswordSchema = z
     message: 'New password must differ from current password',
   });
 
+export const updateProfileSchema = z
+  .object({
+    fullName: z
+      .string()
+      .trim()
+      .min(2, 'Full name must be at least 2 characters')
+      .max(150, 'Full name must not exceed 150 characters')
+      .optional(),
+
+    phone: z
+      .string()
+      .trim()
+      .max(30, 'Phone number must not exceed 30 characters')
+      .nullable()
+      .optional(),
+  })
+  .strict()
+  .refine((data) => data.fullName !== undefined || data.phone !== undefined, {
+    message: 'At least one field must be provided',
+  });
+
 export const forgotPasswordSchema = z
   .object({
     email: z

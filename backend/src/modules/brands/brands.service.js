@@ -174,6 +174,11 @@ function mapPrismaError(error) {
 
 export const BrandsService = {
   async createBrand(input, adminId) {
+    const duplicate = await BrandsModel.findByNameInsensitive(input.name);
+    if (duplicate) {
+      throw new ApiError(409, 'A brand with this name already exists');
+    }
+
     await validateTeam(input.teamId);
     await validateAccountManager(input.accountManagerId);
 
@@ -248,6 +253,16 @@ export const BrandsService = {
       !BRAND_STATUSES.has(lowerStatus)
     ) {
       throw new ApiError(400, 'Invalid brand status');
+    }
+
+    if (input.name !== undefined) {
+      const duplicate = await BrandsModel.findByNameInsensitive(
+        input.name,
+        brand.id,
+      );
+      if (duplicate) {
+        throw new ApiError(409, 'A brand with this name already exists');
+      }
     }
 
     if (input.teamId !== undefined) {

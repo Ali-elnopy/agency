@@ -5,14 +5,22 @@ import {
   isDevBypassEnabled,
   loginApi,
   logout as clearServerSession,
+  updateCurrentUserProfileApi,
 } from '../services/api';
-import { updateUser } from '../services/users';
 import {
+  getStoredProfilePhoto,
   getStoredUser,
   hasStoredSession,
   setSession,
+  setStoredProfilePhoto,
   setStoredUser,
 } from '../services/tokenStorage';
+
+function attachStoredPhoto(rawUser) {
+  if (!rawUser) return null;
+  const storedPhoto = getStoredProfilePhoto(rawUser.id);
+  return storedPhoto !== undefined ? { ...rawUser, photo: storedPhoto } : rawUser;
+}
 
 function createDevSession(setUser) {
   // Inline DEV check (plus the exported guard) keeps this whole block out of
@@ -42,7 +50,9 @@ function createDevSession(setUser) {
 }
 
 export default function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => (hasStoredSession() ? getStoredUser() : null));
+  const [user, setUser] = useState(() =>
+    hasStoredSession() ? attachStoredPhoto(getStoredUser()) : null,
+  );
 
   // Re-hydrate the signed-in user from the API so role, job title and account
   // status changes made by an admin are picked up without a new login. A failed
@@ -56,7 +66,7 @@ export default function AuthProvider({ children }) {
       .then((fresh) => {
         if (!alive || !fresh) return;
         setStoredUser(fresh);
-        setUser(fresh);
+        setUser(attachStoredPhoto(fresh));
       })
       .catch(() => {
         // Keep the cached session; http.js already distinguishes 401s.
@@ -69,7 +79,7 @@ export default function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const result = await loginApi(credentials);
-    if (result.success) setUser(result.data.user);
+    if (result.success) setUser(attachStoredPhoto(result.data.user));
     return result;
   }, []);
 
@@ -82,39 +92,44 @@ export default function AuthProvider({ children }) {
     async (patch) => {
       if (!user) throw new Error('No authenticated user.');
 
-      let updated;
+      const hasProfileFields =
+        patch.name !== undefined || patch.fullName !== undefined || patch.phone !== undefined;
 
-      try {
-        updated = await updateUser(user.id, patch);
-      } catch (error) {
-        // The API manages directory accounts (admin-only) and exposes no
-        // self-profile endpoint yet. Keep the signed-in identity in sync for
-        // this workspace instead of failing the save outright.
-        const cannotSelfEdit =
-          error?.status === 403 ||
-          error?.status === 404 ||
-          /administrator accounts/i.test(error?.message ?? '');
+      let updated = null;
 
-        if (!cannotSelfEdit) throw error;
-
-        updated = {
-          id: user.id,
-          name: patch.name ?? user.fullName,
-          fullName: patch.name ?? user.fullName,
-          email: patch.email ?? user.email,
-          phone: patch.phone ?? user.phone ?? '',
-        };
+      if (hasProfileFields) {
+        updated = await updateCurrentUserProfileApi({
+          fullName: patch.name ?? patch.fullName,
+          phone: patch.phone,
+        });
       }
 
-      const nextUser = {
+      if (patch.photo !== undefined) {
+        setStoredProfilePhoto(user.id, patch.photo);
+      }
+
+      const persistedUser = {
         ...user,
-        fullName: updated?.name ?? updated?.fullName ?? user.fullName,
+        fullName: updated?.fullName ?? patch.name ?? patch.fullName ?? user.fullName,
         email: updated?.email ?? user.email,
-        phone: updated?.phone ?? user.phone,
+        phone:
+          updated?.phone !== undefined
+            ? updated.phone ?? ''
+            : patch.phone !== undefined
+              ? patch.phone
+              : user.phone ?? '',
       };
 
+      // Keep the photo in its own storage slot so `agency_user` stays small.
+      const { photo: _omitPhoto, ...storageUser } = persistedUser;
+      setStoredUser(storageUser);
+
+      const nextUser =
+        patch.photo !== undefined
+          ? { ...storageUser, photo: patch.photo }
+          : attachStoredPhoto(storageUser);
+
       setUser(nextUser);
-      setStoredUser(nextUser);
       return nextUser;
     },
     [user],
