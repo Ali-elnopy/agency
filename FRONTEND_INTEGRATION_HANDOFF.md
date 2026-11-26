@@ -8,9 +8,9 @@
 ## 1. Backend Status
 
 - **Status:** **READY** for frontend integration.
-- **Database Migrations:** 19/19 Prisma migrations applied (`Database schema is up to date`).
-- **Automated Tests:** 16/16 unit/integration test files passed (**134/134 tests**) + 1/1 live Supabase integration test passed (**135/135 total**).
-- **ESLint:** **0 errors** (1 pre-existing unused-variable warning in `platform-accounts.service.js`).
+- **Database Migrations:** 20/20 Prisma migrations applied (`Database schema is up to date`).
+- **Automated Tests:** 20/20 unit/integration test files passed (**149/149 tests**) + 1/1 live Supabase integration test passed (**150/150 total**).
+- **ESLint:** **0 errors** (5 pre-existing unused-variable warnings in untouched files).
 
 ---
 
@@ -70,11 +70,18 @@ All endpoints below require `Authorization: Bearer <accessToken>`.
 | Method | Path | Allowed Roles | Purpose |
 |---|---|---|---|
 | `GET` | `/api/v1/content-items` | All authenticated (`CLIENT` scoped to own brand) | List content items (filters: `contentPlanId`, `campaignId`, `type`) |
-| `GET` | `/api/v1/content-items/:id` | All authenticated (`CLIENT` scoped to own brand) | Get content item details (includes `clientReviewStatus`, `clientApprovedAt`) |
+| `GET` | `/api/v1/content-items/calendar` | All authenticated (role-scoped) | Calendar view of scheduled content items (filters: `from`, `to`, `brandId`, `campaignId`, `contentType`, `platformAccountId`, `clientReviewStatus`, `publishStatus`) |
+| `GET` | `/api/v1/content-items/:id` | All authenticated (`CLIENT` scoped to own brand) | Get content item details (includes `clientReviewStatus`, `clientApprovedAt`, `publishStatus`, `publishedAt`, `publishUrl`) |
 | `POST` | `/api/v1/content-items` | `CONTENT_CREATOR` (team member of brand) | Create content item |
-| `PATCH` | `/api/v1/content-items/:id` | `CONTENT_CREATOR` (team member of brand) | Update content item |
+| `PATCH` | `/api/v1/content-items/:id` | `CONTENT_CREATOR` (team member of brand) | Update content item (accepts optional `changeReason`; auto-creates revision when content fields change) |
 | `DELETE` | `/api/v1/content-items/:id` | `CONTENT_CREATOR` (team member of brand) | Delete content item |
+| `GET` | `/api/v1/content-items/:id/revisions` | `ADMIN`, assigned-brand `ACCOUNT_MANAGER`, owning `CLIENT`, authorized `CREATIVE`/`CONTENT_CREATOR` | List revision history for a content item (`?order=desc\|asc`) |
+| `GET` | `/api/v1/content-items/:id/revisions/:revisionId` | Same as above | Get single revision snapshot |
+| `GET` | `/api/v1/content-items/:id/publishing` | `ADMIN`, assigned-brand `ACCOUNT_MANAGER`, owning `CLIENT`, authorized `CREATIVE`/`CONTENT_CREATOR` | Get publishing tracking details |
+| `PATCH` | `/api/v1/content-items/:id/publishing` | `ADMIN`, assigned-brand `ACCOUNT_MANAGER` (`CLIENT`/`CREATIVE`/`CONTENT_CREATOR` → `403`) | Update `publishStatus`, `publishUrl`, `publishedAt`, `publishNotes` (requires `clientReviewStatus === 'APPROVED'`) |
 | `POST` | `/api/v1/content-items/:id/client-review` | `CLIENT` (own brand only) | Submit Client Review (`APPROVE` or `REQUEST_CHANGES`) |
+| `GET` | `/api/v1/dashboard/progress` | `ADMIN`, `ACCOUNT_MANAGER` (assigned brands), `CREATIVE`/`CONTENT_CREATOR` (own tasks only) (`CLIENT` → `403`) | Server-side task progress metrics (filters: `brandId`, `campaignId`, `assigneeId`, `from`, `to`, `status`) |
+| `GET` | `/api/v1/dashboard/team-performance` | `ADMIN`, `ACCOUNT_MANAGER` (assigned brands), `CREATIVE`/`CONTENT_CREATOR` (own metrics only) (`CLIENT` → `403`) | Dynamic per-employee performance metrics (filters: `from`, `to`, `teamId`, `userId`, `brandId`) |
 | `GET` | `/api/v1/tasks` | `ADMIN`, `ACCOUNT_MANAGER`, `CONTENT_CREATOR`, `CREATIVE` (`CLIENT` → `403`) | List tasks (role-scoped; query filters validated by `taskListQuerySchema`) |
 | `GET` | `/api/v1/tasks/:id` | `ADMIN`, assigned-brand `ACCOUNT_MANAGER`, task assignee, task creator (`CLIENT` → `403`) | Get single task with `contentItem`, `assignee`, `creator`, `dependsOn` |
 | `POST` | `/api/v1/tasks/direct` | `ADMIN`, `ACCOUNT_MANAGER` | Create standalone `DIRECT` task |
@@ -509,6 +516,7 @@ All notifications are returned by `GET /api/v1/notifications` with `{ id, type, 
 | `CLIENT_CHANGE_REQUEST_CREATED` | Client submits `REQUEST_CHANGES` | Brand `ACCOUNT_MANAGER` | `{ changeRequestId, contentItemId, brandId, clientId, clientNotes }` | Open Client Change Request (`changeRequestId`) |
 | `CLIENT_CHANGE_REQUEST_RESOLVED` | AM resolves request without modification | `CLIENT` | `{ changeRequestId, contentItemId, brandId, notes }` | Open Content Item Client Review (`contentItemId`) |
 | `TASK_MODIFICATION_ASSIGNED` | AM forwards change request to Creative | Assigned Creative/Creator | `{ changeRequestId, taskId, reviewTaskId, contentItemId, clientNotes, accountManagerNotes }` | Open Modification Task (`taskId`) |
+| `CONTENT_PUBLISHED` | AM/Admin marks approved content as `PUBLISHED` | `CLIENT` | `{ contentItemId, brandId, publishUrl, publishedAt }` | Open Content Item / External Published Post (`publishUrl`) |
 
 ---
 
@@ -597,16 +605,212 @@ All notifications are returned by `GET /api/v1/notifications` with `{ id, type, 
 
 ## 24. Test Results
 
-- **Vitest (unit & integration):** `16/16` test files passed, `134/134` tests passed (`tests/client-review-workflow.test.js`: 9/9, `tests/tasks-internal-review.test.js`: 7/7, `tests/tasks-workflow-and-submission.test.js`: 6/6, `src/modules/tasks/tasks.authorization.test.js`: 19/19, `tests/content-management-access.test.js`: 4/4, plus all auth/users/brands/notifications/content-plans/content-items/onboarding tests).
+- **Vitest (unit & integration):** `20/20` test files passed, `149/149` tests passed (including new suites: `tests/content-revisions.test.js`, `tests/content-publishing.test.js`, `tests/content-calendar.test.js`, `tests/dashboard-reporting.test.js`, plus all existing workflow/auth/brands/notifications tests).
 - **Vitest (live Supabase integration):** `tests/content-plan-notifications.supabase.test.js` `1/1` passed.
-- **ESLint:** `0` errors, `1` pre-existing warning (`validateBrand` unused in `platform-accounts.service.js`).
-- **Prisma Migrations:** `19/19` applied (`Database schema is up to date`).
+- **ESLint:** `0` errors (5 pre-existing warnings in untouched files).
+- **Prisma Migrations:** `20/20` applied (`Database schema is up to date`).
 
 ---
 
-## 25. Known Limitations / Assumptions
+## 25. New Features Contract (Revision History, Publishing, Calendar, Progress, Team Performance)
 
-1. **No multi-round submission history table:** `Task` stores single-slot `submissionUrl`, `submissionNotes`, `submittedAt`, and `REVIEW.description`. Each forwarded client change request creates a *new* `CONTENT_MODIFICATION` + `REVIEW` task pair (preserving prior rounds' tasks), while multiple internal `NEEDS_CHANGES` resubmissions on the *same* task overwrite `submissionUrl`/`submittedAt` (preserving `submissionNotes` if omitted).
+### A. Revision History API
+
+Revisions are automatically captured on:
+1. Meaningful `PATCH /api/v1/content-items/:id` updates (`title`, `type`, `scheduledDate`, `reference`, `toneOfVoice`, `caption`, `notes`) — `source: "CONTENT_UPDATE"`. No-op updates do not create revisions.
+2. `POST /api/v1/tasks/:id/submit` for `CONTENT_CREATION` (`source: "CONTENT_CREATION_SUBMISSION"`) or `CONTENT_MODIFICATION` (`source: "CONTENT_MODIFICATION_SUBMISSION"`).
+3. `PATCH /api/v1/client-change-requests/:id/forward` (`source: "CLIENT_CHANGE_REQUEST"`).
+
+**Endpoints:**
+- `GET /api/v1/content-items/:id/revisions?order=desc|asc` (default `desc`)
+- `GET /api/v1/content-items/:id/revisions/:revisionId`
+
+**Response (`200`):**
+```json
+{
+  "success": true,
+  "message": "Content item revisions retrieved successfully",
+  "data": {
+    "contentItemId": 100,
+    "total": 2,
+    "revisions": [
+      {
+        "id": 2,
+        "contentItemId": 100,
+        "revisionNumber": 2,
+        "title": "Summer Promo Reel",
+        "type": "REEL",
+        "scheduledDate": "2026-12-01T10:00:00.000Z",
+        "reference": "https://ref.example.com/1",
+        "toneOfVoice": "Energetic",
+        "caption": "Updated caption",
+        "notes": "Notes",
+        "submissionUrl": "https://cdn.example.com/reel-v1.mp4",
+        "submissionNotes": "First cut ready",
+        "source": "CONTENT_CREATION_SUBMISSION",
+        "changeReason": "First cut ready",
+        "taskId": 200,
+        "createdBy": 5,
+        "createdAt": "2026-11-26T18:00:00.000Z",
+        "creator": { "id": 5, "fullName": "Jane Creative", "email": "jane@agency.com" }
+      }
+    ]
+  }
+}
+```
+
+**Authorization:** `ADMIN` (all), `ACCOUNT_MANAGER` (assigned brands), `CLIENT` (own brand), `CREATIVE`/`CONTENT_CREATOR` (creator, brand team member, or assigned task on the content item).
+
+---
+
+### B. Publishing Tracking API
+
+**Enum `publishStatus`:** `NOT_PUBLISHED` (default) | `SCHEDULED` | `PUBLISHED` | `FAILED`
+
+**New fields on `ContentItem`:** `publishStatus`, `publishedAt`, `publishUrl`, `publishedBy`, `publishNotes`, `publisher`.
+
+**Endpoints:**
+- `GET /api/v1/content-items/:id/publishing` — same read authorization as Revision History.
+- `PATCH /api/v1/content-items/:id/publishing` — `ADMIN` and assigned-brand `ACCOUNT_MANAGER` only (`CLIENT`, `CREATIVE`, `CONTENT_CREATOR` → `403`).
+
+**Request (`PATCH`):**
+```json
+{
+  "publishStatus": "PUBLISHED",
+  "publishUrl": "https://instagram.com/p/live-post-100",
+  "publishedAt": "2026-12-10T10:05:00.000Z",
+  "publishNotes": "Published on schedule"
+}
+```
+
+**Rules & Error Cases (`400`):**
+- `clientReviewStatus` MUST be `APPROVED` before moving to `SCHEDULED`, `PUBLISHED`, or `FAILED`.
+- `publishUrl` must be a valid `http://` or `https://` URL and is required when `publishStatus === "PUBLISHED"`.
+- `publishedAt` defaults to current server timestamp if omitted when marking `PUBLISHED`.
+- Once `PUBLISHED`, reverting to `NOT_PUBLISHED`, `SCHEDULED`, or `FAILED` returns `400`.
+- Transitioning to `PUBLISHED` sends a `CONTENT_PUBLISHED` notification to the brand's `CLIENT`.
+
+**Frontend UI State Mapping (`publishStatus`):**
+- `NOT_PUBLISHED` → "Not published" (show **Schedule** / **Mark Published** to AM/Admin only when `clientReviewStatus === 'APPROVED'`)
+- `SCHEDULED` → "Scheduled" (show **Mark Published** / **Mark Failed** to AM/Admin)
+- `PUBLISHED` → "Published" badge + external link to `publishUrl` + `publishedAt`
+- `FAILED` → "Publish failed" + `publishNotes` + retry actions
+
+---
+
+### C. Calendar API
+
+**Endpoint:** `GET /api/v1/content-items/calendar`
+
+**Query Parameters (all optional, Zod validated):**
+`from`, `to` (ISO dates; `from > to` returns `400`), `brandId`, `campaignId`, `contentType`, `platformAccountId`, `clientReviewStatus`, `publishStatus`.
+
+**Response (`200`):**
+```json
+{
+  "success": true,
+  "message": "Content calendar retrieved successfully",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "title": "Dec 05 Reel",
+        "contentType": "REEL",
+        "scheduledDate": "2026-12-05T10:00:00.000Z",
+        "clientReviewStatus": "APPROVED",
+        "publishStatus": "PUBLISHED",
+        "publishedAt": "2026-12-05T10:05:00.000Z",
+        "publishUrl": "https://instagram.com/reel/1",
+        "platform": { "id": 30, "platform": "INSTAGRAM", "accountName": "@brandA" },
+        "brand": { "id": 10, "name": "Brand A" },
+        "campaign": { "id": 50, "name": "Winter Launch" },
+        "taskStatus": "COMPLETED"
+      }
+    ],
+    "total": 1,
+    "range": { "from": "2026-12-01T00:00:00.000Z", "to": "2026-12-31T23:59:59.000Z" }
+  }
+}
+```
+
+**Authorization:** `ADMIN` (all), `ACCOUNT_MANAGER` (assigned brands), `CLIENT` (own brand; `taskStatus` is always `null` to avoid exposing internal workflow status), `CREATIVE`/`CONTENT_CREATOR` (brand team, created items, or assigned tasks).
+
+---
+
+### D. Progress Tracking API
+
+**Endpoint:** `GET /api/v1/dashboard/progress`
+
+**Query Parameters (optional):** `brandId`, `campaignId`, `assigneeId`, `from`, `to` (ISO dates on task `createdAt`; `from > to` → `400`), `status`.
+
+**Response (`200`):**
+```json
+{
+  "success": true,
+  "message": "Progress metrics retrieved successfully",
+  "data": {
+    "totalTasks": 10,
+    "todoTasks": 2,
+    "inProgressTasks": 3,
+    "submittedTasks": 1,
+    "inReviewTasks": 1,
+    "needsChangesTasks": 0,
+    "completedTasks": 3,
+    "cancelledTasks": 0,
+    "overdueTasks": 2,
+    "completionRate": 30,
+    "averageCompletionTime": 5.25,
+    "filters": { "brandId": null, "campaignId": null, "assigneeId": null, "status": null, "from": null, "to": null }
+  }
+}
+```
+> Units: `completionRate` is a percentage (`0..100`); `averageCompletionTime` is in **hours** (`null` when no completed tasks).
+
+**Authorization:** `ADMIN` (all), `ACCOUNT_MANAGER` (assigned brands / own tasks), `CREATIVE`/`CONTENT_CREATOR` (own tasks only; passing another `assigneeId` → `403`), `CLIENT` → `403`.
+
+---
+
+### E. Team Performance API
+
+**Endpoint:** `GET /api/v1/dashboard/team-performance`
+
+**Query Parameters (optional):** `from`, `to` (ISO dates on task `createdAt`; `from > to` → `400`), `teamId`, `userId`, `brandId`.
+
+**Response (`200`):**
+```json
+{
+  "success": true,
+  "message": "Team performance retrieved successfully",
+  "data": {
+    "members": [
+      {
+        "user": { "id": 5, "fullName": "Alice Creative", "email": "alice@test.com", "role": "CREATIVE", "jobTitle": "Video Editor" },
+        "totalAssignedTasks": 3,
+        "completedTasks": 2,
+        "inProgressTasks": 1,
+        "overdueTasks": 1,
+        "completedOnTime": 1,
+        "completedLate": 1,
+        "completionRate": 66.67,
+        "onTimeRate": 50,
+        "averageCompletionTime": 5,
+        "averageDelay": 2
+      }
+    ],
+    "totalMembers": 1,
+    "filters": { "from": null, "to": null, "teamId": null, "userId": null, "brandId": null }
+  }
+}
+```
+> Units: `completionRate` and `onTimeRate` are percentages (`0..100`); `averageCompletionTime` and `averageDelay` are in **hours** (`null` when `completedTasks === 0`, `averageDelay: 0` when no late completions).
+
+**Authorization:** `ADMIN` (all), `ACCOUNT_MANAGER` (assigned brands / own tasks), `CREATIVE`/`CONTENT_CREATOR` (own performance only; passing another `userId` or `teamId` → `403`), `CLIENT` → `403`.
+
+---
+
+## 26. Known Limitations / Assumptions
+
+1. **Task submission single-slot + Revision History:** `Task` still stores the latest `submissionUrl`/`submissionNotes`/`submittedAt`, while every `CONTENT_CREATION` and `CONTENT_MODIFICATION` submission now appends an immutable `ContentItemRevision` snapshot preserving previous URLs and content state.
 2. **`TaskDeadlineRule` seeding:** `prisma/seed.js` does not seed `task_deadline_rules`. Initial `POST /api/v1/tasks/content-items/:id/assign` requires active rules for `(contentItem.type, 'CONTENT_CREATION')` and `(contentItem.type, 'REVIEW')`; `forward` gracefully falls back to `plannedDeadline` or `contentItem.scheduledDate` if rules are absent.
-3. **Publish stage not yet implemented:** `clientReviewStatus === 'APPROVED'` marks the content item ready for publishing; `PUBLISH` task automation is out of scope for this phase.
+3. **Publishing tracking is manual/API-driven:** `PATCH /api/v1/content-items/:id/publishing` tracks publishing state (`NOT_PUBLISHED`, `SCHEDULED`, `PUBLISHED`, `FAILED`) and live URLs; direct third-party social network auto-posting is out of scope for MVP.
 4. **JSON body limit:** Global `express.json({ limit: '10kb' })` applies to all JSON requests; file uploads must go through `POST /api/v1/files/upload` (`multipart/form-data`, up to 50MB) and pass the returned URL as `submissionUrl`.

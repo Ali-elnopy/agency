@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { getRoleName } from '../../utils/roles.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { ContentItemsModel } from '../content-items/content-items.model.js';
 import {
   ClientChangeRequestsModel,
   changeRequestSelect,
@@ -446,6 +447,22 @@ export const ClientChangeRequestsService = {
           clientApprovedAt: true,
         },
       });
+
+      if (
+        contentItem &&
+        typeof ContentItemsModel.createRevisionSnapshot === 'function'
+      ) {
+        await ContentItemsModel.createRevisionSnapshot(
+          {
+            contentItem,
+            createdBy: currentUser.id,
+            source: 'CLIENT_CHANGE_REQUEST',
+            changeReason: changeRequest.clientNotes,
+            taskId: modificationTask.id,
+          },
+          tx,
+        );
+      }
 
       await NotificationsService.create(
         {

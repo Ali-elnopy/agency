@@ -74,6 +74,8 @@ model User {
   assignedContentPlans ContentPlan[] @relation("ContentPlanAssignee")
   createdCampaigns     Campaign[]    @relation("CampaignCreator")
   createdContentItems  ContentItem[] @relation("ContentItemCreator")
+  publishedContentItems ContentItem[] @relation("ContentItemPublisher")
+  createdContentItemRevisions ContentItemRevision[] @relation("ContentItemRevisionCreator")
 
   generatedBriefs BrandBrief[]   @relation("BriefGenerator")
   notifications   Notification[] @relation("NotificationRecipient")
@@ -405,8 +407,15 @@ model ContentItem {
   clientReviewStatus String    @default("NOT_READY") @map("client_review_status") @db.VarChar(30)
   clientApprovedAt   DateTime? @map("client_approved_at") @db.Timestamptz(6)
 
+  publishStatus String    @default("NOT_PUBLISHED") @map("publish_status") @db.VarChar(30)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(6)
+  publishUrl    String?   @map("publish_url") @db.Text
+  publishedBy   Int?      @map("published_by")
+  publishNotes  String?   @map("publish_notes") @db.Text
+
   tasks                Task[]
   clientChangeRequests ClientChangeRequest[]
+  revisions            ContentItemRevision[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -414,13 +423,48 @@ model ContentItem {
   contentPlan ContentPlan @relation(fields: [contentPlanId], references: [id], onDelete: Cascade)
   campaign    Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   creator     User        @relation("ContentItemCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  publisher   User?       @relation("ContentItemPublisher", fields: [publishedBy], references: [id], onDelete: SetNull)
 
   @@index([contentPlanId])
   @@index([campaignId])
   @@index([createdBy])
   @@index([scheduledDate])
   @@index([clientReviewStatus])
+  @@index([publishStatus])
+  @@index([publishedAt])
   @@map("content_items")
+}
+
+model ContentItemRevision {
+  id             Int @id @default(autoincrement())
+  contentItemId  Int @map("content_item_id")
+  revisionNumber Int @map("revision_number")
+
+  title         String   @db.VarChar(200)
+  type          String   @db.VarChar(50)
+  scheduledDate DateTime @map("scheduled_date") @db.Timestamptz(6)
+  reference     String?  @db.Text
+  toneOfVoice   String?  @map("tone_of_voice") @db.Text
+  caption       String?  @db.Text
+  notes         String?  @db.Text
+
+  submissionUrl   String? @map("submission_url") @db.Text
+  submissionNotes String? @map("submission_notes") @db.Text
+
+  source       String  @default("CONTENT_UPDATE") @db.VarChar(40)
+  changeReason String? @map("change_reason") @db.Text
+  taskId       Int?    @map("task_id")
+
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  contentItem ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  creator     User        @relation("ContentItemRevisionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@unique([contentItemId, revisionNumber])
+  @@index([contentItemId, createdAt])
+  @@index([createdBy])
+  @@map("content_item_revisions")
 }
 
 // Strategy Module
@@ -546,6 +590,9 @@ model Task {
   @@index([effectiveDeadline])
   @@index([dependsOnTaskId])
   @@index([submittedAt])
+  @@index([assignedTo, status])
+  @@index([createdAt])
+  @@index([completedAt])
   @@map("tasks")
 }
 
