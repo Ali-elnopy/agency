@@ -1,0 +1,400 @@
+diff --git a/mine.service.js b/theirs.service.js
+index 83fccd8..a888317 100644
+--- a/mine.service.js
++++ b/theirs.service.js
+@@ -1,3 +1,4 @@
++
+ import { TasksModel } from './tasks.model.js';
+ import { ApiError } from '../../utils/ApiError.js';
+ import { prisma } from '../../config/prisma.js';
+@@ -17,8 +18,10 @@ const VALID_STATUSES = new Set([
+   'CANCELLED',
+ ]);
+ 
+-function getRoleName(user) {
+-  return user?.role?.name ?? user?.role ?? '';
++function getRole(user) {
++  return typeof user?.role === 'string'
++    ? user.role
++    : user?.role?.name;
+ }
+ 
+ function parseId(value, label = 'Id') {
+@@ -35,10 +38,10 @@ function parseId(value, label = 'Id') {
+ }
+ 
+ function ensureAccountManager(user) {
+-  if (!ACCOUNT_MANAGER_ROLES.has(getRoleName(user))) {
++  if (!ACCOUNT_MANAGER_ROLES.has(getRole(user))) {
+     throw new ApiError(
+       403,
+-      'Only account managers can assign or manage workflow tasks',
++      'Only admins and account managers can assign or manage workflow tasks',
+     );
+   }
+ }
+@@ -89,7 +92,6 @@ function mapPrismaError(error) {
+ 
+ async function getTaskOrThrow(value) {
+   const id = parseId(value, 'Task id');
+-
+   const task = await TasksModel.findById(id);
+ 
+   if (!task) {
+@@ -117,12 +119,11 @@ async function getDeadlineRule(contentType, taskType) {
+ 
+ async function validateAssignee(userId) {
+   const id = parseId(userId, 'Assignee id');
+-
+   const user = await TasksModel.findUserById(id);
+ 
+   ensureUserExists(user);
+ 
+-  if (getRoleName(user) === 'CLIENT') {
++  if (getRole(user) === 'CLIENT') {
+     throw new ApiError(
+       400,
+       'Clients cannot be assigned internal tasks',
+@@ -134,9 +135,8 @@ async function validateAssignee(userId) {
+ 
+ export const TasksService = {
+   async createDirectTask(input, currentUser) {
+-    if (!ACCOUNT_MANAGER_ROLES.has(getRoleName(currentUser))) {
+-      throw new ApiError(403, 'Only account managers can create direct tasks');
+-    }
++    // Only ADMIN and ACCOUNT_MANAGER can create direct tasks.
++    ensureAccountManager(currentUser);
+ 
+     const createdBy = parseId(currentUser.id, 'User id');
+ 
+@@ -172,6 +172,7 @@ export const TasksService = {
+     input,
+     currentUser,
+   ) {
++    // Only ADMIN and ACCOUNT_MANAGER can assign workflow tasks.
+     ensureAccountManager(currentUser);
+ 
+     const createdBy = parseId(currentUser.id, 'User id');
+@@ -193,16 +194,6 @@ export const TasksService = {
+       );
+     }
+ 
+-    if (
+-      getRoleName(currentUser) === 'ACCOUNT_MANAGER' &&
+-      contentItem.contentPlan?.brand?.accountManagerId !== currentUser.id
+-    ) {
+-      throw new ApiError(
+-        403,
+-        'You can only assign tasks to content items of your assigned brands',
+-      );
+-    }
+-
+     const existingTasks =
+       await TasksModel.findExistingWorkflowTasks(
+         contentItemId,
+@@ -244,7 +235,7 @@ export const TasksService = {
+     const reviewer =
+       await validateAssignee(reviewerId);
+ 
+-    if (!ACCOUNT_MANAGER_ROLES.has(getRoleName(reviewer))) {
++    if (!ACCOUNT_MANAGER_ROLES.has(getRole(reviewer))) {
+       throw new ApiError(
+         400,
+         'Reviewer must be an account manager',
+@@ -328,117 +319,83 @@ export const TasksService = {
+   },
+ 
+   async list(filters, currentUser) {
+-    const roleName = getRoleName(currentUser);
+-
+-    if (roleName === 'CLIENT') {
+-      throw new ApiError(403, 'Clients cannot access tasks');
+-    }
+-
+-    let scopeWhere = null;
+-
+-    if (roleName === 'ADMIN') {
+-      scopeWhere = null;
+-    } else if (roleName === 'ACCOUNT_MANAGER') {
+-      scopeWhere = {
+-        OR: [
+-          { assignedTo: currentUser.id },
+-          { createdBy: currentUser.id },
+-          {
+-            contentItem: {
+-              contentPlan: {
+-                brand: {
+-                  accountManagerId: currentUser.id,
+-                },
+-              },
+-            },
+-          },
+-        ],
+-      };
+-    } else {
+-      scopeWhere = {
+-        assignedTo: currentUser.id,
+-      };
+-    }
++    const where = {};
++    const role = getRole(currentUser);
+ 
+-    const filtersWhere = {};
++    if (filters.myTasks) {
++      where.assignedTo = currentUser.id;
++    }
+ 
+-    if ((roleName === 'ADMIN' || roleName === 'ACCOUNT_MANAGER') && filters.assignedTo !== undefined) {
+-      filtersWhere.assignedTo = parseId(
++    if (filters.assignedTo !== undefined) {
++      where.assignedTo = parseId(
+         filters.assignedTo,
+         'Assignee id',
+       );
+     }
+ 
+-    if (filters.myTasks) {
+-      filtersWhere.assignedTo = currentUser.id;
+-    }
+-
+     if (filters.createdBy !== undefined) {
+-      filtersWhere.createdBy = parseId(
++      where.createdBy = parseId(
+         filters.createdBy,
+         'Creator id',
+       );
+     }
+ 
+     if (filters.contentItemId !== undefined) {
+-      filtersWhere.contentItemId = parseId(
++      where.contentItemId = parseId(
+         filters.contentItemId,
+         'Content item id',
+       );
+     }
+ 
+     if (filters.type) {
+-      filtersWhere.type = filters.type;
++      where.type = filters.type;
+     }
+ 
+     if (filters.status) {
+-      filtersWhere.status = filters.status;
++      where.status = filters.status;
+     }
+ 
+     if (filters.priority) {
+-      filtersWhere.priority = filters.priority;
++      where.priority = filters.priority;
+     }
+ 
+     if (filters.needsReview) {
+-      filtersWhere.assignedTo = currentUser.id;
+-      filtersWhere.type = 'REVIEW';
+-      filtersWhere.status = {
++      where.assignedTo = currentUser.id;
++      where.type = 'REVIEW';
++      where.status = {
+         in: ['TODO', 'IN_REVIEW', 'NEEDS_CHANGES'],
+       };
+     }
+ 
+     if (filters.overdue) {
+-      filtersWhere.assignedTo = currentUser.id;
+-      filtersWhere.status = {
++      where.assignedTo = currentUser.id;
++      where.status = {
+         notIn: ['COMPLETED', 'CANCELLED'],
+       };
+ 
+-      filtersWhere.effectiveDeadline = {
++      where.effectiveDeadline = {
+         lt: new Date(),
+       };
+     }
+ 
+-    const where = scopeWhere
+-      ? {
+-          AND: [
+-            filtersWhere,
+-            scopeWhere,
+-          ],
+-        }
+-      : filtersWhere;
++    // CREATIVE users can only see tasks assigned to them.
++    // This is applied last so query filters cannot override it.
++    if (role === 'CREATIVE') {
++      where.assignedTo = currentUser.id;
++    }
+ 
+     return TasksModel.list(where);
+   },
+ 
+   async getById(value, currentUser) {
+     const task = await getTaskOrThrow(value);
+-    const roleName = getRoleName(currentUser);
+-    const isPrivileged = ACCOUNT_MANAGER_ROLES.has(roleName);
+-    const isAssignee = task.assignedTo === currentUser.id;
+-    const isCreator = task.createdBy === currentUser.id;
+ 
+-    if (!isPrivileged && !isAssignee && !isCreator) {
+-      throw new ApiError(403, 'You are not allowed to view this task');
++    // CREATIVE users can only access their assigned tasks.
++    if (
++      getRole(currentUser) === 'CREATIVE' &&
++      task.assignedTo !== currentUser.id
++    ) {
++      throw new ApiError(403, 'You are not allowed to access this task');
+     }
+ 
+     return task;
+@@ -449,12 +406,21 @@ export const TasksService = {
+     input,
+     currentUser,
+   ) {
+-    const task = await getTaskOrThrow(value);
++    const role = getRole(currentUser);
+ 
+-    const roleName = getRoleName(currentUser);
+-    const isAdmin = roleName === 'ADMIN';
++    // CREATIVE users must use the dedicated status endpoint.
++    // They cannot edit task fields through PATCH /:id.
++    if (role === 'CREATIVE') {
++      throw new ApiError(
++        403,
++        'Creative users cannot directly edit tasks',
++      );
++    }
++
++    const task = await getTaskOrThrow(value);
+ 
+-    const isAccountManager = roleName === 'ACCOUNT_MANAGER';
++    const isAdmin = role === 'ADMIN';
++    const isAccountManager = role === 'ACCOUNT_MANAGER';
+ 
+     const isAssignee =
+       task.assignedTo === currentUser.id;
+@@ -497,9 +463,7 @@ export const TasksService = {
+       }
+ 
+       const assignee =
+-        await validateAssignee(
+-          input.assignedTo,
+-        );
++        await validateAssignee(input.assignedTo);
+ 
+       data.assignedTo = assignee.id;
+     }
+@@ -531,9 +495,9 @@ export const TasksService = {
+         input.effectiveDeadline === null
+           ? null
+           : ensureValidDate(
+-              input.effectiveDeadline,
+-              'Effective deadline',
+-            );
++            input.effectiveDeadline,
++            'Effective deadline',
++          );
+     }
+ 
+     if (input.status !== undefined) {
+@@ -568,14 +532,22 @@ export const TasksService = {
+       );
+     }
+ 
+-    const roleName = getRoleName(currentUser);
+-    const isAdmin = roleName === 'ADMIN';
++    const role = getRole(currentUser);
+ 
+-    const isAccountManager = roleName === 'ACCOUNT_MANAGER';
++    const isAdmin = role === 'ADMIN';
++    const isAccountManager = role === 'ACCOUNT_MANAGER';
+ 
+     const isAssignee =
+       task.assignedTo === currentUser.id;
+ 
++    // CREATIVE users can change status only on their assigned tasks.
++    if (role === 'CREATIVE' && !isAssignee) {
++      throw new ApiError(
++        403,
++        'You can only change the status of tasks assigned to you',
++      );
++    }
++
+     if (
+       !isAdmin &&
+       !isAccountManager &&
+@@ -616,9 +588,7 @@ export const TasksService = {
+           data,
+         );
+ 
+-      if (
+-        newStatus === 'SUBMITTED'
+-      ) {
++      if (newStatus === 'SUBMITTED') {
+         await this.handleTaskSubmission(
+           updatedTask,
+         );
+@@ -640,17 +610,14 @@ export const TasksService = {
+   },
+ 
+   async handleTaskSubmission(task) {
+-    if (
+-      task.type !== 'CONTENT_CREATION'
+-    ) {
++    if (task.type !== 'CONTENT_CREATION') {
+       return;
+     }
+ 
+     const reviewTask =
+       await prisma.task.findFirst({
+         where: {
+-          contentItemId:
+-            task.contentItemId,
++          contentItemId: task.contentItemId,
+           type: 'REVIEW',
+           status: {
+             notIn: [
+@@ -691,9 +658,7 @@ export const TasksService = {
+   },
+ 
+   async handleReviewCompletion(task) {
+-    if (
+-      task.type !== 'REVIEW'
+-    ) {
++    if (task.type !== 'REVIEW') {
+       return;
+     }
+ 
+@@ -703,16 +668,12 @@ export const TasksService = {
+ 
+   async remove(value, currentUser) {
+     const task = await getTaskOrThrow(value);
++    const role = getRole(currentUser);
+ 
+-    const roleName = getRoleName(currentUser);
+-    const isAdmin = roleName === 'ADMIN';
++    const isAdmin = role === 'ADMIN';
++    const isAccountManager = role === 'ACCOUNT_MANAGER';
+ 
+-    const isAccountManager = roleName === 'ACCOUNT_MANAGER';
+-
+-    if (
+-      !isAdmin &&
+-      !isAccountManager
+-    ) {
++    if (!isAdmin && !isAccountManager) {
+       throw new ApiError(
+         403,
+         'Only account managers can delete tasks',
+@@ -720,9 +681,7 @@ export const TasksService = {
+     }
+ 
+     try {
+-      return await TasksModel.remove(
+-        task.id,
+-      );
++      return await TasksModel.remove(task.id);
+     } catch (error) {
+       mapPrismaError(error);
+     }
