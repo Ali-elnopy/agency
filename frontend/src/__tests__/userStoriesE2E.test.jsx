@@ -1816,4 +1816,62 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     const detText = document.getElementById('view')?.textContent || '';
     expect(detText).toContain('Completed at');
   });
+
+  it('33. Sprint 3 Test Brief gaps closed: Client without activity redirected to onboarding (RV2-1328), Admin adds Activity Question Group (RV2-1332), AM regenerates Brief keeping v1 (RV2-1333), Employee blocked from other user task (RV2-1358)', async () => {
+    // 1. RV2-1328: Client with no activityType yet is redirected to onboarding after login
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('client');
+      expect(window.S.page).toBe('onboarding');
+    });
+
+    // 2. RV2-1332: Admin adds a new Activity Question Group linked to a Main Category -> appears for Client
+    window.logout();
+    loginAs('elena@agency-clean.co', 'Admin123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('admin');
+    });
+    window.go('brands');
+    window.view(false);
+    document.getElementById('aq-cat').value = 'Food';
+    document.getElementById('aq-act').value = 'Cloud Kitchen';
+    document.getElementById('aq-qs').value = '*Which delivery apps do you use?\nAverage prep time?';
+    window.addActivityQGroup();
+    expect(window.CATS.Food).toContain('Cloud Kitchen');
+
+    // Client picks Food -> sees Cloud Kitchen and its custom questions
+    window.logout();
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('client'));
+    window.OB.cat = 'Food';
+    window.OB.act = 'Cloud Kitchen';
+    window.OB.step = 'sections';
+    window.view(false);
+    expect(document.getElementById('view')?.textContent || '').toContain('Activity Questions · Cloud Kitchen');
+
+    // 3. RV2-1333: AM regenerates Brand Brief -> creates new version while keeping old version
+    window.logout();
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+    window.S.page = 'brands';
+    window.S.brand = 'Lumen Skincare';
+    window.S.sub = 'brief';
+    window.view(false);
+    const beforeList = window.D.briefs.rows.filter((b) => b.brandId === 'Lumen Skincare');
+    const prevVersion = beforeList[0].version;
+    expect(document.getElementById('view')?.textContent || '').toContain('Regenerate brief');
+    window.gen(true);
+    const afterBriefs = window.D.briefs.rows.filter((b) => b.brandId === 'Lumen Skincare');
+    expect(afterBriefs.length).toBe(beforeList.length + 1);
+    expect(afterBriefs.some((b) => b.version === prevVersion)).toBe(true);
+
+    // 4. RV2-1358: Employee attempting to open another user's task directly gets Access denied
+    window.logout();
+    loginAs('karim@agency-clean.co', 'Creative123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('emp'));
+    window.openD({ t: 'task', id: 1 }); // task #1 belongs to Lina Aziz, not Karim Fouad
+    expect(document.getElementById('view')?.textContent || '').toContain('Access denied');
+  });
 });

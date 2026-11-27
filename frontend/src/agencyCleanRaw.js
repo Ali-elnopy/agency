@@ -453,7 +453,7 @@ function head(E,w,k){const a=[];if(w&&!E.noCreate)a.push(`<button class="btn p" 
  if(E.gen&&can(k)){
   const bs=getBrandBriefState(S.brand);
   if(bs.generating)a.push(`<button class="btn p" disabled>Generating brief…</button>`);
-  else if(bs.hasActiveBrief)a.push(`<button class="btn" disabled title="A brief already exists for this brand">Brief generated</button>`);
+  else if(bs.hasActiveBrief)a.push(`<button class="btn" onclick="gen(true)">Regenerate brief</button>`);
   else if(!bs.onboardingSubmitted){
    a.push(`<button class="btn" disabled title="Waiting for the client to submit onboarding answers first">Waiting for client onboarding</button>`);
    briefWaitNote=`<div class="note wn"><b>ⓘ</b><span>The client must complete and submit their onboarding questions first. You’ll receive a notification as soon as they finish so you can generate the Brand Brief once from their answers.</span></div>`;
@@ -480,6 +480,7 @@ let listPage=function(k){const E=D[k],w=can(k),q=(S.q||'').trim().toLowerCase();
  if(!rows.length)return h+`<div class="card empty"><span class="chip">${ic(N[k][1])}</span><h2>Nothing here yet</h2><p class="mute">${S.q?'No results match your search. Try a different keyword.':(w?'Create your first '+esc(E.n)+' to get started.':'There are no records to show yet.')}</p></div>`;
  const del=w&&!E.noDelete&&(k!=='users'||S.role==='admin');
  h+=`<div class="card" style="padding:20px 12px"><div class="tw"><table><thead><tr>${E.cols.map(c=>`<th scope="col">${esc(c[1])}</th>`).join('')}<th scope="col"></th></tr></thead><tbody>${rows.map(({r,i})=>`<tr>${E.cols.map((c,j)=>`<td>${j===0?`<span class="chip" style="background:${['var(--lilac)','var(--peach)','var(--sky)','var(--mint)'][i%4]}">${ic(N[k][1])}</span>`:''}${cell(c[0],r[c[0]],E,j===0,r)}</td>`).join('')}<td><div class="ra"><button class="btn sm t" onclick="act('${k}',${i},'view')">View</button>${(E.acts?E.acts(r):[]).map(a=>`<button class="btn sm" onclick="act('${k}',${i},'${a[1]}')">${esc(a[0])}</button>`).join('')}${w&&E.f.length?`<button class="btn sm" onclick="act('${k}',${i},'edit')">Edit</button>`:''}${del?`<button class="btn sm dg" onclick="act('${k}',${i},'del')">Delete</button>`:''}</div></td></tr>`).join('')}</tbody></table></div></div>`;
+ if(k==='brands'&&S.role==='admin'&&typeof adminActivityQGroupsCard==='function')h+=adminActivityQGroupsCard();
  return h};
 function dashboard(){const U=D.users.rows,B=D.brands.rows,act=U.filter(u=>u.isActive).length,q=(S.q||'').trim().toLowerCase();
  const per=T.map(t=>B.filter(b=>b.teamId===t).length),cov=per.filter(x=>x).length,un=B.filter(b=>!T.includes(b.teamId)).length;
@@ -892,11 +893,11 @@ function cleanupDeletedUser(user){
  }
 }
 let E_del=function(k,i){const row=D[k]?.rows?.[i];D[k].rows.splice(i,1);if(k==='brands')cleanupDeletedBrand(row);if(k==='users')cleanupDeletedUser(row);close();toast('Deleted');view(false)};
-let gen=function(){
+let gen=function(regenerate=false){
  const bs=getBrandBriefState(S.brand);
  if(!bs.target)return toast('Open a brand first to generate its brief.');
  if(bs.generating)return toast('A brief is already being generated for this brand.');
- if(bs.hasActiveBrief)return toast('A brief already exists for '+bs.target+'.');
+ if(bs.hasActiveBrief&&!regenerate)return toast('A brief already exists for '+bs.target+'.');
  if(!bs.onboardingSubmitted)return toast('The client must submit onboarding before generating a Brand Brief.');
  S.briefGenBusy=true;
  const nextVer=bs.list.reduce((mx,r)=>Math.max(mx,parseInt(String(r.version||'0').replace(/\D/g,''),10)||0),0)+1;
@@ -1115,7 +1116,7 @@ let doLogin=function(){
   ME[S.role]=[demo.fullName,demo.subtitle];
   if(typeof MEN!=='undefined')MEN[S.role]=demo.fullName;
   applyStoredProfile(email);
-  S.authed=true;S.page=NAV[S.role][0];S.brand=demo.role==='client'?S.clientBrand:null;S.sub=null;S.det=null;
+  S.authed=true;S.page=demo.role==='client'&&!OB.act&&!OB.submitted?'onboarding':NAV[S.role][0];S.brand=demo.role==='client'?S.clientBrand:null;S.sub=null;S.det=null;
   return render();
  }
  const brandRow=D.brands.rows.find(b=>String(b.email||'').trim().toLowerCase()===email);
@@ -1136,7 +1137,7 @@ let doLogin=function(){
   ME.client=[brandRow.name,'Client · '+brandRow.name];
   if(typeof MEN!=='undefined')MEN.client=brandRow.name;
   applyStoredProfile(email);
-  S.authed=true;S.page=NAV.client[0];S.brand=brandRow.name;S.sub=null;S.det=null;
+  S.authed=true;S.page=!OB.act&&!OB.submitted?'onboarding':NAV.client[0];S.brand=brandRow.name;S.sub=null;S.det=null;
   return render();
  }
  const createdRow=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===email);
@@ -1154,7 +1155,7 @@ let doLogin=function(){
    ME.client=[createdRow.fullName,'Client · '+linkedBrand];
    if(typeof MEN!=='undefined')MEN.client=createdRow.fullName;
    applyStoredProfile(email);
-   S.authed=true;S.page=NAV.client[0];S.brand=linkedBrand;S.sub=null;S.det=null;
+   S.authed=true;S.page=!OB.act&&!OB.submitted?'onboarding':NAV.client[0];S.brand=linkedBrand;S.sub=null;S.det=null;
    return render();
   }
   S.clientBrand=null;
@@ -1426,7 +1427,7 @@ function switchClientOnboarding(brandName){
  OB.step=saved.step;OB.cat=saved.cat;OB.act=saved.act;OB.sec=saved.sec;OB.a={...saved.a};OB.done=[...saved.done];OB.err={};OB.submitted=Boolean(saved.submitted);
  _obBrand=next;
 }
-const secSt=i=>OB.done.includes(i)?'done':OBS[i][1].some(q=>(OB.a[q[0]]||'').trim())?'inc':'none';
+const secSt=i=>OB.done.includes(i)?'done':(getActiveObSections()[i]?.[1]||[]).some(q=>(OB.a[q[0]]||'').trim())?'inc':'none';
 const obTop=(t,sub)=>`<div class="ph"><div><span class="eb">Client</span><h1>${esc(t)}</h1><p>${esc(sub)}</p></div></div>`,obCrumb=()=>curClientBrand()+' / Onboarding';
 let OB_API_CATS=null;
 function obCat(){
@@ -1469,17 +1470,57 @@ async function obSelectCategory(){
  persistOnboarding(curClientBrand());
  view(false);
 }
-function obForm(){const i=OB.sec,[t,qs]=OBS[i],pct=Math.round((i+1)/7*100);
-return obTop('Onboarding form',obCrumb())+`<div class="obh"><div class="ban"><b>${esc(t)}</b><div class="mono mute">Section ${i+1} of 7</div></div><div style="text-align:right"><div class="mono mute" style="margin-bottom:6px">Progress: ${pct}%</div><div class="pbar"><i style="width:${pct}%"></i></div></div></div>
+const ACT_QG_STORE_KEY='orvia_activity_qgroups_v1';
+const ACTIVITY_QGROUPS=(()=>{try{const m=JSON.parse(localStorage.getItem(ACT_QG_STORE_KEY)||'{}');return m&&typeof m==='object'?m:{}}catch{return{}}})();
+function persistActivityQGroups(){try{localStorage.setItem(ACT_QG_STORE_KEY,JSON.stringify(ACTIVITY_QGROUPS))}catch{/* ignore */}}
+Object.keys(ACTIVITY_QGROUPS).forEach(k=>{const [cat,act]=k.split('::');if(cat&&act){if(!CATS[cat])CATS[cat]=[];if(!CATS[cat].includes(act))CATS[cat].push(act)}});
+function getActiveObSections(){
+ const extra=ACTIVITY_QGROUPS[OB.cat+'::'+OB.act];
+ return extra&&extra.length?[...OBS,['Activity Questions · '+OB.act,extra]]:OBS;
+}
+function addActivityQGroup(){
+ if(S.role!=='admin')return toast('Admin access required.');
+ const cat=($('#aq-cat')?.value||'').trim();
+ const act=($('#aq-act')?.value||'').trim();
+ const raw=($('#aq-qs')?.value||'').trim();
+ if(!cat||!act||!raw)return toast('Select a Main Category, enter an Activity Type, and add at least one question.');
+ const slug=act.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'act';
+ const qs=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map((l,idx)=>{
+  const req=l.startsWith('*')?1:0;
+  const label=req?l.slice(1).trim():l;
+  return ['act_'+slug+'_'+(idx+1),label,req,0];
+ });
+ if(!qs.length)return toast('Add at least one question.');
+ if(!CATS[cat])CATS[cat]=[];
+ if(!CATS[cat].includes(act))CATS[cat].push(act);
+ ACTIVITY_QGROUPS[cat+'::'+act]=qs;
+ persistActivityQGroups();
+ toast('Activity question group added for '+cat+' / '+act);
+ view(false);
+}
+function adminActivityQGroupsCard(){
+ const entries=Object.entries(ACTIVITY_QGROUPS);
+ return `<div class="card" style="margin-top:20px"><h2 style="margin:0 0 6px">Onboarding Activity Question Groups</h2><p class="mute" style="margin:0 0 14px">Add a new Activity Type and its custom question group under a Main Category. Clients choosing that activity will see only the questions relevant to their selection.</p>
+  <div class="pg">
+   <div class="fl"><label>Main Category *</label><select id="aq-cat">${Object.keys(CATS).map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></div>
+   <div class="fl"><label>Activity Type *</label><input id="aq-act" placeholder="e.g. Dental Clinic"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Questions (one per line; prefix * for required) *</label><textarea id="aq-qs" placeholder="*What medical specialties do you offer?&#10;Do you accept insurance?"></textarea></div>
+  </div>
+  <div class="ft" style="justify-content:flex-start"><button class="btn p" onclick="addActivityQGroup()">+ Add activity question group</button></div>
+  ${entries.length?`<div class="dash"></div>${entries.map(([k,qs])=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><b>${esc(k.replace('::',' / '))}</b> <span class="tag lc">${qs.length} question${qs.length===1?'':'s'}</span></div>`).join('')}`:''}
+ </div>`;
+}
+function obForm(){const secs=getActiveObSections(),tot=secs.length,i=Math.min(OB.sec,tot-1),[t,qs]=secs[i],pct=Math.round((i+1)/tot*100);
+return obTop('Onboarding form',obCrumb())+`<div class="obh"><div class="ban"><b>${esc(t)}</b><div class="mono mute">Section ${i+1} of ${tot}</div></div><div style="text-align:right"><div class="mono mute" style="margin-bottom:6px">Progress: ${pct}%</div><div class="pbar"><i style="width:${pct}%"></i></div></div></div>
 <div class="card">${qs.map(q=>{const e=OB.err[q[0]],v=esc(OB.a[q[0]]);return `<div class="fl ${e?'bad':''}"><label><b style="font-weight:600">${esc(q[1])}</b></label>${q[2]?'<span class="mono" style="color:var(--et)">Required</span>':''}${q[3]?`<textarea placeholder="Your answer" oninput="OB.a['${q[0]}']=this.value">${v}</textarea>`:`<input placeholder="Your answer" value="${v}" oninput="OB.a['${q[0]}']=this.value">`}${e?'<small>This field is required.</small>':''}</div>`}).join('')}
-<div class="ft"><button class="btn" onclick="OB.err={};OB.step='sections';view(false)">Form sections</button><button class="btn" onclick="toast('Draft saved')">Save draft</button><button class="btn p" onclick="obSubmit()">${i<6?'Save and continue':'Save section'}</button></div></div>`}
-let obSubmit=function(){const i=OB.sec;OB.err={};OBS[i][1].forEach(q=>{if(q[2]&&!(OB.a[q[0]]||'').trim())OB.err[q[0]]=1});
+<div class="ft"><button class="btn" onclick="OB.err={};OB.step='sections';view(false)">Form sections</button><button class="btn" onclick="persistOnboarding(curClientBrand());toast('Draft saved')">Save draft</button><button class="btn p" onclick="obSubmit()">${i<tot-1?'Save and continue':'Save section'}</button></div></div>`}
+let obSubmit=function(){const secs=getActiveObSections(),tot=secs.length,i=Math.min(OB.sec,tot-1);OB.err={};secs[i][1].forEach(q=>{if(q[2]&&!(OB.a[q[0]]||'').trim())OB.err[q[0]]=1});
 if(Object.keys(OB.err).length){toast('Answer the required questions');return view(false)}
-if(!OB.done.includes(i))OB.done.push(i);if(i<6){OB.sec=i+1;toast('Section saved')}else{OB.step='sections';toast('Last section saved')}persistOnboarding(curClientBrand());view(false);window.scrollTo(0,0)};
-function obSecs(){const d=OB.done.length,pct=Math.round(d/7*100),B={done:['ok','Done'],inc:['wn','Incomplete'],none:['','Not started']};
-return obTop('Form sections',obCrumb())+`<div class="obh"><span class="mute">Progress: ${d} of 7 sections complete · ${pct}%</span><div class="pbar" style="width:240px"><i style="width:${pct}%"></i></div></div>
-<div class="secg">${OBS.map((x,i)=>{const b=B[secSt(i)];return `<button class="secbtn" onclick="OB.sec=${i};OB.step='form';view(false)"><span>${esc(x[0])}</span><span class="pill ${b[0]}">${b[1]}</span></button>`}).join('')}</div>
-<div class="ft" style="margin-top:20px"><button class="btn" onclick="persistOnboarding(curClientBrand());toast('Draft saved')">Save draft</button><button class="btn p" ${d<7?'disabled title="Complete all 7 sections first"':''} onclick="obFinish()">Submit onboarding</button></div>${d<7?'<p class="mute" style="text-align:right;margin:8px 0 0">Complete every section to submit.</p>':''}`}
+if(!OB.done.includes(i))OB.done.push(i);if(i<tot-1){OB.sec=i+1;toast('Section saved')}else{OB.step='sections';toast('Last section saved')}persistOnboarding(curClientBrand());view(false);window.scrollTo(0,0)};
+function obSecs(){const secs=getActiveObSections(),tot=secs.length,d=OB.done.filter(x=>x<tot).length,pct=Math.round(d/tot*100),B={done:['ok','Done'],inc:['wn','Incomplete'],none:['','Not started']};
+return obTop('Form sections',obCrumb())+`<div class="obh"><span class="mute">Progress: ${d} of ${tot} sections complete · ${pct}%</span><div class="pbar" style="width:240px"><i style="width:${pct}%"></i></div></div>
+<div class="secg">${secs.map((x,i)=>{const b=B[secSt(i)];return `<button class="secbtn" onclick="OB.sec=${i};OB.step='form';view(false)"><span>${esc(x[0])}</span><span class="pill ${b[0]}">${b[1]}</span></button>`}).join('')}</div>
+<div class="ft" style="margin-top:20px"><button class="btn" onclick="persistOnboarding(curClientBrand());toast('Draft saved')">Save draft</button><button class="btn p" ${d<tot?'disabled title="Complete all sections first"':''} onclick="obFinish()">Submit onboarding</button></div>${d<tot?'<p class="mute" style="text-align:right;margin:8px 0 0">Complete every section to submit.</p>':''}`}
 const NOTIF_STORE_KEY='orvia_custom_notifs_v1';
 function loadStoredNotifs(){try{const a=JSON.parse(localStorage.getItem(NOTIF_STORE_KEY)||'[]');return Array.isArray(a)?a:[]}catch{return[]}}
 function saveStoredNotif(item){
@@ -1511,7 +1552,7 @@ let obFinish=function(){
  toast('Onboarding submitted · Account Manager notified');
  render(false);
 };
-function obDone(){return obTop('Onboarding',obCrumb())+`<div class="note ok"><b>✓</b><span>Submitted. Your account manager has been notified and will prepare your brand brief.</span></div><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><h2>Your answers</h2><span class="pill ok">Submitted</span></div><dl class="kv" style="margin:0 0 8px"><dt>Main category</dt><dd>${esc(OB.cat)}</dd><dt>Activity type</dt><dd>${esc(OB.act)}</dd></dl>${OBS.map(x=>`<div class="dash"></div><h2 style="font-size:16px">${esc(x[0])}</h2><dl class="kv" style="margin:12px 0 0">${x[1].map(q=>`<dt>${esc(q[1])}</dt><dd>${esc(OB.a[q[0]])||'—'}</dd>`).join('')}</dl>`).join('')}</div>`}
+function obDone(){return obTop('Onboarding',obCrumb())+`<div class="note ok"><b>✓</b><span>Submitted. Your account manager has been notified and will prepare your brand brief.</span></div><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><h2>Your answers</h2><span class="pill ok">Submitted</span></div><dl class="kv" style="margin:0 0 8px"><dt>Main category</dt><dd>${esc(OB.cat)}</dd><dt>Activity type</dt><dd>${esc(OB.act)}</dd></dl>${getActiveObSections().map(x=>`<div class="dash"></div><h2 style="font-size:16px">${esc(x[0])}</h2><dl class="kv" style="margin:12px 0 0">${x[1].map(q=>`<dt>${esc(q[1])}</dt><dd>${esc(OB.a[q[0]])||'—'}</dd>`).join('')}</dl>`).join('')}</div>`}
 function obPage(){return OB.submitted?obDone():OB.step==='category'?obCat():OB.step==='sections'?obSecs():obForm()}
 function clientBrand(){const cb=curClientBrand(),b=D.brands.rows.find(x=>x.name===cb)||D.brands.rows[0]||{name:cb,status:'ACTIVE',industry:'—',accountManagerId:'—'},s=sg(b.name),SL={none:'Not started',uploaded:'Being prepared',am:'Being prepared',client:'Waiting for your decision',answered:'Your answer was sent',forwarded:s.out==='approved'?'Approved':'Revision in progress'}[s.st];
 return `<div class="ph"><div><span class="eb">Client</span><h1>Brands</h1><p>Your brand at a glance. This page is view-only.</p></div></div><div class="bh"><div class="lg">${esc(b.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</div><div style="flex:1"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h1 style="font-size:26px">${esc(b.name)}</h1>${pill(b.status)}</div><div class="mute">${esc(b.industry||'—')}</div></div></div>
@@ -1935,6 +1976,12 @@ const detPage=()=>{
   if(d.t==='plan'){const p=pl(d.id);if(!p||p.brand!==cb)return null}
   if(d.t==='camp'){const p=PLANS.find(x=>x.id===d.p);if(!p||p.brand!==cb)return null}
   if(d.t==='row'){const r=D[d.k]?.rows?.[d.i];if(!r)return null;const owner=r.brandId||r.name;if(owner&&owner!==cb)return null}
+ }
+ if((S.role==='emp'||S.role==='cc')&&d.t==='task'){
+  const t=TK.find(x=>x.id===d.id);
+  if(t&&t.assignee!==MEN[S.role]){
+   return `<div class="card empty" role="alert"><span class="chip">${ic('lock')}</span><h2>Access denied</h2><p class="mute">You do not have permission to view another user’s task.</p><button class="btn p" onclick="S.det=null;go('tasks')">Back to My Work</button></div>`;
+  }
  }
  return d.t==='row'?rowDet(d.k,d.i):d.t==='item'?itemDet(d.id):d.t==='plan'?planDet(d.id):d.t==='camp'?campDet(d.p,d.n):d.t==='sub'?subHtml(d):d.t==='task'?taskDet(d.id):d.t==='mperf'?memberPerfDet(d.n):teamDet(d.n);
 };
@@ -3771,14 +3818,14 @@ arch=function(i){
 };
 
 const _origGen=gen;
-gen=async function(){
+gen=async function(regenerate=false){
  const bs=getBrandBriefState(S.brand);
  if(!bs.target)return toast('Open a brand first to generate its brief.');
  if(bs.generating)return toast('A brief is already being generated for this brand.');
- if(bs.hasActiveBrief)return toast('A brief already exists for '+bs.target+'.');
+ if(bs.hasActiveBrief&&!regenerate)return toast('A brief already exists for '+bs.target+'.');
  if(!getApiToken()||S.offlineMode){
   if(!bs.onboardingSubmitted)return toast('The client must submit onboarding before generating a Brand Brief.');
-  return _origGen();
+  return _origGen(regenerate);
  }
  const brandId=API_CACHE.brandsByName[bs.target]||D.brands.rows.find(b=>b.name===bs.target)?._id;
  if(!brandId)return toast('Could not find this brand on the server.');
@@ -4221,4 +4268,4 @@ else if(window.location.hash==='#landing'||window.location.hash==='#home')S.auth
 
 applyTheme();
 render();
-Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,LANDING_MSGS,AUTH_LOCKOUT,AUTH_AUDIT,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,openLanding,sendLandingContact,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,pvS,dlS,sgo,newPlan,newCamp,editCamp,saveEditCamp,delCamp,doDelCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,reviewChangesModal,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,refreshNotifications,startNotificationPolling,stopNotificationPolling,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,confirmPubRec,loadItemRevisions,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,loadCalendarMonth,reqNew,reqReview,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,calcMemberPerf,memberPerfDet,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
+Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,LANDING_MSGS,AUTH_LOCKOUT,AUTH_AUDIT,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,openLanding,sendLandingContact,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,pvS,dlS,sgo,newPlan,newCamp,editCamp,saveEditCamp,delCamp,doDelCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,reviewChangesModal,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,addActivityQGroup,ACTIVITY_QGROUPS,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,refreshNotifications,startNotificationPolling,stopNotificationPolling,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,confirmPubRec,loadItemRevisions,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,loadCalendarMonth,reqNew,reqReview,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,calcMemberPerf,memberPerfDet,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
