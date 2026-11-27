@@ -245,7 +245,9 @@ function getBrandBriefState(brandName){
  const generating=Boolean(S.briefGenBusy)||list.some(r=>r.status==='GENERATING');
  const hasActiveBrief=list.some(r=>['GENERATING','GENERATED','READY','APPROVED','NEEDS_CHANGES','DRAFT'].includes(r.status));
  const hasFailedOnly=!hasActiveBrief&&list.some(r=>r.status==='FAILED'||r.status==='REJECTED');
- return {target,list,generating,hasActiveBrief,hasFailedOnly};
+ const obRec=typeof getBrandOnboarding==='function'?getBrandOnboarding(target):null;
+ const onboardingSubmitted=Boolean(obRec?.submitted)||hasActiveBrief;
+ return {target,list,generating,hasActiveBrief,hasFailedOnly,onboardingSubmitted};
 }
 const BRIEF_SECTION_LABELS={
  brandOverview:'Brand Overview',
@@ -291,52 +293,87 @@ function normalizeBriefRow(bf,fallbackBrand=''){
 }
 function buildDemoBriefContent(brandName){
  const b=D.brands.rows.find(x=>x.name===brandName)||{name:brandName,industry:'General',description:''};
- const obSnap=(typeof OB_BY_BRAND!=='undefined'&&OB_BY_BRAND[brandName])||((typeof _obBrand!=='undefined'&&_obBrand===brandName)?OB:null);
+ const obSnap=typeof getBrandOnboarding==='function'?getBrandOnboarding(brandName):null;
  const a=obSnap?.a||{};
- const ind=b.industry||'General';
+ const ind=b.industry||obSnap?.cat||'General';
+ const catAct=[obSnap?.cat,obSnap?.act].filter(Boolean).join(' · ');
+ const pick=(...keys)=>keys.map(k=>a[k]).filter(v=>v&&String(v).trim()).map(v=>String(v).trim());
+ const overviewInfo=[
+  `${a.q0||b.name} operates in ${catAct||ind}.`,
+  ...(a.q1?[`Founded: ${a.q1}`]:[]),
+  ...(pick('q2')),
+  ...(b.description&&b.description!==a.q2?[b.description]:[]),
+  ...(a.q3?[`Main products: ${a.q3}`]:[]),
+  ...(a.q4?[`Best seller: ${a.q4}`]:[]),
+  ...(a.q5?[`Services: ${a.q5}`]:[]),
+ ];
+ const audienceInfo=[
+  ...(a.q6?[`Target audience: ${a.q6}`]:[`Core customers interested in ${ind} solutions.`]),
+  ...(a.q7?[`Age range: ${a.q7}`]:[]),
+  ...(a.q8?[`Location: ${a.q8}`]:[]),
+ ];
+ const goalsInfo=[
+  ...(a.q9?[`Top goals: ${a.q9}`]:['Increase brand awareness, engagement, and qualified conversions.']),
+  ...(a.q10?[`12-month success: ${a.q10}`]:[]),
+  ...(a.q11?[`Upcoming launches: ${a.q11}`]:[]),
+ ];
+ const compInfo=[
+  ...(a.q14?[`Differentiator: ${a.q14}`]:[`${b.name} differentiates through quality, clarity, and customer experience.`]),
+  ...(a.q12?[`Key competitors: ${a.q12}`]:[]),
+  ...(a.q13?[`Competitor strengths to watch: ${a.q13}`]:[]),
+ ];
+ const commInfo=[
+  ...(a.q15?[`Brand personality: ${a.q15}`]:['Clear, confident, and audience-first communication.']),
+  ...(a.q16?[`Tone words: ${a.q16}`]:[]),
+  ...(a.q17?[`Visual preferences: ${a.q17}`]:[]),
+ ];
+ const stratInfo=[
+  ...(a.q18?[`Main marketing objective: ${a.q18}`]:['Full-funnel social growth and community engagement.']),
+  ...(a.q19?[`Priority platforms: ${a.q19}`]:[]),
+ ];
+ const dirInfo=[
+  ...(a.q20?[`Expected monthly content volume: ${a.q20}`]:['Consistent weekly mix of Reels, Carousels, and Stories.']),
+  ...(catAct?[`Category focus: ${catAct}`]:[]),
+ ];
  return {
   brandOverview:{
-   clientInformation:[
-    `${b.name} operates in the ${ind} industry.`,
-    ...(b.description?[b.description]:[]),
-    ...(a.q2?[a.q2]:[]),
-   ],
+   clientInformation:overviewInfo,
    aiAnalysis:[
-    `${b.name} is positioned to build strong audience recognition in ${ind} through consistent visual and editorial storytelling.`,
+    `${a.q0||b.name} is positioned to build strong audience recognition in ${catAct||ind} by highlighting ${a.q4||a.q3||'its core offering'}.`,
    ],
    recommendations:[
-    'Anchor all monthly content pillars around clear product value and brand proof points.',
+    `Anchor monthly content pillars around ${a.q4||a.q3||'core product value'} and clear brand proof points.`,
     'Maintain a unified brand identity across every active social channel.',
    ],
   },
   targetAudience:{
-   clientInformation:[a.q6||`Core customers interested in ${ind} solutions.`, ...(a.q7?[`Age range: ${a.q7}`]:[]), ...(a.q8?[`Location: ${a.q8}`]:[])],
-   aiAnalysis:['Audience engagement peaks when educational value is paired with relatable lifestyle moments.'],
-   recommendations:['Segment messaging between first-time discovery reels and retention-focused carousels.'],
+   clientInformation:audienceInfo,
+   aiAnalysis:[`Messaging tailored to ${a.q6||'the core audience'}${a.q8?' in '+a.q8:''} will maximize relevance and engagement.`],
+   recommendations:['Segment content between first-time discovery reels and retention-focused carousels.'],
   },
   brandGoals:{
-   clientInformation:[a.q9||'Increase brand awareness, engagement, and qualified conversions.', ...(a.q10?[`12-month goal: ${a.q10}`]:[])],
-   aiAnalysis:['Balanced awareness and conversion campaigns will accelerate sustainable monthly growth.'],
-   recommendations:['Track reach, saves, and conversion clicks per monthly content plan.'],
+   clientInformation:goalsInfo,
+   aiAnalysis:[`Aligning campaigns directly with "${a.q9||'awareness and conversion growth'}" keeps monthly output measurable.`],
+   recommendations:['Track reach, saves, and conversion clicks per monthly content plan against the 12-month target.'],
   },
   competitiveAdvantage:{
-   clientInformation:[a.q14||`${b.name} differentiates through quality, clarity, and customer experience.`, ...(a.q12?[`Key competitors: ${a.q12}`]:[])],
-   aiAnalysis:['Highlighting concrete differentiators reduces price sensitivity and builds trust faster.'],
-   recommendations:['Feature before/after stories, social proof, and behind-the-scenes craft regularly.'],
+   clientInformation:compInfo,
+   aiAnalysis:[`Leading with "${a.q14||'core differentiators'}" positions ${a.q0||b.name} distinctly against ${a.q12||'market competitors'}.`],
+   recommendations:['Feature proof points, comparisons, and behind-the-scenes craft regularly.'],
   },
   brandCommunication:{
-   clientInformation:[a.q15||'Clear, confident, and audience-first communication.', ...(a.q16?[`Tone words: ${a.q16}`]:[])],
-   aiAnalysis:['Consistent tone of voice reinforces brand recall across short-form video and captions.'],
-   recommendations:['Use concise hooks in the first 3 seconds and clear calls to action in every caption.'],
+   clientInformation:commInfo,
+   aiAnalysis:[`A "${a.q16||'clear, confident'}" voice builds immediate brand recall across short-form video and captions.`],
+   recommendations:['Use concise hooks in the first 3 seconds and consistent visual cues matching client style preferences.'],
   },
   marketingStrategy:{
-   clientInformation:[a.q18||'Full-funnel social growth and community engagement.', ...(a.q19?[`Priority platforms: ${a.q19}`]:[])],
-   aiAnalysis:['Combining organic short-form reels with structured monthly campaigns drives compounding results.'],
+   clientInformation:stratInfo,
+   aiAnalysis:[`Prioritizing ${a.q19||'core social channels'} for "${a.q18||'growth'}" focuses budget and creative effort where ROI is highest.`],
    recommendations:['Run one hero campaign per month supported by weekly educational and community posts.'],
   },
   contentDirection:{
-   clientInformation:[a.q20||'Consistent weekly mix of Reels, Carousels, and Stories.'],
-   aiAnalysis:['Short-form video drives discovery while carousels and stories deepen consideration.'],
+   clientInformation:dirInfo,
+   aiAnalysis:['Short-form video drives discovery while carousels and stories deepen consideration and conversion.'],
    recommendations:['Plan 40% educational, 35% product/offer, and 25% community/behind-the-scenes content.'],
   },
   targetAudienceSummary:a.q6||`Core ${ind} audience`,
@@ -382,7 +419,7 @@ function renderBriefContent(r){
  const qaList=Array.isArray(r?.sourceSnapshot?.questionsAndAnswers)&&r.sourceSnapshot.questionsAndAnswers.length
   ?r.sourceSnapshot.questionsAndAnswers
   :(()=>{
-   const obSnap=(typeof OB_BY_BRAND!=='undefined'&&OB_BY_BRAND[r?.brandId])||((typeof _obBrand!=='undefined'&&_obBrand===r?.brandId)?OB:null);
+   const obSnap=typeof getBrandOnboarding==='function'?getBrandOnboarding(r?.brandId):null;
    const ansMap=obSnap?.a||{};
    const out=[];
    if(typeof OBS!=='undefined'){
@@ -407,16 +444,21 @@ function renderBriefContent(r){
  return `<div class="g2" style="grid-template-columns:1.35fr 1fr;align-items:start"><div>${html}</div><div>${answersCard}</div></div>`;
 }
 function head(E,w,k){const a=[];if(w&&!E.noCreate)a.push(`<button class="btn p" onclick="act('${k}',null,'new')">+ ${k==='users'?'Add user':'New '+esc(E.n)}</button>`);
+ let briefWaitNote='';
  if(E.gen&&can(k)){
   const bs=getBrandBriefState(S.brand);
   if(bs.generating)a.push(`<button class="btn p" disabled>Generating brief…</button>`);
   else if(bs.hasActiveBrief)a.push(`<button class="btn" disabled title="A brief already exists for this brand">Brief generated</button>`);
+  else if(!bs.onboardingSubmitted){
+   a.push(`<button class="btn" disabled title="Waiting for the client to submit onboarding answers first">Waiting for client onboarding</button>`);
+   briefWaitNote=`<div class="note wn"><b>ⓘ</b><span>The client must complete and submit their onboarding questions first. You’ll receive a notification as soon as they finish so you can generate the Brand Brief once from their answers.</span></div>`;
+  }
   else if(bs.hasFailedOnly)a.push(`<button class="btn p" onclick="gen()">Retry generate brief</button>`);
   else a.push(`<button class="btn p" onclick="gen()">Generate brief</button>`);
  }
  if(E.upload)a.push(`<button class="btn" disabled title="Not available in the backend yet">Upload strategy</button>`);
  const lk=locked(k)&&!E.ro;
- return `<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>${esc(E.t)}</h1><p>${esc(E.d)}</p></div><div style="display:flex;gap:8px">${a.join('')}</div></div>${lk?`<div class="note wn"><b>🔒</b><span>View-only for your role. You can open and read these records, but not create, edit, delete or change them.</span></div>`:''}${E.note?`<div class="note"><b>ⓘ</b><span>${esc(E.note)}</span></div>`:''}`}
+ return `<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>${esc(E.t)}</h1><p>${esc(E.d)}</p></div><div style="display:flex;gap:8px">${a.join('')}</div></div>${briefWaitNote}${lk?`<div class="note wn"><b>🔒</b><span>View-only for your role. You can open and read these records, but not create, edit, delete or change them.</span></div>`:''}${E.note?`<div class="note"><b>ⓘ</b><span>${esc(E.note)}</span></div>`:''}`}
 let listPage=function(k){const E=D[k],w=can(k),q=(S.q||'').trim().toLowerCase();let rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>!S.brand||!r.brandId||r.brandId===S.brand).filter(({r})=>k!=='brands'||S.role!=='client'||r.name===curClientBrand()).filter(({r})=>k!=='notifications'||S.role!=='client'||r.title.includes(curClientBrand())).filter(({r})=>{if(!q)return true;const txt=Object.entries(r).filter(([a])=>a!=='_id'&&a!=='password').map(([a,v])=>a==='isActive'?(v?'active':'inactive'):typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).join(' ').toLowerCase();return txt.includes(q)});
  if(k==='notifications'&&S.nf==='unread')rows=rows.filter(({r})=>!r.isRead);
  let h=head(E,w,k);
@@ -797,26 +839,76 @@ let act=function(k,i,a){S.err={};const E=D[k];if(k==='brands'&&a==='view'){S.bra
  if(a==='view')return modal(`<div class="dlg">${detail(k,r)}</div>`);if(a==='edit')return modal(`<div class="dlg">${form(k,i)}</div>`);
  if(a==='del')return modal(`<div class="dlg"><h2>Delete this ${esc(E.n)}?</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="E_del('${k}',${i})">Delete ${esc(E.n)}</button></div></div>`);
  E.run(a,r);view(false)};
-let E_del=function(k,i){D[k].rows.splice(i,1);close();toast('Deleted');view(false)};
+function cleanupDeletedBrand(brand){
+ if(!brand)return;
+ const bName=String(brand.name||'').trim().toLowerCase();
+ const bEmail=String(brand.email||'').trim().toLowerCase();
+ if(bName){
+  const brIdx=BR.findIndex(x=>String(x||'').trim().toLowerCase()===bName);
+  if(brIdx>=0)BR.splice(brIdx,1);
+ }
+ if(bEmail){
+  for(let idx=D.users.rows.length-1;idx>=0;idx--){
+   const u=D.users.rows[idx];
+   if(String(u.email||'').trim().toLowerCase()===bEmail&&u.roleId==='Client'){
+    D.users.rows.splice(idx,1);
+   }
+  }
+  const pwMap=loadDemoPwMap();
+  if(pwMap[bEmail]){
+   delete pwMap[bEmail];
+   try{localStorage.setItem(DEMO_PW_KEY,JSON.stringify(pwMap))}catch{/* ignore */}
+  }
+ }
+ const savedBrands=loadDemoBrands().filter(x=>{
+  const sameName=bName&&String(x.name||'').trim().toLowerCase()===bName;
+  const sameEmail=bEmail&&String(x.email||'').trim().toLowerCase()===bEmail;
+  return !sameName&&!sameEmail;
+ });
+ try{localStorage.setItem(DEMO_BRANDS_KEY,JSON.stringify(savedBrands))}catch{/* ignore */}
+}
+function cleanupDeletedUser(user){
+ if(!user)return;
+ const uEmail=String(user.email||'').trim().toLowerCase();
+ if(!uEmail)return;
+ const pwMap=loadDemoPwMap();
+ if(pwMap[uEmail]){
+  delete pwMap[uEmail];
+  try{localStorage.setItem(DEMO_PW_KEY,JSON.stringify(pwMap))}catch{/* ignore */}
+ }
+}
+let E_del=function(k,i){const row=D[k]?.rows?.[i];D[k].rows.splice(i,1);if(k==='brands')cleanupDeletedBrand(row);if(k==='users')cleanupDeletedUser(row);close();toast('Deleted');view(false)};
 let gen=function(){
  const bs=getBrandBriefState(S.brand);
  if(!bs.target)return toast('Open a brand first to generate its brief.');
  if(bs.generating)return toast('A brief is already being generated for this brand.');
  if(bs.hasActiveBrief)return toast('A brief already exists for '+bs.target+'.');
+ if(!bs.onboardingSubmitted)return toast('The client must submit onboarding before generating a Brand Brief.');
  S.briefGenBusy=true;
  const nextVer=bs.list.reduce((mx,r)=>Math.max(mx,parseInt(String(r.version||'0').replace(/\D/g,''),10)||0),0)+1;
  const todayStr=typeof TODAY!=='undefined'?TODAY:new Date().toISOString().slice(0,10);
+ const obSnap=typeof getBrandOnboarding==='function'?getBrandOnboarding(bs.target):null;
+ const qaSnap=[];
+ if(obSnap?.a&&typeof OBS!=='undefined'){
+  OBS.forEach(([secTitle,qs])=>{
+   qs.forEach(([code,label])=>{
+    const val=obSnap.a[code];
+    if(val&&String(val).trim())qaSnap.push({section:secTitle,question:label,answer:val});
+   });
+  });
+ }
  const row={
   brandId:bs.target,
   version:'v'+nextVer,
   status:'GENERATED',
   updatedAt:todayStr,
   generatedBy:typeof MEN!=='undefined'?MEN[S.role]:'',
+  ...(qaSnap.length?{sourceSnapshot:{mainCategory:obSnap?.cat||'',activityType:obSnap?.act||'',questionsAndAnswers:qaSnap}}:{}),
   content:buildDemoBriefContent(bs.target),
  };
  D.briefs.rows.unshift(row);
  S.briefGenBusy=false;
- toast('Brand Brief generated successfully.');
+ toast('Brand Brief generated from client answers.');
  view(false);
 };
 /* shell */
@@ -980,7 +1072,7 @@ const np=n('platform'),T4=[['brief','Brand Brief','doc','Client data, the collec
 ['files','Files & Assets','file','Logo, visual identity, videos, designs and the rest of the library.',n('files')+' files','var(--peach)'],
 ['platforms','Social Media Platforms','link','Each channel with its content plans, campaigns and content items.',np+' platforms','var(--lilac)']].filter(t=>!['content','files'].includes(t[0])&&(R!=='client'||t[0]==='strategy'));
 const own=R==='admin'||R==='am';
-const obRec=(typeof OB_BY_BRAND!=='undefined'&&OB_BY_BRAND[b.name])||((typeof _obBrand!=='undefined'&&_obBrand===b.name)?OB:null);
+const obRec=typeof getBrandOnboarding==='function'?getBrandOnboarding(b.name):null;
 const obDoneCount=obRec?.done?.length||0;
 const obSubmitted=Boolean(obRec?.submitted)||D.briefs.rows.some(br=>br.brandId===b.name&&['GENERATED','READY','APPROVED'].includes(br.status));
 const obBadge=obSubmitted?`<span class="pill ok">Onboarding: Submitted</span>`:`<span class="pill wn">Onboarding: ${obDoneCount} of 7 sections</span>`;
@@ -990,7 +1082,7 @@ ${own?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" s
 <div class="mono mute" style="text-transform:uppercase;margin-bottom:8px">Brand workspace</div><p style="margin:0 0 16px">Everything about ${esc(b.name)} in one place.</p>
 <div class="tiles">${T4.map(t=>`<button class="tile" style="background:${t[5]}" onclick="S.sub='${t[0]}';S.q='';view(false)"><span class="ti">${ic(t[2])}</span><b>${t[1]}</b><span style="color:#45454d">${t[3]}</span><span class="cnt">${t[4]}</span></button>`).join('')}</div>`}
 let arch=function(i){D.brands.rows[i].status='ARCHIVED';toast('Brand archived');view(false)};
-function delB(i){modal(`<div class="dlg"><h2>Delete this brand?</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="D.brands.rows.splice(${i},1);S.brand=null;closeM();toast('Brand deleted');view(false)">Delete brand</button></div></div>`)}
+function delB(i){modal(`<div class="dlg"><h2>Delete this brand?</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="S.brand=null;E_del('brands',${i})">Delete brand</button></div></div>`)}
 let subPage=function(b){const k=S.sub,map={brief:'briefs',files:'files',platforms:'platform'},nm={brief:'Brand Brief',strategy:'Content Strategy',content:'Platforms',files:'Files & Assets',platforms:'Social Media Platforms'};
 return `<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap"><button class="btn sm" onclick="S.sub=null;S.q='';view(false)">← ${esc(b.name)}</button><span class="mute">${esc(nm[k])}</span></div>`+(k==='strategy'?stratPage():k==='content'?contentPage():listPage(map[k]))};
 /* strategy flow: CC upload → AM → client → AM → CC */
@@ -1086,12 +1178,27 @@ const OBS=[['Brand Information',[['q0','What is your brand name?',1],['q1','When
 ['Brand Personality',[['q15','Describe your brand personality',1],['q16','Which 3 words describe your tone?',1],['q17','Any colors or styles you prefer?',0,1]]],
 ['Marketing Objectives',[['q18','What is your main marketing objective?',1],['q19','Which platforms matter most?',1],['q20','Monthly content volume you expect?',0,1]]]];
 const OB={step:'category',cat:'Beauty & Personal Care',act:'E-commerce',sec:0,a:{},done:[],err:{},submitted:false};
-const OB_BY_BRAND={};
+const OB_STORE_KEY='orvia_onboarding_v1';
+const OB_BY_BRAND=(()=>{try{const m=JSON.parse(localStorage.getItem(OB_STORE_KEY)||'{}');return m&&typeof m==='object'?m:{}}catch{return{}}})();
 let _obBrand=CLIENT_BRAND;
+function persistOnboarding(brandName){
+ const key=brandName||_obBrand||CLIENT_BRAND;
+ if(key===_obBrand){
+  OB_BY_BRAND[key]={step:OB.step,cat:OB.cat,act:OB.act,sec:OB.sec,a:{...OB.a},done:[...OB.done],err:{},submitted:Boolean(OB.submitted)};
+ }
+ try{localStorage.setItem(OB_STORE_KEY,JSON.stringify(OB_BY_BRAND))}catch{/* ignore */}
+}
+function getBrandOnboarding(brandName){
+ const key=brandName||_obBrand||CLIENT_BRAND;
+ if(key===_obBrand){
+  return {step:OB.step,cat:OB.cat,act:OB.act,sec:OB.sec,a:{...OB.a},done:[...OB.done],submitted:Boolean(OB.submitted)};
+ }
+ return OB_BY_BRAND[key]||null;
+}
 function switchClientOnboarding(brandName){
  const next=brandName||CLIENT_BRAND;
+ persistOnboarding(_obBrand);
  if(_obBrand===next)return;
- OB_BY_BRAND[_obBrand]={step:OB.step,cat:OB.cat,act:OB.act,sec:OB.sec,a:{...OB.a},done:[...OB.done],err:{},submitted:OB.submitted};
  const saved=OB_BY_BRAND[next]||{step:'category',cat:'Beauty & Personal Care',act:'E-commerce',sec:0,a:{},done:[],err:{},submitted:false};
  OB.step=saved.step;OB.cat=saved.cat;OB.act=saved.act;OB.sec=saved.sec;OB.a={...saved.a};OB.done=[...saved.done];OB.err={};OB.submitted=Boolean(saved.submitted);
  _obBrand=next;
@@ -1138,12 +1245,42 @@ return obTop('Onboarding form',obCrumb())+`<div class="obh"><div class="ban"><b>
 <div class="ft"><button class="btn" onclick="OB.err={};OB.step='sections';view(false)">Form sections</button><button class="btn" onclick="toast('Draft saved')">Save draft</button><button class="btn p" onclick="obSubmit()">${i<6?'Save and continue':'Save section'}</button></div></div>`}
 let obSubmit=function(){const i=OB.sec;OB.err={};OBS[i][1].forEach(q=>{if(q[2]&&!(OB.a[q[0]]||'').trim())OB.err[q[0]]=1});
 if(Object.keys(OB.err).length){toast('Answer the required questions');return view(false)}
-if(!OB.done.includes(i))OB.done.push(i);if(i<6){OB.sec=i+1;toast('Section saved')}else{OB.step='sections';toast('Last section saved')}view(false);window.scrollTo(0,0)};
+if(!OB.done.includes(i))OB.done.push(i);if(i<6){OB.sec=i+1;toast('Section saved')}else{OB.step='sections';toast('Last section saved')}persistOnboarding(curClientBrand());view(false);window.scrollTo(0,0)};
 function obSecs(){const d=OB.done.length,pct=Math.round(d/7*100),B={done:['ok','Done'],inc:['wn','Incomplete'],none:['','Not started']};
 return obTop('Form sections',obCrumb())+`<div class="obh"><span class="mute">Progress: ${d} of 7 sections complete · ${pct}%</span><div class="pbar" style="width:240px"><i style="width:${pct}%"></i></div></div>
 <div class="secg">${OBS.map((x,i)=>{const b=B[secSt(i)];return `<button class="secbtn" onclick="OB.sec=${i};OB.step='form';view(false)"><span>${esc(x[0])}</span><span class="pill ${b[0]}">${b[1]}</span></button>`}).join('')}</div>
-<div class="ft" style="margin-top:20px"><button class="btn" onclick="toast('Draft saved')">Save draft</button><button class="btn p" ${d<7?'disabled title="Complete all 7 sections first"':''} onclick="obFinish()">Submit onboarding</button></div>${d<7?'<p class="mute" style="text-align:right;margin:8px 0 0">Complete every section to submit.</p>':''}`}
-let obFinish=function(){OB.submitted=true;D.notifications.rows.unshift({title:curClientBrand()+': Client onboarding submitted',createdAt:'just now',isRead:false});toast('Submitted · Account Manager notified');render(false)};
+<div class="ft" style="margin-top:20px"><button class="btn" onclick="persistOnboarding(curClientBrand());toast('Draft saved')">Save draft</button><button class="btn p" ${d<7?'disabled title="Complete all 7 sections first"':''} onclick="obFinish()">Submit onboarding</button></div>${d<7?'<p class="mute" style="text-align:right;margin:8px 0 0">Complete every section to submit.</p>':''}`}
+const NOTIF_STORE_KEY='orvia_custom_notifs_v1';
+function loadStoredNotifs(){try{const a=JSON.parse(localStorage.getItem(NOTIF_STORE_KEY)||'[]');return Array.isArray(a)?a:[]}catch{return[]}}
+function saveStoredNotif(item){
+ if(!item||!item.title)return;
+ const list=loadStoredNotifs().filter(x=>x.title!==item.title);
+ list.unshift(item);
+ try{localStorage.setItem(NOTIF_STORE_KEY,JSON.stringify(list.slice(0,30)))}catch{/* ignore */}
+}
+function syncStoredNotifRead(title,all=false){
+ const list=loadStoredNotifs();
+ if(!list.length)return;
+ list.forEach(x=>{if(all||x.title===title)x.isRead=true});
+ try{localStorage.setItem(NOTIF_STORE_KEY,JSON.stringify(list))}catch{/* ignore */}
+}
+let obFinish=function(){
+ const cb=curClientBrand();
+ OB.submitted=true;
+ persistOnboarding(cb);
+ const notif={
+  title:cb+': Client completed onboarding — please generate the Brand Brief',
+  createdAt:'just now',
+  isRead:false,
+  internal:true,
+  to:['am','admin'],
+  link:{k:'onboarding',brand:cb},
+ };
+ D.notifications.rows.unshift(notif);
+ saveStoredNotif(notif);
+ toast('Onboarding submitted · Account Manager notified');
+ render(false);
+};
 function obDone(){return obTop('Onboarding',obCrumb())+`<div class="note ok"><b>✓</b><span>Submitted. Your account manager has been notified and will prepare your brand brief.</span></div><div class="card"><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><h2>Your answers</h2><span class="pill ok">Submitted</span></div><dl class="kv" style="margin:0 0 8px"><dt>Main category</dt><dd>${esc(OB.cat)}</dd><dt>Activity type</dt><dd>${esc(OB.act)}</dd></dl>${OBS.map(x=>`<div class="dash"></div><h2 style="font-size:16px">${esc(x[0])}</h2><dl class="kv" style="margin:12px 0 0">${x[1].map(q=>`<dt>${esc(q[1])}</dt><dd>${esc(OB.a[q[0]])||'—'}</dd>`).join('')}</dl>`).join('')}</div>`}
 function obPage(){return OB.submitted?obDone():OB.step==='category'?obCat():OB.step==='sections'?obSecs():obForm()}
 function clientBrand(){const cb=curClientBrand(),b=D.brands.rows.find(x=>x.name===cb)||D.brands.rows[0]||{name:cb,status:'ACTIVE',industry:'—',accountManagerId:'—'},s=sg(b.name),SL={none:'Not started',uploaded:'Being prepared',am:'Being prepared',client:'Waiting for your decision',answered:'Your answer was sent',forwarded:s.out==='approved'?'Approved':'Revision in progress'}[s.st];
@@ -1341,11 +1478,20 @@ const DEST={strategy:'Content Strategy',content:'Platforms',brief:'Brand Brief',
 let goTo=function(l){const R=S.role,cl=R==='client',m={strategy:['strategy','strategy'],content:['strategy','platforms'],brief:['brief','brief'],onboarding:['onboarding','brief']}[l.k];let p='tasks',b=null,s=null;
  if(l.k!=='tasks'&&m){if(cl)p=m[0];else if(NAV[R].includes('brands')){p='brands';b=l.brand;s=m[1]}}
  const allowed=NAV[R]||NAV.admin;S.page=isAllowedPage(R,p)?p:allowed[0];S.brand=b;S.sub=s;S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.open=false;S.err={};render()};
-let nview=function(i){const r=D.notifications.rows[i];r.isRead=true;goTo(r.link||{k:'tasks'})};
+(function hydrateStoredNotifs(){
+ const saved=loadStoredNotifs();
+ saved.slice().reverse().forEach(n=>{
+  if(n?.title&&!D.notifications.rows.some(x=>x.title===n.title)){
+   D.notifications.rows.unshift(n);
+  }
+ });
+})();
+let nview=function(i){const r=D.notifications.rows[i];r.isRead=true;syncStoredNotifRead(r.title,false);goTo(r.link||{k:'tasks'})};
 function markRead(i){
  const r=D.notifications.rows[i];
  if(!r||r.isRead)return;
  r.isRead=true;
+ syncStoredNotifRead(r.title,false);
  if(r._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
   apiCall('/notifications/'+r._id+'/read',{method:'PATCH'}).catch(()=>{});
  }
@@ -1353,6 +1499,7 @@ function markRead(i){
 }
 function markAllRead(){
  D.notifications.rows.forEach(r=>{r.isRead=true});
+ syncStoredNotifRead('',true);
  if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
   apiCall('/notifications/read-all',{method:'PATCH'}).catch(()=>{});
  }
@@ -2144,11 +2291,24 @@ async function hydrateFromBackend(){
   if(notifsData){
    const nList=Array.isArray(notifsData)?notifsData:(notifsData.notifications||[]);
    if(nList.length){
-    D.notifications.rows=nList.map(n=>({
-     _id:n.id,title:n.title||n.message||'Notification',
-     createdAt:n.createdAt?String(n.createdAt).slice(0,16).replace('T',' '):'just now',
-     isRead:Boolean(n.isRead),link:{k:'tasks'}
-    }));
+    D.notifications.rows=nList.map(n=>{
+     const title=n.title||n.message||'Notification';
+     const low=(String(n.type||'')+' '+title).toLowerCase();
+     const brandFromData=n.data?.brandName||D.brands.rows.find(b=>title.includes(b.name))?.name||'';
+     const link=low.includes('onboarding')||low.includes('brief')
+      ?{k:'onboarding',brand:brandFromData||BR[0]||''}
+      :low.includes('strategy')
+       ?{k:'strategy',brand:brandFromData||BR[0]||''}
+       :{k:'tasks'};
+     return {
+      _id:n.id,title,
+      createdAt:n.createdAt?String(n.createdAt).slice(0,16).replace('T',' '):'just now',
+      isRead:Boolean(n.isRead),link
+     };
+    });
+    loadStoredNotifs().slice().reverse().forEach(sn=>{
+     if(sn?.title&&!D.notifications.rows.some(x=>x.title===sn.title))D.notifications.rows.unshift(sn);
+    });
    }
   }
   if(S.role==='client'){
@@ -2611,7 +2771,10 @@ gen=async function(){
  if(!bs.target)return toast('Open a brand first to generate its brief.');
  if(bs.generating)return toast('A brief is already being generated for this brand.');
  if(bs.hasActiveBrief)return toast('A brief already exists for '+bs.target+'.');
- if(!getApiToken()||S.offlineMode)return _origGen();
+ if(!getApiToken()||S.offlineMode){
+  if(!bs.onboardingSubmitted)return toast('The client must submit onboarding before generating a Brand Brief.');
+  return _origGen();
+ }
  const brandId=API_CACHE.brandsByName[bs.target]||D.brands.rows.find(b=>b.name===bs.target)?._id;
  if(!brandId)return toast('Could not find this brand on the server.');
  S.briefGenBusy=true;

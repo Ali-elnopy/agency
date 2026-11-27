@@ -131,43 +131,92 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     expect(document.body.textContent).toContain('Velvet Roasters / Onboarding');
   });
 
-  it('3. Account Manager: Onboarding badge, single Brand Brief generation with 7 sections + original answers, Approve & Notifications', async () => {
+  it('3. Client submits onboarding -> AM notified -> AM can generate Brand Brief ONCE from client answers (blocked before onboarding)', async () => {
+    // 1. Admin creates a brand with its own client credentials
+    loginAs('elena@agency-clean.co', 'Admin123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('admin'));
+    window.go('brands');
+    window.view(false);
+    window.act('brands', null, 'new');
+    document.querySelector('.dlg [data-f="name"]').value = 'Cedar Brew';
+    document.querySelector('.dlg [data-f="industry"]').value = 'Food & Beverage';
+    document.querySelector('.dlg [data-f="status"]').value = 'ACTIVE';
+    document.querySelector('.dlg [data-f="email"]').value = 'client@cedarbrew.com';
+    document.querySelector('.dlg [data-f="password"]').value = 'CedarPass123!';
+    window.save('brands', null);
+
+    // 2. AM tries to generate brief BEFORE client submits onboarding -> MUST be blocked!
+    window.logout();
     loginAs('omar@agency-clean.co', 'Manager123456!');
     await vi.waitFor(() => expect(window.S.role).toBe('am'));
-
-    // Open Atlas Fitness (only has FAILED brief)
     window.S.page = 'brands';
-    window.S.brand = 'Atlas Fitness';
-    window.S.sub = null;
-    window.view(false);
-    expect(document.body.textContent).toContain('Onboarding:');
-
-    // Open Brand Brief and generate ONCE
+    window.S.brand = 'Cedar Brew';
     window.S.sub = 'brief';
     window.view(false);
-    const beforeCount = window.D.briefs.rows.filter((b) => b.brandId === 'Atlas Fitness').length;
+    expect(document.body.textContent).toContain('Waiting for client onboarding');
     await window.gen();
-    const afterFirst = window.D.briefs.rows.filter((b) => b.brandId === 'Atlas Fitness').length;
-    expect(afterFirst).toBe(beforeCount + 1);
+    expect(window.D.briefs.rows.filter((b) => b.brandId === 'Cedar Brew').length).toBe(0);
+
+    // 3. Client logs in, answers onboarding questions, and submits -> AM is notified
+    window.logout();
+    loginAs('client@cedarbrew.com', 'CedarPass123!');
+    await vi.waitFor(() => expect(window.S.clientBrand).toBe('Cedar Brew'));
+    window.OB.cat = 'Food';
+    window.OB.act = 'Cafe';
+    window.OB.a = {
+      q0: 'Cedar Brew',
+      q1: '2024',
+      q2: 'Specialty organic cold-brew coffee house',
+      q3: 'Organic cold-brew coffee and pastries',
+      q4: 'Cardamom Cold Brew',
+      q6: 'Young creatives aged 20-35',
+      q9: 'Grow Instagram community and daily orders',
+      q14: 'Single-origin beans roasted locally',
+      q16: 'Warm, bold, artisanal',
+      q18: 'Drive foot traffic and online orders',
+      q19: 'Instagram & TikTok',
+      q20: '16 posts per month',
+    };
+    window.OB.done = [0, 1, 2, 3, 4, 5, 6];
+    window.obFinish();
+
+    // Verify AM notification was created for Cedar Brew
+    const amNotif = window.D.notifications.rows.find(
+      (n) => n.title.includes('Cedar Brew') && Array.isArray(n.to) && n.to.includes('am'),
+    );
+    expect(amNotif).toBeTruthy();
+
+    // 4. AM logs in -> generates Brand Brief ONCE based on client's exact answers
+    window.logout();
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+    window.S.page = 'brands';
+    window.S.brand = 'Cedar Brew';
+    window.S.sub = 'brief';
+    window.view(false);
+    expect(document.body.textContent).toContain('Generate brief');
+
+    await window.gen();
+    expect(window.D.briefs.rows.filter((b) => b.brandId === 'Cedar Brew').length).toBe(1);
 
     // Trying to generate a SECOND time must be blocked!
     await window.gen();
-    const afterSecond = window.D.briefs.rows.filter((b) => b.brandId === 'Atlas Fitness').length;
-    expect(afterSecond).toBe(afterFirst);
+    expect(window.D.briefs.rows.filter((b) => b.brandId === 'Cedar Brew').length).toBe(1);
 
-    // Generated brief has real 7-section content and shows Client's original answers side-by-side
+    // Generated brief contains the Client's actual answers & shows Client's original answers side-by-side
     const genBriefIdx = window.D.briefs.rows.findIndex(
-      (b) => b.brandId === 'Atlas Fitness' && b.status === 'GENERATED',
+      (b) => b.brandId === 'Cedar Brew' && b.status === 'GENERATED',
     );
     expect(genBriefIdx).toBeGreaterThanOrEqual(0);
     const genBrief = window.D.briefs.rows[genBriefIdx];
-    expect(genBrief.content.brandOverview).toBeTruthy();
-    expect(genBrief.content.contentDirection).toBeTruthy();
+    expect(JSON.stringify(genBrief.content)).toContain('Cardamom Cold Brew');
+    expect(JSON.stringify(genBrief.content)).toContain('Young creatives aged 20-35');
 
     window.act('briefs', genBriefIdx, 'view');
     window.view(false);
     expect(document.body.textContent).toContain('Brand Overview');
     expect(document.body.textContent).toContain('Client’s original answers');
+    expect(document.body.textContent).toContain('Cardamom Cold Brew');
 
     // Approve brief
     await window.D.briefs.run('ap', genBrief);
