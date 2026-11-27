@@ -592,13 +592,472 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     // 4. Publishing record -> PATCH /content-items/201/publishing
     item.stage = 'APPROVED';
     window.pubRec(item.id);
-    document.querySelector('[data-f="d"]').value = '2026-11-28';
-    document.querySelector('[data-f="u"]').value = 'https://instagram.com/p/lumen-winter-1';
-    document.querySelector('[data-f="n"]').value = 'Published on IG feed';
-    window.askOk();
+    document.getElementById('pb-st').value = 'PUBLISHED';
+    document.getElementById('pb-d').value = '2026-11-28';
+    document.getElementById('pb-u').value = 'https://instagram.com/p/lumen-winter-1';
+    document.getElementById('pb-n').value = 'Published on IG feed';
+    await window.confirmPubRec(item.id);
     await vi.waitFor(() => {
       expect(calls.some((c) => c.method === 'PATCH' && c.path === '/content-items/201/publishing' && c.body.publishStatus === 'PUBLISHED')).toBe(true);
       expect(item.stage).toBe('PUBLISHED');
     });
+  });
+
+  it('8. Internal Review flow: Employee sends content -> AM returns with comments -> Employee edits & resubmits new version (v2) -> AM approves to Client Review', async () => {
+    const calls = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, opts = {}) => {
+        const path = String(url).replace(/^\/api/, '');
+        const method = opts.method || 'GET';
+        const body = typeof opts.body === 'string' ? JSON.parse(opts.body) : opts.body;
+        calls.push({ method, path, body });
+
+        if (path === '/auth/login') {
+          const isEmp = body?.email === 'karim@agency-clean.co';
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              success: true,
+              data: {
+                accessToken: isEmp ? 'jwt-emp-token' : 'jwt-am-token',
+                refreshToken: 'ref-token',
+                user: isEmp
+                  ? { id: 4, fullName: 'Karim Fouad', email: 'karim@agency-clean.co', isActive: true, role: { name: 'CREATIVE' } }
+                  : { id: 2, fullName: 'Omar Haddad', email: 'omar@agency-clean.co', isActive: true, role: { name: 'ACCOUNT_MANAGER' } },
+              },
+            }),
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({ success: true, data: {} }) };
+      }),
+    );
+
+    // Prepare a DRAFT content item linked to a creation task (301) and review task (302)
+    const item = window.PLANS[0].items[0];
+    item._id = 401;
+    item.stage = 'DRAFT';
+    item.v = 1;
+    item.link = 'https://drive.google.com/file/d/draft-v1';
+    item.vers = [];
+    item.comments = [];
+    item.hist = [];
+
+    window.TK.unshift(
+      { id: 301, _id: 301, contentItemId: 401, title: 'Create: ' + item.title, kind: 'CREATION', status: 'IN_PROGRESS', priority: 'HIGH', assignee: 'Karim Fouad', by: 'Omar Haddad', brand: 'Lumen Skincare', ctx: [item.title], planned: '2026-11-25', eff: '2026-11-25', desc: '', submissionUrl: 'https://drive.google.com/file/d/draft-v1' },
+      { id: 302, _id: 302, contentItemId: 401, title: 'Review: ' + item.title, kind: 'REVIEW', status: 'TODO', priority: 'HIGH', assignee: 'Omar Haddad', by: 'Omar Haddad', brand: 'Lumen Skincare', ctx: [item.title], planned: '2026-11-26', eff: '2026-11-26', desc: '', after: 301 },
+    );
+
+    // 1. Employee (Karim) logs in -> can access Review page & send DRAFT to IN_REVIEW
+    loginAs('karim@agency-clean.co', 'Creative123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('emp'));
+    expect(window.NAV.emp).toContain('review');
+    await window.mv(item.id, 'IN_REVIEW');
+    expect(item.stage).toBe('IN_REVIEW');
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/tasks/301/submit')).toBe(true);
+
+    // 2. Account Manager (Omar) returns content with comments (CHANGES_REQUESTED)
+    window.logout();
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+    await window.mv(item.id, 'CHANGES_REQUESTED', 'Please brighten the hero visual and shorten caption.');
+    expect(item.stage).toBe('CHANGES_REQUESTED');
+    expect(item.comments.some((c) => c.t.includes('brighten the hero visual'))).toBe(true);
+    expect(calls.some((c) => c.method === 'PATCH' && c.path === '/tasks/302/review' && c.body.decision === 'NEEDS_CHANGES' && c.body.notes.includes('brighten'))).toBe(true);
+
+    // 3. Employee (Karim) edits & submits new version (v2) back to IN_REVIEW
+    window.logout();
+    loginAs('karim@agency-clean.co', 'Creative123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('emp'));
+    item.link = 'https://drive.google.com/file/d/draft-v2';
+    await window.mv(item.id, 'IN_REVIEW', 'Updated lighting and shortened caption');
+    expect(item.stage).toBe('IN_REVIEW');
+    expect(item.v).toBe(2);
+    expect(item.vers.length).toBe(1);
+
+    // 4. Account Manager approves for client (IN_REVIEW -> CLIENT_REVIEW)
+    window.logout();
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+    await window.mv(item.id, 'CLIENT_REVIEW');
+    expect(item.stage).toBe('CLIENT_REVIEW');
+    expect(calls.some((c) => c.method === 'PATCH' && c.path === '/tasks/302/review' && c.body.decision === 'COMPLETED')).toBe(true);
+  });
+
+  it('9. Comments & Revision History audit log + Task/Workflow Notifications for all key events', async () => {
+    // 1. AM assigns a direct task -> notification created for assignee
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+
+    window.newTask();
+    document.getElementById('dt1').value = 'Design launch banner';
+    document.getElementById('dt3').value = 'Karim Fouad';
+    document.getElementById('dt4').value = 'HIGH';
+    document.getElementById('dt5').value = '2026-11-29';
+    window.saveTask();
+    expect(window.D.notifications.rows.some((n) => n.title.includes('New task assigned to Karim Fouad') && n.title.includes('Design launch banner'))).toBe(true);
+
+    // 2. AM edits task -> notification created for task update
+    const bannerTask = window.TK.find((t) => t.title === 'Design launch banner');
+    window.editTask(bannerTask.id);
+    document.getElementById('et-priority').value = 'URGENT';
+    await window.saveEditTask(bannerTask.id);
+    expect(window.D.notifications.rows.some((n) => n.title.includes('Task updated:') && n.title.includes('Design launch banner'))).toBe(true);
+
+    // 3. Comments & Revision History + Approval metadata + "Task completed != Client approved" notice
+    const item = window.PLANS[0].items[0];
+    item.stage = 'CLIENT_REVIEW';
+    item.v = 2;
+    item.approvedAt = '';
+    item.approvedBy = '';
+    window.TK.unshift({ id: 901, contentItemId: item.id, title: 'Create: ' + item.title, kind: 'CREATION', status: 'COMPLETED', priority: 'MEDIUM', assignee: 'Karim Fouad', by: 'Omar Haddad', brand: 'Lumen Skincare', ctx: [item.title], planned: '2026-11-25', eff: '2026-11-25', desc: '' });
+
+    window.openD({ t: 'item', id: item.id });
+    window.view(false);
+    expect(document.body.textContent).toContain('Approved by');
+    expect(document.body.textContent).toContain('Not approved by client yet');
+    expect(document.body.textContent).toContain('Internal task is completed, but this content is not approved by the client yet.');
+
+    // 4. Client approves -> records Approved by & Approved at in audit summary
+    window.logout();
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('client'));
+    await window.mv(item.id, 'APPROVED');
+    expect(item.approvedBy).toContain('Client');
+    expect(item.approvedAt).toBeTruthy();
+
+    // 5. Notifications page shows in-app channel indicator & review/tasks links
+    window.go('notifications');
+    window.view(false);
+    expect(document.body.textContent).toContain('Channel: In-app notifications');
+  });
+
+  it('10. Client Portal (Web): sees own Brief & Content Plans, comments, approves/requests changes, sends Requests, receives own Notifications, and cannot access any other Client data', async () => {
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('client'));
+
+    // Sidebar includes Brief, Content Plans, Review, Requests, Notifications
+    expect(window.NAV.client).toContain('brief');
+    expect(window.NAV.client).toContain('plans');
+    expect(window.NAV.client).toContain('review');
+    expect(window.NAV.client).toContain('requests');
+    expect(window.NAV.client).toContain('notifications');
+
+    // Brief page shows ONLY Lumen Skincare (never Nord Coffee)
+    window.go('brief');
+    window.view(false);
+    const viewEl = () => document.getElementById('view')?.textContent || '';
+    expect(viewEl()).toContain('Lumen Skincare');
+    expect(viewEl()).not.toContain('Nord Coffee');
+
+    // Content Plans page shows ONLY Lumen Skincare plans & items
+    window.PLANS.push({ id: 999, brand: 'Nord Coffee', platform: '@nordcoffee', title: 'Secret Nord Plan', month: 'Nov 2026', campaigns: [], items: [{ id: 9991, title: 'Secret Nord Post', type: 'POST', stage: 'CLIENT_REVIEW', v: 1, comments: [], hist: [] }] });
+    window.go('plans');
+    window.view(false);
+    expect(viewEl()).toContain('Nov · Lumen Skincare');
+    expect(viewEl()).not.toContain('Secret Nord Plan');
+    expect(viewEl()).not.toContain('Secret Nord Post');
+
+    // Client can comment on their own item
+    const myItem = window.PLANS[0].items[0];
+    window.openD({ t: 'item', id: myItem.id });
+    window.view(false);
+    expect(viewEl()).toContain(myItem.title);
+    window.cmt(myItem.id);
+    document.querySelector('[data-f="t"]').value = 'Love the lighting on this shot!';
+    window.askOk();
+    expect(myItem.comments.some((c) => c.t === 'Love the lighting on this shot!')).toBe(true);
+
+    // Tenant isolation: attempting to open another client's item or plan or brief is blocked!
+    window.openD({ t: 'item', id: 9991 });
+    window.view(false);
+    expect(viewEl()).not.toContain('Secret Nord Post');
+
+    window.openD({ t: 'plan', id: 999 });
+    window.view(false);
+    expect(viewEl()).not.toContain('Secret Nord Plan');
+
+    const nordBriefIdx = window.D.briefs.rows.findIndex((b) => b.brandId === 'Nord Coffee');
+    if (nordBriefIdx >= 0) {
+      window.openD({ t: 'row', k: 'briefs', i: nordBriefIdx });
+      window.view(false);
+      expect(viewEl()).not.toContain('Urban professionals');
+    }
+  });
+
+  it('11. Client Requests full lifecycle: Submitted -> Under Review -> Assigned (creates Task / Content Item) + Rejected with reason + Client notifications', async () => {
+    // 1. Client submits two requests
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('client'));
+
+    window.reqNew();
+    document.querySelector('[data-f="kind"]').value = 'New idea';
+    document.querySelector('[data-f="text"]').value = 'Behind the scenes lab tour reel';
+    window.askOk();
+
+    window.reqNew();
+    document.querySelector('[data-f="kind"]').value = 'Plan change';
+    document.querySelector('[data-f="text"]').value = 'Move launch to next month';
+    window.askOk();
+
+    const rAccept = window.REQ.find((r) => r.text === 'Behind the scenes lab tour reel');
+    const rReject = window.REQ.find((r) => r.text === 'Move launch to next month');
+    expect(rAccept.st).toBe('SUBMITTED');
+    expect(rReject.st).toBe('SUBMITTED');
+
+    // 2. AM marks first request Under Review -> Client notified
+    window.logout();
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+
+    window.reqReview(rAccept.id);
+    expect(rAccept.st).toBe('UNDER_REVIEW');
+    expect(window.D.notifications.rows.some((n) => n.title.includes('under review'))).toBe(true);
+
+    // 3. AM accepts & assigns first request to team + employee -> creates Task in TK
+    window.reqOk(rAccept.id);
+    document.getElementById('rq-team').value = 'Creative & Motion Studio';
+    document.getElementById('rq-emp').value = 'Karim Fouad';
+    document.getElementById('rq-pr').value = 'HIGH';
+    document.getElementById('rq-dl').value = '2026-12-05';
+    await window.confirmReqOk(rAccept.id);
+    expect(rAccept.st).toBe('ASSIGNED');
+    expect(rAccept.team).toBe('Creative & Motion Studio');
+    expect(window.TK.some((t) => t.desc === 'Behind the scenes lab tour reel' && t.assignee === 'Karim Fouad')).toBe(true);
+
+    // 4. Team member turns assigned request into a Content Item in PLANS
+    window.reqItem(rAccept.id);
+    expect(window.PLANS[0].items.some((i) => i.title.includes('Behind the scenes lab tour reel'))).toBe(true);
+
+    // 5. AM rejects second request with reason -> Client sees REJECTED + reason
+    window.reqNo(rReject.id);
+    document.querySelector('[data-f="r"]').value = 'Campaign media buying is already locked.';
+    window.askOk();
+    expect(rReject.st).toBe('REJECTED');
+    expect(rReject.reason).toBe('Campaign media buying is already locked.');
+    expect(window.D.notifications.rows.some((n) => n.title.includes('Campaign media buying is already locked.'))).toBe(true);
+  });
+
+  it('12. Publishing Tracking (manual approved-only + Client read-only) & Calendar View (monthly, Publish Date, AM vs Admin brand scope)', async () => {
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+
+    const item = window.PLANS[0].items[0];
+    // Cannot record publishing on unapproved content
+    item.stage = 'IN_REVIEW';
+    window.pubRec(item.id);
+    expect(document.getElementById('pb-st')).toBeNull();
+
+    // Record publishing on APPROVED content (first SCHEDULED, then PUBLISHED)
+    item.stage = 'APPROVED';
+    window.pubRec(item.id);
+    document.getElementById('pb-st').value = 'SCHEDULED';
+    document.getElementById('pb-d').value = '2026-11-26';
+    document.getElementById('pb-u').value = '';
+    document.getElementById('pb-n').value = 'Scheduled for 7 PM';
+    await window.confirmPubRec(item.id);
+    expect(item.pub.status).toBe('SCHEDULED');
+    expect(item.stage).toBe('APPROVED');
+
+    window.pubRec(item.id);
+    document.getElementById('pb-st').value = 'PUBLISHED';
+    document.getElementById('pb-d').value = '2026-11-26';
+    document.getElementById('pb-u').value = 'https://instagram.com/p/lumen-live-26';
+    document.getElementById('pb-n').value = 'Live on Instagram';
+    await window.confirmPubRec(item.id);
+    expect(item.stage).toBe('PUBLISHED');
+    expect(item.pub.u).toBe('https://instagram.com/p/lumen-live-26');
+
+    // Calendar View shows item on its Publish Date, excludes undated items, and clicking opens details
+    window.PLANS[0].items.push({ id: 8881, title: 'Undated draft post', type: 'POST', platform: '@lumen.skin', date: '', assignee: 'Lina Aziz', stage: 'DRAFT', v: 1, comments: [], hist: [] });
+    window.S.cm = '2026-11';
+    window.go('calendar');
+    window.view(false);
+    const calText = document.getElementById('view')?.textContent || '';
+    expect(calText).toContain('November 2026');
+    expect(calText).toContain(item.title);
+    expect(calText).not.toContain('Undated draft post');
+    expect(calText).toContain('without a publish date are kept off the calendar');
+
+    // Client sees Publishing record as read-only (no Record/Update publishing button)
+    window.logout();
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('client'));
+    window.openD({ t: 'item', id: item.id });
+    window.view(false);
+    const clientView = document.getElementById('view')?.textContent || '';
+    expect(clientView).toContain('Publishing tracking');
+    expect(clientView).toContain('https://instagram.com/p/lumen-live-26');
+    expect(clientView).not.toContain('Update publishing');
+    expect(clientView).not.toContain('Record publishing');
+  });
+
+  it('13. Monthly Performance Report: Brand tab import, Platform + Month, missing field highlight, duplicate replace prompt, AI analysis, Approve -> Share gate, History table, Admin & Client visibility', async () => {
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+
+    // AM enters Brand -> Monthly Performance tab
+    window.S.page = 'brands';
+    window.S.brand = 'Lumen Skincare';
+    window.S.sub = 'performance';
+    window.view(false);
+    expect(document.getElementById('view')?.textContent || '').toContain('Monthly Performance Report');
+    expect(document.getElementById('view')?.textContent || '').toContain('Previous months history');
+
+    // Open review modal with one missing metric (Conversions) -> highlights missing field instead of guessing
+    window.repRev({ Followers: '14500', Reach: '60000', Impressions: '130000', Engagement: '3800' }, 'Lumen Skincare');
+    expect(document.querySelector('.dlg')?.textContent || '').toContain('Missing in the file');
+
+    // Fill missing metric, pick platform & month, save
+    document.querySelector('[data-r="platform"]').value = 'INSTAGRAM';
+    document.querySelector('[data-r="month"]').value = '2026-11';
+    document.querySelector('[data-r="Conversions"]').value = '310';
+    window.repSave();
+
+    const novRep = window.MR.find((r) => r.brand === 'Lumen Skincare' && r.month === '2026-11' && r.platform === 'INSTAGRAM');
+    expect(novRep).toBeTruthy();
+    expect(novRep.ok).toBe(false);
+    expect(novRep.sh).toBe(false);
+
+    // Duplicate month asks before replacing
+    window.repRev({ Followers: '14500', Reach: '60000', Impressions: '130000', Engagement: '3800', Conversions: '310' }, 'Lumen Skincare');
+    document.querySelector('[data-r="platform"]').value = 'INSTAGRAM';
+    document.querySelector('[data-r="month"]').value = '2026-11';
+    window.repSave();
+    expect(document.body.textContent).toContain('Replace the 2026-11 (INSTAGRAM) report?');
+    window.closeM();
+
+    // Run AI analysis -> strictly compares vs 2026-10 (Followers/Reach/Impressions/Conversions improved, Engagement declined)
+    window.repAi(novRep.id);
+    expect(novRep.ai).toContain('Improved vs 2026-10');
+    expect(novRep.ai).toContain('Declined vs 2026-10');
+
+    // Cannot share before approving
+    window.repSh(novRep.id);
+    expect(novRep.sh).toBe(false);
+
+    // Approve then Share -> Client sees it (read-only) + receives notification
+    window.repOk(novRep.id);
+    expect(novRep.ok).toBe(true);
+    window.repSh(novRep.id);
+    expect(novRep.sh).toBe(true);
+
+    window.logout();
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('client'));
+    window.go('reports');
+    window.view(false);
+    const cView = document.getElementById('view')?.textContent || '';
+    expect(cView).toContain('2026-11');
+    expect(cView).toContain('Previous months history');
+    expect(cView).not.toContain('Run AI analysis');
+  });
+
+  it('14. Team Performance & Workflow Tracking: per-individual metrics grouped by role, clickable Member Profile & Performance, submission-based on-time %, returned separate indicator, Workflow owner/delay table, Employee self-only view', async () => {
+    loginAs('elena@agency-clean.co', 'Admin123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('admin');
+    });
+
+    window.go('reports');
+    window.view(false);
+    const adminView = document.getElementById('view')?.textContent || '';
+    expect(adminView).toContain('Team performance (per individual, grouped by role)');
+    expect(adminView).toContain('Calculated per individual (no team aggregate score)');
+    expect(adminView).toContain('Workflow tracking — current owner, duration & delays');
+
+    // Clicking a member opens their Profile & Performance detail view
+    window.openD({ t: 'mperf', n: 'Lina Aziz' });
+    window.view(false);
+    const mView = document.getElementById('view')?.textContent || '';
+    expect(mView).toContain('Lina Aziz');
+    expect(mView).toContain('On-time delivery (at submission)');
+    expect(mView).toContain('Returned with changes (separate indicator)');
+
+    // Employee sees ONLY their own performance and cannot open another employee's performance view
+    window.logout();
+    loginAs('karim@agency-clean.co', 'Creative123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('emp'));
+    window.go('reports');
+    window.view(false);
+    const empView = document.getElementById('view')?.textContent || '';
+    expect(empView).toContain('Karim Fouad');
+    expect(empView).not.toContain('Lina Aziz');
+
+    window.openD({ t: 'mperf', n: 'Lina Aziz' });
+    window.view(false);
+    expect(document.getElementById('view')?.textContent || '').not.toContain('On-time delivery (at submission)');
+  });
+
+  it('15. Final Dashboards: Admin, AM, Employee, and Client dashboards render live metrics with clickable KPI cards that open their source lists', async () => {
+    // AM Dashboard: Briefs needing action, Plans needing action, Waiting for my review, Waiting for the client, Plan completion, Overdue tasks
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('am');
+    });
+    window.go('dashboard');
+    window.view(false);
+    const amText = document.getElementById('view')?.textContent || '';
+    expect(amText).toContain('Briefs needing action');
+    expect(amText).toContain('Plans needing action');
+    expect(amText).toContain('Waiting for my review');
+    expect(amText).toContain('Overdue tasks');
+    // Clicking "Waiting for my review" card navigates to Review page
+    const revBtn = [...document.querySelectorAll('#view button')].find((b) => b.textContent.includes('Waiting for my review'));
+    expect(revBtn).toBeTruthy();
+    expect(revBtn.getAttribute('onclick')).toBe("go('review')");
+    window.go('review');
+    expect(window.S.page).toBe('review');
+
+    // Client Dashboard: Plan progress, Awaiting my approval, Approved & published, Shared reports, Unread notifications
+    window.logout();
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('client');
+    });
+    window.go('dashboard');
+    window.view(false);
+    const clText = document.getElementById('view')?.textContent || '';
+    expect(clText).toContain('Plan progress');
+    expect(clText).toContain('Awaiting my approval');
+    expect(clText).toContain('Shared reports');
+    expect(clText).toContain('Unread notifications');
+    const repBtn = [...document.querySelectorAll('#view button')].find((b) => b.textContent.includes('Shared reports'));
+    expect(repBtn).toBeTruthy();
+    expect(repBtn.getAttribute('onclick')).toBe("go('reports')");
+    window.go('reports');
+    expect(window.S.page).toBe('reports');
+  });
+
+  it('16. Public Landing Page: accessible without login, displays About, Services, Portfolio/Case Studies, and submits Contact Us form with validation', () => {
+    expect(window.S.authed).toBe(false);
+    window.openLanding();
+    const appText = document.getElementById('app')?.textContent || '';
+    expect(appText).toContain('Services');
+    expect(appText).toContain('Portfolio & Case Studies');
+    expect(appText).toContain('Start a conversation');
+    // Does not leak internal workspace data
+    expect(appText).not.toContain('Omar Haddad');
+    expect(appText).not.toContain('Lumen Skincare');
+
+    // Submit empty contact form -> inline validation
+    window.sendLandingContact();
+    expect(window.S.err.lcName).toBeTruthy();
+    expect(window.S.err.lcEmail).toBeTruthy();
+    expect(window.S.err.lcMsg).toBeTruthy();
+
+    // Fill valid contact form -> confirmation shown
+    document.getElementById('lc-name').value = 'Nadia Hassan';
+    document.getElementById('lc-email').value = 'nadia@brandco.com';
+    document.getElementById('lc-company').value = 'BrandCo';
+    document.getElementById('lc-msg').value = 'Interested in Q1 strategy and social media management.';
+    window.sendLandingContact();
+    expect(window.S.landingSent).toBe(true);
+    expect(window.LANDING_MSGS.length).toBeGreaterThan(0);
+    expect(document.getElementById('app')?.textContent || '').toContain('Your message has been received');
   });
 });

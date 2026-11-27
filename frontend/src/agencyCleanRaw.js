@@ -25,7 +25,7 @@ function formatCountdown(total){
 }
 const PERM=Object.keys(S.p);
 const N={dashboard:['Dashboard','grid'],brands:['Brands','box'],briefs:['Brand Briefs','doc'],campaigns:['Campaigns','flag'],plans:['Content Plans','cal'],items:['Content Items','layers'],tasks:['Tasks','check'],platform:['Platform Accounts','link'],teams:['Teams','users'],users:['Users','user'],files:['Files','file'],strategies:['Strategies','bolt'],notifications:['Notifications','bell'],meta:['Meta Settings','gear'],onboarding:['Onboarding','clip'],brief:['Brand Brief','doc'],strategy:['Strategy','bolt'],account:['Profile & Password','lock']};
-const NAV={admin:['dashboard','brands','tasks','teams','users','account'],am:['dashboard','brands','tasks','teams','account'],cc:['brands','tasks','account'],emp:['tasks','account'],client:['onboarding','brief','strategy','notifications','brands','account']};
+const NAV={admin:['dashboard','brands','tasks','teams','users','account'],am:['dashboard','brands','tasks','teams','account'],cc:['brands','tasks','account'],emp:['tasks','account'],client:['onboarding','brief','strategy','plans','notifications','brands','account']};
 const has=_c=>S.role!=='client';
 const locked=k=>(S.role==='admin'&&k==='briefs')||(S.role==='cc'&&['briefs','platform'].includes(k))||(S.role==='am'&&k==='platform')||S.role==='client';
 const can=k=>{if(D[k].ro||S.role==='client'||S.role==='emp'||locked(k))return false;if(S.role==='admin')return true;return S.role==='am'?['briefs','files','brands'].includes(k):['files'].includes(k)};
@@ -459,7 +459,7 @@ function head(E,w,k){const a=[];if(w&&!E.noCreate)a.push(`<button class="btn p" 
  if(E.upload)a.push(`<button class="btn" disabled title="Not available in the backend yet">Upload strategy</button>`);
  const lk=locked(k)&&!E.ro;
  return `<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>${esc(E.t)}</h1><p>${esc(E.d)}</p></div><div style="display:flex;gap:8px">${a.join('')}</div></div>${briefWaitNote}${lk?`<div class="note wn"><b>🔒</b><span>View-only for your role. You can open and read these records, but not create, edit, delete or change them.</span></div>`:''}${E.note?`<div class="note"><b>ⓘ</b><span>${esc(E.note)}</span></div>`:''}`}
-let listPage=function(k){const E=D[k],w=can(k),q=(S.q||'').trim().toLowerCase();let rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>!S.brand||!r.brandId||r.brandId===S.brand).filter(({r})=>k!=='brands'||S.role!=='client'||r.name===curClientBrand()).filter(({r})=>k!=='notifications'||S.role!=='client'||r.title.includes(curClientBrand())).filter(({r})=>{if(!q)return true;const txt=Object.entries(r).filter(([a])=>a!=='_id'&&a!=='password').map(([a,v])=>a==='isActive'?(v?'active':'inactive'):typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).join(' ').toLowerCase();return txt.includes(q)});
+let listPage=function(k){const E=D[k],w=can(k),q=(S.q||'').trim().toLowerCase();let rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>S.role==='client'?(r.brandId?r.brandId===curClientBrand():(r.name?r.name===curClientBrand():true)):(!S.brand||!r.brandId||r.brandId===S.brand)).filter(({r})=>k!=='brands'||S.role!=='client'||r.name===curClientBrand()).filter(({r})=>k!=='notifications'||S.role!=='client'||(r.title.includes(curClientBrand())&&!r.internal)).filter(({r})=>{if(!q)return true;const txt=Object.entries(r).filter(([a])=>a!=='_id'&&a!=='password').map(([a,v])=>a==='isActive'?(v?'active':'inactive'):typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).join(' ').toLowerCase();return txt.includes(q)});
  if(k==='notifications'&&S.nf==='unread')rows=rows.filter(({r})=>!r.isRead);
  let h=head(E,w,k);
  if(k==='notifications')h+=`<div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view()">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`;
@@ -470,8 +470,8 @@ let listPage=function(k){const E=D[k],w=can(k),q=(S.q||'').trim().toLowerCase();
 function dashboard(){const U=D.users.rows,B=D.brands.rows,act=U.filter(u=>u.isActive).length,q=(S.q||'').trim().toLowerCase();
  const per=T.map(t=>B.filter(b=>b.teamId===t).length),cov=per.filter(x=>x).length,un=B.filter(b=>!T.includes(b.teamId)).length;
  const TC=['#17171C','#6B5FC7','#E8806A','#1F6B4A','#2F7FB5'],TD=['#17171C','#DCD6FF','#FFD9CD','#D8F2E4','#D8EEF8'];
- const al=[];const f=D.briefs.rows.filter(b=>b.status==='FAILED').length,rv=D.plans.rows.filter(p=>p.status==='REVIEW').length,od=D.tasks.rows.filter(t=>t.status!=='DONE'&&t.plannedDeadline<'2026-11-16').length;
- if(f)al.push(['er',`${f} brief failed to generate`,'Open Brand Briefs and retry.']);if(rv)al.push(['wn',`${rv} content plan waiting for review`,'Review it to unblock the team.']);if(od)al.push(['wn',`${od} overdue task`,'Check Tasks for the deadline.']);
+ const al=[];const f=D.briefs.rows.filter(b=>b.status==='FAILED'||b.status==='NEEDS_CHANGES'||b.status==='GENERATED').length,rv=PLANS.filter(p=>(p.status||'DRAFT')==='IN_REVIEW').length,od=(typeof TK!=='undefined'&&typeof isOd==='function')?TK.filter(isOd).length:D.tasks.rows.filter(t=>t.status!=='DONE'&&t.plannedDeadline<'2026-11-18').length;
+ if(f)al.push(['er',`${f} brief${f===1?'':'s'} need action`,'Open Brands → Brand Brief to review or retry.']);if(rv)al.push(['wn',`${rv} content plan${rv===1?'':'s'} waiting for review`,'Review to unblock the team.']);if(od)al.push(['wn',`${od} overdue task${od===1?'':'s'}`,'Open Tasks to resolve overdue deadlines.']);
  const teamRows=T.map((t,i)=>({t,i})).filter(({t})=>!q||t.toLowerCase().includes(q)||B.some(b=>b.teamId===t&&b.name.toLowerCase().includes(q)));
  const alRows=al.filter(a=>!q||(a[1]+' '+a[2]).toLowerCase().includes(q));
  let searchBanner='';
@@ -924,11 +924,94 @@ let render=function(){const a=$('#app');if(!a)return;if(!S.authed){a.innerHTML=a
  <main><header class="top"><div class="crumb">Agency workspace / <b>${N[S.page][0]}</b></div><div class="search-wrap"><label class="search">${ic('search')}<input aria-label="Search this page" placeholder="Search this page…" value="${esc(S.q)}" oninput="onSearch(this.value,this)" onfocus="openSearchDD()" onblur="setTimeout(closeSearchDD,140)" onkeydown="if(event.key==='Escape'){if(S.q){event.preventDefault();clearSearch()}else closeSearchDD()}"><button type="button" class="search-clr" onclick="clearSearch()" aria-label="Clear search" title="Clear search" style="display:${S.q?'inline-flex':'none'};border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 4px">×</button></label><div id="search-dd" class="search-dd" role="listbox" aria-label="Search results"></div></div></header><section id="view" aria-live="polite"></section></main>`;
  view()};
 /* auth */
+const LANDING_MSGS=[];
+function openLanding(){
+ S.auth='landing';S.err={};S.landingSent=false;
+ try{if(window.location.hash!=='#landing')history.replaceState(null,'','#landing')}catch{/* ignore */}
+ render();
+}
+function sendLandingContact(){
+ const name=($('#lc-name')?.value||'').trim();
+ const email=($('#lc-email')?.value||'').trim();
+ const company=($('#lc-company')?.value||'').trim();
+ const msg=($('#lc-msg')?.value||'').trim();
+ S.err={};
+ if(!name)S.err.lcName='Enter your name.';
+ if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))S.err.lcEmail='Enter a valid email address.';
+ if(!msg)S.err.lcMsg='Enter your message.';
+ if(Object.keys(S.err).length)return render();
+ LANDING_MSGS.unshift({id:++IDN,name,email,company,msg,at:now()});
+ S.landingSent=true;
+ toast('Message sent — our team will contact you soon.');
+ render();
+}
+function landingView(){
+ const svcs=[
+  ['Brand Strategy','Market positioning, audience architecture, and editorial voice tailored to each brand.','var(--lilac)'],
+  ['Content Production','Short-form video, reels, carousels, and visual storytelling built for modern feeds.','var(--peach)'],
+  ['Social & Community','Always-on publishing schedules, campaign management, and audience growth.','var(--sky)'],
+  ['Performance Insights','Monthly performance tracking, executive summaries, and continuous optimization.','var(--mint)']
+ ];
+ const cases=[
+  ['Skincare Launch Campaign','Beauty & E-commerce','End-to-end launch strategy, visual identity, and multi-channel content rollout.','Case study content supplied by agency'],
+  ['Specialty Roastery Rebrand','Food & Beverage','Brand voice refresh, monthly content system, and community growth playbooks.','Case study content supplied by agency'],
+  ['Fitness Studio Digital Growth','Health & Wellness','Always-on reels production and structured campaign execution across platforms.','Case study content supplied by agency']
+ ];
+ return `<div style="min-height:100vh;background:var(--canvas);color:var(--ink)">
+  <header style="max-width:1120px;margin:0 auto;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+   <div class="logo" style="margin:0"><i></i><div><b>ORVIA</b><small>Creative &amp; Digital Agency</small></div></div>
+   <nav style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+    <a class="lk" href="#lp-about" style="text-decoration:none;color:var(--ink)">About</a>
+    <a class="lk" href="#lp-services" style="text-decoration:none;color:var(--ink)">Services</a>
+    <a class="lk" href="#lp-portfolio" style="text-decoration:none;color:var(--ink)">Case Studies</a>
+    <a class="lk" href="#lp-contact" style="text-decoration:none;color:var(--ink)">Contact</a>
+    <button type="button" class="btn p sm" onclick="S.auth='login';S.err={};try{history.replaceState(null,'',window.location.pathname)}catch{};render()">Sign in →</button>
+   </nav>
+  </header>
+  <main style="max-width:1120px;margin:0 auto;padding:24px 24px 64px">
+   <section id="lp-about" class="card" style="padding:40px 32px;margin-bottom:28px;background:var(--ink);color:#F4F3EF">
+    <span class="tag" style="background:transparent;color:#F4F3EF;border-color:#55555E">Public Agency Showcase · No Login Required</span>
+    <h1 style="font-size:38px;line-height:1.15;margin:16px 0 12px;color:#fff">Strategy, content, and creative execution under one roof.</h1>
+    <p style="max-width:640px;color:#CFCED6;font-size:16px;margin:0 0 24px">ORVIA partners with ambitious brands to build clear brand strategies, produce standout social content, and deliver measurable monthly growth.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+     <a class="btn p" href="#lp-contact" style="background:var(--lilac);color:#17171C;border-color:var(--lilac);text-decoration:none">Get in touch</a>
+     <a class="btn" href="#lp-portfolio" style="background:transparent;color:#fff;border-color:#55555E;text-decoration:none">Explore Case Studies</a>
+    </div>
+   </section>
+   <section id="lp-services" style="margin-bottom:32px">
+    <span class="eb">What we do</span>
+    <h2 style="font-size:26px;margin:6px 0 16px">Services</h2>
+    <div class="cards">${svcs.map(([t,d,bg])=>`<div class="card" style="background:${bg}"><h3 style="margin:0 0 8px;font-size:18px">${esc(t)}</h3><p style="margin:0;color:#2E2E35">${esc(d)}</p></div>`).join('')}</div>
+   </section>
+   <section id="lp-portfolio" style="margin-bottom:32px">
+    <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+     <div><span class="eb">Selected work</span><h2 style="font-size:26px;margin:6px 0 0">Portfolio &amp; Case Studies</h2></div>
+     <span class="mute" style="font-size:12px">Note: Final copy, images &amp; case studies are supplied by the company.</span>
+    </div>
+    <div class="cards">${cases.map(([t,cat,desc,noteTxt])=>`<div class="card"><span class="tag lc">${esc(cat)}</span><h3 style="margin:10px 0 8px;font-size:18px">${esc(t)}</h3><p class="mute" style="margin:0 0 12px">${esc(desc)}</p><div class="mute" style="font-size:11px;border-top:1px solid var(--line);padding-top:8px">${esc(noteTxt)}</div></div>`).join('')}</div>
+   </section>
+   <section id="lp-contact" class="card" style="padding:32px">
+    <span class="eb">Contact us</span>
+    <h2 style="font-size:26px;margin:6px 0 6px">Start a conversation</h2>
+    <p class="mute" style="margin:0 0 20px">Tell us about your brand and goals — no account needed.</p>
+    ${S.landingSent?`<div class="note ok" role="status"><b>✓</b><span>Thank you! Your message has been received. Our team will reach out shortly.</span></div><button type="button" class="btn sm" style="margin-top:12px" onclick="S.landingSent=false;render()">Send another message</button>`:`
+    <div class="pg">
+     <div class="fl ${S.err.lcName?'bad':''}"><label>Full Name *</label><input id="lc-name" placeholder="Your name">${S.err.lcName?`<small>${esc(S.err.lcName)}</small>`:''}</div>
+     <div class="fl ${S.err.lcEmail?'bad':''}"><label>Email *</label><input id="lc-email" type="email" placeholder="you@company.com">${S.err.lcEmail?`<small>${esc(S.err.lcEmail)}</small>`:''}</div>
+     <div class="fl" style="grid-column:1/-1"><label>Company / Brand</label><input id="lc-company" placeholder="Optional"></div>
+     <div class="fl ${S.err.lcMsg?'bad':''}" style="grid-column:1/-1"><label>Message *</label><textarea id="lc-msg" placeholder="Tell us what you are looking for…"></textarea>${S.err.lcMsg?`<small>${esc(S.err.lcMsg)}</small>`:''}</div>
+    </div>
+    <div class="ft" style="justify-content:flex-start"><button type="button" class="btn p" onclick="sendLandingContact()">Send message</button></div>`}
+   </section>
+  </main>
+ </div>`;
+}
 function authView(){
  const a=S.auth;
+ if(a==='landing')return landingView();
  const formError=S.err.form?`<div class="note wn" role="alert"><b>!</b><span>${esc(S.err.form)}</span></div>`:'';
  const loginNotice=S.loginNotice?`<div class="note ok" role="status"><b>✓</b><span>${esc(S.loginNotice)}</span></div>`:'';
- const themeBtn=`<div class="auth-top"><span class="mono mute">Secure account recovery</span><button type="button" class="btn sm t" onclick="toggleTheme()">${S.theme==='dark'?'☀ Light':'☾ Dark'}</button></div>`;
+ const themeBtn=`<div class="auth-top"><button type="button" class="btn sm t" onclick="openLanding()">Public site</button><button type="button" class="btn sm t" onclick="toggleTheme()">${S.theme==='dark'?'☀ Light':'☾ Dark'}</button></div>`;
  const login=`<h1>Welcome back</h1><p class="mute" style="margin:8px 0 20px">Sign in to your ORVIA workspace.</p>${loginNotice}${F('email','Email','email','',S.loginEmail||S.forgotEmail||'')}${F('password','Password','password')}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><a class="lk" onclick="S.auth='forgot';S.loginNotice='';S.err={};render()">Forgot password?</a><button class="btn p" ${S.busy?'disabled':''} onclick="doLogin()">Sign in</button></div>`;
  const forgot=`<h1>Reset your password</h1><p class="mute" style="margin:8px 0 20px">Enter the work email registered to your account and we’ll send a 6-digit verification code.</p>${formError}${F('email','Email','email','',S.forgotEmail||'')}<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn p" ${S.busy?'disabled':''} onclick="doForgot()">${S.busy?'Sending…':'Send verification code'}</button><a class="lk" onclick="S.auth='verify';S.sent=0;S.err={};render()">I have a code</a></div><div class="note" style="margin-top:14px"><b>i</b><span>For security, we never confirm whether an account exists with this email.</span></div><p><a class="lk" onclick="S.auth='login';S.sent=0;S.otp='';S.resetToken='';S.err={};render()">Back to sign in</a></p>`;
  const checks=passwordChecks(S.newPassword||'');
@@ -1070,7 +1153,8 @@ const np=n('platform'),T4=[['brief','Brand Brief','doc','Client data, the collec
 ['strategy','Content Strategy','bolt','The approved strategy file, review and approval workflow.',s.v+' version'+(s.v===1?'':'s'),'var(--lilac)'],
 ['content','Content Management','cal','Content plans, campaigns and content items.',ps.length+' plan'+(ps.length===1?'':'s')+' · '+it+' items','var(--sky)'],
 ['files','Files & Assets','file','Logo, visual identity, videos, designs and the rest of the library.',n('files')+' files','var(--peach)'],
-['platforms','Social Media Platforms','link','Each channel with its content plans, campaigns and content items.',np+' platforms','var(--lilac)']].filter(t=>!['content','files'].includes(t[0])&&(R!=='client'||t[0]==='strategy'));
+['platforms','Social Media Platforms','link','Each channel with its content plans, campaigns and content items.',np+' platforms','var(--lilac)'],
+['performance','Monthly Performance','bolt','Import monthly Meta CSV/Excel reports, run AI summary and share with client.',(typeof MR!=='undefined'?MR.filter(r=>r.brand===b.name).length:0)+' reports','var(--mint)']].filter(t=>!['content','files'].includes(t[0])&&(t[0]!=='performance'||R==='am'||R==='admin')&&(R!=='client'||t[0]==='strategy'));
 const own=R==='admin'||R==='am';
 const obRec=typeof getBrandOnboarding==='function'?getBrandOnboarding(b.name):null;
 const obDoneCount=obRec?.done?.length||0;
@@ -1083,8 +1167,8 @@ ${own?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" s
 <div class="tiles">${T4.map(t=>`<button class="tile" style="background:${t[5]}" onclick="S.sub='${t[0]}';S.q='';view(false)"><span class="ti">${ic(t[2])}</span><b>${t[1]}</b><span style="color:#45454d">${t[3]}</span><span class="cnt">${t[4]}</span></button>`).join('')}</div>`}
 let arch=function(i){D.brands.rows[i].status='ARCHIVED';toast('Brand archived');view(false)};
 function delB(i){modal(`<div class="dlg"><h2>Delete this brand?</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="S.brand=null;E_del('brands',${i})">Delete brand</button></div></div>`)}
-let subPage=function(b){const k=S.sub,map={brief:'briefs',files:'files',platforms:'platform'},nm={brief:'Brand Brief',strategy:'Content Strategy',content:'Platforms',files:'Files & Assets',platforms:'Social Media Platforms'};
-return `<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap"><button class="btn sm" onclick="S.sub=null;S.q='';view(false)">← ${esc(b.name)}</button><span class="mute">${esc(nm[k])}</span></div>`+(k==='strategy'?stratPage():k==='content'?contentPage():listPage(map[k]))};
+let subPage=function(b){const k=S.sub,map={brief:'briefs',files:'files',platforms:'platform'},nm={brief:'Brand Brief',strategy:'Content Strategy',content:'Platforms',files:'Files & Assets',platforms:'Social Media Platforms',performance:'Monthly Performance Report'};
+return `<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap"><button class="btn sm" onclick="S.sub=null;S.q='';view(false)">← ${esc(b.name)}</button><span class="mute">${esc(nm[k])}</span></div>`+(k==='strategy'?stratPage():k==='content'?contentPage():k==='performance'?brandPerfPage(b.name):listPage(map[k]))};
 /* strategy flow: CC upload → AM → client → AM → CC */
 function stratPage(){const b=S.brand,s=sg(b),R=S.role,ap=s.out==='approved',cur={none:0,uploaded:0,am:1,client:2,answered:3,forwarded:ap?5:3}[s.st];
 if(R==='client'&&['none','uploaded','am'].includes(s.st))return `<div class="card empty"><span class="chip">${ic('bolt')}</span><h2>Nothing to review yet</h2><p class="mute">Your account manager will share the strategy with you when it is ready.</p></div>`;
@@ -1286,7 +1370,18 @@ function obPage(){return OB.submitted?obDone():OB.step==='category'?obCat():OB.s
 function clientBrand(){const cb=curClientBrand(),b=D.brands.rows.find(x=>x.name===cb)||D.brands.rows[0]||{name:cb,status:'ACTIVE',industry:'—',accountManagerId:'—'},s=sg(b.name),SL={none:'Not started',uploaded:'Being prepared',am:'Being prepared',client:'Waiting for your decision',answered:'Your answer was sent',forwarded:s.out==='approved'?'Approved':'Revision in progress'}[s.st];
 return `<div class="ph"><div><span class="eb">Client</span><h1>Brands</h1><p>Your brand at a glance. This page is view-only.</p></div></div><div class="bh"><div class="lg">${esc(b.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</div><div style="flex:1"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h1 style="font-size:26px">${esc(b.name)}</h1>${pill(b.status)}</div><div class="mute">${esc(b.industry||'—')}</div></div></div>
 <div class="card"><dl class="kv" style="margin:0"><dt>Industry</dt><dd>${esc(b.industry||'—')}</dd><dt>Account manager</dt><dd>${esc(b.accountManagerId||'—')}</dd>${b.email?`<dt>Brand email</dt><dd>${esc(b.email)}</dd>`:''}<dt>Onboarding</dt><dd>${OB.submitted?pill('SUBMITTED'):OB.done.length+' of 7 sections done'}</dd><dt>Strategy</dt><dd>${esc(SL)}</dd></dl></div>`}
-PAGES.onboarding=obPage;PAGES.brief=()=>listPage('briefs');PAGES.strategy=()=>stratPage();PAGES.plans=()=>contentPage();
+function clientPlansPage(){
+ const cb=curClientBrand(),q=(S.q||'').trim().toLowerCase();
+ const ps=PLANS.filter(p=>p.brand===cb&&(!q||[p.title,p.platform,p.month,...(p.items||[]).map(i=>i.title)].join(' ').toLowerCase().includes(q)));
+ return `<div class="ph"><div><span class="eb">Client</span><h1>Content Plans</h1><p>Monthly content plans shared with ${esc(cb)}. Click any item to review, comment, or check its history.</p></div></div>`+
+  (ps.length?ps.map(p=>{
+   const items=(p.items||[]).filter(i=>!q||[i.title,i.type,i.campaign,i.stage,STG[i.stage]].join(' ').toLowerCase().includes(q));
+   const done=items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length;
+   const pct=items.length?Math.round(done/items.length*100):0;
+   return `<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div><h2><a class="lk" onclick="openD({t:'plan',id:${p.id}})">${esc(p.title)}</a></h2><div class="mute" style="font-size:13px">${esc(p.platform||'—')} · ${esc(p.month||'')} · ${done}/${items.length} approved/published (${pct}%)</div></div><button class="btn sm t" onclick="openD({t:'plan',id:${p.id}})">Open full plan</button></div>${items.length?`<div class="tw" style="margin-top:12px"><table><thead><tr><th scope="col">Item</th><th scope="col">Type</th><th scope="col">Campaign</th><th scope="col">Date</th><th scope="col">Stage</th><th scope="col"></th></tr></thead><tbody>${items.map(i=>`<tr><td><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a> <span class="mute">v${esc(i.v||1)}</span></td><td><span class="tag">${esc(i.type)}</span></td><td>${esc(i.campaign||'—')}</td><td><span class="mono">${esc(i.date||'—')}</span></td><td>${SP(i.stage||'DRAFT')}</td><td><button class="btn sm t" onclick="openD({t:'item',id:${i.id}})">View &amp; comment</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:12px 0 0">No content items shared in this plan yet.</p>'}</div>`;
+  }).join(''):'<div class="card empty"><span class="chip">'+ic('cal')+'</span><h2>No content plans shared yet</h2><p class="mute">Your account manager will share your monthly content plan here once ready.</p></div>');
+}
+PAGES.onboarding=obPage;PAGES.brief=()=>listPage('briefs');PAGES.strategy=()=>stratPage();PAGES.plans=()=>S.role==='client'?clientPlansPage():contentPage();
 
 /* ===== v4: Tasks / My Work, Teams, Notifications, role dashboards ===== */
 const TODAY='2026-11-18',TY={CREATION:'Content Creation',REVIEW:'Review',PUBLISH:'Publish',DIRECT:'Direct'},DONE4=['COMPLETED','CANCELLED'],ini2=n=>String(n||'').split(' ').map(x=>x[0]).join('');
@@ -1360,11 +1455,28 @@ async function confirmSubmitTask(id){
  const rv=TK.find(x=>x.after===id);
  if(rv){rv.status='IN_REVIEW';rv.eff=TODAY}
  t.status='SUBMITTED';
+ const linkedIt=typeof findItemForTask==='function'?findItemForTask(t):null;
+ if(linkedIt){
+  const [it,plObj]=linkedIt;
+  if(it.stage==='CHANGES_REQUESTED'){snapV(it);it.v=(it.v||1)+1}
+  it.stage='IN_REVIEW';
+  it.link=url;it.materialUrl=url;
+  logH(it,'Submitted v'+(it.v||1)+' for internal review',notes||'');
+  note('“'+it.title+'” submitted for internal review',plObj.brand,true,['am','admin']);
+ }
  closeM();
  toast('Task submitted for review');
  view(false);
 }
-const tbtn=t=>tact(t).map(a=>`<button class="btn sm ${a[1]==='CANCELLED'?'dg':''}" onclick="${a[1]==='SUBMITTED'&&t.kind==='CREATION'?`submitTaskModal(${t.id})`:`tset(${t.id},'${a[1]}')`}">${a[0]}</button>`).join('');
+function reviewChangesModal(id){
+ const t=TK.find(x=>x.id===id);if(!t)return;
+ ask('Request changes on “'+t.title+'”',[['notes','Comments & requested changes *','textarea']],v=>{
+  const notes=(v.notes||'').trim();
+  if(!notes)return toast('Please describe the requested changes.');
+  tset(id,'NEEDS_CHANGES',notes);
+ });
+}
+const tbtn=t=>tact(t).map(a=>`<button class="btn sm ${a[1]==='CANCELLED'||a[1]==='NEEDS_CHANGES'?'dg':''}" onclick="${a[1]==='SUBMITTED'&&t.kind==='CREATION'?`submitTaskModal(${t.id})`:a[1]==='NEEDS_CHANGES'&&t.kind==='REVIEW'?`reviewChangesModal(${t.id})`:`tset(${t.id},'${a[1]}')`}">${a[0]}</button>`).join('');
 const abtn=t=>`<button class="btn sm" onclick="attachTaskModal(${t.id})" title="Attach a link to a file stored outside the system">📎 Attach link</button>`;
 function attachTaskModal(id){
  const t=TK.find(x=>x.id===id);if(!t)return;
@@ -1440,6 +1552,7 @@ async function saveEditTask(id){
   }
  }
  toast('Task updated');
+ note('Task updated: “'+title+'” ('+priority+' · due '+planned+')',t.brand,true,[rl(assignee),'am','admin'].filter(Boolean),{k:'tasks'});
  view(false);
 }
 tasksPage=function(){const R=S.role,me=MEN[R],mgr=R==='admin'||R==='am',team=mgr&&S.tw==='team',q=S.q.toLowerCase(),
@@ -1454,8 +1567,8 @@ tasksPage=function(){const R=S.role,me=MEN[R],mgr=R==='admin'||R==='am',team=mgr
 <div class="stats">${st.map(s=>`<div class="stat ${s[2]&&s[1]?'al':''}"><span class="mono mute">${s[0]}</span><b>${s[1]}</b></div>`).join('')}</div>`+
  (!L.length?`<div class="card empty"><span class="chip">${ic('check')}</span><h2>No tasks</h2><p class="mute">${team?'No tasks match.':'Nothing is assigned to you right now.'}</p></div>`:S.tv==='cards'?`<div class="cards">${L.map(card).join('')}</div>`:`<div class="card" style="padding:20px 12px"><div class="tw"><table><thead><tr><th scope="col">Task</th><th scope="col">Type</th><th scope="col">Assignee</th><th scope="col">Priority</th><th scope="col">Effective deadline</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>${L.map(row).join('')}</tbody></table></div></div>`)};
 newTask=function(){const o=x=>x.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');modal(`<div class="dlg"><h2>New direct task</h2><p class="mute" style="margin:0 0 16px">Not linked to a content item. It starts as TODO and appears in the assignee’s My Work.</p><div class="pg"><div class="fl" style="grid-column:1/-1"><label>Title *</label><input id="dt1"></div><div class="fl" style="grid-column:1/-1"><label>Description</label><textarea id="dt2"></textarea></div><div class="fl"><label>Assigned to *</label><select id="dt3">${o(EMP)}</select></div><div class="fl"><label>Priority</label><select id="dt4">${o(['LOW','MEDIUM','HIGH','URGENT'])}</select></div><div class="fl"><label>Planned deadline *</label><input id="dt5" type="date"></div></div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="saveTask()">Create task</button></div></div>`)};
-let saveTask=function(){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted||!document.getElementById('dt1'))return;const g=i=>(document.getElementById('dt'+i)?.value||'').trim();if(!g(1)||!g(5))return toast('Title and planned deadline are required');
- dlg._submitted=true;TK.unshift(mk(++IDN,g(1),'DIRECT','TODO',g(4),g(3),MEN[S.role],'—',[],g(5),g(5),g(2)));closeM();toast('Task created · TODO');S.tw='team';view(false)};
+let saveTask=function(){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted||!document.getElementById('dt1'))return;const g=i=>(document.getElementById('dt'+i)?.value||'').trim();const title=g(1),desc=g(2),assignee=g(3),priority=g(4),deadline=g(5);if(!title||!deadline)return toast('Title and planned deadline are required');
+ dlg._submitted=true;TK.unshift(mk(++IDN,title,'DIRECT','TODO',priority,assignee,MEN[S.role],'—',[],deadline,deadline,desc));closeM();note('New task assigned to '+assignee+': “'+title+'” (due '+deadline+')','',true,[rl(assignee),'am','admin'].filter(Boolean),{k:'tasks'});toast('Task created · TODO');S.tw='team';view(false)};
 PAGES.tasks=tasksPage;
 /* teams */
 const TX={};T.forEach((t,i)=>TX[t]={lead:['Elena Vance','Lina Aziz','Omar Haddad','Karim Fouad','Mona Saeed'][i],desc:['Plans brand strategy and long-term growth.','Produces video, motion and visual content.','Runs paid media and performance reporting.','Manages social channels and community.','Owns copy, tone of voice and editorial quality.'][i]});
@@ -1474,9 +1587,10 @@ PAGES.teams=teamsPage;
 /* notifications → go to where the work is */
 const NL=[{k:'content',brand:'Lumen Skincare'},{k:'tasks'},{k:'brief',brand:'Nord Coffee'}];D.notifications.rows.forEach((r,i)=>r.link=NL[i]);
 D.notifications.rows.push({title:'Lumen Skincare: strategy is waiting for the client’s decision',createdAt:'3 h ago',isRead:false,link:{k:'strategy',brand:'Lumen Skincare'}},{title:'Nord Coffee: strategy sent to the Account Manager',createdAt:'Yesterday',isRead:false,link:{k:'strategy',brand:'Nord Coffee'}});
-const DEST={strategy:'Content Strategy',content:'Platforms',brief:'Brand Brief',tasks:'Tasks',onboarding:'Brand Brief'};
+const DEST={strategy:'Content Strategy',content:'Platforms',brief:'Brand Brief',tasks:'Tasks',onboarding:'Brand Brief',review:'Review',requests:'Requests'};
 let goTo=function(l){const R=S.role,cl=R==='client',m={strategy:['strategy','strategy'],content:['strategy','platforms'],brief:['brief','brief'],onboarding:['onboarding','brief']}[l.k];let p='tasks',b=null,s=null;
- if(l.k!=='tasks'&&m){if(cl)p=m[0];else if(NAV[R].includes('brands')){p='brands';b=l.brand;s=m[1]}}
+ if(l.k==='review'||l.k==='requests'){p=l.k}
+ else if(l.k!=='tasks'&&m){if(cl)p=m[0];else if(NAV[R].includes('brands')){p='brands';b=l.brand;s=m[1]}}
  const allowed=NAV[R]||NAV.admin;S.page=isAllowedPage(R,p)?p:allowed[0];S.brand=b;S.sub=s;S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.open=false;S.err={};render()};
 (function hydrateStoredNotifs(){
  const saved=loadStoredNotifs();
@@ -1507,7 +1621,7 @@ function markAllRead(){
  render(false);
 }
 function notifPage(){const R=S.role,q=S.q.toLowerCase(),cb=curClientBrand();let L=D.notifications.rows.map((r,i)=>({r,i})).filter(({r})=>(!r.to||r.to.includes(R))&&(R!=='client'||(r.title.includes(cb)&&!r.internal))).filter(({r})=>r.title.toLowerCase().includes(q)&&(S.nf!=='unread'||!r.isRead));
- return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Notifications</h1><p>Press View to jump to the screen where you handle it.</p></div><button class="btn" onclick="markAllRead()">Mark all as read</button></div><div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view(false)">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`+
+ return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Notifications</h1><p>Press View to jump to the screen where you handle it. <span class="tag" style="margin-left:6px">Channel: In-app notifications</span></p></div><button class="btn" onclick="markAllRead()">Mark all as read</button></div><div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view(false)">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`+
  (L.length?`<div class="card" style="padding:8px 20px">${L.map(({r,i})=>`<div style="display:flex;gap:14px;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line);flex-wrap:wrap"><div style="min-width:220px;flex:1"><div style="font-weight:${r.isRead?500:700}">${esc(r.title)}</div><div class="mute" style="font-size:12px">${esc(r.createdAt)} · opens ${esc(DEST[(r.link||{k:'tasks'}).k]||'Tasks')}</div></div>${r.isRead?'<span class="pill">Read</span>':'<span class="pill in">Unread</span>'}${!r.isRead?`<button class="btn sm" onclick="markRead(${i})">Mark read</button>`:''}<button class="btn sm p" onclick="nview(${i})">View →</button></div>`).join('')}</div>`:`<div class="card empty"><span class="chip">${ic('bell')}</span><h2>All caught up</h2></div>`)}
 PAGES.notifications=notifPage;
 const _sgo=sgo;sgo=function(a){const n=D.notifications.rows.length;_sgo(a);const r=D.notifications.rows[0];if(D.notifications.rows.length>n)r.link={k:'strategy',brand:S.brand}};
@@ -1573,7 +1687,18 @@ function teamDet(n){const x=TX[n];if(!x)return null;const i=tinfo(n),ad=S.role==
   +L('Brands ('+i.b.length+')',i.b.map(b=>row(esc(b.name)+' '+pill(b.status),esc(b.industry||''),`S.det=null;S.page='brands';act('brands',${bi(b.name)},'view')`)).join('')||e0,`teamEditBr(${ix})`)
   +L('Open tasks ('+openT.length+')',openT.map(t=>row(esc(t.title)+' '+pill(t.status),esc(t.assignee)+' · '+(dl(t)||'—'),`openD({t:'task',id:${t.id}})`)).join('')||e0),
   ad?`<div style="display:flex;gap:8px"><button class="btn" onclick="teamEdit(${ix})">Rename / edit all</button><button class="btn dg" onclick="teamDel(${ix})">Delete team</button></div>`:'')}
-const detPage=()=>{const d=S.det;return d.t==='row'?rowDet(d.k,d.i):d.t==='item'?itemDet(d.id):d.t==='plan'?planDet(d.id):d.t==='camp'?campDet(d.p,d.n):d.t==='sub'?subHtml(d):d.t==='task'?taskDet(d.id):teamDet(d.n)};
+const detPage=()=>{
+ const d=S.det;
+ if(S.role==='client'){
+  const cb=curClientBrand();
+  if(d.t==='task'||d.t==='team'||d.t==='sub')return null;
+  if(d.t==='item'){const f=fItem(d.id);if(!f||f[1].brand!==cb)return null}
+  if(d.t==='plan'){const p=pl(d.id);if(!p||p.brand!==cb)return null}
+  if(d.t==='camp'){const p=PLANS.find(x=>x.id===d.p);if(!p||p.brand!==cb)return null}
+  if(d.t==='row'){const r=D[d.k]?.rows?.[d.i];if(!r)return null;const owner=r.brandId||r.name;if(owner&&owner!==cb)return null}
+ }
+ return d.t==='row'?rowDet(d.k,d.i):d.t==='item'?itemDet(d.id):d.t==='plan'?planDet(d.id):d.t==='camp'?campDet(d.p,d.n):d.t==='sub'?subHtml(d):d.t==='task'?taskDet(d.id):d.t==='mperf'?memberPerfDet(d.n):teamDet(d.n);
+};
 const _v=view,_go=go,_sr=setRole,_gt=goTo,_act=act,_ed=E_del,_sp=subPage;
 view=function(sk=true){enforceRoleRoute();const v=$('#view');if(S.det&&v){let h=null;try{h=detPage()}catch{/* ignore */}if(h){v.innerHTML=h;return}S.det=null}_v(sk)};
 go=p=>{S.det=null;_go(p)};setRole=r=>{S.det=null;_sr(r)};goTo=l=>{S.det=null;_gt(l)};
@@ -1595,7 +1720,7 @@ const itVals=()=>Object.fromEntries([...document.querySelectorAll('.dlg [data-f]
 function itType(pid,t,eid){const v=itVals();v.type=t;const ov=$('.ov');if(ov)ov.innerHTML=itModal(pid,v,eid)}
 let itSave=function(pid,eid){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;const v=itVals();if(!(v.title||'').trim())return toast('Title is required');const p=pl(pid);if(!p)return;
  dlg._submitted=true;
- if(eid){const it=fItem(eid)[0];Object.assign(it,v);if(it.stage==='APPROVED'){it.stage='IN_REVIEW';snapV(it);it.v=(it.v||1)+1;logH(it,'Edited after approval','Returned to internal review')}}else p.items.push({...v,id:++IDN,platform:p.platform,assignee:'',priority:'MEDIUM',status:'TODO'});closeM();toast(eid?'Changes saved':'Content item created');if(eid)view(false);else openSub('item',p.items[p.items.length-1].id)};
+ if(eid){const it=fItem(eid)[0];Object.assign(it,v);if(it.stage==='APPROVED'){it.stage='IN_REVIEW';it.approvedAt='';it.approvedBy='';snapV(it);it.v=(it.v||1)+1;logH(it,'Edited after approval','Returned to internal review')}}else p.items.push({...v,id:++IDN,platform:p.platform,assignee:'',priority:'MEDIUM',status:'TODO'});closeM();toast(eid?'Changes saved':'Content item created');if(eid)view(false);else openSub('item',p.items[p.items.length-1].id)};
 function editItem(id){const[i,p]=fItem(id);modal(itModal(p.id,{...i},id))}
 const cfm=(t,js)=>modal(`<div class="dlg"><h2>${t}</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="${js}">Delete</button></div></div>`);
 function doDelItem(id){
@@ -1744,6 +1869,8 @@ async function saveItemTasks(id){
   }
  }
  toast('Creation & review tasks assigned');
+ if(creator)note('Task assigned to '+creator+': “Create: '+it.title+'”',p.brand,true,[rl(creator),'am','admin'].filter(Boolean),{k:'tasks'});
+ if(reviewer)note('Review task assigned to '+reviewer+': “Review: '+it.title+'”',p.brand,true,[rl(reviewer),'am','admin'].filter(Boolean),{k:'tasks'});
  view(false);
 }
 let itemDet=function(id){const f=fItem(id);if(!f)return null;const[i,p]=f,
@@ -1789,15 +1916,41 @@ let teamRm=function(i){const n=T[i];D.users.rows.forEach(u=>{if(u.teamId===n)u.t
 const CLB='Lumen Skincare';
 const STG={DRAFT:'Draft',IN_REVIEW:'Internal review',CHANGES_REQUESTED:'Changes requested',CLIENT_REVIEW:'Client review',APPROVED:'Approved',PUBLISHED:'Published'};
 const TRN={DRAFT:['IN_REVIEW'],IN_REVIEW:['CLIENT_REVIEW','CHANGES_REQUESTED'],CHANGES_REQUESTED:['IN_REVIEW'],CLIENT_REVIEW:['APPROVED','CHANGES_REQUESTED'],APPROVED:['PUBLISHED'],PUBLISHED:[]};
-const WHO={'DRAFT>IN_REVIEW':'cc','IN_REVIEW>CLIENT_REVIEW':'am','IN_REVIEW>CHANGES_REQUESTED':'am','CHANGES_REQUESTED>IN_REVIEW':'cc','CLIENT_REVIEW>APPROVED':'client','CLIENT_REVIEW>CHANGES_REQUESTED':'client','APPROVED>PUBLISHED':'am'};
+const WHO={'DRAFT>IN_REVIEW':'cc,emp','IN_REVIEW>CLIENT_REVIEW':'am,admin','IN_REVIEW>CHANGES_REQUESTED':'am,admin','CHANGES_REQUESTED>IN_REVIEW':'cc,emp','CLIENT_REVIEW>APPROVED':'client','CLIENT_REVIEW>CHANGES_REQUESTED':'client','APPROVED>PUBLISHED':'am,admin'};
 const BTN={IN_REVIEW:'Send to internal review',CLIENT_REVIEW:'Approve for client',APPROVED:'Approve',CHANGES_REQUESTED:'Request changes',PUBLISHED:'Record publishing'};
 const SP=s=>`<span class="pill ${{APPROVED:'ok',PUBLISHED:'ok',IN_REVIEW:'wn',CLIENT_REVIEW:'wn',CHANGES_REQUESTED:'er',DRAFT:'lc'}[s]||''}">${esc(STG[s]||s)}</span>`;
 const now=()=>new Date().toISOString().slice(0,16).replace('T',' ');
-const can2=(i,t)=>(TRN[i.stage]||[]).includes(t)&&(WHO[i.stage+'>'+t]||'').split(',').includes(S.role);
+function findLinkedTasks(item){
+ if(!item)return{creation:null,review:null};
+ const match=t=>(item._id&&t.contentItemId===item._id)||(item.id&&t.contentItemId===item.id)||((t.ctx||[]).includes(item.title))||(String(t.title||'').toLowerCase().includes(String(item.title||'').toLowerCase()));
+ const creation=TK.find(t=>t.kind==='CREATION'&&match(t))||null;
+ const review=TK.find(t=>t.kind==='REVIEW'&&(match(t)||(creation&&t.after===creation.id)))||null;
+ return{creation,review};
+}
+function findItemForTask(task){
+ if(!task)return null;
+ const all=PLANS.flatMap(p=>p.items.map(i=>[i,p]));
+ if(task.contentItemId){
+  const byId=all.find(([i])=>i._id===task.contentItemId||i.id===task.contentItemId);
+  if(byId)return byId;
+ }
+ const cleanTitle=String(task.title||'').replace(/^(Create|Review|Modify|Publish):\s*/i,'').trim().toLowerCase();
+ return all.find(([i])=>(task.ctx||[]).includes(i.title)||(cleanTitle&&String(i.title||'').trim().toLowerCase()===cleanTitle))||null;
+}
+const isAuthorizedReviewer=i=>{
+ const {review}=findLinkedTasks(i);
+ return Boolean(review&&review.assignee===MEN[S.role]);
+};
+const can2=(i,t)=>{
+ if(!(TRN[i.stage]||[]).includes(t))return false;
+ if((WHO[i.stage+'>'+t]||'').split(',').includes(S.role))return true;
+ if(i.stage==='IN_REVIEW'&&(t==='CLIENT_REVIEW'||t==='CHANGES_REQUESTED')&&isAuthorizedReviewer(i))return true;
+ return false;
+};
 let ens=function(){PLANS.forEach(p=>p.items.forEach(i=>{i.stage=i.stage||({REVIEW:'IN_REVIEW',APPROVED:'APPROVED'}[i.status])||'DRAFT';i.v=i.v||1;i.comments=i.comments||[];i.hist=i.hist||[]}))};
 ens();PLANS[0].items[0].stage='IN_REVIEW';PLANS[0].items[1].stage='CLIENT_REVIEW';
 function logH(i,a,r){i.hist.push({at:now(),by:ME[S.role][0],role:ROLES[S.role],a,r:r||'',v:i.v})}
-const note=(t,b,int,to)=>D.notifications.rows.unshift({title:t+(b?' · '+b:''),createdAt:'Just now',isRead:false,internal:!!int,to});const rl=n=>Object.keys(MEN).find(k=>MEN[k]===n);
+const note=(t,b,int,to,link)=>D.notifications.rows.unshift({title:t+(b?' · '+b:''),createdAt:'Just now',isRead:false,internal:!!int,to,link:link||{k:'tasks'}});const rl=n=>Object.keys(MEN).find(k=>MEN[k]===n);
 let CHANGE_REQS=[];
 function loadItemRevisions(id){
  const f=fItem(id);if(!f)return;
@@ -1826,8 +1979,12 @@ async function mv(id,to,reason){
  const f=fItem(id);if(!f)return;
  const [i,p]=f;
  if(!can2(i,to))return toast('That transition isn’t allowed');
- const prevStage=i.stage,prevV=i.v,prevVersLen=(i.vers||[]).length,prevHistLen=(i.hist||[]).length;
+ const prevStage=i.stage;
  const isClientReview=S.role==='client'&&prevStage==='CLIENT_REVIEW'&&(to==='APPROVED'||to==='CHANGES_REQUESTED');
+ const isInternalReviewDecision=prevStage==='IN_REVIEW'&&(to==='CLIENT_REVIEW'||to==='CHANGES_REQUESTED');
+ const isSendToInternal=(prevStage==='DRAFT'||prevStage==='CHANGES_REQUESTED')&&to==='IN_REVIEW';
+ const linked=findLinkedTasks(i);
+
  if(isClientReview&&i._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
   try{
    const res=await apiCall('/content-items/'+i._id+'/client-review',{
@@ -1848,18 +2005,116 @@ async function mv(id,to,reason){
    return;
   }
  }
- if(i.stage==='CHANGES_REQUESTED'){snapV(i);i.v++}
- const from=i.stage;
+
+ if(isInternalReviewDecision&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  const targetTask=linked.review||linked.creation;
+  if(targetTask?._id){
+   try{
+    await apiCall('/tasks/'+targetTask._id+'/review',{
+     method:'PATCH',
+     body:{decision:to==='CLIENT_REVIEW'?'COMPLETED':'NEEDS_CHANGES',notes:to==='CHANGES_REQUESTED'?(reason||null):null}
+    });
+   }catch(err){
+    toast(err?.message||'Could not submit internal review decision');
+    return;
+   }
+  }
+ }
+
+ if(isSendToInternal&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  if(linked.creation?._id){
+   const subUrl=safeUrl(i.link||i.materialUrl||linked.creation.submissionUrl||'');
+   if(subUrl){
+    try{
+     await apiCall('/tasks/'+linked.creation._id+'/submit',{
+      method:'POST',
+      body:{submissionUrl:subUrl,submissionNotes:reason||i.notes||null}
+     });
+    }catch(err){
+     toast(err?.message||'Could not submit content for internal review');
+     return;
+    }
+   }
+  }
+ }
+
+ if(prevStage==='CHANGES_REQUESTED'&&to==='IN_REVIEW'){snapV(i);i.v=(i.v||1)+1}
  i.stage=to;
- logH(i,STG[from]+' → '+STG[to],reason);
- note('“'+i.title+'” moved to '+STG[to].toLowerCase(),p.brand,!['CLIENT_REVIEW','APPROVED','PUBLISHED'].includes(to),{IN_REVIEW:['am','admin'],CLIENT_REVIEW:['client','cc','admin'],CHANGES_REQUESTED:['cc','am','admin'],APPROVED:['am','cc','admin'],PUBLISHED:['client','cc','admin']}[to]);
- toast('Moved to '+STG[to]);
+ if(isInternalReviewDecision){
+  if(to==='CLIENT_REVIEW'){
+   if(linked.creation)linked.creation.status='COMPLETED';
+   if(linked.review)linked.review.status='COMPLETED';
+  }else if(to==='CHANGES_REQUESTED'){
+   if(linked.creation)linked.creation.status='NEEDS_CHANGES';
+   if(linked.review){linked.review.status='NEEDS_CHANGES';if(reason)linked.review.desc=reason}
+  }
+ }
+ if(isSendToInternal){
+  if(linked.creation)linked.creation.status='SUBMITTED';
+  if(linked.review){linked.review.status='IN_REVIEW';linked.review.eff=TODAY}
+ }
+ if(to==='APPROVED'){
+  i.approvedAt=now();
+  i.approvedBy=ME[S.role][0]+' ('+ROLES[S.role]+')';
+ }else if(to==='CHANGES_REQUESTED'){
+  i.approvedAt='';i.approvedBy='';
+  if(reason)i.comments.push({at:now(),by:ME[S.role][0],role:ROLES[S.role],v:i.v,t:reason});
+ }
+ logH(i,STG[prevStage]+' → '+STG[to],reason);
+ note('“'+i.title+'” moved to '+STG[to].toLowerCase(),p.brand,!['CLIENT_REVIEW','APPROVED','PUBLISHED'].includes(to),{IN_REVIEW:['am','admin'],CLIENT_REVIEW:['client','cc','admin'],CHANGES_REQUESTED:['cc','emp','am','admin'],APPROVED:['am','cc','admin'],PUBLISHED:['client','cc','admin']}[to],{k:'review',brand:p.brand});
+ toast(prevStage==='CHANGES_REQUESTED'&&to==='IN_REVIEW'?'Submitted v'+i.v+' for internal review':'Moved to '+STG[to]);
  view(false);
 }
 function mvAsk(id,to){if(to!=='CHANGES_REQUESTED')return mv(id,to);ask('Request changes',[['reason','What needs to change? *','textarea']],v=>(v.reason||'').trim()?mv(id,to,v.reason.trim()):toast('A reason is required'))}
 function cmt(id){ask('Add a comment',[['t','Comment','textarea']],v=>{if(!(v.t||'').trim())return;const[i]=fItem(id);i.comments.push({at:now(),by:ME[S.role][0],role:ROLES[S.role],v:i.v,t:v.t.trim()});view(false)})}
 function setLink(id){ask('Link to an external file',[['u','File URL (Drive, Dropbox…)']],async v=>{const u=(v.u||'').trim();if(u&&!safeUrl(u))return toast('Use an http:// or https:// URL');const [i]=fItem(id);const prev=i.link;i.link=u;i.materialUrl=u;if(i._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{await apiCall('/content-items/'+i._id,{method:'PATCH',body:{materialUrl:u||null}})}catch(err){i.link=prev;i.materialUrl=prev;toast(err?.message||'Could not save link');return view(false)}}toast('External link saved');view(false)})}
-function pubRec(id){ask('Record publishing',[['d','Publish date','date'],['u','Post link *'],['n','Notes','textarea']],async v=>{const u=(v.u||'').trim();if(!u||!safeUrl(u))return toast('Enter a valid http:// or https:// post link');const[i,p]=fItem(id);if(i._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{await apiCall('/content-items/'+i._id+'/publishing',{method:'PATCH',body:{publishStatus:'PUBLISHED',publishUrl:u,publishedAt:v.d?new Date(v.d).toISOString():new Date().toISOString(),publishNotes:(v.n||'').trim()||null}})}catch(err){toast(err?.message||'Could not record publishing');return}}i.pub={d:v.d||TODAY,u,n:(v.n||'').trim()};if(v.d)i.date=v.d;await mv(id,'PUBLISHED')})}
+function pubRec(id){
+ const f=fItem(id);if(!f)return;
+ const [it]=f;
+ if(it.stage!=='APPROVED'&&it.stage!=='PUBLISHED')return toast('Only client-approved content can have publishing recorded.');
+ const curPub=it.pub||{};
+ modal(`<div class="dlg"><h2>Record publishing (manual tracking)</h2><p class="mute" style="margin:0 0 14px">Manual publishing record for “${esc(it.title)}” — does not auto-post to social media.</p>
+  <div class="pg">
+   <div class="fl"><label>Publish status *</label><select id="pb-st">${['PUBLISHED','SCHEDULED','FAILED','NOT_PUBLISHED'].map(s=>`<option value="${s}" ${(curPub.status||'PUBLISHED')===s?'selected':''}>${lab(s)}</option>`).join('')}</select></div>
+   <div class="fl"><label>Publish date</label><input id="pb-d" type="date" value="${esc(curPub.d||it.date||TODAY)}"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Post link (required when Published)</label><input id="pb-u" type="url" value="${esc(curPub.u||'')}" placeholder="https://instagram.com/p/…"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Notes</label><textarea id="pb-n" placeholder="Publishing notes…">${esc(curPub.n||'')}</textarea></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="confirmPubRec(${id})">Save publishing record</button></div>
+ </div>`);
+}
+async function confirmPubRec(id){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const f=fItem(id);if(!f)return;
+ const [i,p]=f;
+ if(i.stage!=='APPROVED'&&i.stage!=='PUBLISHED')return toast('Content must be approved by the client before publishing.');
+ const status=$('#pb-st')?.value||'PUBLISHED';
+ const d=($('#pb-d')?.value||'').trim();
+ const u=($('#pb-u')?.value||'').trim();
+ const n=($('#pb-n')?.value||'').trim();
+ if(status==='PUBLISHED'&&(!u||!safeUrl(u)))return toast('Enter a valid http:// or https:// post link');
+ if(u&&!safeUrl(u))return toast('Post link must start with http:// or https://');
+ dlg._submitted=true;
+ if(i._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   await apiCall('/content-items/'+i._id+'/publishing',{
+    method:'PATCH',
+    body:{publishStatus:status,publishUrl:u||null,publishedAt:status==='PUBLISHED'?(d?new Date(d).toISOString():new Date().toISOString()):null,publishNotes:n||null}
+   });
+  }catch(err){dlg._submitted=false;return toast(err?.message||'Could not save publishing record')}
+ }
+ i.pub={status,d:d||'',u,n};
+ i.publishStatus=status;
+ if(d)i.date=d;
+ closeM();
+ if(status==='PUBLISHED'&&i.stage!=='PUBLISHED'){
+  await mv(id,'PUBLISHED');
+ }else{
+  logH(i,'Publishing status updated: '+lab(status),n||'');
+  toast('Publishing status saved: '+lab(status));
+  view(false);
+ }
+}
 function resolveChangeReq(crId){
  const cr=CHANGE_REQS.find(x=>x.id===crId||x._id===crId);if(!cr)return;
  ask('Resolve change request & send back to client',[['notes','Account manager notes','textarea']],async v=>{
@@ -1917,9 +2172,13 @@ itemDet=function(id){const b=_id(id);if(!b)return b;const[i]=fItem(id),R=S.role,
  bt=(TRN[i.stage]||[]).filter(t=>can2(i,t)).map(t=>`<button class="btn ${t==='CHANGES_REQUESTED'?'dg':'p'}" onclick="${t==='PUBLISHED'?`pubRec(${id})`:`mvAsk(${id},'${t}')`}">${BTN[t]}</button>`).join('');
  if(i._id&&!i._revsLoaded&&!i._revsLoading)loadItemRevisions(id);
  const pendingCr=(R==='am'||R==='admin')?CHANGE_REQS.filter(cr=>cr.status==='PENDING'&&(cr.contentItemId===i._id||cr.contentItemId===i.id||cr.itemTitle===i.title)):[];
- return b+cd('Workflow',`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${SP(i.stage)}<span class="tag">Version ${esc(i.v)}</span>${bt||'<span class="mute">No action needed from your role right now.</span>'}</div>`+ow(i)+(pendingCr.length?`<div class="note wn" style="margin-top:12px;flex-direction:column;align-items:flex-start;gap:8px"><b>Client change request pending</b>${pendingCr.map(cr=>`<div>${esc(cr.clientNotes)} <span class="mute">(${esc(cr.createdAt)})</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm p" onclick="resolveChangeReq(${cr.id})">Resolve &amp; resend to client</button><button class="btn sm" onclick="forwardChangeReq(${cr.id})">Forward to team</button></div>`).join('')}</div>`:''))
- +cd('External file',`<dl class="kv" style="margin:0">${kvh([['Link',lk(i.link||i.materialUrl)]])}</dl>${R==='cc'?`<button class="btn sm" style="margin-top:10px" onclick="setLink(${id})">${i.link||i.materialUrl?'Change':'Attach'} link</button>`:''}`)
- +(i.pub?cd('Publishing',`<dl class="kv" style="margin:0">${kvh([['Status','Published'],['Date',esc(i.pub.d)||'—'],['Link',lk(i.pub.u)],['Notes',esc(i.pub.n)||'—']])}</dl>`):i.stage==='APPROVED'?cd('Publishing','<p class="mute" style="margin:0">Approved — waiting to be published.</p>'):'')
+ const lnkTasks=findLinkedTasks(i);
+ const taskDoneNotApproved=lnkTasks.creation?.status==='COMPLETED'&&!['APPROVED','PUBLISHED'].includes(i.stage);
+ const lastChangeReq=[...(i.hist||[])].reverse().find(h=>String(h.a||'').includes('Changes requested'));
+ const auditSummary=`<dl class="kv" style="margin:12px 0 0">${kvh([['Current version','Version '+esc(i.v)],['Approved by',esc(i.approvedBy||'Not approved by client yet')],['Approved at',esc(i.approvedAt||'—')],['Last changes requested by',lastChangeReq?`${esc(lastChangeReq.by)} (${esc(lastChangeReq.role)}) · v${esc(lastChangeReq.v)} · ${esc(lastChangeReq.at)}${lastChangeReq.r?' — '+esc(lastChangeReq.r):''}`:'None']])}</dl>`;
+ return b+cd('Workflow',`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${SP(i.stage)}<span class="tag">Version ${esc(i.v)}</span>${bt||'<span class="mute">No action needed from your role right now.</span>'}${(R==='cc'||R==='emp')&&i.stage==='CHANGES_REQUESTED'?`<button class="btn sm" onclick="editItem(${id})">Edit content</button>`:''}</div>`+ow(i)+auditSummary+(taskDoneNotApproved?'<div class="note" style="margin-top:12px"><b>ℹ</b><span>Internal task is completed, but this content is not approved by the client yet.</span></div>':'')+(pendingCr.length?`<div class="note wn" style="margin-top:12px;flex-direction:column;align-items:flex-start;gap:8px"><b>Client change request pending</b>${pendingCr.map(cr=>`<div>${esc(cr.clientNotes)} <span class="mute">(${esc(cr.createdAt)})</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm p" onclick="resolveChangeReq(${cr.id})">Resolve &amp; resend to client</button><button class="btn sm" onclick="forwardChangeReq(${cr.id})">Forward to team</button></div>`).join('')}</div>`:''))
+ +cd('External file',`<dl class="kv" style="margin:0">${kvh([['Link',lk(i.link||i.materialUrl)]])}</dl>${R==='cc'||R==='emp'?`<button class="btn sm" style="margin-top:10px" onclick="setLink(${id})">${i.link||i.materialUrl?'Change':'Attach'} link</button>`:''}`)
+ +(i.pub?cd('Publishing tracking',`<p class="mute" style="margin:0 0 10px;font-size:12px">Manual publishing record (not automatic social media posting).</p><dl class="kv" style="margin:0">${kvh([['Publish status',pill(i.pub.status||'PUBLISHED')],['Publish date',esc(i.pub.d)||'—'],['Post link',lk(i.pub.u)],['Notes',esc(i.pub.n)||'—']])}</dl>`+(R!=='client'&&can2(i,'PUBLISHED')?`<button class="btn sm" style="margin-top:10px" onclick="pubRec(${id})">Update publishing</button>`:'')):i.stage==='APPROVED'?cd('Publishing tracking','<p class="mute" style="margin:0">Approved by client — waiting for manual publishing record.</p>'):'')
  +cd('Comments ('+i.comments.length+')',(i.comments.map(c=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(c.by)}</b> <span class="mute" style="font-size:12px">${esc(c.role)} · v${esc(c.v)} · ${esc(c.at)}</span><div>${esc(c.t)}</div></div>`).join('')||'<p class="mute" style="margin:0">No comments yet.</p>')+`<button class="btn sm" style="margin-top:12px" onclick="cmt(${id})">+ Add comment</button>`)
  +cd('Previous versions ('+(i.vers||[]).length+')',(i.vers||[]).slice().reverse().map(x=>`<details style="padding:8px 0;border-top:1px solid var(--line)"><summary><b>Version ${esc(x.v)}</b> <span class="mute">${esc(x.at)}${x.by?' · '+esc(x.by):''}${x.reason?' · '+esc(x.reason):''}</span></summary><dl class="kv" style="margin:8px 0 0">${kvh(Object.entries(x.s||{}).filter(([k,v])=>v&&typeof v!=='object'&&!['id','_id','platform','assignee','priority','status'].includes(k)).map(([k,v])=>[esc(FL[k]||k),esc(v).replace(/\n/g,'<br>')]))}</dl></details>`).join('')||'<p class="mute" style="margin:0">No earlier versions yet.</p>')+cd('Decision history',i.hist.slice().reverse().map(h=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(h.a)}</b> <span class="mute" style="font-size:12px">${esc(h.by)} · ${esc(h.role)} · v${esc(h.v)} · ${esc(h.at)}</span>${h.r?`<div>${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet. Earlier versions and comments are always kept.</p>')};
 /* shared helpers */
@@ -1934,23 +2193,66 @@ const by=s=>{const q=(S.q||'').trim().toLowerCase();return allI().filter(vis).fi
 PAGES.review=()=>{const R=S.role;
  if(R==='client'){const cb=curClientBrand(),d=allI().filter(vis).flatMap(([i])=>i.hist.filter(h=>h.role==='Client').map(h=>[i,h]));
   return hdr('Content review','Content delivered to you for approval.')+crd('Content plan shared with you',PLANS.filter(p=>p.brand===cb).map(p=>bar(p.platform+' · '+p.title,p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,p.items.length)).join('')||'<p class="mute" style="margin:0">No plan shared yet.</p>')+sec('Awaiting your review',by('CLIENT_REVIEW'))+sec('Approved',by('APPROVED'))+sec('Published',by('PUBLISHED'))+crd('Your review history',d.map(([i,h])=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a> · ${esc(h.a)} <span class="mute">${esc(h.at)}</span>${h.r?`<div class="mute">${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')}
- if(R==='cc'||R==='emp')return hdr('My review queue','Drafts to send and content returned with changes.')+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Drafts ready to send',by('DRAFT'))+sec('In internal review',by('IN_REVIEW'));
+ if(R==='cc'||R==='emp'){
+  const assignedToReview=by('IN_REVIEW').filter(([i])=>isAuthorizedReviewer(i));
+  const revSec=assignedToReview.length?sec('Assigned to me for internal review',assignedToReview):'';
+  return hdr('My review queue','Drafts to send, content returned with changes, and items assigned to you for review.')+revSec+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Drafts ready to send',by('DRAFT'))+sec('In internal review',by('IN_REVIEW'));
+ }
  const pCrs=CHANGE_REQS.filter(cr=>cr.status==='PENDING'&&myBrands().includes(cr.brand));
  const crCard=pCrs.length?crd('Client change requests pending ('+pCrs.length+')',`<div class="tw"><table><thead><tr><th scope="col">Item</th><th scope="col">Brand</th><th scope="col">Client notes</th><th scope="col">Date</th><th scope="col"></th></tr></thead><tbody>${pCrs.map(cr=>`<tr><td><b>${esc(cr.itemTitle)}</b></td><td>${esc(cr.brand)}</td><td>${esc(cr.clientNotes)}</td><td><span class="mono">${esc(cr.createdAt)}</span></td><td><div class="ra"><button class="btn sm p" onclick="resolveChangeReq(${cr.id})">Resolve</button><button class="btn sm" onclick="forwardChangeReq(${cr.id})">Forward to team</button></div></td></tr>`).join('')}</tbody></table></div>`):'';
  return hdr('Internal review','Review content, approve it for the client or return it with comments.')+crCard+sec('Waiting for internal review',by('IN_REVIEW'))+sec('Waiting for the client',by('CLIENT_REVIEW'))+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Approved — ready to publish',by('APPROVED'))+sec('Published',by('PUBLISHED'))};
 /* calendar */
 S.cm='2026-11';
-function cmv(d){const[y,m]=S.cm.split('-').map(Number),x=new Date(y,m-1+d,1);S.cm=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0');view(false)}
-PAGES.calendar=()=>{const q=(S.q||'').trim().toLowerCase(),[y,m]=S.cm.split('-').map(Number),dn=new Date(y,m,0).getDate(),off=(new Date(y,m-1,1).getDay()+6)%7,L=allI().filter(vis).filter(([i,p])=>!q||[i.title,i.platform,i.assignee,i.stage,STG[i.stage],p.brand,p.title].join(' ').toLowerCase().includes(q)),on=L.filter(([i])=>i.date&&i.date.startsWith(S.cm)),un=L.filter(([i])=>!i.date).length;let c='';
+S.cb='';
+const CAL_LOADED={};
+function loadCalendarMonth(ym){
+ if(!ym||CAL_LOADED[ym]||typeof getApiToken!=='function'||!getApiToken()||S.offlineMode)return;
+ const [y,m]=ym.split('-').map(Number);
+ const lastDay=new Date(y,m,0).getDate();
+ const from=`${ym}-01`,to=`${ym}-${String(lastDay).padStart(2,'0')}`;
+ CAL_LOADED[ym]=true;
+ apiCall(`/content-items/calendar?from=${from}&to=${to}`).then(res=>{
+  const list=Array.isArray(res)?res:(res?.items||[]);
+  if(!list.length)return;
+  let changed=false;
+  list.forEach(ci=>{
+   const found=allI().find(([it])=>it._id===ci.id||it.id===ci.id);
+   if(found){
+    const [it]=found;
+    const d=ci.publishedAt?String(ci.publishedAt).slice(0,10):(ci.scheduledDate?String(ci.scheduledDate).slice(0,10):'');
+    if(d&&it.date!==d){it.date=d;changed=true}
+    if(ci.publishStatus==='PUBLISHED'&&it.stage!=='PUBLISHED'){it.stage='PUBLISHED';it.pub={status:'PUBLISHED',d,u:ci.publishUrl||'',n:''};changed=true}
+   }
+  });
+  if(changed&&S.page==='calendar')view(false);
+ }).catch(()=>{CAL_LOADED[ym]=false});
+}
+function cmv(d){const[y,m]=S.cm.split('-').map(Number),x=new Date(y,m-1+d,1);S.cm=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0');loadCalendarMonth(S.cm);view(false)}
+PAGES.calendar=()=>{
+ loadCalendarMonth(S.cm);
+ const q=(S.q||'').trim().toLowerCase(),[y,m]=S.cm.split('-').map(Number),dn=new Date(y,m,0).getDate(),off=(new Date(y,m-1,1).getDay()+6)%7;
+ const allowedBrands=myBrands();
+ const L=allI().filter(vis).filter(([,p])=>!S.cb||p.brand===S.cb).filter(([i,p])=>!q||[i.title,i.platform,i.assignee,i.stage,STG[i.stage],p.brand,p.title].join(' ').toLowerCase().includes(q));
+ const pubDateOf=i=>(i.pub&&i.pub.d)||i.date||'';
+ const on=L.filter(([i])=>pubDateOf(i)&&pubDateOf(i).startsWith(S.cm)),un=L.filter(([i])=>!pubDateOf(i)).length;
+ let c='';
  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d=>c+=`<div class="mono mute" style="text-align:center">${d}</div>`);for(let k=0;k<off;k++)c+='<div></div>';
- for(let d=1;d<=dn;d++){const ds=S.cm+'-'+String(d).padStart(2,'0');c+=`<div style="min-height:92px;border:1px solid var(--line);border-radius:12px;padding:6px;background:${ds===TODAY?'var(--lilac)':'#fff'}"><div class="mono mute">${d}</div>${on.filter(([i])=>i.date===ds).map(([i])=>`<div class="tag" title="${esc(i.title)} · ${esc(i.platform||'')} · ${esc(i.assignee||'Unassigned')} · ${esc(STG[i.stage]||i.stage)}" style="display:block;cursor:pointer;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}<br><small>${esc(i.platform||'—')} · ${esc(i.assignee||'Unassigned')} · ${esc(STG[i.stage]||i.stage)}</small></div>`).join('')}</div>`}
- return hdr('Calendar',S.role==='am'?'Content by publish date for your brands.':'Content by publish date.')+`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><button class="btn sm" onclick="cmv(-1)">← Prev</button><h2>${new Date(y,m-1,1).toLocaleString('en',{month:'long',year:'numeric'})}</h2><button class="btn sm" onclick="cmv(1)">Next →</button></div><div style="overflow-x:auto"><div style="display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:6px;min-width:790px">${c}</div></div><p class="mute" style="margin:12px 0 0">${un} item${un===1?'':'s'} without a publish date are kept off the calendar.</p></div>`};
+ for(let d=1;d<=dn;d++){const ds=S.cm+'-'+String(d).padStart(2,'0');c+=`<div style="min-height:92px;border:1px solid var(--line);border-radius:12px;padding:6px;background:${ds===TODAY?'var(--lilac)':'#fff'}"><div class="mono mute">${d}</div>${on.filter(([i])=>pubDateOf(i)===ds).map(([i])=>`<div class="tag" title="${esc(i.title)} · ${esc(i.platform||'')} · ${esc(i.assignee||'Unassigned')} · ${esc(STG[i.stage]||i.stage)}" style="display:block;cursor:pointer;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}<br><small>${esc(i.platform||'—')} · ${esc(i.assignee||'Unassigned')} · ${esc(STG[i.stage]||i.stage)}</small></div>`).join('')}</div>`}
+ const brandFilter=allowedBrands.length>1?`<select aria-label="Filter by brand" style="border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:#fff" onchange="S.cb=this.value;view(false)"><option value="">All ${S.role==='am'?'my':'workspace'} brands (${allowedBrands.length})</option>${allowedBrands.map(b=>`<option value="${esc(b)}" ${S.cb===b?'selected':''}>${esc(b)}</option>`).join('')}</select>`:'';
+ return hdr('Calendar',S.role==='am'?'Monthly publish schedule for your assigned brands.':'Monthly publish schedule across all brands.')+`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div style="display:flex;gap:8px;align-items:center"><button class="btn sm" onclick="cmv(-1)">← Prev</button><h2 style="margin:0">${new Date(y,m-1,1).toLocaleString('en',{month:'long',year:'numeric'})}</h2><button class="btn sm" onclick="cmv(1)">Next →</button></div>${brandFilter}</div><div style="overflow-x:auto"><div style="display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:6px;min-width:790px">${c}</div></div><p class="mute" style="margin:12px 0 0">${un} item${un===1?'':'s'} without a publish date are kept off the calendar.</p></div>`};
 /* client requests */
 const REQ_KIND_TO_API={'Extra content':'EXTRA_CONTENT','Plan change':'PLAN_CHANGE','New idea':'NEW_IDEA'};
 const REQ_API_TO_KIND={EXTRA_CONTENT:'Extra content',PLAN_CHANGE:'Plan change',NEW_IDEA:'New idea'};
 let REQ=[{id:1,brand:CLB,kind:'Extra content',text:'Two extra stories for the winter launch week.',st:'SUBMITTED',team:'',assignee:'',reason:'',at:'2026-11-18'}];
-const RQP=s=>`<span class="pill ${{ASSIGNED:'wn',ACCEPTED:'ok',REJECTED:'er',SUBMITTED:'in'}[s]}">${esc(lab(s))}</span>`;
-function reqNew(){ask('New request',[['kind','Request type','select',['Extra content','Plan change','New idea']],['text','Describe what you need','textarea']],async v=>{if(!(v.text||'').trim())return toast('Please describe the request');const cb=curClientBrand();const item={id:++IDN,brand:cb,kind:v.kind,text:v.text.trim(),st:'SUBMITTED',team:'',assignee:'',reason:'',at:TODAY};if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{const res=await apiCall('/client-requests',{method:'POST',body:{type:REQ_KIND_TO_API[v.kind]||'EXTRA_CONTENT',description:v.text.trim()}});if(res?.id){item._id=res.id;item.id=res.id}}catch(err){return toast(err?.message||'Could not submit request')}}REQ.unshift(item);note('New client request: '+v.kind,cb,true,['am','admin']);toast('Request submitted');view(false)})}
+const RQP=s=>`<span class="pill ${{UNDER_REVIEW:'wn',ASSIGNED:'ok',ACCEPTED:'ok',REJECTED:'er',SUBMITTED:'in'}[s]}">${esc(lab(s))}</span>`;
+function reqNew(){ask('New request',[['kind','Request type','select',['Extra content','Plan change','New idea']],['text','Describe what you need','textarea']],async v=>{if(!(v.text||'').trim())return toast('Please describe the request');const cb=curClientBrand();const item={id:++IDN,brand:cb,kind:v.kind,text:v.text.trim(),st:'SUBMITTED',team:'',assignee:'',reason:'',at:TODAY};if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{const res=await apiCall('/client-requests',{method:'POST',body:{type:REQ_KIND_TO_API[v.kind]||'EXTRA_CONTENT',description:v.text.trim()}});if(res?.id){item._id=res.id;item.id=res.id}}catch(err){return toast(err?.message||'Could not submit request')}}REQ.unshift(item);note('New client request: '+v.kind,cb,true,['am','admin'],{k:'requests'});toast('Request submitted');view(false)})}
+function reqReview(id){
+ const r=REQ.find(x=>x.id===id||x._id===id);if(!r||r.st!=='SUBMITTED')return;
+ r.st='UNDER_REVIEW';
+ note('Your request is now under review by your Account Manager',r.brand,false,['client','am','admin'],{k:'requests'});
+ toast('Request marked as Under Review');
+ view(false);
+}
 function reqOk(id){
  const r=REQ.find(x=>x.id===id||x._id===id);if(!r)return;
  const bObj=D.brands.rows.find(b=>b.name===r.brand);
@@ -1994,86 +2296,206 @@ async function confirmReqOk(id){
  }
  r.st='ASSIGNED';r.team=team;r.assignee=emp;
  closeM();
- note('Your request was accepted and assigned to '+team+(emp?' ('+emp+')':''),r.brand,false,['client','am','admin']);
+ note('Your request was accepted and assigned to '+team+(emp?' ('+emp+')':''),r.brand,false,['client','am','admin'],{k:'requests'});
  toast('Request accepted · assigned to '+team);
  view(false);
 }
-function reqNo(id){ask('Reject request',[['r','Reason *','textarea']],async v=>{if(!(v.r||'').trim())return toast('A reason is required');const r=REQ.find(x=>x.id===id||x._id===id);if(!r)return;if(r._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{await apiCall('/client-requests/'+r._id+'/reject',{method:'PATCH',body:{reason:v.r.trim()}})}catch(err){return toast(err?.message||'Could not reject request')}}r.st='REJECTED';r.reason=v.r.trim();note('Your request could not be executed: '+r.reason,r.brand,false,['client','am','admin']);toast('Request rejected');view(false)})}
-function reqTask(id){const r=REQ.find(x=>x.id===id);TASKS.unshift({title:r.kind+': '+r.text.slice(0,50),brand:r.brand,priority:'MEDIUM',assignee:MEN[S.role],deadline:'2026-11-30',status:'TODO',by:MEN.am});r.st='ACCEPTED';toast('Task created from the request');view(false)}
+function reqNo(id){ask('Reject request',[['r','Reason *','textarea']],async v=>{if(!(v.r||'').trim())return toast('A reason is required');const r=REQ.find(x=>x.id===id||x._id===id);if(!r)return;if(r._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{await apiCall('/client-requests/'+r._id+'/reject',{method:'PATCH',body:{reason:v.r.trim()}})}catch(err){return toast(err?.message||'Could not reject request')}}r.st='REJECTED';r.reason=v.r.trim();note('Your request could not be executed: '+r.reason,r.brand,false,['client','am','admin'],{k:'requests'});toast('Request rejected');view(false)})}
+function reqTask(id){
+ const r=REQ.find(x=>x.id===id||x._id===id);if(!r)return;
+ const title=r.kind+': '+r.text.slice(0,50);
+ const deadline=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
+ const assignee=r.assignee||MEN[S.role];
+ const newTk=mk(++IDN,title,'DIRECT','TODO','MEDIUM',assignee,MEN.am,r.brand,[],deadline,deadline,r.text);
+ TK.unshift(newTk);
+ r.st='ACCEPTED';
+ if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  const uid=API_CACHE.usersByName[assignee];
+  if(uid)apiCall('/tasks/direct',{method:'POST',body:{title,description:r.text,assignedTo:uid,priority:'MEDIUM',plannedDeadline:new Date(deadline).toISOString()}}).then(res=>{if(res?.id)newTk._id=res.id}).catch(()=>{});
+ }
+ note('Task created from client request: “'+title+'”',r.brand,true,[rl(assignee),'am','admin'].filter(Boolean),{k:'tasks'});
+ toast('Task created from the request');
+ view(false);
+}
 PAGES.requests=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mq=r=>!q||[r.text,r.brand,r.kind,r.st,r.team,r.assignee,r.reason,r.at].join(' ').toLowerCase().includes(q),u=D.users.rows.find(x=>x.fullName===MEN[R])||{},mt=[u.teamId,...T.filter(t=>TX[t]&&TX[t].lead===MEN[R])],
  tb=(l,ac)=>l.length?`<div class="tw"><table><thead><tr><th scope="col">Request</th><th scope="col">Brand</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Team / assignee / reason</th><th scope="col"></th></tr></thead><tbody>${l.map(r=>`<tr><td>${esc(r.text)}<div class="mute" style="font-size:12px">${esc(r.at)}</div></td><td>${esc(r.brand)}</td><td><span class="tag">${esc(r.kind)}</span></td><td>${RQP(r.st)}</td><td>${esc(r.reason||(r.team&&r.assignee?r.team+' · '+r.assignee:r.team||r.assignee))||'—'}</td><td>${ac(r)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">'+(q?'No matching requests.':'Nothing here.')+'</p>';
  if(R==='client')return hdr('Requests','Ask for extra content, a plan change or a new idea, and track where it stands.')+`<button class="btn p" style="margin-bottom:16px" onclick="reqNew()">+ New request</button>`+crd('My requests',tb(REQ.filter(r=>r.brand===curClientBrand()&&mq(r)),()=>''));
- if(R==='am'||R==='admin')return hdr('Client requests','Decide whether each request is feasible and assign accepted requests to the right team.')+crd('To review',tb(REQ.filter(r=>r.st==='SUBMITTED'&&mq(r)),r=>!(R==='am'||R==='admin')?'':`<div class="ra"><button class="btn sm p" onclick="reqOk(${r.id})">Accept &amp; assign</button><button class="btn sm dg" onclick="reqNo(${r.id})">Reject</button></div>`))+crd('Decided',tb(REQ.filter(r=>r.st!=='SUBMITTED'&&mq(r)),()=>''));
+ if(R==='am'||R==='admin')return hdr('Client requests','Review each request, mark it Under Review, assign accepted requests to the right team, or reject with a reason.')+crd('To review',tb(REQ.filter(r=>(r.st==='SUBMITTED'||r.st==='UNDER_REVIEW')&&mq(r)),r=>!(R==='am'||R==='admin')?'':`<div class="ra">${r.st==='SUBMITTED'?`<button class="btn sm" onclick="reqReview(${r.id})">Start review</button>`:''}<button class="btn sm p" onclick="reqOk(${r.id})">Accept &amp; assign</button><button class="btn sm dg" onclick="reqNo(${r.id})">Reject</button></div>`))+crd('Decided',tb(REQ.filter(r=>r.st!=='SUBMITTED'&&r.st!=='UNDER_REVIEW'&&mq(r)),()=>''));
  return hdr('Requests','Work requested from you, and client requests assigned to your team.')+crd('Client requests assigned to my team',tb(REQ.filter(r=>(mt.includes(r.team)||r.assignee===MEN[R])&&mq(r)),r=>r.st==='ASSIGNED'?`<div class="ra"><button class="btn sm p" onclick="reqTask(${r.id})">Turn into task</button><button class="btn sm" onclick="reqItem(${r.id})">Turn into content item</button></div>`:''))};
 /* reports */
-let MR=[{id:1,brand:CLB,month:'2026-09',m:{Reach:42000,Impressions:98000,Engagement:3100,Conversions:210},ai:'A steady month with no major campaigns.',ok:true,sh:true},{id:2,brand:CLB,month:'2026-10',m:{Reach:51500,Impressions:120400,Engagement:4020,Conversions:265},ai:'Reach and engagement grew after the serum reel campaign.',ok:true,sh:true}];
-const MET=['Reach','Impressions','Engagement','Conversions'],pmo=s=>{const[y,m]=s.split('-').map(Number),d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const REP_PLATS=['INSTAGRAM','FACEBOOK','TIKTOK','LINKEDIN','YOUTUBE'];
+let MR=[{id:1,brand:CLB,platform:'INSTAGRAM',month:'2026-09',m:{Followers:12400,Reach:42000,Impressions:98000,Engagement:3100,Conversions:210},ai:'Baseline month recorded: Followers 12,400, Reach 42,000, Impressions 98,000, Engagement 3,100, Conversions 210.',ok:true,sh:true},{id:2,brand:CLB,platform:'INSTAGRAM',month:'2026-10',m:{Followers:13650,Reach:51500,Impressions:120400,Engagement:4020,Conversions:265},ai:'Improved vs 2026-09: Followers (+10% to 13,650), Reach (+23% to 51,500), Impressions (+23% to 120,400), Engagement (+30% to 4,020), Conversions (+26% to 265).',ok:true,sh:true}];
+const MET=['Followers','Reach','Impressions','Engagement','Conversions'],pmo=s=>{const[y,m]=s.split('-').map(Number),d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
 const bar=(n,v,t)=>`<div style="display:flex;align-items:center;gap:10px;margin:6px 0"><span style="width:170px;font-size:13px">${esc(n)}</span><div style="flex:1;height:10px;background:var(--line);border-radius:6px;overflow:hidden"><div style="height:100%;width:${t?Math.round(v/t*100):0}%;background:#7c6cf0"></div></div><b style="width:34px;text-align:right">${v}</b></div>`;
-function repUp(f){if(!f)return;const r=new FileReader();r.onload=()=>{const rw=String(r.result).split(/\r?\n/).filter(Boolean).map(l=>l.split(',').map(x=>x.trim())),m={};if(rw.length>=2&&rw[0].length>2)rw[0].forEach((h,k)=>m[h]=rw[1][k]);else rw.forEach(a=>{if(a.length>=2)m[a[0]]=a[1]});repRev(m)};r.readAsText(f)}
-function repRev(m){const g=k=>{const x=Object.keys(m).find(y=>y.toLowerCase()===k.toLowerCase());return x===undefined?'':m[x]},ex=Object.keys(m).filter(x=>!MET.some(k=>k.toLowerCase()===x.toLowerCase()));
- modal(`<div class="dlg"><h2>Review the numbers we read</h2><p class="mute" style="margin:0 0 14px">Check every value before saving.</p><div class="pg"><div class="fl"><label>Brand</label><select data-r="brand">${myBrands().map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('')}</select></div><div class="fl"><label>Month</label><input data-r="month" type="month" value="2026-11"></div>${MET.map(k=>`<div class="fl ${g(k)===''?'bad':''}"><label>${k}</label><input data-r="${k}" type="number" value="${esc(g(k))}">${g(k)===''?'<small>Missing in the file</small>':''}</div>`).join('')}</div>${ex.length?`<p class="mute">Not matched and ignored: ${ex.map(esc).join(', ')}</p>`:''}<div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="repSave()">Save report</button></div></div>`)}
+function repUp(f,defBrand){if(!f)return;const r=new FileReader();r.onload=()=>{const txt=String(r.result||'');const sep=txt.includes('\t')?'\t':(txt.includes(';')&&!txt.includes(',')?';':',');const rw=txt.split(/\r?\n/).filter(Boolean).map(l=>l.split(sep).map(x=>x.trim().replace(/^"|"$/g,''))),m={};if(rw.length>=2&&rw[0].length>2)rw[0].forEach((h,k)=>{if(h)m[h]=rw[1][k]??''});else rw.forEach(a=>{if(a.length>=2&&a[0])m[a[0]]=a[1]});repRev(m,defBrand)};r.readAsText(f)}
+function repRev(m,defBrand){const g=k=>{const x=Object.keys(m).find(y=>y.toLowerCase()===k.toLowerCase());return x===undefined?'':m[x]},ex=Object.keys(m).filter(x=>!MET.some(k=>k.toLowerCase()===x.toLowerCase()));
+ const brands=myBrands(),selBrand=defBrand&&brands.includes(defBrand)?defBrand:(brands[0]||'');
+ modal(`<div class="dlg"><h2>Review the numbers we read</h2><p class="mute" style="margin:0 0 14px">Verify every metric before saving. Missing fields are highlighted — nothing is guessed.</p><div class="pg"><div class="fl"><label>Brand</label><select data-r="brand">${brands.map(b=>`<option value="${esc(b)}" ${b===selBrand?'selected':''}>${esc(b)}</option>`).join('')}</select></div><div class="fl"><label>Platform</label><select data-r="platform">${REP_PLATS.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div><div class="fl"><label>Month</label><input data-r="month" type="month" value="2026-11"></div>${MET.map(k=>`<div class="fl ${g(k)===''?'bad':''}"><label>${k}</label><input data-r="${k}" type="number" value="${esc(g(k))}">${g(k)===''?'<small>Missing in the file</small>':''}</div>`).join('')}</div>${ex.length?`<p class="mute">Not matched and ignored: ${ex.map(esc).join(', ')}</p>`:''}<div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="repSave()">Save report</button></div></div>`)}
 function repSave(){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;const v=Object.fromEntries([...dlg.querySelectorAll('[data-r]')].map(x=>[x.dataset.r,x.value]));if(!v.month||MET.some(k=>v[k]===''))return toast('Fill in the month and every metric first');
- dlg._submitted=true;window._rp=()=>{MR=MR.filter(r=>!(r.brand===v.brand&&r.month===v.month));MR.push({id:++IDN,brand:v.brand,month:v.month,m:Object.fromEntries(MET.map(k=>[k,+v[k]])),ai:'',ok:false,sh:false});closeM();toast('Report saved');view(false)};
- MR.some(r=>r.brand===v.brand&&r.month===v.month)?modal(`<div class="dlg"><h2>Replace the ${esc(v.month)} report?</h2><p class="mute">A report for this brand and month already exists. Replacing it overwrites its numbers and analysis.</p><div class="ft"><button class="btn" onclick="dlg_cancel_rp()">Cancel</button><button class="btn p" onclick="window._rp()">Replace</button></div></div>`):window._rp()}
+ const plat=v.platform||'INSTAGRAM';
+ dlg._submitted=true;window._rp=()=>{const exIdx=MR.findIndex(r=>r.brand===v.brand&&(r.platform||'INSTAGRAM')===plat&&r.month===v.month);if(exIdx>=0)MR.splice(exIdx,1);MR.push({id:++IDN,brand:v.brand,platform:plat,month:v.month,m:Object.fromEntries(MET.map(k=>[k,+v[k]])),ai:'',ok:false,sh:false});closeM();toast('Report saved');view(false)};
+ MR.some(r=>r.brand===v.brand&&(r.platform||'INSTAGRAM')===plat&&r.month===v.month)?modal(`<div class="dlg"><h2>Replace the ${esc(v.month)} (${esc(plat)}) report?</h2><p class="mute">A report for this brand, platform and month already exists. Replacing it overwrites its numbers and analysis.</p><div class="ft"><button class="btn" onclick="dlg_cancel_rp()">Cancel</button><button class="btn p" onclick="window._rp()">Replace</button></div></div>`):window._rp()}
 window.dlg_cancel_rp=()=>{const ovs=document.querySelectorAll('.ov');if(ovs.length){const top=ovs[ovs.length-1];top.remove();const prev=$('.ov .dlg');if(prev)prev._submitted=false}};
-const dlt=(r,k)=>{const p=MR.find(x=>x.brand===r.brand&&x.month===pmo(r.month));return p&&p.m[k]?Math.round((r.m[k]-p.m[k])/p.m[k]*100):null};
-function repAi(id){const r=MR.find(x=>x.id===id);r.ai=MET.map(k=>{const d=dlt(r,k);return k+(d===null?': '+r.m[k]+' (no previous month to compare).':(d>=0?' rose ':' fell ')+Math.abs(d)+'% to '+r.m[k]+'.')}).join(' ');r.ok=false;view(false)}
+const dlt=(r,k)=>{const plat=r.platform||'INSTAGRAM',p=MR.find(x=>x.brand===r.brand&&(x.platform||'INSTAGRAM')===plat&&x.month===pmo(r.month));return p&&p.m[k]?Math.round((r.m[k]-p.m[k])/p.m[k]*100):null};
+function repAi(id){
+ const r=MR.find(x=>x.id===id);if(!r)return;
+ const up=[],down=[],flat=[],base=[];
+ MET.forEach(k=>{
+  const val=Number(r.m[k]||0),d=dlt(r,k);
+  if(d===null)base.push(`${k}: ${val.toLocaleString()}`);
+  else if(d>0)up.push(`${k} (+${d}% to ${val.toLocaleString()})`);
+  else if(d<0)down.push(`${k} (${d}% to ${val.toLocaleString()})`);
+  else flat.push(`${k} (0% at ${val.toLocaleString()})`);
+ });
+ const parts=[];
+ if(up.length)parts.push(`Improved vs ${pmo(r.month)}: ${up.join(', ')}.`);
+ if(down.length)parts.push(`Declined vs ${pmo(r.month)}: ${down.join(', ')}.`);
+ if(flat.length)parts.push(`Unchanged vs ${pmo(r.month)}: ${flat.join(', ')}.`);
+ if(base.length)parts.push(`Recorded metrics (no previous month to compare): ${base.join(', ')}.`);
+ r.ai=parts.join(' ');
+ r.ok=false;
+ toast('AI summary generated from imported numbers');
+ view(false);
+}
 const repTxt=(id,t)=>{const r=MR.find(x=>x.id===id);r.ai=t;r.ok=false};
-const repOk=id=>{const r=MR.find(x=>x.id===id);if(!r.ai.trim())return toast('Add an analysis first');r.ok=!r.ok;if(!r.ok)r.sh=false;view(false)};
-const repSh=id=>{const r=MR.find(x=>x.id===id);if(!r.ok)return toast('Approve the report before sharing');r.sh=!r.sh;view(false)};
-const repCard=(r,w)=>crd(esc(r.brand)+' · '+esc(r.month)+' '+(r.ok?'<span class="pill ok">Approved</span>':'<span class="pill lc">Draft</span>')+(r.sh?' <span class="pill in">Shared</span>':''),`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">${MET.map(k=>{const d=dlt(r,k);return `<div style="border:1px solid var(--line);border-radius:14px;padding:12px"><div class="mono mute">${k}</div><b style="font-size:20px">${Number(r.m[k]||0).toLocaleString()}</b><div class="mute" style="font-size:12px">${d===null?'No previous month':(d>=0?'▲ ':'▼ ')+Math.abs(d)+'% vs '+esc(pmo(r.month))}</div></div>`}).join('')}</div>${w?`<textarea style="width:100%;margin-top:12px;min-height:70px" oninput="repTxt(${r.id},this.value)" placeholder="AI analysis">${esc(r.ai)}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" onclick="repAi(${r.id})">Run AI analysis</button><button class="btn sm p" onclick="repOk(${r.id})">${r.ok?'Unapprove':'Approve'}</button><button class="btn sm" onclick="repSh(${r.id})">${r.sh?'Stop sharing':'Share with client'}</button></div>`:`<p style="margin:12px 0 0">${esc(r.ai)}</p>`}`);
-PAGES.reports=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mgr=R==='am'||R==='admin',L=allI().filter(vis),tk=TK.filter(t=>mgr||t.assignee===MEN[R]),dn=t=>DONE4.includes(t.status),od=isOd;
+const repOk=id=>{const r=MR.find(x=>x.id===id);if(!r.ai.trim())return toast('Add or run AI analysis first');r.ok=!r.ok;if(!r.ok)r.sh=false;toast(r.ok?'Report approved':'Approval removed');view(false)};
+const repSh=id=>{const r=MR.find(x=>x.id===id);if(!r.ok)return toast('Approve the report before sharing');r.sh=!r.sh;if(r.sh)note('Monthly performance report shared for '+r.month+' ('+(r.platform||'INSTAGRAM')+')',r.brand,false,['client','am','admin'],{k:'reports'});toast(r.sh?'Report shared with client':'Stopped sharing with client');view(false)};
+const repHistoryTable=list=>list.length?crd('Previous months history ('+list.length+')',`<div class="tw"><table><thead><tr><th scope="col">Month</th><th scope="col">Brand</th><th scope="col">Platform</th>${MET.map(k=>`<th scope="col">${k}</th>`).join('')}<th scope="col">Status</th></tr></thead><tbody>${list.map(r=>`<tr><td><span class="mono">${esc(r.month)}</span></td><td>${esc(r.brand)}</td><td><span class="tag">${esc(r.platform||'INSTAGRAM')}</span></td>${MET.map(k=>`<td>${Number(r.m[k]||0).toLocaleString()}</td>`).join('')}<td>${r.sh?'<span class="pill in">Shared</span>':r.ok?'<span class="pill ok">Approved</span>':'<span class="pill lc">Draft</span>'}</td></tr>`).join('')}</tbody></table></div>`):'';
+const repCard=(r,w)=>crd(esc(r.brand)+' · <span class="tag">'+esc(r.platform||'INSTAGRAM')+'</span> · '+esc(r.month)+' '+(r.ok?'<span class="pill ok">Approved</span>':'<span class="pill lc">Draft</span>')+(r.sh?' <span class="pill in">Shared</span>':''),`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">${MET.map(k=>{const d=dlt(r,k);return `<div style="border:1px solid var(--line);border-radius:14px;padding:12px"><div class="mono mute">${k}</div><b style="font-size:20px">${Number(r.m[k]||0).toLocaleString()}</b><div class="mute" style="font-size:12px">${d===null?'No previous month':(d>=0?'▲ +':'▼ ')+d+'% vs '+esc(pmo(r.month))}</div></div>`}).join('')}</div>${w?`<textarea style="width:100%;margin-top:12px;min-height:70px" oninput="repTxt(${r.id},this.value)" placeholder="AI analysis (strictly based on imported numbers)">${esc(r.ai)}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" onclick="repAi(${r.id})">Run AI analysis</button><button class="btn sm p" onclick="repOk(${r.id})">${r.ok?'Unapprove':'Approve'}</button><button class="btn sm" onclick="repSh(${r.id})">${r.sh?'Stop sharing':'Share with client'}</button></div>`:`<p style="margin:12px 0 0">${esc(r.ai)}</p>`}`);
+function brandPerfPage(brandName){
+ const R=S.role,list=MR.filter(r=>r.brand===brandName).sort((a,b)=>b.month.localeCompare(a.month));
+ return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Monthly Performance Report</h1><p>${esc(brandName)} — import monthly Meta CSV/Excel export, review numbers, run AI summary, approve and share with the client.</p></div></div>`
+  +(R==='am'?`<div class="card" style="margin-bottom:16px"><b>Upload monthly Meta performance file (CSV / Excel)</b><p class="mute" style="margin:4px 0 10px">No automatic Meta sync. Review parsed metrics (${MET.join(', ')}) before saving.</p><input type="file" accept=".csv,.xlsx,.xls,.tsv,.txt" onchange="repUp(this.files[0],decodeURIComponent('${encodeURIComponent(brandName)}'))"></div>`:'')
+  +repHistoryTable(list)
+  +(list.length?list.map(r=>repCard(r,R==='am')).join(''):'<div class="card empty"><h2>No monthly reports yet</h2><p class="mute">Upload a monthly Meta CSV/Excel export to generate the first report.</p></div>');
+}
+function calcMemberPerf(name){
+ const apiM=API_CACHE.teamPerformance&&Array.isArray(API_CACHE.teamPerformance.members)?API_CACHE.teamPerformance.members.find(m=>m.user?.fullName===name):null;
+ const allT=TK.filter(t=>t.assignee===name);
+ const delivered=allT.filter(t=>t.status==='SUBMITTED'||t.status==='COMPLETED');
+ const delays=apiM?apiM.overdueTasks:allT.filter(t=>!['SUBMITTED','COMPLETED','CANCELLED'].includes(t.status)&&t.eff&&t.eff<TODAY).length;
+ const open=apiM?(apiM.totalAssignedTasks-apiM.completedTasks):allT.filter(t=>!DONE4.includes(t.status)).length;
+ const done=apiM?apiM.completedTasks:delivered.length;
+ const returned=allT.filter(t=>t.status==='NEEDS_CHANGES').length+allI().filter(([it])=>it.assignee===name&&it.stage==='CHANGES_REQUESTED').length;
+ const onTime=apiM&&apiM.completedTasks>0?apiM.onTimeRate:(done+delays?Math.round(done/(done+delays)*100):null);
+ const u=D.users.rows.find(x=>x.fullName===name)||{};
+ return {name,role:u.jobTitleId||u.roleId||apiM?.user?.jobTitle||apiM?.user?.role||'Team member',sysRole:u.roleId||'—',team:u.teamId||'—',email:u.email||'—',open,done,delays,returned,onTime,tasks:allT};
+}
+function memberPerfDet(name){
+ const p=calcMemberPerf(name);
+ if(S.role!=='admin'&&S.role!=='am'&&name!==MEN[S.role])return null;
+ return dp(esc(p.name),`<span class="tag lc">${esc(p.role)}</span><span class="tag">${esc(p.team)}</span>`,kvh([['Email',esc(p.email)],['Role',esc(p.sysRole)],['Job title',esc(p.role)],['Team',esc(p.team)],['On-time delivery (at submission)',p.onTime===null?'—':p.onTime+'%'],['Submitted / Completed',p.done],['Delays (overdue)',p.delays],['Returned with changes (separate indicator)',p.returned]]),
+  `<div class="note" style="margin-top:14px"><b>ℹ</b><span>Delivery is measured when the employee submits for review — reviewer delays do not count against the employee, and returned-with-changes is tracked separately without reducing on-time %.</span></div>`+
+  `<div class="card" style="margin-top:16px"><h2 style="margin-bottom:10px">Assigned tasks (${p.tasks.length})</h2>${p.tasks.length?`<div class="tw"><table><thead><tr><th scope="col">Task</th><th scope="col">Brand</th><th scope="col">Deadline</th><th scope="col">Status</th></tr></thead><tbody>${p.tasks.map(t=>`<tr><td><a class="lk" onclick="tdet(${t.id})">${esc(t.title)}</a></td><td>${esc(t.brand)}</td><td>${dl(t)}</td><td>${pill(t.status)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No tasks assigned.</p>'}</div>`);
+}
+function workflowTrackerCard(items){
+ if(!items.length)return crd('Workflow tracking','<p class="mute" style="margin:0">No content items in workflow.</p>');
+ const rows=items.map(([i,p])=>{
+  const owner={DRAFT:i.assignee||'Content Creator',CHANGES_REQUESTED:i.assignee||'Content Creator',IN_REVIEW:'Account Manager / Reviewer',CLIENT_REVIEW:'Client ('+p.brand+')',APPROVED:'Account Manager (to publish)',PUBLISHED:'Published'}[i.stage]||'—';
+  const h=(i.hist||[])[(i.hist||[]).length-1],since=h?h.at:(i.date||'Not started');
+  const days=h?Math.max(0,Math.floor((Date.now()-new Date(h.at.replace(' ','T')))/864e5)):0;
+  const delayed=i.stage!=='PUBLISHED'&&((i.date&&i.date<TODAY)||days>=3);
+  return `<tr><td><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a></td><td>${esc(p.brand)}</td><td>${SP(i.stage)}</td><td><b>${esc(owner)}</b></td><td><span class="mono">${esc(since)}</span></td><td>${delayed?`<span class="pill er">Delayed${days?` (${days}d)`:''}</span>`:'<span class="pill ok">On track</span>'}</td></tr>`;
+ }).join('');
+ return crd('Workflow tracking — current owner, duration & delays ('+items.length+')',`<div class="tw"><table><thead><tr><th scope="col">Content</th><th scope="col">Brand</th><th scope="col">Stage</th><th scope="col">Waiting on</th><th scope="col">Since</th><th scope="col">Delay</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+}
+PAGES.reports=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mgr=R==='am'||R==='admin',L=allI().filter(vis),mb=myBrands(),tk=TK.filter(t=>R==='admin'?true:R==='am'?(mb.includes(t.brand)||t.by===MEN.am||t.assignee===MEN.am):t.assignee===MEN[R]),dn=t=>DONE4.includes(t.status),od=isOd;
  const apiProg=API_CACHE.progress;
- const apiTeamPerf=API_CACHE.teamPerformance;
- const perf=(n)=>{
-  const srv=apiTeamPerf&&Array.isArray(apiTeamPerf.members)?apiTeamPerf.members.find(m=>m.user?.fullName===n):null;
-  const x=TK.filter(t=>t.assignee===n),d=srv?srv.completedTasks:x.filter(dn).length,o=srv?srv.overdueTasks:x.filter(od).length,op=srv?(srv.totalAssignedTasks-srv.completedTasks):(x.length-d),ot=srv&&srv.completedTasks>0?(srv.onTimeRate+'%'):(d+o?Math.round(d/(d+o)*100)+'%':'—');
-  const ui=D.users.rows.findIndex(u=>u.fullName===n),u=D.users.rows[ui]||{};
-  return `<tr><td>${ui>=0?`<a class="lk" onclick="openD({t:'row',k:'users',i:${ui}})">${esc(n)}</a>`:esc(n)}</td><td>${esc(u.roleId||srv?.user?.role||'—')}</td><td>${esc(u.teamId||'—')}</td><td>${op}</td><td>${d}</td><td>${o}</td><td>${ot}</td></tr>`;
- };
- const teamMem=()=>{const ts=new Set(D.brands.rows.filter(b=>myBrands().includes(b.name)).map(b=>b.teamId));return D.users.rows.filter(u=>u.roleId!=='Client'&&(R==='admin'||ts.has(u.teamId)||TK.some(t=>t.assignee===u.fullName&&myBrands().includes(t.brand)))).filter(u=>!q||[u.fullName,u.email,u.roleId,u.teamId].join(' ').toLowerCase().includes(q)).map(u=>u.fullName).sort((p,q2)=>String((D.users.rows.find(u=>u.fullName===p)||{}).roleId).localeCompare(String((D.users.rows.find(u=>u.fullName===q2)||{}).roleId)))};
- const perfT=crd(mgr?'Team performance & employee workload':'My performance',`<div class="tw"><table><thead><tr><th scope="col">Member</th><th scope="col">Role</th><th scope="col">Team</th><th scope="col">Open</th><th scope="col">Done</th><th scope="col">Overdue</th><th scope="col">On-time delivery</th></tr></thead><tbody>${(mgr?teamMem():[MEN[R]]).map(perf).join('')||'<tr><td colspan="7" class="mute">No matching members.</td></tr>'}</tbody></table></div>`);
- const prog=crd('Client plan execution progress',PLANS.filter(p=>myBrands().includes(p.brand)&&(!q||(p.brand+' '+p.title).toLowerCase().includes(q))).map(p=>{const doneCount=p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,pct=p.items.length?Math.round(doneCount/p.items.length*100):0;return bar(`${p.brand} · ${p.title} (${pct}%)`,doneCount,p.items.length)}).join('')||'<p class="mute" style="margin:0">No matching plans.</p>');
- if(R==='emp')return hdr('My performance','Your own tasks and on-time delivery.')+perfT;
- if(R==='cc')return hdr('Reports','Your content and tasks.')+prog+perfT;
- const rep=MR.filter(r=>(mgr?myBrands().includes(r.brand):r.brand===curClientBrand()&&r.ok&&r.sh)&&(!q||(r.brand+' '+r.month+' '+(r.ai||'')).toLowerCase().includes(q))).sort((a,b)=>b.month.localeCompare(a.month));
- if(R==='client')return hdr('Reports','Plan progress, published content and monthly performance.')+prog+sec('Approved and published content',L.filter(([i])=>['APPROVED','PUBLISHED'].includes(i.stage)))+rep.map(r=>repCard(r,false)).join('');
+ const teamMem=()=>{const ts=new Set(D.brands.rows.filter(b=>mb.includes(b.name)).map(b=>b.teamId));return D.users.rows.filter(u=>u.roleId!=='Client'&&(R==='admin'||ts.has(u.teamId)||tk.some(t=>t.assignee===u.fullName))).filter(u=>!q||[u.fullName,u.email,u.roleId,u.jobTitleId,u.teamId].join(' ').toLowerCase().includes(q)).map(u=>u.fullName)};
+ const memNames=mgr?teamMem():[MEN[R]];
+ const byRole={};
+ memNames.forEach(n=>{const p=calcMemberPerf(n);(byRole[p.role]=byRole[p.role]||[]).push(p)});
+ const perfRows=Object.entries(byRole).sort(([a],[b])=>a.localeCompare(b)).map(([roleLbl,list])=>`<tr style="background:var(--canvas)"><td colspan="7"><b style="font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)">${esc(roleLbl)} (${list.length})</b></td></tr>`+list.map(p=>`<tr><td><a class="lk" onclick="openD({t:'mperf',n:decodeURIComponent('${encodeURIComponent(p.name)}')})">${esc(p.name)}</a></td><td>${esc(p.role)}</td><td>${esc(p.team)}</td><td>${p.open}</td><td>${p.done}</td><td>${p.delays}</td><td><b>${p.onTime===null?'—':p.onTime+'%'}</b>${p.returned?` <span class="tag" title="Tracked separately — does not reduce on-time %">${p.returned} returned</span>`:''}</td></tr>`).join('')).join('');
+ const perfT=crd(mgr?'Team performance (per individual, grouped by role)':'My performance',`<p class="mute" style="margin:0 0 10px;font-size:12px">Calculated per individual (no team aggregate score). Delivery is measured at submission; reviewer delays are excluded and returned-with-changes is tracked separately.</p><div class="tw"><table><thead><tr><th scope="col">Member</th><th scope="col">Role</th><th scope="col">Team</th><th scope="col">Open</th><th scope="col">Submitted / Done</th><th scope="col">Delays</th><th scope="col">On-time % · Returned</th></tr></thead><tbody>${perfRows||'<tr><td colspan="7" class="mute">No matching members.</td></tr>'}</tbody></table></div>`);
+ const prog=crd('Client plan execution progress',PLANS.filter(p=>mb.includes(p.brand)&&(!q||(p.brand+' '+p.title).toLowerCase().includes(q))).map(p=>{const doneCount=p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,pct=p.items.length?Math.round(doneCount/p.items.length*100):0;return bar(`${p.brand} · ${p.title} (${pct}%)`,doneCount,p.items.length)}).join('')||'<p class="mute" style="margin:0">No matching plans.</p>');
+ if(R==='emp')return hdr('My performance','Your own on-time delivery, delays and workflow status.')+perfT+workflowTrackerCard(L.filter(([i])=>i.assignee===MEN[R]));
+ if(R==='cc')return hdr('Reports','Your content, performance and workflow status.')+prog+perfT+workflowTrackerCard(L.filter(([i])=>i.assignee===MEN[R]));
+ const rep=MR.filter(r=>(mgr?mb.includes(r.brand):r.brand===curClientBrand()&&r.ok&&r.sh)&&(!q||(r.brand+' '+r.month+' '+(r.ai||'')).toLowerCase().includes(q))).sort((a,b)=>b.month.localeCompare(a.month));
+ if(R==='client')return hdr('Reports','Plan progress, approved & published content for '+curClientBrand()+'.')+prog+sec('Approved and published content',L.filter(([i])=>['APPROVED','PUBLISHED'].includes(i.stage)))+(rep.length?'<h2 style="margin:24px 0 12px">Monthly performance reports (shared with you)</h2>'+repHistoryTable(rep)+rep.map(r=>repCard(r,false)).join(''):'');
  const totalTasks=apiProg?apiProg.totalTasks:tk.length;
  const completedCount=apiProg?apiProg.completedTasks:tk.filter(dn).length;
  const inProgCount=apiProg?(apiProg.inProgressTasks+apiProg.todoTasks+apiProg.submittedTasks+apiProg.inReviewTasks+apiProg.needsChangesTasks):tk.filter(t=>!dn(t)).length;
  const overdueCount=apiProg?apiProg.overdueTasks:tk.filter(od).length;
  const compRate=apiProg?apiProg.completionRate:(totalTasks?Math.round(completedCount/totalTasks*100):0);
  const awaitReviewCount=L.filter(([i])=>i.stage==='IN_REVIEW'||i.stage==='CLIENT_REVIEW').length;
- const summaryCards=`<div class="stats" style="margin-bottom:16px"><div class="stat"><span class="mono mute">Completed tasks</span><b>${completedCount}</b></div><div class="stat"><span class="mono mute">In progress / open</span><b>${inProgCount}</b></div><div class="stat ${overdueCount?'al':''}"><span class="mono mute">Overdue tasks</span><b>${overdueCount}</b></div><div class="stat"><span class="mono mute">Awaiting review</span><b>${awaitReviewCount}</b></div><div class="stat"><span class="mono mute">Completion rate</span><b>${compRate}%</b></div></div>`;
+ const approvedPubItems=L.filter(([i])=>['APPROVED','PUBLISHED'].includes(i.stage));
+ const scopedCrs=CHANGE_REQS.filter(cr=>mb.includes(cr.brand));
+ const summaryCards=`<div class="stats" style="margin-bottom:16px"><div class="stat"><span class="mono mute">Completed tasks</span><b>${completedCount}</b></div><div class="stat"><span class="mono mute">In progress / open</span><b>${inProgCount}</b></div><div class="stat ${overdueCount?'al':''}"><span class="mono mute">Overdue tasks</span><b>${overdueCount}</b></div><div class="stat"><span class="mono mute">Awaiting review</span><b>${awaitReviewCount}</b></div><div class="stat"><span class="mono mute">Approved / published</span><b>${approvedPubItems.length}</b></div><div class="stat"><span class="mono mute">Completion rate</span><b>${compRate}%</b></div></div>`;
  const st={};if(apiProg){[['TODO',apiProg.todoTasks],['IN_PROGRESS',apiProg.inProgressTasks],['SUBMITTED',apiProg.submittedTasks],['IN_REVIEW',apiProg.inReviewTasks],['NEEDS_CHANGES',apiProg.needsChangesTasks],['COMPLETED',apiProg.completedTasks],['CANCELLED',apiProg.cancelledTasks]].forEach(([k,v])=>{if(v>0)st[k]=v})}else{tk.forEach(t=>st[t.status]=(st[t.status]||0)+1)}
  const odList=tk.filter(od);
  const odCard=crd('Overdue tasks ('+overdueCount+')',odList.length?`<div class="tw"><table><thead><tr><th scope="col">Task</th><th scope="col">Brand</th><th scope="col">Assignee</th><th scope="col">Deadline</th><th scope="col">Status</th></tr></thead><tbody>${odList.map(t=>`<tr><td><a class="lk" onclick="tdet(${t.id})">${esc(t.title)}</a></td><td>${esc(t.brand)}</td><td>${esc(t.assignee)}</td><td>${dl(t)}</td><td>${pill(t.status)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No overdue tasks right now.</p>');
  const wl={};tk.filter(t=>!dn(t)).forEach(t=>wl[t.assignee]=(wl[t.assignee]||0)+1);const ac={};L.forEach(([i])=>i.hist.forEach(h=>ac[h.a]=(ac[h.a]||0)+1));
- return hdr('Reports & progress tracking','Client plan progress, completed vs. active tasks, overdue alerts, team workload and content awaiting review.')+summaryCards+prog+crd('Tasks by status · '+completedCount+' completed · '+overdueCount+' overdue',Object.entries(st).map(([k,v])=>bar(lab(k),v,totalTasks)).join('')||'<p class="mute" style="margin:0">No tasks.</p>')+odCard+crd('Content awaiting review & workflow stages',Object.keys(STG).map(s=>bar(STG[s],L.filter(([i])=>i.stage===s).length,L.length)).join(''))+crd('Workload by employee (open tasks)',Object.entries(wl).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>')+crd('Workload by team',(()=>{const w={};tk.filter(t=>!dn(t)).forEach(t=>{const u=D.users.rows.find(x=>x.fullName===t.assignee),k=(u&&u.teamId)||'No team';w[k]=(w[k]||0)+1});return Object.entries(w).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>'})())+crd('Approval activity',Object.entries(ac).map(([k,v])=>bar(k,v,L.length||1)).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')+perfT
- +`<h2 style="margin:24px 0 12px">Monthly performance reports</h2>${R==='am'?`<div class="card" style="margin-bottom:16px"><b>Upload the monthly Meta performance file</b><p class="mute" style="margin:4px 0 10px">CSV with Reach, Impressions, Engagement and Conversions. You review the numbers before anything is saved.</p><input type="file" accept=".csv,.txt" onchange="repUp(this.files[0])"></div>`:''}`+rep.map(r=>repCard(r,R==='am')).join('')};
+ if(scopedCrs.length){ac['Client change requests (total)']=scopedCrs.length;const pCrCnt=scopedCrs.filter(c=>c.status==='PENDING').length;if(pCrCnt)ac['Client change requests (pending)']=pCrCnt}
+ return hdr('Reports & analytics',R==='am'?'Live workspace analytics for your assigned brands (tasks, content plans, approvals, change requests & workload).':'Live workspace analytics across all brands (tasks, content plans, approvals, change requests & workload).')+summaryCards+prog+crd('Tasks by status · '+completedCount+' completed · '+overdueCount+' overdue',Object.entries(st).map(([k,v])=>bar(lab(k),v,totalTasks)).join('')||'<p class="mute" style="margin:0">No tasks.</p>')+odCard+crd('Content awaiting review & workflow stages',Object.keys(STG).map(s=>bar(STG[s],L.filter(([i])=>i.stage===s).length,L.length)).join(''))+sec('Approved and published content',approvedPubItems)+crd('Approval & change-request activity',Object.entries(ac).map(([k,v])=>bar(k,v,Math.max(L.length,scopedCrs.length,1))).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')+crd('Workload by employee (open tasks)',Object.entries(wl).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>')+crd('Workload by team',(()=>{const w={};tk.filter(t=>!dn(t)).forEach(t=>{const u=D.users.rows.find(x=>x.fullName===t.assignee),k=(u&&u.teamId)||'No team';w[k]=(w[k]||0)+1});return Object.entries(w).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>'})())+perfT+workflowTrackerCard(L)
+ +`<h2 style="margin:24px 0 12px">Monthly performance reports <span class="mute" style="font-size:13px;font-weight:400">(separate CSV/Excel import — social metrics)</span></h2>${R==='am'?`<div class="card" style="margin-bottom:16px"><b>Upload the monthly Meta performance file (CSV / Excel)</b><p class="mute" style="margin:4px 0 10px">Social performance metrics (${MET.join(', ')}) come only from this monthly export — no automatic Meta sync. You review the numbers before anything is saved.</p><input type="file" accept=".csv,.xlsx,.xls,.tsv,.txt" onchange="repUp(this.files[0])"></div>`:''}`+repHistoryTable(rep)+rep.map(r=>repCard(r,R==='am')).join('')};
 Object.assign(N,{workflow:['Workflow','check'],review:['Review','check'],calendar:['Calendar','cal'],requests:['Requests','clip'],reports:['Reports','bolt']});
-{const add=(r,l)=>{const a=NAV[r];a.splice(a.indexOf('account'),0,...l)};add('admin',['workflow','calendar','requests','reports']);add('am',['review','calendar','requests','reports']);add('cc',['review','requests','reports']);add('emp',['requests','reports']);add('client',['review','requests','reports'])}
+{const add=(r,l)=>{const a=NAV[r];a.splice(a.indexOf('account'),0,...l)};add('admin',['workflow','calendar','requests','reports']);add('am',['review','calendar','requests','reports']);add('cc',['review','requests','reports']);add('emp',['review','requests','reports']);add('client',['review','requests','reports'])}
 const _v3=view;view=function(sk=true){enforceRoleRoute();ens();return _v3(sk)};
 
 /* ===== v10: gaps found on re-check ===== */
 function snapV(i){(i.vers=i.vers||[]).push({v:i.v,at:now(),s:Object.fromEntries(Object.entries(i).filter(([k])=>!['hist','comments','vers','pub','stage','v'].includes(k)))})}
 function ow(i){const o={DRAFT:i.assignee||'Content Creator',CHANGES_REQUESTED:i.assignee||'Content Creator',IN_REVIEW:'Account Manager',CLIENT_REVIEW:'Client',APPROVED:'Account Manager (to publish)',PUBLISHED:'—'}[i.stage],h=i.hist[i.hist.length-1],since=h?esc(h.at):'Not started',days=h?Math.floor((Date.now()-new Date(h.at.replace(' ','T')))/864e5):0,dly=i.stage!=='PUBLISHED'&&((i.date&&i.date<TODAY)||days>=3);
  return `<dl class="kv" style="margin:14px 0 0">${kvh([['Current owner',esc(o)],['Since',since],['Delay',dly?'<span class="pill er">Delayed</span>':'<span class="pill ok">On track</span>']])}</dl>`}
-function reqItem(id){const r=REQ.find(x=>x.id===id),p=PLANS.find(x=>x.brand===r.brand);if(!p)return toast('No content plan exists for this brand yet');p.items.push({id:++IDN,title:r.kind+': '+r.text.slice(0,50),type:'POST',campaign:'',platform:p.platform,notes:r.text,assignee:'',priority:'MEDIUM',status:'TODO',stage:'DRAFT',v:1,comments:[],hist:[]});r.st='ACCEPTED';toast('Content item created in “'+p.title+'”');view(false)}
+function reqItem(id){
+ const r=REQ.find(x=>x.id===id||x._id===id),p=r&&PLANS.find(x=>x.brand===r.brand);
+ if(!p)return toast('No content plan exists for this brand yet');
+ const title=r.kind+': '+r.text.slice(0,50);
+ const newIt={id:++IDN,title,type:'POST',campaign:'',platform:p.platform,date:TODAY,notes:r.text,assignee:r.assignee||'',priority:'MEDIUM',status:'TODO',stage:'DRAFT',v:1,comments:[],hist:[{at:now(),by:ME[S.role][0],role:ROLES[S.role],a:'Created from client request',r:r.text,v:1}],vers:[]};
+ p.items.push(newIt);
+ r.st='ACCEPTED';
+ if(p._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  apiCall('/content-items',{method:'POST',body:{contentPlanId:p._id,title,type:'POST',scheduledDate:TODAY,notes:r.text}}).then(res=>{if(res?.id)newIt._id=res.id}).catch(()=>{});
+ }
+ toast('Content item created in “'+p.title+'”');
+ view(false);
+}
 /* reminders for approaching / missed due dates */
 function remind(){TK.forEach(t=>{if(t._rem||DONE4.includes(t.status)||!t.eff)return;const d=String(t.eff),diff=Math.round((new Date(d)-new Date(TODAY))/864e5);if(diff<0){t._rem=1;note('Task “'+t.title+'” is overdue',t.brand,true,[rl(t.assignee),'am','admin'].filter(Boolean))}else if(diff<=2){t._rem=1;note('Task “'+t.title+'” is due soon ('+d+')',t.brand,true,[rl(t.assignee),'am','admin'].filter(Boolean))}})}
 {const _e=ens;ens=function(){_e();try{remind()}catch{/* ignore */}}}
-/* dashboards: final overview per role */
-function kp(){const R=S.role,cb=curClientBrand(),L=allI().filter(vis).filter(([i])=>R!=='emp'||i.assignee===MEN[R]),n=s=>L.filter(([i])=>i.stage===s).length,all=R==='admin'||R==='am',tk=TK.filter(t=>all||t.assignee===MEN[R]||(R==='client'&&t.brand===cb)),dn=t=>DONE4.includes(t.status),
+/* dashboards: final overview per role — every card is live data and opens its source list */
+function kp(){const R=S.role,cb=curClientBrand(),mb=myBrands(),L=allI().filter(vis).filter(([i])=>R!=='emp'||i.assignee===MEN[R]),n=s=>L.filter(([i])=>i.stage===s).length,all=R==='admin'||R==='am',tk=TK.filter(t=>R==='admin'?true:R==='am'?(mb.includes(t.brand)||t.by===MEN.am||t.assignee===MEN.am):(R==='client'?t.brand===cb:t.assignee===MEN[R])),dn=t=>DONE4.includes(t.status),
  od=tk.filter(isOd),up=tk.filter(t=>!dn(t)&&t.eff&&t.eff>=TODAY).sort((p,q)=>String(p.eff).localeCompare(String(q.eff))),
  apiProg=all?API_CACHE.progress:null,
  odCnt=apiProg?apiProg.overdueTasks:od.length,
- pr=PLANS.filter(p=>myBrands().includes(p.brand)),g=pr.reduce((s,p)=>s+p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,0),tot=pr.reduce((s,p)=>s+p.items.length,0),pc=tot?Math.round(g/tot*100)+'%':'—',rq=REQ.filter(r=>r.st==='SUBMITTED').length,cd=apiProg?apiProg.completedTasks:tk.filter(dn).length,
- t=R==='admin'?[['Content awaiting review',n('IN_REVIEW')+n('CLIENT_REVIEW')],['Approved / published',n('APPROVED')+n('PUBLISHED')],['Overdue tasks',odCnt],['Open client requests',rq],['Plan completion',pc]]
- :R==='am'?[['Waiting for my review',n('IN_REVIEW')],['Waiting for the client',n('CLIENT_REVIEW')],['Returned with changes',n('CHANGES_REQUESTED')],['Requests to review',rq],['Overdue tasks',odCnt]]
- :R==='client'?[['Plan progress',pc],['Awaiting my approval',n('CLIENT_REVIEW')],['Approved',n('APPROVED')],['Published',n('PUBLISHED')],['My open requests',REQ.filter(r=>r.brand===cb&&['SUBMITTED','ASSIGNED'].includes(r.st)).length]]
- :[['Overdue',od.length],['Upcoming',up.length],['Returned with changes',n('CHANGES_REQUESTED')],['Completed',cd],['On-time delivery',cd+od.length?Math.round(cd/(cd+od.length)*100)+'%':'—']];
- return `<div style="margin-top:24px"><h2 style="margin-bottom:12px">Content & delivery overview</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">${t.map(x=>`<div style="border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff"><div class="mono mute">${x[0]}</div><b style="font-size:26px">${x[1]}</b></div>`).join('')}</div>${R==='client'?'':crd('Upcoming deadlines',up.slice(0,5).map(x=>`<div style="padding:6px 0;border-top:1px solid var(--line)">${esc(x.title)} <span class="mute">· ${esc(x.assignee)} · ${dl(x)}</span></div>`).join('')||'<p class="mute" style="margin:0">Nothing due soon.</p>')}</div>`}
+ pr=PLANS.filter(p=>mb.includes(p.brand)),g=pr.reduce((s,p)=>s+p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,0),tot=pr.reduce((s,p)=>s+p.items.length,0),pc=tot?Math.round(g/tot*100)+'%':'—',
+ rq=REQ.filter(r=>(r.st==='SUBMITTED'||r.st==='UNDER_REVIEW')&&mb.includes(r.brand)).length,
+ cd=apiProg?apiProg.completedTasks:tk.filter(dn).length,
+ briefsNeed=D.briefs.rows.filter(b=>mb.includes(b.brandId)&&['GENERATED','NEEDS_CHANGES','FAILED'].includes(b.status)).length,
+ plansNeed=pr.filter(p=>(p.status||'DRAFT')==='IN_REVIEW').length,
+ clRepCnt=MR.filter(r=>r.brand===cb&&r.ok&&r.sh).length,
+ clNotifCnt=D.notifications.rows.filter(x=>!x.isRead&&x.title.includes(cb)&&!x.internal).length,
+ empPerf=calcMemberPerf(MEN[R]),
+ t=R==='admin'?[
+  ['Content awaiting review',n('IN_REVIEW')+n('CLIENT_REVIEW'),"go('workflow')"],
+  ['Approved / published',n('APPROVED')+n('PUBLISHED'),"go('workflow')"],
+  ['Overdue tasks',odCnt,"S.ts='all';go('tasks')"],
+  ['Open client requests',rq,"go('requests')"],
+  ['Plan completion',pc,"go('reports')"]
+ ]
+ :R==='am'?[
+  ['Briefs needing action',briefsNeed,"go('brands')"],
+  ['Plans needing action',plansNeed,"go('brands')"],
+  ['Waiting for my review',n('IN_REVIEW'),"go('review')"],
+  ['Waiting for the client',n('CLIENT_REVIEW'),"go('review')"],
+  ['Plan completion',pc,"go('reports')"],
+  ['Overdue tasks',odCnt,"S.tw='team';go('tasks')"]
+ ]
+ :R==='client'?[
+  ['Plan progress',pc,"go('plans')"],
+  ['Awaiting my approval',n('CLIENT_REVIEW'),"go('review')"],
+  ['Approved & published',n('APPROVED')+n('PUBLISHED'),"go('review')"],
+  ['Shared reports',clRepCnt,"go('reports')"],
+  ['Unread notifications',clNotifCnt,"go('notifications')"]
+ ]
+ :[
+  ['My open tasks',tk.filter(x=>!dn(x)).length,"S.tw='mine';go('tasks')"],
+  ['Upcoming deadlines',up.length,"S.tw='mine';go('tasks')"],
+  ['Overdue',od.length,"S.tw='mine';go('tasks')"],
+  ['Returned with changes',n('CHANGES_REQUESTED')+tk.filter(x=>x.status==='NEEDS_CHANGES').length,"go('review')"],
+  ['Completed',cd,"S.tw='mine';S.ts='COMPLETED';go('tasks')"],
+  ['On-time delivery',empPerf.onTime===null?'—':empPerf.onTime+'%',"go('reports')"]
+ ];
+ return `<div style="margin-top:24px"><h2 style="margin-bottom:12px">Content &amp; delivery overview</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">${t.map(x=>`<button type="button" onclick="${x[2]}" style="text-align:left;cursor:pointer;border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff;font:inherit"><div class="mono mute">${x[0]}</div><b style="font-size:26px;display:block;margin-top:4px">${x[1]}</b><span class="mute" style="font-size:11px">Open list →</span></button>`).join('')}</div>${R==='client'?'':crd('Upcoming deadlines',up.slice(0,5).map(x=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><a class="lk" onclick="tdet(${x.id})">${esc(x.title)}</a> <span class="mute">· ${esc(x.assignee)} · ${dl(x)}</span></div>`).join('')||'<p class="mute" style="margin:0">Nothing due soon.</p>')}</div>`}
 {const _pd2=PAGES.dashboard;PAGES.dashboard=()=>_pd2()+kp()}
 /* error state */
 {const _v4=view;view=function(sk=true){enforceRoleRoute();try{return _v4(sk)}catch{const v=$('#view');if(v)v.innerHTML='<div class="card empty"><h2>Something went wrong</h2><p class="mute">This page could not be loaded.</p><button class="btn p" onclick="view(false)">Try again</button></div>'}}}
@@ -2427,7 +2849,10 @@ async function hydrateFromBackend(){
        caption:it.caption||'',notes:it.notes||'',reference:it.reference||'',
        materialUrl:it.materialUrl||it.material_url||'',link:it.materialUrl||it.material_url||it.reference||'',
        toneOfVoice:it.toneOfVoice||it.tone_of_voice||'',assignee:it.creator?.fullName||MEN.cc,priority:'MEDIUM',status:'TODO',
-       stage,clientReviewStatus:revSt,publishStatus:pubSt,pub,v:1,comments:[],hist:[],vers:[]
+       stage,clientReviewStatus:revSt,publishStatus:pubSt,pub,
+       approvedAt:it.clientApprovedAt?String(it.clientApprovedAt).slice(0,16).replace('T',' '):'',
+       approvedBy:revSt==='APPROVED'?(D.brands.rows.find(b=>b.name===bName)?.clientId||'Client'):'',
+       v:1,comments:[],hist:[],vers:[]
       };
      });
      PLANS.push({id:p.id,_id:p.id,brand:bName,platform:platAcc,title:p.title,month:mLabel,campaigns:pCamps,items:pItems});
@@ -2478,11 +2903,18 @@ async function hydrateFromBackend(){
      ].filter(Boolean);
      const item=mk(t.id,t.title,kindMap[t.type]||'DIRECT',(t.status||'TODO').toUpperCase(),(t.priority||'MEDIUM').toUpperCase(),aName,byName,bName,ctx,pDate,eDate,t.description||'',t.dependsOnTaskId);
      item._id=t.id;
+     item.contentItemId=t.contentItemId||t.contentItem?.id||null;
      item.submissionUrl=t.submissionUrl||'';
      item.submissionNotes=t.submissionNotes||'';
      TK.push(item);
      D.tasks.rows.push({_id:t.id,title:t.title,priority:(t.priority||'MEDIUM').toUpperCase(),assignedToId:aName,plannedDeadline:pDate,status:(t.status||'TODO').toUpperCase()});
     });
+    PLANS.forEach(p=>p.items.forEach(it=>{
+     if(it.stage!=='DRAFT')return;
+     const lnk=findLinkedTasks(it);
+     if(lnk.review?.status==='IN_REVIEW'||lnk.creation?.status==='SUBMITTED')it.stage='IN_REVIEW';
+     else if(lnk.creation?.status==='NEEDS_CHANGES'||lnk.review?.status==='NEEDS_CHANGES')it.stage='CHANGES_REQUESTED';
+    }));
    }
   }
   if(notifsData){
@@ -2496,7 +2928,11 @@ async function hydrateFromBackend(){
       ?{k:'onboarding',brand:brandFromData||BR[0]||''}
       :low.includes('strategy')
        ?{k:'strategy',brand:brandFromData||BR[0]||''}
-       :{k:'tasks'};
+       :low.includes('client_request')||low.includes('client request')
+        ?{k:'requests'}
+        :low.includes('review')||low.includes('approved')||low.includes('published')||low.includes('change_request')
+         ?{k:'review',brand:brandFromData||BR[0]||''}
+         :{k:'tasks'};
      return {
       _id:n.id,title,
       createdAt:n.createdAt?String(n.createdAt).slice(0,16).replace('T',' '):'just now',
@@ -2867,13 +3303,35 @@ saveTask=function(){
 };
 
 const _origTset=tset;
-tset=function(id,s){
+tset=function(id,s,notes){
  const t=TK.find(x=>x.id===id);
  const prevStatus=t?.status;
  _origTset(id,s);
+ if(t&&t.kind==='REVIEW'&&(s==='COMPLETED'||s==='NEEDS_CHANGES')){
+  const linkedIt=findItemForTask(t);
+  if(linkedIt){
+   const [it,plObj]=linkedIt;
+   const from=it.stage;
+   if(s==='COMPLETED'){
+    it.stage='CLIENT_REVIEW';
+    logH(it,STG[from]+' → '+STG.CLIENT_REVIEW,notes||'Approved in internal review');
+    note('“'+it.title+'” approved for client review',plObj.brand,false,['client','cc','emp','admin']);
+   }else{
+    it.stage='CHANGES_REQUESTED';
+    if(notes){
+     t.desc=notes;
+     it.comments.push({at:now(),by:ME[S.role][0],role:ROLES[S.role],v:it.v||1,t:notes});
+    }
+    logH(it,STG[from]+' → '+STG.CHANGES_REQUESTED,notes||'');
+    note('“'+it.title+'” returned with requested changes',plObj.brand,true,['cc','emp','am','admin'],{k:'review',brand:plObj.brand});
+   }
+  }
+ }else if(t&&prevStatus&&prevStatus!==t.status){
+  note('Task “'+t.title+'” status changed to '+lab(t.status),t.brand!=='—'?t.brand:'',true,[rl(t.assignee),'am','admin'].filter(Boolean),{k:'tasks'});
+ }
  if(t?._id&&getApiToken()&&!S.offlineMode){
   if(t.kind==='REVIEW'&&(s==='COMPLETED'||s==='NEEDS_CHANGES')){
-   apiCall('/tasks/'+t._id+'/review',{method:'PATCH',body:{decision:s,notes:null}}).catch(err=>{if(prevStatus)t.status=prevStatus;if(err?.message)toast(err.message);view(false)});
+   apiCall('/tasks/'+t._id+'/review',{method:'PATCH',body:{decision:s,notes:notes||null}}).catch(err=>{if(prevStatus)t.status=prevStatus;if(err?.message)toast(err.message);view(false)});
   }else{
    apiCall('/tasks/'+t._id+'/status',{method:'PATCH',body:{status:t.status}}).catch(err=>{if(prevStatus)t.status=prevStatus;if(err?.message)toast(err.message);view(false)});
   }
@@ -3441,7 +3899,8 @@ window.__orviaCleanup=cleanupOrviaListeners;
 window.__orviaBindListeners=bindOrviaListeners;
 bindOrviaListeners();
 if(window.location.hash.startsWith('#reset'))applyResetHash();
+else if(window.location.hash==='#landing'||window.location.hash==='#home')S.auth='landing';
 
 applyTheme();
 render();
-Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,loadItemRevisions,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,reqNew,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
+Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,LANDING_MSGS,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,openLanding,sendLandingContact,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,reviewChangesModal,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,confirmPubRec,loadItemRevisions,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,loadCalendarMonth,reqNew,reqReview,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,calcMemberPerf,memberPerfDet,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
