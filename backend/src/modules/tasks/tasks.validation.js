@@ -97,6 +97,22 @@ export const taskListQuerySchema = z.object({
   overdue: z.coerce.boolean().optional(),
 }).strict();
 
+export const attachSubmissionSchema = z.object({
+  submissionUrl: z
+    .string()
+    .trim()
+    .url('Submission URL must be a valid URL')
+    .max(2000)
+    .nullable(),
+
+  submissionNotes: z
+    .string()
+    .trim()
+    .max(5000)
+    .nullable()
+    .optional(),
+}).strict();
+
 export const submitContentTaskSchema = z.object({
   submissionUrl: z
     .string()

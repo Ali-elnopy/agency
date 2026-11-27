@@ -9,6 +9,7 @@ import {
   updateTaskSchema,
   updateTaskStatusSchema,
   taskListQuerySchema,
+  attachSubmissionSchema,
   submitContentTaskSchema,
   reviewTaskSchema,
 } from './tasks.validation.js';
@@ -47,6 +48,12 @@ tasksRouter.post(
   '/:id/submit',
   validate(submitContentTaskSchema),
   TasksController.submitContentTask,
+);
+
+tasksRouter.patch(
+  '/:id/attach',
+  validate(attachSubmissionSchema),
+  TasksController.attachSubmission,
 );
 
 tasksRouter.patch(

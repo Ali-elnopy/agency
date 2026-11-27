@@ -528,6 +528,38 @@ export const TasksService = {
     }
   },
 
+  async attachSubmission(value, input, currentUser) {
+    ensureNotClient(currentUser);
+
+    const task = await getTaskOrThrow(value);
+    const roleName = getRoleName(currentUser);
+    const isManager = ACCOUNT_MANAGER_ROLES.has(roleName);
+    const isAssignee = task.assignedTo === currentUser.id;
+    const isCreator = task.createdBy === currentUser.id;
+
+    if (!isManager && !isAssignee && !isCreator) {
+      throw new ApiError(403, 'You are not allowed to attach files to this task');
+    }
+
+    assertAccountManagerBrandAccess(task, currentUser);
+
+    if (task.status === 'CANCELLED') {
+      throw new ApiError(400, 'Cancelled tasks cannot accept new file links');
+    }
+
+    try {
+      return await TasksModel.update(task.id, {
+        submissionUrl: input.submissionUrl ?? null,
+        submissionNotes:
+          input.submissionNotes !== undefined
+            ? input.submissionNotes
+            : task.submissionNotes,
+      });
+    } catch (error) {
+      mapPrismaError(error);
+    }
+  },
+
   async submitContentTask(value, input, currentUser) {
     ensureNotClient(currentUser);
 

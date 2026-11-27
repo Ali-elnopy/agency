@@ -1228,9 +1228,41 @@ async function confirmSubmitTask(id){
  view(false);
 }
 const tbtn=t=>tact(t).map(a=>`<button class="btn sm ${a[1]==='CANCELLED'?'dg':''}" onclick="${a[1]==='SUBMITTED'&&t.kind==='CREATION'?`submitTaskModal(${t.id})`:`tset(${t.id},'${a[1]}')`}">${a[0]}</button>`).join('');
+const abtn=t=>`<button class="btn sm" onclick="attachTaskModal(${t.id})" title="Attach a link to a file stored outside the system">📎 Attach link</button>`;
+function attachTaskModal(id){
+ const t=TK.find(x=>x.id===id);if(!t)return;
+ modal(`<div class="dlg"><h2>Attach work files link</h2><p class="mute" style="margin:0 0 16px">Paste a link to a file hosted outside the system (Google Drive, Figma, Dropbox…) for “${esc(t.title)}”. Nothing gets uploaded — only the link is saved.</p>
+  <div class="pg">
+   <div class="fl" style="grid-column:1/-1"><label>File link <em style="color:var(--et);font-style:normal">*</em></label><input id="at-url" type="url" value="${esc(t.submissionUrl||'')}" placeholder="https://drive.google.com/…"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Text &amp; Notes</label><textarea id="at-notes" placeholder="What is this file? Anything the reviewer should know…">${esc(t.submissionNotes||'')}</textarea></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="confirmAttachTask(${t.id})">Save link</button></div>
+ </div>`);
+}
+async function confirmAttachTask(id){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const t=TK.find(x=>x.id===id);if(!t)return;
+ const url=($('#at-url')?.value||'').trim();
+ const notes=($('#at-notes')?.value||'').trim();
+ if(!url||!safeUrl(url))return toast('Enter a valid http:// or https:// link.');
+ dlg._submitted=true;
+ if(t._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   await apiCall('/tasks/'+t._id+'/attach',{method:'PATCH',body:{submissionUrl:url,submissionNotes:notes||null}});
+  }catch(err){
+   dlg._submitted=false;
+   return toast(err?.message||'Could not save the link');
+  }
+ }
+ t.submissionUrl=url;
+ t.submissionNotes=notes;
+ closeM();
+ toast('Link saved to the task');
+ view(false);
+}
 const ctxL=t=>[t.brand,...t.ctx].join(' → ');
 let tdet=function(id){const t=TK.find(x=>x.id===id),w=t.after&&TK.find(x=>x.id===t.after);
- modal(`<div class="dlg"><h2>${esc(t.title)}</h2><div style="margin:8px 0">${pill(t.status)} ${pill(t.priority)} <span class="tag">${esc(TY[t.kind]||t.kind)}</span></div><dl class="kv"><dt>Context</dt><dd>${esc(ctxL(t))}</dd><dt>Description</dt><dd>${esc(t.desc)||'—'}</dd><dt>Assigned to</dt><dd>${esc(t.assignee)}</dd><dt>Created by</dt><dd>${esc(t.by)}</dd><dt>Planned deadline</dt><dd>${esc(t.planned)}</dd><dt>Effective deadline</dt><dd>${dl(t)}</dd><dt>Waiting on</dt><dd>${w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing'}</dd></dl><div class="ft"><button class="btn" onclick="closeM()">Close</button>${tbtn(t)}</div></div>`)};
+ modal(`<div class="dlg"><h2>${esc(t.title)}</h2><div style="margin:8px 0">${pill(t.status)} ${pill(t.priority)} <span class="tag">${esc(TY[t.kind]||t.kind)}</span></div><dl class="kv"><dt>Context</dt><dd>${esc(ctxL(t))}</dd><dt>Description</dt><dd>${esc(t.desc)||'—'}</dd><dt>Assigned to</dt><dd>${esc(t.assignee)}</dd><dt>Created by</dt><dd>${esc(t.by)}</dd><dt>Planned deadline</dt><dd>${esc(t.planned)}</dd><dt>Effective deadline</dt><dd>${dl(t)}</dd><dt>Waiting on</dt><dd>${w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing'}</dd>${t.submissionUrl&&safeUrl(t.submissionUrl)?`<dt>Work files link</dt><dd><a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">📎 ${esc(t.submissionUrl)}</a>${t.submissionNotes?`<div class="mute" style="font-size:12px;margin-top:4px">${esc(t.submissionNotes)}</div>`:''}</dd>`:''}</dl><div class="ft"><button class="btn" onclick="closeM()">Close</button>${abtn(t)}${tbtn(t)}</div></div>`)};
 function editTask(id){
  const t=TK.find(x=>x.id===id);if(!t)return;
  const staff=[...new Set([...EMP,MEN.am,...D.users.rows.filter(u=>u.roleId!=='Client'&&u.isActive!==false).map(u=>u.fullName)])];
@@ -1278,8 +1310,8 @@ tasksPage=function(){const R=S.role,me=MEN[R],mgr=R==='admin'||R==='am',team=mgr
  L=base.filter(t=>(S.ts==='all'||t.status===S.ts)&&[t.title,t.brand,t.assignee,...(t.ctx||[])].join(' ').toLowerCase().includes(q)),
  st=[['Total',base.length],['Overdue',n(isOd),1],['In progress',n(t=>t.status==='IN_PROGRESS')],['Needs your action',n(t=>t.assignee===me&&['TODO','NEEDS_CHANGES','IN_REVIEW'].includes(t.status)),0],['Completed',n(t=>t.status==='COMPLETED')]],
  sg2=(k,_v,l)=>`<div class="seg" role="group" style="margin:0">${l.map(x=>`<button class="${S[k]===x[0]?'on':''}" aria-pressed="${S[k]===x[0]}" onclick="S.${k}='${x[0]}';view(false)">${x[1]}</button>`).join('')}</div>`;
- const row=t=>`<tr><td><b>${esc(t.title)}</b><div class="mute" style="font-size:12px">${esc(ctxL(t))}</div></td><td><span class="tag">${esc(TY[t.kind]||t.kind)}</span></td><td>${esc(t.assignee)}</td><td>${pill(t.priority)}</td><td>${dl(t)}</td><td>${pill(t.status)}</td><td><div class="ra"><button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></td></tr>`,
- card=t=>`<div class="card tc"><div style="display:flex;justify-content:space-between;gap:8px"><span class="tag lc">${esc(TY[t.kind]||t.kind)}</span>${pill(t.status)}</div><b style="font-size:16px">${esc(t.title)}</b><span class="mute" style="font-size:12px">${esc(ctxL(t))}</span><div style="display:flex;justify-content:space-between;align-items:end;gap:8px"><div>${dl(t)}<div class="mute" style="font-size:12px">${esc(t.assignee)}</div></div>${pill(t.priority)}</div><div class="dash" style="margin:2px 0"></div><div class="ra" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></div>`;
+ const row=t=>`<tr><td><b>${esc(t.title)}</b><div class="mute" style="font-size:12px">${esc(ctxL(t))}</div>${t.submissionUrl&&safeUrl(t.submissionUrl)?`<div style="font-size:12px;margin-top:4px">📎 <a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">${esc(t.submissionUrl)}</a></div>`:''}</td><td><span class="tag">${esc(TY[t.kind]||t.kind)}</span></td><td>${esc(t.assignee)}</td><td>${pill(t.priority)}</td><td>${dl(t)}</td><td>${pill(t.status)}</td><td><div class="ra">${abtn(t)}<button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></td></tr>`,
+ card=t=>`<div class="card tc"><div style="display:flex;justify-content:space-between;gap:8px"><span class="tag lc">${esc(TY[t.kind]||t.kind)}</span>${pill(t.status)}</div><b style="font-size:16px">${esc(t.title)}</b><span class="mute" style="font-size:12px">${esc(ctxL(t))}</span>${t.submissionUrl&&safeUrl(t.submissionUrl)?`<div style="font-size:12px">📎 <a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">${esc(t.submissionUrl)}</a></div>`:''}<div style="display:flex;justify-content:space-between;align-items:end;gap:8px"><div>${dl(t)}<div class="mute" style="font-size:12px">${esc(t.assignee)}</div></div>${pill(t.priority)}</div><div class="dash" style="margin:2px 0"></div><div class="ra" style="justify-content:flex-start;flex-wrap:wrap">${abtn(t)}<button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></div>`;
  return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>${team?'Tasks':'My Work'}</h1><p>${team?'Who does what: assign, follow and re-assign your team’s work.':'What is required from me: only the tasks assigned to you.'}</p></div>${mgr&&team?`<button class="btn p" onclick="newTask()">+ Direct task</button>`:''}</div>
 <div class="tb2">${mgr?sg2('tw',0,[['mine','My Work'],['team','Tasks']]):''}${sg2('tv',0,[['rows','☰ Rows'],['cards','▦ Cards']])}<select aria-label="Status" onchange="S.ts=this.value;view(false)"><option value="all">All statuses</option>${['TODO','IN_PROGRESS','SUBMITTED','IN_REVIEW','NEEDS_CHANGES','COMPLETED','CANCELLED'].map(x=>`<option value="${x}" ${S.ts===x?'selected':''}>${lab(x)}</option>`).join('')}</select></div>
 <div class="stats">${st.map(s=>`<div class="stat ${s[2]&&s[1]?'al':''}"><span class="mono mute">${s[0]}</span><b>${s[1]}</b></div>`).join('')}</div>`+
@@ -2102,6 +2134,8 @@ async function hydrateFromBackend(){
      ].filter(Boolean);
      const item=mk(t.id,t.title,kindMap[t.type]||'DIRECT',(t.status||'TODO').toUpperCase(),(t.priority||'MEDIUM').toUpperCase(),aName,byName,bName,ctx,pDate,eDate,t.description||'',t.dependsOnTaskId);
      item._id=t.id;
+     item.submissionUrl=t.submissionUrl||'';
+     item.submissionNotes=t.submissionNotes||'';
      TK.push(item);
      D.tasks.rows.push({_id:t.id,title:t.title,priority:(t.priority||'MEDIUM').toUpperCase(),assignedToId:aName,plannedDeadline:pDate,status:(t.status||'TODO').toUpperCase()});
     });
@@ -3017,4 +3051,4 @@ if(window.location.hash.startsWith('#reset'))applyResetHash();
 
 applyTheme();
 render();
-Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,cmv,reqNew,reqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
+Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,cmv,reqNew,reqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
