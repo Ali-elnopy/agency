@@ -384,17 +384,24 @@ function renderBriefContent(r){
  const c=r?.content&&typeof r.content==='object'?r.content:{};
  const secKeys=Object.keys(BRIEF_SECTION_LABELS).filter(k=>c[k]&&typeof c[k]==='object');
  const listHtml=arr=>Array.isArray(arr)&&arr.length?`<ul style="margin:6px 0 0 18px;padding:0;display:grid;gap:4px">${arr.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="mute" style="margin:4px 0 0">—</p>';
+ const bObj=D.brands.rows.find(x=>x.name===r?.brandId)||{};
+ const obSnap=typeof getBrandOnboarding==='function'?getBrandOnboarding(r?.brandId):null;
+ const brandType=[r?.sourceSnapshot?.mainCategory||obSnap?.cat,r?.sourceSnapshot?.activityType||obSnap?.act].filter(Boolean).join(' / ')||bObj.industry||'—';
+ const infoBar=`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Brand information &amp; brief metadata</h2><dl class="kv" style="margin:0"><dt>Brand</dt><dd>${esc(r?.brandId||'—')}</dd><dt>Industry</dt><dd>${esc(bObj.industry||'—')}</dd><dt>Brand type</dt><dd>${esc(brandType)}</dd><dt>Version</dt><dd><span class="tag">${esc(r?.version||'v1')}</span></dd><dt>Generation date</dt><dd class="mono">${esc(r?.updatedAt||'—')}</dd><dt>Status</dt><dd>${pill(r?.status||'GENERATED')}</dd></dl></div>`;
  let html='';
- if(r?.errorMessage){
-  html+=`<div class="note wn" style="margin-top:16px;background:var(--eb);color:var(--et)"><b>!</b><span>${esc(r.errorMessage)}</span></div>`;
+ if(r?.status==='GENERATING'){
+  html+=`<div class="note" style="margin-top:16px"><b>⏳</b><span>Generating AI Brand Brief from the client’s onboarding answers… Please wait.</span></div><div class="card" style="margin-top:12px"><div class="sk" style="width:60%;height:18px;margin-bottom:10px"></div><div class="sk" style="width:90%;height:14px;margin-bottom:8px"></div><div class="sk" style="width:75%;height:14px"></div></div>`;
+ }
+ if(r?.status==='FAILED'||r?.errorMessage){
+  html+=`<div class="note wn" style="margin-top:16px;background:var(--eb);color:var(--et)"><b>!</b><span><b>Brief generation failed:</b> ${esc(r?.errorMessage||'Could not generate brief. Please retry.')}</span></div>`;
  }
  if(secKeys.length){
   html+=`<div style="display:grid;gap:14px;margin-top:16px">${secKeys.map(k=>{
    const sec=c[k]||{};
-   return `<div class="card"><h2 style="margin-bottom:10px">${esc(BRIEF_SECTION_LABELS[k])}</h2>
+   return `<div class="card" style="border-left:4px solid #7c6cf0"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px"><h2 style="margin:0">${esc(BRIEF_SECTION_LABELS[k])}</h2><span class="tag lc">✨ AI-generated</span></div>
     <div style="display:grid;gap:12px">
      <div><div class="mono mute">Client information</div>${listHtml(sec.clientInformation)}</div>
-     <div><div class="mono mute">AI analysis</div>${listHtml(sec.aiAnalysis)}</div>
+     <div style="background:var(--lilac);padding:10px 12px;border-radius:12px"><div class="mono" style="font-weight:700">AI analysis</div>${listHtml(sec.aiAnalysis)}</div>
      <div><div class="mono mute">Recommendations</div>${listHtml(sec.recommendations)}</div>
     </div></div>`;
   }).join('')}</div>`;
@@ -411,15 +418,14 @@ function renderBriefContent(r){
  if(c.notes)metaRows.push(['Notes',esc(c.notes)]);
  if(c.approvedBy)metaRows.push(['Approved by',esc(c.approvedBy)+(c.approvedAt?' · '+esc(String(c.approvedAt).slice(0,10)):'')]);
  if(metaRows.length){
-  html+=`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:10px">Brief summary &amp; notes</h2><dl class="kv" style="margin:0">${metaRows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>`;
+  html+=`<div class="card" style="margin-top:16px;border-left:4px solid #7c6cf0"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px"><h2 style="margin:0">AI brief summary &amp; notes</h2><span class="tag lc">✨ AI-generated</span></div><dl class="kv" style="margin:0">${metaRows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>`;
  }
  if(!html){
-  html=`<div class="card" style="margin-top:16px"><p class="mute" style="margin:0">${r?.status==='GENERATING'?'Brief content is being generated…':'No content generated for this brief yet.'}</p></div>`;
+  html=`<div class="card" style="margin-top:16px"><p class="mute" style="margin:0">No content generated for this brief yet.</p></div>`;
  }
  const qaList=Array.isArray(r?.sourceSnapshot?.questionsAndAnswers)&&r.sourceSnapshot.questionsAndAnswers.length
   ?r.sourceSnapshot.questionsAndAnswers
   :(()=>{
-   const obSnap=typeof getBrandOnboarding==='function'?getBrandOnboarding(r?.brandId):null;
    const ansMap=obSnap?.a||{};
    const out=[];
    if(typeof OBS!=='undefined'){
@@ -431,17 +437,16 @@ function renderBriefContent(r){
     });
    }
    if(!out.length){
-    const b=D.brands.rows.find(x=>x.name===r?.brandId);
-    if(b){
-     out.push({section:'Brand Information',question:'Brand name',answer:b.name});
-     if(b.industry)out.push({section:'Brand Information',question:'Industry',answer:b.industry});
-     if(b.description)out.push({section:'Brand Information',question:'Description',answer:b.description});
+    if(bObj.name){
+     out.push({section:'Brand Information',question:'Brand name',answer:bObj.name});
+     if(bObj.industry)out.push({section:'Brand Information',question:'Industry',answer:bObj.industry});
+     if(bObj.description)out.push({section:'Brand Information',question:'Description',answer:bObj.description});
     }
    }
    return out;
   })();
- const answersCard=`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:4px">Client’s original answers</h2><p class="mute" style="margin:0 0 12px;font-size:13px">Intake responses submitted for ${esc(r?.brandId||'this brand')}.</p>${qaList.length?`<dl class="kv" style="margin:0">${qaList.map(q=>`<dt>${esc(q.question)}${q.section?`<div class="mute" style="font-size:11px;font-weight:400">${esc(q.section)}</div>`:''}</dt><dd>${esc(Array.isArray(q.answer)?q.answer.join(', '):q.answer)}</dd>`).join('')}</dl>`:'<p class="mute" style="margin:0">No client onboarding answers recorded yet.</p>'}</div>`;
- return `<div class="g2" style="grid-template-columns:1.35fr 1fr;align-items:start"><div>${html}</div><div>${answersCard}</div></div>`;
+ const answersCard=`<div class="card" style="margin-top:16px;background:var(--canvas);border-left:4px solid #1F6B4A"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><h2 style="margin:0">Client’s original answers</h2><span class="tag" style="background:var(--mint)">📋 Client intake</span></div><p class="mute" style="margin:0 0 12px;font-size:13px">Original onboarding responses submitted for ${esc(r?.brandId||'this brand')} (${esc(brandType)}).</p>${qaList.length?`<dl class="kv" style="margin:0">${qaList.map(q=>`<dt>${esc(q.question)}${q.section?`<div class="mute" style="font-size:11px;font-weight:400">${esc(q.section)}</div>`:''}</dt><dd>${esc(Array.isArray(q.answer)?q.answer.join(', '):q.answer)}</dd>`).join('')}</dl>`:'<p class="mute" style="margin:0">No client onboarding answers recorded yet.</p>'}</div>`;
+ return infoBar+`<div class="g2" style="grid-template-columns:1.35fr 1fr;align-items:start"><div>${html}</div><div>${answersCard}</div></div>`;
 }
 function head(E,w,k){const a=[];if(w&&!E.noCreate)a.push(`<button class="btn p" onclick="act('${k}',null,'new')">+ ${k==='users'?'Add user':'New '+esc(E.n)}</button>`);
  let briefWaitNote='';
@@ -461,7 +466,16 @@ function head(E,w,k){const a=[];if(w&&!E.noCreate)a.push(`<button class="btn p" 
  return `<div class="ph"><div><span class="eb">${esc(ROLES[S.role])}</span><h1>${esc(E.t)}</h1><p>${esc(E.d)}</p></div><div style="display:flex;gap:8px">${a.join('')}</div></div>${briefWaitNote}${lk?`<div class="note wn"><b>🔒</b><span>View-only for your role. You can open and read these records, but not create, edit, delete or change them.</span></div>`:''}${E.note?`<div class="note"><b>ⓘ</b><span>${esc(E.note)}</span></div>`:''}`}
 let listPage=function(k){const E=D[k],w=can(k),q=(S.q||'').trim().toLowerCase();let rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>S.role==='client'?(r.brandId?r.brandId===curClientBrand():(r.name?r.name===curClientBrand():true)):(!S.brand||!r.brandId||r.brandId===S.brand)).filter(({r})=>k!=='brands'||S.role!=='client'||r.name===curClientBrand()).filter(({r})=>k!=='notifications'||S.role!=='client'||(r.title.includes(curClientBrand())&&!r.internal)).filter(({r})=>{if(!q)return true;const txt=Object.entries(r).filter(([a])=>a!=='_id'&&a!=='password').map(([a,v])=>a==='isActive'?(v?'active':'inactive'):typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'')).join(' ').toLowerCase();return txt.includes(q)});
  if(k==='notifications'&&S.nf==='unread')rows=rows.filter(({r})=>!r.isRead);
+ if(k==='brands'){
+  const bs=S.bf||'all',bt=S.btf||'all';
+  if(bs!=='all')rows=rows.filter(({r})=>r.status===bs);
+  if(bt!=='all')rows=rows.filter(({r})=>r.teamId===bt);
+ }
  let h=head(E,w,k);
+ if(k==='brands'){
+  const bs=S.bf||'all',bt=S.btf||'all';
+  h+=`<div class="tb2" style="margin:0 0 16px"><select aria-label="Filter brands by status" onchange="S.bf=this.value;view(false)"><option value="all" ${bs==='all'?'selected':''}>All statuses</option>${['ACTIVE','ONBOARDING','ARCHIVED'].map(x=>`<option value="${x}" ${bs===x?'selected':''}>${lab(x)}</option>`).join('')}</select><select aria-label="Filter brands by team" onchange="S.btf=this.value;view(false)"><option value="all" ${bt==='all'?'selected':''}>All teams</option>${T.map(x=>`<option value="${esc(x)}" ${bt===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>`;
+ }
  if(k==='notifications')h+=`<div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view()">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`;
  if(!rows.length)return h+`<div class="card empty"><span class="chip">${ic(N[k][1])}</span><h2>Nothing here yet</h2><p class="mute">${S.q?'No results match your search. Try a different keyword.':(w?'Create your first '+esc(E.n)+' to get started.':'There are no records to show yet.')}</p></div>`;
  const del=w&&!E.noDelete&&(k!=='users'||S.role==='admin');
@@ -1038,6 +1052,28 @@ const DEMO_ACCOUNTS={
  'client@orvia.com':{password:'Client123456!',role:'client',fullName:'Sara Nabil',subtitle:'Client · Lumen Skincare'}
 };
 const UI_ROLE_KEY={Admin:'admin','Account Manager':'am','Content Creator':'cc','Team Leader':'cc',Creative:'emp',Client:'client'};
+const AUTH_LOCKOUT={};
+const AUTH_AUDIT=[];
+const LOGIN_MAX_ATTEMPTS=5,LOGIN_WINDOW_MS=10*60*1000,LOGIN_LOCK_MS=10*60*1000;
+function logAuthEvent(event,email,reason=''){AUTH_AUDIT.unshift({event,email,reason,at:now()})}
+function checkLoginLock(email){
+ const rec=AUTH_LOCKOUT[email];
+ if(!rec)return false;
+ if(rec.lockedUntil&&Date.now()<rec.lockedUntil)return true;
+ if(rec.lockedUntil&&Date.now()>=rec.lockedUntil){delete AUTH_LOCKOUT[email]}
+ return false;
+}
+function recordLoginFailure(email){
+ const ts=Date.now();
+ const rec=AUTH_LOCKOUT[email];
+ const expired=!rec||(ts-rec.windowStart>LOGIN_WINDOW_MS);
+ const attempts=expired?1:rec.attempts+1;
+ const lockedUntil=attempts>=LOGIN_MAX_ATTEMPTS?ts+LOGIN_LOCK_MS:null;
+ AUTH_LOCKOUT[email]={attempts,windowStart:expired?ts:rec.windowStart,lockedUntil};
+ logAuthEvent(lockedUntil?'LOGIN_LOCKED':'LOGIN_FAILED',email,lockedUntil?'Account temporarily locked after 5 failed attempts':'Invalid credentials');
+ return Boolean(lockedUntil);
+}
+function clearLoginFailures(email){delete AUTH_LOCKOUT[email]}
 let doLogin=function(){
  if(S.busy)return;
  const v=Object.fromEntries([...document.querySelectorAll('[data-f]')].map(i=>[i.dataset.f,i.value]));
@@ -1049,17 +1085,29 @@ let doLogin=function(){
  else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))S.err.email='Please enter a valid email address.';
  if(!pw)S.err.password='Enter your password.';
  if(Object.keys(S.err).length)return render();
+ if(checkLoginLock(email)){
+  logAuthEvent('LOGIN_LOCKED',email,'Attempt while temporarily locked');
+  S.err.password='Account temporarily locked due to too many failed attempts. Try again in 10 minutes.';
+  return render();
+ }
  const demo=DEMO_ACCOUNTS[email];
  if(demo){
   const pwMap=loadDemoPwMap();
   const pwOk=pwMap[email]?checkDemoPw(email,pw):(pw===demo.password);
-  if(!pwOk){S.err.password='Invalid email or password.';return render()}
+  if(!pwOk){
+   const locked=recordLoginFailure(email);
+   S.err.password=locked?'Account temporarily locked due to too many failed attempts. Try again in 10 minutes.':'Invalid email or password.';
+   return render();
+  }
   const matchingUser=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===email||u.fullName===demo.fullName);
   if(matchingUser&&matchingUser.isActive===false){
+   logAuthEvent('LOGIN_FAILED',email,'Deactivated account');
    S.err.password='This account is inactive.';
    toast('This account is inactive.');
    return render();
   }
+  clearLoginFailures(email);
+  logAuthEvent('LOGIN_SUCCESS',email,demo.role);
   S.role=demo.role;
   S.currentEmail=email;
   S.clientBrand=demo.role==='client'?CLIENT_BRAND:null;
@@ -1074,10 +1122,13 @@ let doLogin=function(){
  if(brandRow&&checkDemoPw(email,pw)){
   const brandUser=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===email);
   if(brandUser&&brandUser.isActive===false){
+   logAuthEvent('LOGIN_FAILED',email,'Deactivated account');
    S.err.password='This account is inactive.';
    toast('This account is inactive.');
    return render();
   }
+  clearLoginFailures(email);
+  logAuthEvent('LOGIN_SUCCESS',email,'client');
   S.role='client';
   S.currentEmail=email;
   S.clientBrand=brandRow.name;
@@ -1090,8 +1141,10 @@ let doLogin=function(){
  }
  const createdRow=D.users.rows.find(u=>String(u.email||'').trim().toLowerCase()===email);
  if(createdRow&&checkDemoPw(email,pw)){
-  if(createdRow.isActive===false){S.err.password='This account is inactive.';return render()}
+  if(createdRow.isActive===false){logAuthEvent('LOGIN_FAILED',email,'Deactivated account');S.err.password='This account is inactive.';return render()}
+  clearLoginFailures(email);
   const rk=UI_ROLE_KEY[createdRow.roleId]||'emp';
+  logAuthEvent('LOGIN_SUCCESS',email,rk);
   S.role=rk;
   S.currentEmail=email;
   if(rk==='client'){
@@ -1111,7 +1164,8 @@ let doLogin=function(){
   S.authed=true;S.page=NAV[S.role][0];S.brand=null;S.sub=null;S.det=null;
   return render();
  }
- S.err.password='Invalid email or password.';
+ const locked=recordLoginFailure(email);
+ S.err.password=locked?'Account temporarily locked due to too many failed attempts. Try again in 10 minutes.':'Invalid email or password.';
  render();
 };
 /* ===== v2: brand workspace, strategy flow, content plans, role-based tasks ===== */
@@ -1123,7 +1177,7 @@ let IDN=10;
 const STR={'Lumen Skincare':{st:'client',v:1,file:'q4-growth-strategy-v1.pdf',reason:'',log:['v1 uploaded · Content Creator','Sent to the Account Manager · Content Creator','Sent to the client · Account Manager']},
 'Nord Coffee':{st:'am',v:1,file:'subscription-launch-v1.pdf',reason:'',log:['v1 uploaded · Content Creator','Sent to the Account Manager · Content Creator']}};
 const sg=b=>STR[b]||(STR[b]={st:'none',v:0,reason:'',log:[]});
-const PLANS=[{id:1,brand:'Lumen Skincare',title:'Nov · Lumen Skincare',month:'Nov 2026',campaigns:[{name:'Winter Glow',objective:'Drive holiday gift-set sales'}],items:[
+const PLANS=[{id:1,brand:'Lumen Skincare',title:'Nov · Lumen Skincare',month:'Nov 2026',year:2026,monthNum:11,status:'DRAFT',monthlyGoals:'Increase holiday gift-set conversions by 25%',notes:'Coordinate reel drops with Meta ad bursts.',campaigns:[{name:'Winter Glow',objective:'Drive holiday gift-set sales',startDate:'2026-11-10',endDate:'2026-11-30'}],items:[
 {id:2,title:'Serum routine reel',type:'REEL',campaign:'Winter Glow',date:'2026-11-21',assignee:'Lina Aziz',priority:'HIGH',status:'IN_PROGRESS'},
 {id:3,title:'Gift-set carousel',type:'CAROUSEL',campaign:'Winter Glow',date:'2026-11-24',assignee:'Karim Fouad',priority:'MEDIUM',status:'TODO'},
 {id:4,title:'Founder story',type:'STORY',campaign:'—',date:'2026-11-27',assignee:'',priority:'MEDIUM',status:'TODO'}]}];
@@ -1133,7 +1187,9 @@ const TASKS=[{title:'Design serum reel cover',brand:'Lumen Skincare',priority:'H
 const lab=x=>x.replace('_',' ').toLowerCase().replace(/^./,c=>c.toUpperCase());
 /* generic small form */
 function ask(t,fs,cb){window._cb=cb;modal(`<div class="dlg"><h2>${esc(t)}</h2><div class="pg" style="margin-top:16px">${fs.map(([n,l,ty,o])=>ty==='select'?`<div class="fl"><label>${esc(l)}</label><select data-f="${esc(n)}">${o.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select></div>`:ty==='textarea'?`<div class="fl" style="grid-column:1/-1"><label>${esc(l)}</label><textarea data-f="${esc(n)}"></textarea></div>`:`<div class="fl"><label>${esc(l)}</label><input data-f="${esc(n)}" type="${esc(ty||'text')}"></div>`).join('')}</div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="askOk()">Save</button></div></div>`)}
-function askOk(){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;const v=Object.fromEntries([...dlg.querySelectorAll('[data-f]')].map(x=>[x.dataset.f,x.value]));if('title' in v&&!(v.title||'').trim())return toast('Title is required');dlg._submitted=true;closeM();if(typeof window._cb==='function')window._cb(v);toast('Saved');render(false)}
+function clearDlgErrs(dlg){if(!dlg)return;dlg.querySelectorAll('.fl.bad').forEach(el=>el.classList.remove('bad'));dlg.querySelectorAll('.ferr').forEach(el=>el.remove())}
+function setDlgErr(dlg,el,msg){const fl=el?.closest?.('.fl');if(fl){fl.classList.add('bad');const sm=document.createElement('small');sm.className='ferr';sm.setAttribute('role','alert');sm.textContent=msg;fl.appendChild(sm)}toast(msg)}
+function askOk(){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;clearDlgErrs(dlg);const v=Object.fromEntries([...dlg.querySelectorAll('[data-f]')].map(x=>[x.dataset.f,x.value]));let bad=false;if('title' in v&&!(v.title||'').trim()){setDlgErr(dlg,dlg.querySelector('[data-f="title"]'),'Title is required.');bad=true}if('year' in v){const yr=Number(v.year);if(!Number.isInteger(yr)||yr<2000||yr>2100){setDlgErr(dlg,dlg.querySelector('[data-f="year"]'),'Enter a valid 4-digit year (2000–2100).');bad=true}}if('monthNum' in v){const mo=Number(v.monthNum);if(!Number.isInteger(mo)||mo<1||mo>12){setDlgErr(dlg,dlg.querySelector('[data-f="monthNum"]'),'Month must be a number from 1 to 12.');bad=true}}if('startDate' in v&&!(v.startDate||'').trim()){setDlgErr(dlg,dlg.querySelector('[data-f="startDate"]'),'Start date is required.');bad=true}if('endDate' in v){if(!(v.endDate||'').trim()){setDlgErr(dlg,dlg.querySelector('[data-f="endDate"]'),'End date is required.');bad=true}else if(v.startDate&&v.endDate<=v.startDate){setDlgErr(dlg,dlg.querySelector('[data-f="endDate"]'),'End date must be after start date.');bad=true}}if(bad)return;dlg._submitted=true;closeM();if(typeof window._cb==='function')window._cb(v);toast('Saved');render(false)}
 /* shell */
 go=function(p){const allowed=NAV[S.role]||NAV.admin;S.page=isAllowedPage(S.role,p)?p:allowed[0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.open=false;S.err={};S.brand=null;S.sub=null;render()};
 setRole=function(r){S.role=r;S.page=NAV[r][0];S.q='';if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}S.brand=null;S.sub=null;render()};
@@ -1160,38 +1216,56 @@ const obRec=typeof getBrandOnboarding==='function'?getBrandOnboarding(b.name):nu
 const obDoneCount=obRec?.done?.length||0;
 const obSubmitted=Boolean(obRec?.submitted)||D.briefs.rows.some(br=>br.brandId===b.name&&['GENERATED','READY','APPROVED'].includes(br.status));
 const obBadge=obSubmitted?`<span class="pill ok">Onboarding: Submitted</span>`:`<span class="pill wn">Onboarding: ${obDoneCount} of 7 sections</span>`;
-return `<button class="btn sm" onclick="S.brand=null;view(false)" style="margin-bottom:16px">← All brands</button>
+const linkedPlats=D.platform.rows.map((r,pi)=>({r,pi})).filter(({r})=>r.brandId===b.name);
+const linkedPlatsCard=`<div class="card" style="margin-top:20px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap"><h2 style="margin:0">Linked platform accounts (${linkedPlats.length})</h2><button class="btn sm t" onclick="S.sub='platforms';S.q='';view(false)">Manage platforms →</button></div>${linkedPlats.length?`<div class="tw"><table><thead><tr><th scope="col">Account</th><th scope="col">Platform</th><th scope="col">Content plans</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>${linkedPlats.map(({r,pi})=>{const pcnt=PLANS.filter(p=>p.brand===b.name&&p.platform===r.accountName).length;return `<tr><td><a class="lk" onclick="act('platform',${pi},'view')">${esc(r.accountName)}</a></td><td><span class="tag">${esc(r.platform)}</span></td><td>${pcnt} plan${pcnt===1?'':'s'}</td><td>${pill(r.isActive)}</td><td><button class="btn sm t" onclick="act('platform',${pi},'view')">Open account</button></td></tr>`}).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No linked platform accounts yet.</p>'}</div>`;
+return `${bk("S.brand=null;S.sub=null;view(false)",b.name,'Brands',[['Brands',"S.brand=null;S.sub=null;view(false)"]])}
 <div class="bh"><div class="lg">${esc(b.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</div><div style="flex:1;min-width:220px"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h1 style="font-size:26px">${esc(b.name)}</h1>${pill(b.status)}${own?obBadge:''}</div><div class="mute" style="font-size:13px">${esc(b.industry)} · ${esc(b.teamId)} · Account manager: ${esc(b.accountManagerId)}<br>${np?np+' social platform'+(np===1?'':'s')+' connected.':'No social platforms yet.'}${own&&obRec?.cat?` · Intake: ${esc(obRec.cat)}${obRec.act?' / '+esc(obRec.act):''}`:''}</div></div>
 ${own?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" style="border-radius:99px;border-color:var(--ink)" onclick="act('brands',${i},'edit')">Edit Brand</button><button class="btn sm" style="border-radius:99px;border-color:var(--ink)" onclick="arch(${i})">Archive Brand</button><button class="btn sm" style="border-radius:99px;color:#B5391B;border-color:#E9A494" onclick="delB(${i})">Delete Brand</button></div>`:''}</div>
 <div class="mono mute" style="text-transform:uppercase;margin-bottom:8px">Brand workspace</div><p style="margin:0 0 16px">Everything about ${esc(b.name)} in one place.</p>
-<div class="tiles">${T4.map(t=>`<button class="tile" style="background:${t[5]}" onclick="S.sub='${t[0]}';S.q='';view(false)"><span class="ti">${ic(t[2])}</span><b>${t[1]}</b><span style="color:#45454d">${t[3]}</span><span class="cnt">${t[4]}</span></button>`).join('')}</div>`}
+<div class="tiles">${T4.map(t=>`<button class="tile" style="background:${t[5]}" onclick="S.sub='${t[0]}';S.q='';view(false)"><span class="ti">${ic(t[2])}</span><b>${t[1]}</b><span style="color:#45454d">${t[3]}</span><span class="cnt">${t[4]}</span></button>`).join('')}</div>${linkedPlatsCard}`}
 let arch=function(i){D.brands.rows[i].status='ARCHIVED';toast('Brand archived');view(false)};
 function delB(i){modal(`<div class="dlg"><h2>Delete this brand?</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="S.brand=null;E_del('brands',${i})">Delete brand</button></div></div>`)}
 let subPage=function(b){const k=S.sub,map={brief:'briefs',files:'files',platforms:'platform'},nm={brief:'Brand Brief',strategy:'Content Strategy',content:'Platforms',files:'Files & Assets',platforms:'Social Media Platforms',performance:'Monthly Performance Report'};
 return `<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap"><button class="btn sm" onclick="S.sub=null;S.q='';view(false)">← ${esc(b.name)}</button><span class="mute">${esc(nm[k])}</span></div>`+(k==='strategy'?stratPage():k==='content'?contentPage():k==='performance'?brandPerfPage(b.name):listPage(map[k]))};
 /* strategy flow: CC upload → AM → client → AM → CC */
 function stratPage(){const b=S.brand,s=sg(b),R=S.role,ap=s.out==='approved',cur={none:0,uploaded:0,am:1,client:2,answered:3,forwarded:ap?5:3}[s.st];
-if(R==='client'&&['none','uploaded','am'].includes(s.st))return `<div class="card empty"><span class="chip">${ic('bolt')}</span><h2>Nothing to review yet</h2><p class="mute">Your account manager will share the strategy with you when it is ready.</p></div>`;
-const L={none:['No strategy uploaded yet','er'],uploaded:['Uploaded · not sent yet','lc'],am:['With the Account Manager','wn'],client:['Waiting for the client’s decision','in'],answered:[(ap?'Client approved':'Client rejected')+' · waiting for the Account Manager','wn'],forwarded:[ap?'Approved · content plan unlocked':'Rejected · a new version is needed',ap?'ok':'er']}[s.st];
-const nx={none:'The Content Creator uploads the strategy file.',uploaded:'The Content Creator sends it to the Account Manager.',am:'The Account Manager downloads it and sends it to the client.',client:'The client downloads it, then approves or rejects with a reason.',answered:'The Account Manager forwards the client’s answer to the Content Creator.',forwarded:ap?'The Content Creator can now build the content plan.':'The Content Creator uploads a revised version.'}[s.st];
+if(R==='client'&&(['none','uploaded','am'].includes(s.st)||(s.st==='forwarded'&&s.out==='rejected'&&!s.sentToClient)))return `<div class="card empty"><span class="chip">${ic('bolt')}</span><h2>Nothing to review yet</h2><p class="mute">Your account manager will share the strategy with you when it is ready.</p></div>`;
+const L={none:['No strategy uploaded yet','er'],uploaded:['Uploaded · pending internal review','lc'],am:['Pending Internal Review','wn'],client:['Sent to Client · waiting for decision','in'],answered:[(ap?'Client approved':'Client requested changes')+' · waiting for the Account Manager','wn'],forwarded:[ap?'Approved · content plan unlocked':'Requested Changes',ap?'ok':'er']}[s.st];
+const nx={none:'The Content Creator uploads the strategy file.',uploaded:'The Content Creator sends it to the Account Manager or the Account Manager reviews it internally.',am:'The Account Manager previews/downloads it, then approves to send to the client or requests changes with comments.',client:'The client previews/downloads it, then approves or requests changes with a reason.',answered:'The Account Manager forwards the client’s answer to the Content Creator.',forwarded:ap?'The Content Creator can now build the content plan.':'Returned with requested changes — the Content Creator uploads a revised version.'}[s.st];
 const B=(l,f,c='')=>`<button class="btn ${c}" onclick="${f}">${l}</button>`,up=l=>`<label class="btn ${l[0]==='U'?'p':''}" style="cursor:pointer">${l}<input type="file" hidden onchange="upS(this)"></label>`;
 const linkedBrief=D.briefs.rows.find(x=>x.brandId===b);
+const amCanReview=R==='am'&&(s.st==='am'||s.st==='uploaded');
 const a=[];if(R==='cc'){if(s.st==='none'||(s.st==='forwarded'&&!ap))a.push(up('Upload strategy'));if(s.st==='uploaded')a.push(B('Send to Account Manager',"sgo('send')",'p'),up('Replace file'));if(s.st==='forwarded'&&ap)a.push(B('Open content plan',"S.sub='platforms';view(false)",'p'))}
-if(R==='am'){if(s.st==='am')a.push(B('Approve & send to client',"sgo('client')",'p'));if(s.st==='answered')a.push(B('Send response to Content Creator',"sgo('fwd')",'p'))}
+if(R==='am'){if(amCanReview)a.push(B('Approve & send to client',"sgo('client')",'p'));if(s.st==='answered')a.push(B('Send response to Content Creator',"sgo('fwd')",'p'))}
 if(R==='client'&&s.st==='client')a.push(B('Approve',"sgo('approve')",'p'));
-const dl=s.file&&((R==='cc')||(R==='am'&&s.st!=='uploaded')||(R==='client'));if(dl)a.unshift(B('Download',"dlS()",'t'));
+const dl=s.file&&((R==='cc')||(R==='am')||(R==='client'));
+if(dl){a.unshift(B('Preview',"pvS()",'t'),B('Download',"dlS()",'t'))}
+const prevVers=(s.versions||[]).slice(0,-1).reverse();
+const metaCard=`<dl class="kv" style="margin:14px 0 0"><dt>Brand</dt><dd>${esc(b)}</dd><dt>Linked brief</dt><dd>${linkedBrief?`${esc(linkedBrief.version)} (${esc(linkedBrief.status)})`:'None yet'}</dd><dt>File</dt><dd>${esc(s.file||'No file yet')}</dd><dt>Upload date</dt><dd class="mono">${esc(s.uploadedAt||TODAY)}</dd><dt>Version</dt><dd><span class="tag">v${esc(s.v||0)}</span></dd><dt>Status</dt><dd><span class="pill ${L[1]}">${esc(L[0])}</span></dd></dl>`;
 return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Content Strategy</h1><p>${esc(b)} · ${esc(nx)}</p></div>${linkedBrief&&R!=='client'?`<button class="btn sm" onclick="S.sub='brief';view(false)">Linked brief: ${esc(linkedBrief.version)} · ${esc(linkedBrief.status)}</button>`:''}</div>
 ${R==='admin'?'<div class="note wn"><b>🔒</b><span>View-only for your role.</span></div>':''}
 <div class="card" style="margin-bottom:16px"><div style="display:flex;gap:8px;flex-wrap:wrap">${['Upload','Account Manager','Client review','Decision','Content plan'].map((x,i)=>`<span class="pill" style="background:${i<cur?'var(--ink)':i===cur?'var(--lilac)':'var(--mist)'};color:${i<cur?'#fff':'var(--ink)'}">${x}</span>`).join('')}</div>
-<div class="dash"></div><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div><b>${esc(s.file||'No file yet')}</b><div class="mute">${s.v?'Version '+esc(s.v):''}${linkedBrief?` · Linked to Brand Brief ${esc(linkedBrief.version)}`:''}</div></div><span class="pill ${L[1]}">${esc(L[0])}</span></div>
+<div class="dash"></div>${metaCard}
 ${s.reason&&s.out==='rejected'?`<div class="note wn" style="margin:16px 0 0;flex-direction:column;gap:2px"><b>Revision feedback</b><span style="font-weight:500">${esc(s.reason)}</span></div>`:''}
-${(R==='client'&&s.st==='client')||(R==='am'&&s.st==='am')?`<div class="fl" style="margin:16px 0 0"><label>${R==='am'?'Internal review — request changes before sending to client':'If you request changes, tell us why'}</label><textarea id="rs" placeholder="${R==='am'?'Write feedback for the Content Creator…':'What needs to change in this strategy?'}"></textarea><div>${B(R==='am'?'Request changes':'Reject with reason',R==='am'?"sgo('am_reject')":"sgo('reject')",'dg')}</div></div>`:''}
+${(R==='client'&&s.st==='client')||amCanReview?`<div class="fl" style="margin:16px 0 0"><label>${R==='am'?'Internal review — request changes before sending to client (comments required)':'If you request changes, tell us why'}</label><textarea id="rs" placeholder="${R==='am'?'Write feedback for the Content Creator…':'What needs to change in this strategy?'}"></textarea><div>${B(R==='am'?'Request changes':'Reject with reason',R==='am'?"sgo('am_reject')":"sgo('reject')",'dg')}</div></div>`:''}
 ${a.length?`<div class="sep">${a.join('')}</div>`:''}</div>
+${prevVers.length?`<div class="card" style="margin-bottom:16px"><h2 style="margin-bottom:8px">Previous versions (${prevVers.length})</h2>${prevVers.map(pv=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap"><div><b>v${esc(pv.v)}</b> · ${esc(pv.file)} <span class="mute">(${esc(pv.uploadedAt||'—')} · ${esc(pv.by||'Content Creator')})</span></div>${pv.url?`<a class="btn sm t" href="${esc(pv.url)}" download="${esc(pv.file)}">Download</a>`:''}</div>`).join('')}</div>`:''}
 <div class="card"><h2 style="margin-bottom:8px">History</h2>${s.log.length?s.log.map(x=>`<div style="padding:8px 0;border-top:1px solid var(--line)">${esc(x)}</div>`).join(''):'<p class="mute">No activity yet.</p>'}</div>`}
-let upS=function(inp){const f=inp.files[0];if(!f)return;const s=sg(S.brand);s.v++;s.file=f.name;s.url=URL.createObjectURL(f);s.st='uploaded';s.out=null;s.reason='';s.log.push('v'+s.v+' uploaded · '+ROLES[S.role]);toast('Strategy uploaded');render(false)};
-function dlS(){
- const s=sg(S.brand);
- const stratInfo=typeof API_CACHE!=='undefined'?API_CACHE.strategiesByBrand[S.brand]:null;
+let upS=function(inp){const f=inp.files[0];if(!f)return;const s=sg(S.brand);s.versions=s.versions||[];if(s.v&&s.file&&!s.versions.some(x=>x.v===s.v)){s.versions.push({v:s.v,file:s.file,url:s.url||'',uploadedAt:s.uploadedAt||TODAY,by:'Content Creator'})}s.v++;s.file=f.name;s.url=URL.createObjectURL(f);s.uploadedAt=now();s.st='uploaded';s.out=null;s.reason='';s.versions.push({v:s.v,file:s.file,url:s.url,uploadedAt:s.uploadedAt,by:ME[S.role]?.[0]||ROLES[S.role]});s.log.push('v'+s.v+' uploaded · '+ROLES[S.role]);toast('Strategy uploaded');render(false)};
+function pvS(brandName){
+ const b=brandName||S.brand;
+ const s=sg(b);
+ if(!s||!s.file)return toast('No strategy file to preview');
+ const u=s.url&&(/^blob:/i.test(s.url)||safeUrl(s.url))?s.url:'';
+ const isImg=/\.(png|jpe?g|webp|gif)$/i.test(s.file);
+ const isPdf=/\.pdf$/i.test(s.file);
+ const body=u?(isImg?`<img src="${esc(u)}" alt="${esc(s.file)}" style="max-width:100%;border-radius:12px;border:1px solid var(--line)">`:isPdf?`<iframe src="${esc(u)}" title="${esc(s.file)}" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px"></iframe>`:`<p class="mute">File ready: <b>${esc(s.file)}</b>. Click Download to open it locally.</p>`):`<div class="card" style="background:var(--canvas)"><b>${esc(s.file)}</b><p class="mute" style="margin:6px 0 0">Version v${esc(s.v||1)} · Uploaded ${esc(s.uploadedAt||TODAY)} · Brand: ${esc(b)}</p><p class="mute" style="margin:8px 0 0">Preview is shown inline for uploaded PDF/image files. Use Download to save a local copy.</p></div>`;
+ modal(`<div class="dlg" style="max-width:680px"><h2>Strategy preview — ${esc(s.file)}</h2><p class="mute" style="margin:0 0 14px">${esc(b)} · v${esc(s.v||1)}</p>${body}<div class="ft"><button class="btn" onclick="closeM()">Close</button><button class="btn p" onclick="dlS(decodeURIComponent('${encodeURIComponent(b)}'))">Download</button></div></div>`);
+}
+function dlS(brandName){
+ const b=brandName||S.brand;
+ const s=sg(b);
+ const stratInfo=typeof API_CACHE!=='undefined'?API_CACHE.strategiesByBrand[b]:null;
  if(stratInfo?.id&&stratInfo?.versionId&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
   fetch(`${API_BASE}/strategies/${stratInfo.id}/versions/${stratInfo.versionId}/file`,{headers:{Authorization:'Bearer '+getApiToken()}})
    .then(res=>{if(!res.ok)throw new Error('Could not download strategy file');return res.blob()})
@@ -1199,11 +1273,11 @@ function dlS(){
    .catch(err=>toast(err?.message||'Download failed'));
   return;
  }
- const a=document.createElement('a'),u=s.url&&(/^blob:/i.test(s.url)||safeUrl(s.url))?s.url:'';a.href=u||URL.createObjectURL(new Blob(['Demo placeholder for '+s.file+' ('+S.brand+')'],{type:'text/plain'}));a.download=u?s.file:s.file+'.txt';a.click();toast('Downloading '+s.file);
+ const a=document.createElement('a'),u=s.url&&(/^blob:/i.test(s.url)||safeUrl(s.url))?s.url:'';a.href=u||URL.createObjectURL(new Blob(['Demo placeholder for '+s.file+' ('+b+')'],{type:'text/plain'}));a.download=u?s.file:s.file+'.txt';a.click();toast('Downloading '+s.file);
 }
 let sgo=function(a){const s=sg(S.brand);let m;
-if(a==='send'){s.st='am';m='Sent to the Account Manager'}else if(a==='client'){s.st='client';m='Approved internally · sent to the client'}
-else if(a==='am_reject'){const r=($('#rs')||{}).value||'';if(!r.trim())return toast('Please write revision feedback for the Content Creator');s.st='forwarded';s.out='rejected';s.reason=r.trim();m='Account Manager requested changes · returned to Content Creator'}
+if(a==='send'){s.st='am';m='Sent to the Account Manager'}else if(a==='client'){s.st='client';s.sentToClient=true;m='Approved internally · moved to client sending'}
+else if(a==='am_reject'){const r=($('#rs')||{}).value||'';if(!r.trim())return toast('Please write revision feedback for the Content Creator');s.st='forwarded';s.out='rejected';s.reason=r.trim();m='Requested Changes · returned to Content Creator'}
 else if(a==='approve'){s.st='answered';s.out='approved';s.reason='';m='Client approved · Account Manager notified'}
 else if(a==='reject'){const r=($('#rs')||{}).value||'';if(!r.trim())return toast('Please write why you requested changes');s.st='answered';s.out='rejected';s.reason=r.trim();m='Client requested changes · Account Manager notified'}
 else{s.st='forwarded';m='Response sent to the Content Creator'}
@@ -1219,7 +1293,72 @@ return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Content
 ${p.items.length?`<div class="tw"><table><thead><tr><th scope="col">Item</th><th scope="col">Type</th><th scope="col">Platform</th><th scope="col">Campaign</th><th scope="col">Date</th><th scope="col">Assigned to</th><th scope="col">Priority</th><th scope="col">Status</th></tr></thead><tbody>${p.items.map(i=>`<tr><td><b><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a></b></td><td><span class="tag">${esc(i.type)}</span></td><td>${i.platform?esc(i.platform):'—'}</td><td>${esc(i.campaign||'—')}</td><td><span class="mono">${esc(i.date||'—')}</span></td><td>${am?sel(i.id,'assignee',['Unassigned',...EMP],i.assignee||'Unassigned'):esc(i.assignee||'—')}</td><td>${am?sel(i.id,'priority',PR,i.priority):pill(i.priority)}</td><td>${am?sel(i.id,'status',TS2,i.status):pill(i.status)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute">No content items yet.</p>'}</div>`).join(''):`<div class="card empty"><span class="chip">${ic('cal')}</span><h2>No plan yet</h2><p class="mute">${cc?'Create the first content plan for this brand.':'The Content Creator has not started the plan.'}</p></div>`)}
 const pl=id=>PLANS.find(p=>p.id===id);
 function newPlan(){ask('New content plan',[['title','Plan title'],['month','Month']],v=>PLANS.push({id:++IDN,brand:S.brand,title:v.title,month:v.month||'',campaigns:[],items:[]}))}
-let newCamp=function(id){ask('New campaign',[['title','Campaign name'],['objective','Objective','textarea']],v=>pl(id).campaigns.push({name:v.title,objective:v.objective}))};
+let newCamp=function(id){ask('New campaign',[['title','Campaign name *'],['objective','Objective','textarea'],['startDate','Start date *','date'],['endDate','End date *','date']],v=>pl(id).campaigns.push({name:v.title.trim(),objective:(v.objective||'').trim(),startDate:v.startDate||'',endDate:v.endDate||''}))};
+function editCamp(pid,n){
+ if(S.role!=='cc')return toast('Only the Content Creator can edit a campaign.');
+ const p=pl(pid),c=p&&p.campaigns[n];if(!c)return;
+ modal(`<div class="dlg"><h2>Edit campaign</h2><p class="mute" style="margin:0 0 16px">${esc(p.title)} · ${esc(p.brand)}</p>
+  <div class="pg">
+   <div class="fl" style="grid-column:1/-1"><label>Campaign name *</label><input id="ec-name" value="${esc(c.name)}"></div>
+   <div class="fl"><label>Start date *</label><input id="ec-start" type="date" value="${esc(c.startDate||'')}"></div>
+   <div class="fl"><label>End date *</label><input id="ec-end" type="date" value="${esc(c.endDate||'')}"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Objective</label><textarea id="ec-obj">${esc(c.objective||'')}</textarea></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="saveEditCamp(${pid},${n})">Save campaign</button></div>
+ </div>`);
+}
+function saveEditCamp(pid,n){
+ if(S.role!=='cc')return toast('Only the Content Creator can edit a campaign.');
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ clearDlgErrs(dlg);
+ const p=pl(pid),c=p&&p.campaigns[n];if(!c)return;
+ const name=($('#ec-name')?.value||'').trim();
+ const startDate=($('#ec-start')?.value||'').trim();
+ const endDate=($('#ec-end')?.value||'').trim();
+ const objective=($('#ec-obj')?.value||'').trim();
+ let bad=false;
+ if(!name){setDlgErr(dlg,$('#ec-name'),'Campaign name is required.');bad=true}
+ if(!startDate){setDlgErr(dlg,$('#ec-start'),'Start date is required.');bad=true}
+ if(!endDate){setDlgErr(dlg,$('#ec-end'),'End date is required.');bad=true}
+ else if(startDate&&endDate<=startDate){setDlgErr(dlg,$('#ec-end'),'End date must be after start date.');bad=true}
+ if(bad)return;
+ dlg._submitted=true;
+ const oldName=c.name;
+ c.name=name;c.startDate=startDate;c.endDate=endDate;c.objective=objective;
+ if(oldName!==name){p.items.forEach(it=>{if(it.campaign===oldName)it.campaign=name})}
+ closeM();
+ toast('Campaign updated');
+ view(false);
+}
+function delCamp(pid,n){
+ if(S.role!=='cc')return toast('Only the Content Creator can delete a campaign.');
+ const p=pl(pid),c=p&&p.campaigns[n];if(!c)return;
+ const linked=p.items.filter(i=>i.campaign===c.name).length;
+ const warn=linked?`<div class="note wn" role="alert" style="margin:12px 0"><b>⚠</b><span>Warning: This campaign has ${linked} linked content item${linked===1?'':'s'}. Confirm what should happen to them before deleting.</span></div>
+  <div class="fl" style="margin:12px 0"><label>Linked items action *</label><select id="dc-mode"><option value="">Choose an option…</option><option value="unassign">Move linked items to Unassigned to a campaign</option><option value="delete">Also delete linked content items</option></select></div>`:'';
+ modal(`<div class="dlg"><h2>Delete campaign “${esc(c.name)}”?</h2>${warn}<p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="doDelCamp(${pid},${n})">Delete campaign</button></div></div>`);
+}
+function doDelCamp(pid,n){
+ if(S.role!=='cc')return toast('Only the Content Creator can delete a campaign.');
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ clearDlgErrs(dlg);
+ const p=pl(pid),c=p&&p.campaigns[n];if(!c)return;
+ const linked=p.items.filter(i=>i.campaign===c.name).length;
+ let mode='unassign';
+ if(linked){
+  const sel=$('#dc-mode');
+  mode=(sel?.value||'').trim();
+  if(!mode){setDlgErr(dlg,sel,'Please confirm whether linked items should become unassigned or be deleted.');return}
+ }
+ dlg._submitted=true;
+ if(mode==='delete'){p.items=p.items.filter(i=>i.campaign!==c.name)}
+ else{p.items.forEach(i=>{if(i.campaign===c.name)i.campaign='—'})}
+ p.campaigns.splice(n,1);
+ closeM();
+ toast(linked&&mode==='unassign'?'Campaign deleted · linked items moved to Unassigned':'Campaign deleted');
+ S.det={t:'plan',id:p.id};
+ view(false);
+}
 let newItem=function(id){const p=pl(id);ask('New content item',[['title','Title'],['type','Type','select',['POST','REEL','STORY','CAROUSEL']],['campaign','Campaign','select',['—',...p.campaigns.map(c=>c.name)]],['platform','Platform','select',['Unassigned',...D.platform.rows.filter(r=>r.brandId===p.brand).map(r=>r.accountName)]],['date','Scheduled date','date']],v=>p.items.push({id:++IDN,title:v.title,type:v.type,campaign:v.campaign,platform:v.platform==='Unassigned'?'':v.platform,date:v.date,assignee:'',priority:'MEDIUM',status:'TODO'}))};
 function setIt(id,k,v){PLANS.forEach(p=>p.items.forEach(i=>{if(i.id===id)i[k]=v==='Unassigned'?'':v}));toast('Updated');view(false)}
 /* tasks: everyone sees the page, each role sees/does different things */
@@ -1261,7 +1400,7 @@ const OBS=[['Brand Information',[['q0','What is your brand name?',1],['q1','When
 ['Competitors',[['q12','Who are your top competitors?',1],['q13','What do they do better than you?',1],['q14','What makes you different?',0,1]]],
 ['Brand Personality',[['q15','Describe your brand personality',1],['q16','Which 3 words describe your tone?',1],['q17','Any colors or styles you prefer?',0,1]]],
 ['Marketing Objectives',[['q18','What is your main marketing objective?',1],['q19','Which platforms matter most?',1],['q20','Monthly content volume you expect?',0,1]]]];
-const OB={step:'category',cat:'Beauty & Personal Care',act:'E-commerce',sec:0,a:{},done:[],err:{},submitted:false};
+const OB={step:'category',cat:'',act:'',sec:0,a:{},done:[],err:{},submitted:false};
 const OB_STORE_KEY='orvia_onboarding_v1';
 const OB_BY_BRAND=(()=>{try{const m=JSON.parse(localStorage.getItem(OB_STORE_KEY)||'{}');return m&&typeof m==='object'?m:{}}catch{return{}}})();
 let _obBrand=CLIENT_BRAND;
@@ -1283,7 +1422,7 @@ function switchClientOnboarding(brandName){
  const next=brandName||CLIENT_BRAND;
  persistOnboarding(_obBrand);
  if(_obBrand===next)return;
- const saved=OB_BY_BRAND[next]||{step:'category',cat:'Beauty & Personal Care',act:'E-commerce',sec:0,a:{},done:[],err:{},submitted:false};
+ const saved=OB_BY_BRAND[next]||{step:'category',cat:'',act:'',sec:0,a:{},done:[],err:{},submitted:false};
  OB.step=saved.step;OB.cat=saved.cat;OB.act=saved.act;OB.sec=saved.sec;OB.a={...saved.a};OB.done=[...saved.done];OB.err={};OB.submitted=Boolean(saved.submitted);
  _obBrand=next;
 }
@@ -1292,17 +1431,23 @@ const obTop=(t,sub)=>`<div class="ph"><div><span class="eb">Client</span><h1>${e
 let OB_API_CATS=null;
 function obCat(){
  if(Array.isArray(OB_API_CATS)&&OB_API_CATS.length){
-  const curCat=OB_API_CATS.find(c=>c.code===OB.cat)||OB_API_CATS[0];
-  OB.cat=curCat.code;
-  const subs=curCat.requiresSubtype&&Array.isArray(curCat.subtypes)?curCat.subtypes:[];
-  if(subs.length&&!subs.some(s=>s.code===OB.act))OB.act=subs[0].code;
-  if(!subs.length)OB.act='';
-  return obTop('Select category',obCrumb())+`<div class="card"><div class="pg"><div class="fl"><label>Main category</label><select onchange="OB.cat=this.value;const c=OB_API_CATS.find(x=>x.code===this.value);OB.act=c&&c.requiresSubtype&&c.subtypes&&c.subtypes[0]?c.subtypes[0].code:'';view(false)">${OB_API_CATS.map(c=>`<option value="${esc(c.code)}" ${c.code===OB.cat?'selected':''}>${esc(c.label||c.name||c.code)}</option>`).join('')}</select></div>${subs.length?`<div class="fl"><label>Activity type</label><select onchange="OB.act=this.value">${subs.map(a=>`<option value="${esc(a.code)}" ${a.code===OB.act?'selected':''}>${esc(a.label||a.name||a.code)}</option>`).join('')}</select></div>`:''}</div><div class="ft"><button class="btn p" onclick="obSelectCategory()">Continue</button></div></div>`;
+  const curCat=OB_API_CATS.find(c=>c.code===OB.cat)||null;
+  const subs=curCat&&curCat.requiresSubtype&&Array.isArray(curCat.subtypes)?curCat.subtypes:[];
+  if(subs.length&&!subs.some(s=>s.code===OB.act))OB.act='';
+  if(!curCat||!subs.length)OB.act='';
+  const canContinue=Boolean(curCat&&(!subs.length||OB.act));
+  return obTop('Select category',obCrumb())+`<div class="card"><div class="pg"><div class="fl"><label>Main category <em style="color:var(--et);font-style:normal">*</em></label><select onchange="OB.cat=this.value;OB.act='';view(false)"><option value="">Select a main category</option>${OB_API_CATS.map(c=>`<option value="${esc(c.code)}" ${c.code===OB.cat?'selected':''}>${esc(c.label||c.name||c.code)}</option>`).join('')}</select></div>${subs.length?`<div class="fl"><label>Activity type <em style="color:var(--et);font-style:normal">*</em></label><select onchange="OB.act=this.value;view(false)"><option value="">Select an activity type</option>${subs.map(a=>`<option value="${esc(a.code)}" ${a.code===OB.act?'selected':''}>${esc(a.label||a.name||a.code)}</option>`).join('')}</select></div>`:''}</div><div class="ft"><button class="btn p" ${canContinue?'':'disabled title="Select both Main Category and Activity Type to continue"'} onclick="obSelectCategory()">Continue</button></div>${canContinue?'':'<p class="mute" style="text-align:right;margin:8px 0 0">Select both Main Category and Activity Type to continue.</p>'}</div>`;
  }
- const acts=CATS[OB.cat]||Object.values(CATS)[0];
- return obTop('Select category',obCrumb())+`<div class="card"><div class="pg"><div class="fl"><label>Main category</label><select onchange="OB.cat=this.value;OB.act=(CATS[OB.cat]||[])[0]||'';view(false)">${Object.keys(CATS).map(c=>`<option value="${esc(c)}" ${c===OB.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div><div class="fl"><label>Activity type</label><select onchange="OB.act=this.value">${acts.map(a=>`<option value="${esc(a)}" ${a===OB.act?'selected':''}>${esc(a)}</option>`).join('')}</select></div></div><div class="ft"><button class="btn p" onclick="obSelectCategory()">Continue</button></div></div>`;
+ const acts=OB.cat&&CATS[OB.cat]?CATS[OB.cat]:[];
+ if(!acts.includes(OB.act))OB.act='';
+ const canContinue=Boolean(OB.cat&&OB.act);
+ return obTop('Select category',obCrumb())+`<div class="card"><div class="pg"><div class="fl"><label>Main category <em style="color:var(--et);font-style:normal">*</em></label><select onchange="OB.cat=this.value;OB.act='';view(false)"><option value="">Select a main category</option>${Object.keys(CATS).map(c=>`<option value="${esc(c)}" ${c===OB.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div><div class="fl"><label>Activity type <em style="color:var(--et);font-style:normal">*</em></label><select ${acts.length?'':'disabled'} onchange="OB.act=this.value;view(false)"><option value="">${acts.length?'Select an activity type':'Select a main category first'}</option>${acts.map(a=>`<option value="${esc(a)}" ${a===OB.act?'selected':''}>${esc(a)}</option>`).join('')}</select></div></div><div class="ft"><button class="btn p" ${canContinue?'':'disabled title="Select both Main Category and Activity Type to continue"'} onclick="obSelectCategory()">Continue</button></div>${canContinue?'':'<p class="mute" style="text-align:right;margin:8px 0 0">Select both Main Category and Activity Type to continue.</p>'}</div>`;
 }
 async function obSelectCategory(){
+ const apiCat=Array.isArray(OB_API_CATS)?OB_API_CATS.find(c=>c.code===OB.cat):null;
+ const needsSub=apiCat?Boolean(apiCat.requiresSubtype&&Array.isArray(apiCat.subtypes)&&apiCat.subtypes.length):true;
+ if(!OB.cat||(needsSub&&!OB.act))return toast('Please select both Main Category and Activity Type to continue.');
+ persistOnboarding(curClientBrand());
  if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
   try{
    const body={mainCategory:OB.cat,...(OB.act?{activityType:OB.act}:{})};
@@ -1321,6 +1466,7 @@ async function obSelectCategory(){
   }
  }
  OB.step='form';
+ persistOnboarding(curClientBrand());
  view(false);
 }
 function obForm(){const i=OB.sec,[t,qs]=OBS[i],pct=Math.round((i+1)/7*100);
@@ -1399,29 +1545,66 @@ mk(5,'Media buying brief','DIRECT','IN_PROGRESS','LOW','Omar Haddad','Elena Vanc
 mk(6,'Gift-set carousel','CREATION','SUBMITTED','MEDIUM','Lina Aziz','Omar Haddad','Lumen Skincare',C2,'2026-11-17','2026-11-17','Submitted for review.'),
 mk(7,'Review: Gift-set carousel','REVIEW','IN_REVIEW','MEDIUM','Omar Haddad','Omar Haddad','Lumen Skincare',C2,'2026-11-18','2026-11-18','Approve or ask for changes.',6),
 mk(8,'Update brand guide','DIRECT','COMPLETED','LOW','Lina Aziz','Omar Haddad','Lumen Skincare',[],'2026-11-12','2026-11-12','Done.')];
+function shiftDays(isoDate,days){
+ const base=/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate||''))?isoDate:TODAY;
+ const d=new Date(base+'T00:00:00Z');
+ d.setUTCDate(d.getUTCDate()+days);
+ return d.toISOString().slice(0,10);
+}
+function diffDays(a,b){
+ if(!a||!b)return 0;
+ return Math.round((new Date(a+'T00:00:00Z')-new Date(b+'T00:00:00Z'))/86400000);
+}
 const isOd=t=>!DONE4.includes(t.status)&&t.eff<TODAY;
-const dl=t=>`<span class="mono" style="${isOd(t)?'color:var(--et);font-weight:700':''}">${esc(t.eff)}</span>${t.eff!==t.planned?`<div class="mute" style="font-size:11px">planned ${esc(t.planned)}</div>`:''}`;
+const dl=t=>{
+ const delta=t.eff&&t.planned&&t.eff!==t.planned?diffDays(t.eff,t.planned):0;
+ const dTag=delta?` (${delta>0?'+':''}${delta}d shifted)`:'';
+ return `<span class="mono" style="${isOd(t)?'color:var(--et);font-weight:700':''}">${esc(t.eff)}</span>${t.eff!==t.planned?`<div class="mute" style="font-size:11px">planned ${esc(t.planned)}${esc(dTag)}</div>`:''}`;
+};
 function tact(t){const R=S.role,mine=t.assignee===MEN[R],a=[];
  if(mine){if(t.status==='TODO'&&t.kind!=='REVIEW')a.push(['Start','IN_PROGRESS']);if(t.status==='NEEDS_CHANGES')a.push(['Resume','IN_PROGRESS']);
   if(t.status==='IN_PROGRESS')a.push(t.kind==='CREATION'?['Submit','SUBMITTED']:['Complete','COMPLETED']);if(t.status==='IN_REVIEW')a.push(['Approve','COMPLETED'],['Request changes','NEEDS_CHANGES'])}
  if(R==='am'&&!DONE4.includes(t.status))a.push(['Cancel','CANCELLED']);return a}
-let tset=function(id,s){
+const TASK_TRANSITIONS={TODO:['IN_PROGRESS','CANCELLED'],IN_PROGRESS:['SUBMITTED','COMPLETED','CANCELLED'],SUBMITTED:['IN_REVIEW','COMPLETED','NEEDS_CHANGES','CANCELLED'],IN_REVIEW:['COMPLETED','NEEDS_CHANGES','CANCELLED'],NEEDS_CHANGES:['IN_PROGRESS','CANCELLED'],COMPLETED:[],CANCELLED:[]};
+function isValidTaskTransition(t,to){
+ if(!t||!TASK_TRANSITIONS[t.status])return false;
+ if(!TASK_TRANSITIONS[t.status].includes(to))return false;
+ if(t.kind==='CREATION'&&t.status==='IN_PROGRESS'&&to==='COMPLETED')return false;
+ if(t.kind!=='CREATION'&&t.status==='IN_PROGRESS'&&to==='SUBMITTED')return false;
+ if(t.kind==='REVIEW'&&t.status==='TODO'&&to==='IN_PROGRESS')return false;
+ return true;
+}
+function recordTaskAudit(t,from,to,notes=''){
+ if(!t||from===to)return;
+ t.auditLog=t.auditLog||[];
+ t.auditLog.unshift({from,to,by:MEN[S.role]||ROLES[S.role],role:ROLES[S.role],at:now(),notes});
+}
+function taskAuditHtml(t){
+ const log=t?.auditLog||[];
+ return `<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Status audit log (${log.length})</h2>${log.length?log.map(e=>`<div style="padding:8px 0;border-top:1px solid var(--line);font-size:13px"><b>${esc(e.from)} → ${esc(e.to)}</b> <span class="mute">· ${esc(e.by)} (${esc(e.role)}) · ${esc(e.at)}</span>${e.notes?`<div class="mute" style="margin-top:2px">${esc(e.notes)}</div>`:''}</div>`).join(''):'<p class="mute" style="margin:0">No status changes recorded yet.</p>'}</div>`;
+}
+let tset=function(id,s,notes=''){
  const t=TK.find(x=>x.id===id);if(!t)return;
+ if(!isValidTaskTransition(t,s)){toast('Invalid status transition: '+t.status+' → '+s);return false}
+ const prevStatus=t.status;
  const rv=TK.find(x=>x.after===id),c=t.after&&TK.find(x=>x.id===t.after);
- if(s==='SUBMITTED'&&rv){rv.status='IN_REVIEW';rv.eff=TODAY}
- if(c&&s==='COMPLETED')c.status='COMPLETED';
+ if(s==='SUBMITTED'&&rv){const rvPrev=rv.status;rv.status='IN_REVIEW';rv.receivedAt=now();rv.eff=shiftDays(TODAY,1);recordTaskAudit(rv,rvPrev,'IN_REVIEW','Triggered by creation task submission · effective deadline recalculated')}
+ if(c&&s==='COMPLETED'){const cPrev=c.status;c.status='COMPLETED';c.completedAt=now();recordTaskAudit(c,cPrev,'COMPLETED','Approved via linked review task')}
  if(t.kind==='REVIEW'&&s==='COMPLETED'){
   const alreadyPub=TK.some(x=>x.kind==='PUBLISH'&&x.after===t.id);
   if(!alreadyPub){
    const baseTitle=String(t.title||'').replace(/^Review:\s*/i,'');
-   TK.unshift(mk(++IDN,'Publish: '+baseTitle,'PUBLISH','TODO',t.priority||'MEDIUM',MEN.am,MEN[S.role],t.brand,[...(t.ctx||[])],t.planned,t.eff,'Publish approved content: '+baseTitle,t.id));
+   TK.unshift(mk(++IDN,'Publish: '+baseTitle,'PUBLISH','TODO',t.priority||'MEDIUM',MEN.am,MEN[S.role],t.brand,[...(t.ctx||[])],t.planned,shiftDays(TODAY,1),'Publish approved content: '+baseTitle,t.id));
   }
  }
- if(c&&s==='NEEDS_CHANGES'){c.status='NEEDS_CHANGES';s='TODO'}
+ if(c&&s==='NEEDS_CHANGES'){const cPrev=c.status;c.status='NEEDS_CHANGES';c.eff=shiftDays(TODAY,1);if(notes)c.reviewFeedback=notes;recordTaskAudit(c,cPrev,'NEEDS_CHANGES',notes||'Reviewer requested changes');s='TODO'}
  t.status=s;
+ if(s==='COMPLETED')t.completedAt=now();
+ recordTaskAudit(t,prevStatus,s,notes);
  toast(t.kind==='REVIEW'&&s==='COMPLETED'?'Approved · Publish task created':'Task updated');
  closeM();
  view(false);
+ return true;
 };
 function submitTaskModal(id){
  const t=TK.find(x=>x.id===id);if(!t)return;
@@ -1435,10 +1618,12 @@ function submitTaskModal(id){
 }
 async function confirmSubmitTask(id){
  const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ clearDlgErrs(dlg);
  const t=TK.find(x=>x.id===id);if(!t)return;
- const url=($('#st-url')?.value||'').trim();
+ const urlEl=$('#st-url');
+ const url=(urlEl?.value||'').trim();
  const notes=($('#st-notes')?.value||'').trim();
- if(!url||!safeUrl(url))return toast('Enter a valid http:// or https:// submission URL.');
+ if(!url||!safeUrl(url))return setDlgErr(dlg,urlEl,'Enter a valid http:// or https:// submission URL.');
  dlg._submitted=true;
  const prevStatus=t.status;
  t.submissionUrl=url;
@@ -1453,8 +1638,9 @@ async function confirmSubmitTask(id){
   }
  }
  const rv=TK.find(x=>x.after===id);
- if(rv){rv.status='IN_REVIEW';rv.eff=TODAY}
+ if(rv){const rvPrev=rv.status;rv.status='IN_REVIEW';rv.receivedAt=now();rv.eff=shiftDays(TODAY,1);recordTaskAudit(rv,rvPrev,'IN_REVIEW','Effective deadline recalculated on receipt')}
  t.status='SUBMITTED';
+ recordTaskAudit(t,prevStatus,'SUBMITTED',notes||'');
  const linkedIt=typeof findItemForTask==='function'?findItemForTask(t):null;
  if(linkedIt){
   const [it,plObj]=linkedIt;
@@ -1509,9 +1695,40 @@ async function confirmAttachTask(id){
  toast('Link saved to the task');
  view(false);
 }
-const ctxL=t=>[t.brand,...t.ctx].join(' → ');
+const ctxL=t=>(t.kind==='DIRECT'||!(t.ctx&&t.ctx.length))?'':([t.brand,...t.ctx,t.title].filter(Boolean).join(' > '));
+function ctxPathHtml(t,inDet=false){
+ if(!t||t.kind==='DIRECT'||!(t.ctx&&t.ctx.length))return '<span class="mute">—</span>';
+ const canBrands=isAllowedPage(S.role,'brands');
+ const [plat,planName,campName,itemName]=t.ctx;
+ const foundPlan=PLANS.find(p=>p.brand===t.brand&&(p.title===planName||p.items.some(it=>it.title===itemName)))||PLANS.find(p=>p.brand===t.brand);
+ const campIdx=foundPlan&&campName?foundPlan.campaigns.findIndex(c=>c.name===campName):-1;
+ const foundItem=foundPlan&&itemName?foundPlan.items.find(it=>it.title===itemName):null;
+ const encB=encodeURIComponent(t.brand||'');
+ const seg=(lbl,js)=>!lbl?'':js?`<a class="lk" onclick="${js}">${esc(lbl)}</a>`:`<span>${esc(lbl)}</span>`;
+ const parts=[
+  seg(t.brand,canBrands?`S.det=null;S.page='brands';S.brand=decodeURIComponent('${encB}');S.sub=null;render(false)`:''),
+  seg(plat,canBrands?`S.det=null;S.page='brands';S.brand=decodeURIComponent('${encB}');S.sub='platforms';render(false)`:''),
+  seg(planName,canBrands&&foundPlan?`openD({t:'plan',id:${foundPlan.id}})`:''),
+  seg(campName&&campName!=='—'?campName:'',canBrands&&foundPlan&&campIdx>=0?`openD({t:'camp',p:${foundPlan.id},n:${campIdx}})`:''),
+  seg(itemName,foundItem?`openD({t:'item',id:${foundItem.id}})`:''),
+  inDet?`<b>${esc(t.title)}</b>`:seg(t.title,`tdet(${t.id})`)
+ ].filter(Boolean);
+ return `<span class="ctx-path" style="font-size:12px">${parts.join(' <span class="mute">&gt;</span> ')}</span>`;
+}
+function taskReqAction(t){
+ const w=t?.after&&TK.find(x=>x.id===t.after);
+ if(w&&!DONE4.includes(w.status)&&t.status==='TODO'&&t.kind==='REVIEW')return 'Waiting for “'+w.title+'” to be submitted';
+ if(t.status==='TODO')return t.kind==='REVIEW'?'Wait for submission, then review':'Start working on this task';
+ if(t.status==='IN_PROGRESS')return t.kind==='CREATION'?'Submit deliverable link for review':'Complete this task when finished';
+ if(t.status==='SUBMITTED')return 'Submitted — waiting for reviewer decision';
+ if(t.status==='IN_REVIEW')return 'Review the deliverable and Approve or Request changes';
+ if(t.status==='NEEDS_CHANGES')return 'Resume work and address the requested changes';
+ if(t.status==='COMPLETED')return 'Completed — no further action required';
+ if(t.status==='CANCELLED')return 'Cancelled — no further action required';
+ return '—';
+}
 let tdet=function(id){const t=TK.find(x=>x.id===id),w=t.after&&TK.find(x=>x.id===t.after);
- modal(`<div class="dlg"><h2>${esc(t.title)}</h2><div style="margin:8px 0">${pill(t.status)} ${pill(t.priority)} <span class="tag">${esc(TY[t.kind]||t.kind)}</span></div><dl class="kv"><dt>Context</dt><dd>${esc(ctxL(t))}</dd><dt>Description</dt><dd>${esc(t.desc)||'—'}</dd><dt>Assigned to</dt><dd>${esc(t.assignee)}</dd><dt>Created by</dt><dd>${esc(t.by)}</dd><dt>Planned deadline</dt><dd>${esc(t.planned)}</dd><dt>Effective deadline</dt><dd>${dl(t)}</dd><dt>Waiting on</dt><dd>${w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing'}</dd>${t.submissionUrl&&safeUrl(t.submissionUrl)?`<dt>Work files link</dt><dd><a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">📎 ${esc(t.submissionUrl)}</a>${t.submissionNotes?`<div class="mute" style="font-size:12px;margin-top:4px">${esc(t.submissionNotes)}</div>`:''}</dd>`:''}</dl><div class="ft"><button class="btn" onclick="closeM()">Close</button>${abtn(t)}${tbtn(t)}</div></div>`)};
+ modal(`<div class="dlg"><h2>${esc(t.title)}</h2><div style="margin:8px 0">${pill(t.status)} ${pill(t.priority)} <span class="tag">${esc(TY[t.kind]||t.kind)}</span></div><dl class="kv"><dt>Context</dt><dd>${ctxPathHtml(t,true)}</dd><dt>Required action</dt><dd><b>${esc(taskReqAction(t))}</b></dd><dt>Description</dt><dd>${esc(t.desc)||'—'}</dd><dt>Assigned to</dt><dd>${esc(t.assignee)}</dd><dt>Created by</dt><dd>${esc(t.by)}</dd><dt>Planned deadline</dt><dd>${esc(t.planned)}</dd><dt>Effective deadline</dt><dd>${dl(t)}</dd><dt>Waiting on</dt><dd>${w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing'}</dd>${t.submissionUrl&&safeUrl(t.submissionUrl)?`<dt>Work files link</dt><dd><a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">📎 ${esc(t.submissionUrl)}</a>${t.submissionNotes?`<div class="mute" style="font-size:12px;margin-top:4px">${esc(t.submissionNotes)}</div>`:''}</dd>`:''}</dl><div class="ft"><button class="btn" onclick="closeM()">Close</button>${abtn(t)}${tbtn(t)}</div></div>`)};
 function editTask(id){
  const t=TK.find(x=>x.id===id);if(!t)return;
  const staff=[...new Set([...EMP,MEN.am,...D.users.rows.filter(u=>u.roleId!=='Client'&&u.isActive!==false).map(u=>u.fullName)])];
@@ -1528,13 +1745,18 @@ function editTask(id){
 }
 async function saveEditTask(id){
  const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ clearDlgErrs(dlg);
  const t=TK.find(x=>x.id===id);if(!t)return;
- const title=($('#et-title')?.value||'').trim();
+ const titleEl=$('#et-title'),dlEl=$('#et-deadline');
+ const title=(titleEl?.value||'').trim();
  const assignee=$('#et-assignee')?.value||t.assignee;
  const priority=$('#et-priority')?.value||t.priority;
- const planned=($('#et-deadline')?.value||'').trim()||t.planned;
+ const planned=(dlEl?.value||'').trim();
  const desc=($('#et-desc')?.value||'').trim();
- if(!title||!planned)return toast('Title and deadline are required');
+ let bad=false;
+ if(!title){setDlgErr(dlg,titleEl,'Title is required.');bad=true}
+ if(!planned){setDlgErr(dlg,dlEl,'Planned deadline is required.');bad=true}
+ if(bad)return;
  dlg._submitted=true;
  const prev={title:t.title,assignee:t.assignee,priority:t.priority,planned:t.planned,eff:t.eff,desc:t.desc};
  t.title=title;t.assignee=assignee;t.priority=priority;t.planned=planned;t.eff=planned;t.desc=desc;
@@ -1555,19 +1777,25 @@ async function saveEditTask(id){
  note('Task updated: “'+title+'” ('+priority+' · due '+planned+')',t.brand,true,[rl(assignee),'am','admin'].filter(Boolean),{k:'tasks'});
  view(false);
 }
+const isDueSoon=t=>{if(DONE4.includes(t.status)||!t.eff||t.eff<TODAY)return false;const d0=new Date(TODAY+'T00:00:00Z'),d1=new Date(t.eff+'T00:00:00Z');const diff=(d1-d0)/86400000;return diff>=0&&diff<=3};
 tasksPage=function(){const R=S.role,me=MEN[R],mgr=R==='admin'||R==='am',team=mgr&&S.tw==='team',q=S.q.toLowerCase(),
+ tp=S.tp||'all',tkf=S.tk||'all',tdf=S.td||'all',
  base=TK.filter(t=>team?(R==='admin'||t.by===me||t.assignee===me):t.assignee===me),n=f=>base.filter(f).length,
- L=base.filter(t=>(S.ts==='all'||t.status===S.ts)&&[t.title,t.brand,t.assignee,...(t.ctx||[])].join(' ').toLowerCase().includes(q)),
- st=[['Total',base.length],['Overdue',n(isOd),1],['In progress',n(t=>t.status==='IN_PROGRESS')],['Needs your action',n(t=>t.assignee===me&&['TODO','NEEDS_CHANGES','IN_REVIEW'].includes(t.status)),0],['Completed',n(t=>t.status==='COMPLETED')]],
+ matchDeadline=t=>{if(tdf==='all')return true;if(tdf==='overdue')return isOd(t);if(tdf==='due_soon')return isDueSoon(t);if(tdf==='upcoming')return !DONE4.includes(t.status)&&t.eff>=TODAY;return true},
+ L=base.filter(t=>(S.ts==='all'||t.status===S.ts)&&(tp==='all'||t.priority===tp)&&(tkf==='all'||t.kind===tkf)&&matchDeadline(t)&&[t.title,t.brand,t.assignee,...(t.ctx||[])].join(' ').toLowerCase().includes(q)),
+ st=[['Total tasks',base.length],['Overdue',n(isOd),1],['Due soon',n(isDueSoon)],['In progress',n(t=>t.status==='IN_PROGRESS')],['Completed',n(t=>t.status==='COMPLETED')]],
  sg2=(k,_v,l)=>`<div class="seg" role="group" style="margin:0">${l.map(x=>`<button class="${S[k]===x[0]?'on':''}" aria-pressed="${S[k]===x[0]}" onclick="S.${k}='${x[0]}';view(false)">${x[1]}</button>`).join('')}</div>`;
- const row=t=>`<tr><td><b>${esc(t.title)}</b><div class="mute" style="font-size:12px">${esc(ctxL(t))}</div>${t.submissionUrl&&safeUrl(t.submissionUrl)?`<div style="font-size:12px;margin-top:4px">📎 <a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">${esc(t.submissionUrl)}</a></div>`:''}</td><td><span class="tag">${esc(TY[t.kind]||t.kind)}</span></td><td>${esc(t.assignee)}</td><td>${pill(t.priority)}</td><td>${dl(t)}</td><td>${pill(t.status)}</td><td><div class="ra">${abtn(t)}<button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></td></tr>`,
- card=t=>`<div class="card tc"><div style="display:flex;justify-content:space-between;gap:8px"><span class="tag lc">${esc(TY[t.kind]||t.kind)}</span>${pill(t.status)}</div><b style="font-size:16px">${esc(t.title)}</b><span class="mute" style="font-size:12px">${esc(ctxL(t))}</span>${t.submissionUrl&&safeUrl(t.submissionUrl)?`<div style="font-size:12px">📎 <a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">${esc(t.submissionUrl)}</a></div>`:''}<div style="display:flex;justify-content:space-between;align-items:end;gap:8px"><div>${dl(t)}<div class="mute" style="font-size:12px">${esc(t.assignee)}</div></div>${pill(t.priority)}</div><div class="dash" style="margin:2px 0"></div><div class="ra" style="justify-content:flex-start;flex-wrap:wrap">${abtn(t)}<button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></div>`;
+ const hlStyle=t=>{const od=isOd(t),nc=t.status==='NEEDS_CHANGES';if(!od&&!nc)return '';return 'background:#FFF5F3;border-left:4px solid var(--et)'};
+ const hlAttr=t=>{const od=isOd(t),nc=t.status==='NEEDS_CHANGES';return od?' data-highlight="overdue"':nc?' data-highlight="needs-changes"':''};
+ const row=t=>`<tr style="${hlStyle(t)}"${hlAttr(t)}><td><b>${esc(t.title)}</b>${isOd(t)?' <span class="pill er" style="font-size:10px">Overdue</span>':''}${t.status==='NEEDS_CHANGES'&&(t.reviewFeedback||t.desc)?`<div style="font-size:12px;color:var(--et);margin-top:4px">💬 ${esc(t.reviewFeedback||t.desc)}</div>`:''}${t.submissionUrl&&safeUrl(t.submissionUrl)?`<div style="font-size:12px;margin-top:4px">📎 <a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">${esc(t.submissionUrl)}</a></div>`:''}</td><td><span class="tag">${esc(TY[t.kind]||t.kind)}</span></td><td>${ctxPathHtml(t)}</td>${team?`<td>${esc(t.assignee)}</td>`:''}<td>${dl(t)}</td><td>${pill(t.priority)}</td><td>${pill(t.status)}</td><td><div class="ra">${abtn(t)}<button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></td></tr>`,
+ card=t=>`<div class="card tc" style="${hlStyle(t)}"${hlAttr(t)}><div style="display:flex;justify-content:space-between;gap:8px"><span class="tag lc">${esc(TY[t.kind]||t.kind)}</span><div style="display:flex;gap:4px;flex-wrap:wrap">${isOd(t)?'<span class="pill er">Overdue</span>':''}${pill(t.status)}</div></div><b style="font-size:16px">${esc(t.title)}</b><div>${ctxPathHtml(t)}</div>${t.submissionUrl&&safeUrl(t.submissionUrl)?`<div style="font-size:12px">📎 <a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">${esc(t.submissionUrl)}</a></div>`:''}<div style="display:flex;justify-content:space-between;align-items:end;gap:8px"><div>${dl(t)}<div class="mute" style="font-size:12px">${esc(t.assignee)}</div></div>${pill(t.priority)}</div><div class="dash" style="margin:2px 0"></div><div class="ra" style="justify-content:flex-start;flex-wrap:wrap">${abtn(t)}<button class="btn sm t" onclick="tdet(${t.id})">Details</button>${mgr&&!DONE4.includes(t.status)?`<button class="btn sm" onclick="editTask(${t.id})">Edit</button>`:''}${tbtn(t)}</div></div>`;
+ const errCard=S.taskErr?`<div class="note wn" role="alert" style="margin-bottom:16px;align-items:center;justify-content:space-between"><span><b>!</b> ${esc(S.taskErr)}</span><button class="btn sm p" onclick="S.taskErr='';view(false)">Retry</button></div>`:'';
  return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>${team?'Tasks':'My Work'}</h1><p>${team?'Who does what: assign, follow and re-assign your team’s work.':'What is required from me: only the tasks assigned to you.'}</p></div>${mgr&&team?`<button class="btn p" onclick="newTask()">+ Direct task</button>`:''}</div>
-<div class="tb2">${mgr?sg2('tw',0,[['mine','My Work'],['team','Tasks']]):''}${sg2('tv',0,[['rows','☰ Rows'],['cards','▦ Cards']])}<select aria-label="Status" onchange="S.ts=this.value;view(false)"><option value="all">All statuses</option>${['TODO','IN_PROGRESS','SUBMITTED','IN_REVIEW','NEEDS_CHANGES','COMPLETED','CANCELLED'].map(x=>`<option value="${x}" ${S.ts===x?'selected':''}>${lab(x)}</option>`).join('')}</select></div>
+${errCard}<div class="tb2">${mgr?sg2('tw',0,[['mine','My Work'],['team','Tasks']]):''}${sg2('tv',0,[['rows','☰ Rows'],['cards','▦ Cards']])}<select aria-label="Status" onchange="S.ts=this.value;view(false)"><option value="all">All statuses</option>${['TODO','IN_PROGRESS','SUBMITTED','IN_REVIEW','NEEDS_CHANGES','COMPLETED','CANCELLED'].map(x=>`<option value="${x}" ${S.ts===x?'selected':''}>${lab(x)}</option>`).join('')}</select><select aria-label="Priority" onchange="S.tp=this.value;view(false)"><option value="all">All priorities</option>${['LOW','MEDIUM','HIGH','URGENT'].map(x=>`<option value="${x}" ${tp===x?'selected':''}>${lab(x)}</option>`).join('')}</select><select aria-label="Task type" onchange="S.tk=this.value;view(false)"><option value="all">All types</option>${Object.entries(TY).map(([k,v])=>`<option value="${k}" ${tkf===k?'selected':''}>${esc(v)}</option>`).join('')}</select><select aria-label="Deadline" onchange="S.td=this.value;view(false)"><option value="all" ${tdf==='all'?'selected':''}>All deadlines</option><option value="overdue" ${tdf==='overdue'?'selected':''}>Overdue</option><option value="due_soon" ${tdf==='due_soon'?'selected':''}>Due soon (≤3d)</option><option value="upcoming" ${tdf==='upcoming'?'selected':''}>Upcoming</option></select></div>
 <div class="stats">${st.map(s=>`<div class="stat ${s[2]&&s[1]?'al':''}"><span class="mono mute">${s[0]}</span><b>${s[1]}</b></div>`).join('')}</div>`+
- (!L.length?`<div class="card empty"><span class="chip">${ic('check')}</span><h2>No tasks</h2><p class="mute">${team?'No tasks match.':'Nothing is assigned to you right now.'}</p></div>`:S.tv==='cards'?`<div class="cards">${L.map(card).join('')}</div>`:`<div class="card" style="padding:20px 12px"><div class="tw"><table><thead><tr><th scope="col">Task</th><th scope="col">Type</th><th scope="col">Assignee</th><th scope="col">Priority</th><th scope="col">Effective deadline</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>${L.map(row).join('')}</tbody></table></div></div>`)};
+ (!L.length?`<div class="card empty"><span class="chip">${ic('check')}</span><h2>No tasks</h2><p class="mute">${team?'No tasks match your current filters.':'No tasks assigned to you right now.'}</p></div>`:S.tv==='cards'?`<div class="cards">${L.map(card).join('')}</div>`:`<div class="card" style="padding:20px 12px"><div class="tw"><table><thead><tr><th scope="col">Title</th><th scope="col">Type</th><th scope="col">Related content</th>${team?'<th scope="col">Assignee</th>':''}<th scope="col">Effective deadline</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>${L.map(row).join('')}</tbody></table></div></div>`)};
 newTask=function(){const o=x=>x.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');modal(`<div class="dlg"><h2>New direct task</h2><p class="mute" style="margin:0 0 16px">Not linked to a content item. It starts as TODO and appears in the assignee’s My Work.</p><div class="pg"><div class="fl" style="grid-column:1/-1"><label>Title *</label><input id="dt1"></div><div class="fl" style="grid-column:1/-1"><label>Description</label><textarea id="dt2"></textarea></div><div class="fl"><label>Assigned to *</label><select id="dt3">${o(EMP)}</select></div><div class="fl"><label>Priority</label><select id="dt4">${o(['LOW','MEDIUM','HIGH','URGENT'])}</select></div><div class="fl"><label>Planned deadline *</label><input id="dt5" type="date"></div></div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="saveTask()">Create task</button></div></div>`)};
-let saveTask=function(){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted||!document.getElementById('dt1'))return;const g=i=>(document.getElementById('dt'+i)?.value||'').trim();const title=g(1),desc=g(2),assignee=g(3),priority=g(4),deadline=g(5);if(!title||!deadline)return toast('Title and planned deadline are required');
+let saveTask=function(){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted||!document.getElementById('dt1'))return;clearDlgErrs(dlg);const g=i=>(document.getElementById('dt'+i)?.value||'').trim();const title=g(1),desc=g(2),assignee=g(3),priority=g(4),deadline=g(5);let bad=false;if(!title){setDlgErr(dlg,document.getElementById('dt1'),'Title is required.');bad=true}if(!deadline){setDlgErr(dlg,document.getElementById('dt5'),'Planned deadline is required.');bad=true}if(bad)return;
  dlg._submitted=true;TK.unshift(mk(++IDN,title,'DIRECT','TODO',priority,assignee,MEN[S.role],'—',[],deadline,deadline,desc));closeM();note('New task assigned to '+assignee+': “'+title+'” (due '+deadline+')','',true,[rl(assignee),'am','admin'].filter(Boolean),{k:'tasks'});toast('Task created · TODO');S.tw='team';view(false)};
 PAGES.tasks=tasksPage;
 /* teams */
@@ -1621,7 +1849,7 @@ function markAllRead(){
  render(false);
 }
 function notifPage(){const R=S.role,q=S.q.toLowerCase(),cb=curClientBrand();let L=D.notifications.rows.map((r,i)=>({r,i})).filter(({r})=>(!r.to||r.to.includes(R))&&(R!=='client'||(r.title.includes(cb)&&!r.internal))).filter(({r})=>r.title.toLowerCase().includes(q)&&(S.nf!=='unread'||!r.isRead));
- return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Notifications</h1><p>Press View to jump to the screen where you handle it. <span class="tag" style="margin-left:6px">Channel: In-app notifications</span></p></div><button class="btn" onclick="markAllRead()">Mark all as read</button></div><div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view(false)">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`+
+ return `<div class="ph"><div><span class="eb">${esc(ROLES[R])}</span><h1>Notifications</h1><p>Press View to jump to the screen where you handle it. <span class="tag" style="margin-left:6px">Channel: In-app notifications</span> <span class="tag lc" style="margin-left:4px">Auto-refreshes every 30s</span></p></div><button class="btn" onclick="markAllRead()">Mark all as read</button></div><div class="seg" role="group" aria-label="Filter notifications" style="width:max-content;margin:0 0 16px">${['all','unread'].map(x=>`<button class="${S.nf===x?'on':''}" aria-pressed="${S.nf===x}" onclick="S.nf='${x}';view(false)">${x==='all'?'All':'Unread'}</button>`).join('')}</div>`+
  (L.length?`<div class="card" style="padding:8px 20px">${L.map(({r,i})=>`<div style="display:flex;gap:14px;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line);flex-wrap:wrap"><div style="min-width:220px;flex:1"><div style="font-weight:${r.isRead?500:700}">${esc(r.title)}</div><div class="mute" style="font-size:12px">${esc(r.createdAt)} · opens ${esc(DEST[(r.link||{k:'tasks'}).k]||'Tasks')}</div></div>${r.isRead?'<span class="pill">Read</span>':'<span class="pill in">Unread</span>'}${!r.isRead?`<button class="btn sm" onclick="markRead(${i})">Mark read</button>`:''}<button class="btn sm p" onclick="nview(${i})">View →</button></div>`).join('')}</div>`:`<div class="card empty"><span class="chip">${ic('bell')}</span><h2>All caught up</h2></div>`)}
 PAGES.notifications=notifPage;
 const _sgo=sgo;sgo=function(a){const n=D.notifications.rows.length;_sgo(a);const r=D.notifications.rows[0];if(D.notifications.rows.length>n)r.link={k:'strategy',brand:S.brand}};
@@ -1654,28 +1882,39 @@ const dp=(t,pl,kv,ex='',bt='')=>`${bk('S.det=null;view(false)',t)}<div class="ph
 /* detail pages */
 function rowDet(k,i){const E=D[k],r=E.rows[i];if(!r)return null;const w=can(k),del=w&&!E.noDelete&&(k!=='users'||S.role==='admin'),ac=E.acts?E.acts(r):[];
  const ent=Object.entries(r).filter(([a])=>a!=='content'&&a!=='_id').map(([a,v])=>[esc(hum(a)),a==='status'||a==='isActive'?pill(v):(a==='accountUrl'||a==='websiteUrl')&&safeUrl(v)?`<a class="lk" href="${esc(safeUrl(v))}" target="_blank" rel="noopener noreferrer">${esc(v)}</a>`:Array.isArray(v)?esc(v.join(', ')):esc(v)]);
- const ex=(k==='briefs'?renderBriefContent(r):(r.content?`<div class="card" style="margin-top:16px"><div class="mono mute" style="margin-bottom:8px">content (JSON)</div><pre>${esc(JSON.stringify(r.content,null,2))}</pre></div>`:''))+(k==='platform'?`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Content items on this platform</h2>${itTable(brItems(r.brandId).filter(([x])=>x.platform===r.accountName))}</div>`:'');
+ const platPlans=k==='platform'?PLANS.filter(p=>p.brand===r.brandId&&p.platform===r.accountName):[];
+ const platPlansCard=k==='platform'?`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Content plans on this platform (${platPlans.length})</h2>${platPlans.length?`<div class="tw"><table><thead><tr><th scope="col">Plan</th><th scope="col">Month</th><th scope="col">Campaigns</th><th scope="col">Items</th><th scope="col">Status</th></tr></thead><tbody>${platPlans.map(p=>`<tr><td><a class="lk" onclick="openD({t:'plan',id:${p.id}})">${esc(p.title)}</a></td><td>${esc(p.month||'—')}</td><td>${p.campaigns.length}</td><td>${p.items.length}</td><td>${pill(p.status||'DRAFT')}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No content plans for this platform account yet.</p>'}</div>`:'';
+ const ex=(k==='briefs'?renderBriefContent(r):(r.content?`<div class="card" style="margin-top:16px"><div class="mono mute" style="margin-bottom:8px">content (JSON)</div><pre>${esc(JSON.stringify(r.content,null,2))}</pre></div>`:''))+platPlansCard+(k==='platform'?`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Content items on this platform</h2>${itTable(brItems(r.brandId).filter(([x])=>x.platform===r.accountName))}</div>`:'');
  const bt=`<div style="display:flex;gap:8px;flex-wrap:wrap">${ac.map(a=>`<button class="btn" onclick="act('${k}',${i},'${a[1]}')">${esc(a[0])}</button>`).join('')}${w?`<button class="btn" onclick="act('${k}',${i},'edit')">Edit</button>`:''}${del?`<button class="btn dg" onclick="act('${k}',${i},'del')">Delete</button>`:''}</div>`;
  return dp(esc(r.name||r.title||r.fullName||r.accountName||r.fileName||r.key||r[E.cols[0][0]]),`<span class="tag lc">${esc(E.n)}</span>`+(r.status!==undefined?pill(r.status):''),kvh(ent),ex,bt)}
-function campDet(pid,n){const p=PLANS.find(x=>x.id===pid),c=p&&p.campaigns[n];if(!c)return null;const l=p.items.filter(i=>i.campaign===c.name).map(i=>[i,p]);
- return dp(esc(c.name),'<span class="tag lc">Campaign</span>',kvh([['Objective',esc(c.objective)||'—'],['Brand',esc(p.brand)],['Content plan',esc(p.title)],['Content items',l.length]]),`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Content items</h2>${itTable(l)}</div>`)}
+function campDet(pid,n){const p=PLANS.find(x=>x.id===pid),c=p&&p.campaigns[n];if(!c)return null;const tf=S.itf||'all',l=p.items.filter(i=>i.campaign===c.name&&(tf==='all'||i.type===tf)).map(i=>[i,p]);
+ const cc=S.role==='cc',s=sg(p.brand),ok=s.st==='forwarded'&&s.out==='approved';
+ const dates=c.startDate||c.endDate?`${c.startDate||'—'} → ${c.endDate||'—'}`:'—';
+ const typeBar=`<div class="seg" role="group" aria-label="Filter by type" style="width:max-content;margin:0 0 12px">${['all','POST','REEL','STORY'].map(x=>`<button class="${tf===x?'on':''}" onclick="S.itf='${x}';view(false)">${x==='all'?'All types':x}</button>`).join('')}</div>`;
+ const acts=cc&&ok?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" onclick="newItem(${p.id},decodeURIComponent('${encodeURIComponent(c.name)}'))">+ Content item</button><button class="btn" onclick="editCamp(${p.id},${n})">Edit campaign</button><button class="btn dg" onclick="delCamp(${p.id},${n})">Delete campaign</button></div>`:'';
+ return dp(esc(c.name),'<span class="tag lc">Campaign</span>',kvh([['Dates',esc(dates)],['Objective',esc(c.objective)||'—'],['Brand',esc(p.brand)],['Content plan',esc(p.title)],['Content items',l.length]]),`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:8px">Content items</h2>${typeBar}${itTable(l)}</div>`,acts)}
 let taskDet=function(id){const t=TK.find(x=>x.id===id);if(!t)return null;const w=t.after&&TK.find(x=>x.id===t.after);
  const subLink=t.submissionUrl&&safeUrl(t.submissionUrl)?`<a class="lk" href="${esc(safeUrl(t.submissionUrl))}" target="_blank" rel="noopener noreferrer">${esc(t.submissionUrl)}</a>`:'—';
- const rows=[['Context',esc(ctxL(t))],['Description',esc(t.desc)||'—'],['Assigned to',esc(t.assignee)],['Created by',esc(t.by)],['Planned deadline',esc(t.planned)],['Effective deadline',dl(t)],['Waiting on',w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing']];
+ const rows=[['Context',ctxPathHtml(t,true)],['Required action',`<b>${esc(taskReqAction(t))}</b>`],['Description',esc(t.desc)||'—'],['Assigned to',esc(t.assignee)],['Created by',esc(t.by)],['Planned deadline',esc(t.planned)],['Effective deadline',dl(t)],['Waiting on',w?esc(w.title)+' · '+esc(lab(w.status)):'Nothing']];
+ if(t.completedAt)rows.push(['Completed at',`<span class="mono">${esc(t.completedAt)}</span>`]);
+ if(t.reviewFeedback)rows.push(['Reviewer feedback',`<span style="color:var(--et);font-weight:600">${esc(t.reviewFeedback)}</span>`]);
  if(t.submissionUrl)rows.push(['Submission URL',subLink]);
  if(t.submissionNotes)rows.push(['Submission notes',esc(t.submissionNotes)]);
- return dp(esc(t.title),pill(t.status)+pill(t.priority)+`<span class="tag">${esc(TY[t.kind]||t.kind)}</span>`,kvh(rows),'',`<div style="display:flex;gap:8px;flex-wrap:wrap">${tbtn(t)}</div>`)};
+ return dp(esc(t.title),pill(t.status)+pill(t.priority)+`<span class="tag">${esc(TY[t.kind]||t.kind)}</span>`,kvh(rows),taskAuditHtml(t),`<div style="display:flex;gap:8px;flex-wrap:wrap">${tbtn(t)}</div>`)};
 function planDet(pid){
  const p=pl(pid);if(!p)return null;
- const R=S.role,cc=R==='cc',s=sg(p.brand),ok=s.st==='forwarded'&&s.out==='approved';
- const campCards=p.campaigns.map((c,ci)=>{
-  const items=p.items.filter(i=>i.campaign===c.name).map(i=>[i,p]);
-  return `<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px"><div><h2 style="margin:0"><a class="lk" onclick="openD({t:'camp',p:${p.id},n:${ci}})">${esc(c.name)}</a></h2>${c.objective?`<p class="mute" style="margin:4px 0 0">${esc(c.objective)}</p>`:''}</div><span class="tag lc">${items.length} item${items.length===1?'':'s'}</span></div>${itTable(items)}</div>`;
- }).join('');
- const unassigned=p.items.filter(i=>!i.campaign||i.campaign==='—'||!p.campaigns.some(c=>c.name===i.campaign)).map(i=>[i,p]);
+ const R=S.role,cc=R==='cc',s=sg(p.brand),ok=s.st==='forwarded'&&s.out==='approved',tf=S.itf||'all';
+ const moNum=planMonthNum(p),yrNum=planYear(p),moLbl=`${PLAN_MONTHS[moNum-1]||p.month||'—'} (${moNum})`;
+ const typeBar=`<div class="seg" role="group" aria-label="Filter by type" style="width:max-content;margin:16px 0 0">${['all','POST','REEL','STORY'].map(x=>`<button class="${tf===x?'on':''}" onclick="S.itf='${x}';view(false)">${x==='all'?'All types':x}</button>`).join('')}</div>`;
+ const campCards=p.campaigns.length?p.campaigns.map((c,ci)=>{
+  const items=p.items.filter(i=>i.campaign===c.name&&(tf==='all'||i.type===tf)).map(i=>[i,p]);
+  const dates=c.startDate||c.endDate?`${c.startDate||'—'} → ${c.endDate||'—'}`:'No dates set';
+  return `<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px"><div><h2 style="margin:0"><a class="lk" onclick="openD({t:'camp',p:${p.id},n:${ci}})">${esc(c.name)}</a></h2><div class="mute mono" style="font-size:12px;margin-top:4px">Dates: ${esc(dates)}</div>${c.objective?`<p class="mute" style="margin:4px 0 0">Objective: ${esc(c.objective)}</p>`:''}</div><div style="display:flex;gap:8px;align-items:center"><span class="tag lc">${items.length} item${items.length===1?'':'s'}</span>${cc&&ok?`<button class="btn sm p" onclick="newItem(${p.id},decodeURIComponent('${encodeURIComponent(c.name)}'))">+ Item</button>`:''}</div></div>${itTable(items)}</div>`;
+ }).join(''):`<div class="card empty" style="margin-top:16px"><span class="chip">${ic('cal')}</span><h2>No campaigns yet</h2><p class="mute">There are no campaigns in this monthly plan yet.</p></div>`;
+ const unassigned=p.items.filter(i=>(!i.campaign||i.campaign==='—'||!p.campaigns.some(c=>c.name===i.campaign))&&(tf==='all'||i.type===tf)).map(i=>[i,p]);
  const unassignedCard=`<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px"><h2 style="margin:0">Unassigned to a campaign</h2><span class="tag">${unassigned.length} item${unassigned.length===1?'':'s'}</span></div>${itTable(unassigned)}</div>`;
  const acts=cc&&ok?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="newCamp(${p.id})">+ Campaign</button><button class="btn p" onclick="newItem(${p.id})">+ Content item</button></div>`:'';
- return dp(esc(p.title),`<span class="tag lc">${esc(p.month||'Monthly plan')}</span>`+pill(p.status||'DRAFT'),kvh([['Brand',esc(p.brand)],['Platform',esc(p.platform||'—')],['Monthly goals',esc(p.monthlyGoals||'—')],['Campaigns',p.campaigns.length],['Total items',p.items.length]]),campCards+unassignedCard,acts);
+ return dp(esc(p.title),`<span class="tag lc">${esc(moLbl)}</span><span class="tag">${esc(yrNum)}</span>`+pill(p.status||'DRAFT'),kvh([['Brand',esc(p.brand)],['Platform',esc(p.platform||'—')],['Month',esc(moLbl)],['Year',esc(yrNum)],['Status',pill(p.status||'DRAFT')],['Monthly goals',esc(p.monthlyGoals||'—')],['Notes',esc(p.notes||'—')],['Campaigns',p.campaigns.length],['Total items',p.items.length]]),typeBar+campCards+unassignedCard,acts);
 }
 function teamDet(n){const x=TX[n];if(!x)return null;const i=tinfo(n),ad=S.role==='admin',ix=T.indexOf(n),openT=TK.filter(t=>i.m.some(u=>u.fullName===t.assignee)&&!DONE4.includes(t.status)),
  L=(h,b,js)=>`<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><h2>${h}</h2>${ad&&js?`<button class="btn sm" onclick="${js}">Edit</button>`:''}</div>${b}</div>`,e0='<p class="mute" style="margin:0">Nothing here yet.</p>',
@@ -1710,20 +1949,21 @@ subPage=b=>S.sub==='platforms'?bk("S.sub=null;S.q='';view(false)",'Social media 
 /* ===== v6: plans live under each platform; type-aware content item form ===== */
 const FS={POST:[['format','Post format','select',['Photo','Graphic','Quote card','Product shot']],['visual','Visual direction','textarea'],['caption','Caption','textarea'],['hashtags','Hashtags'],['cta','Call to action'],['alt','Alt text']],
 REEL:[['duration','Duration','select',['15s','30s','60s','90s']],['hook','Hook (first 3 seconds)'],['script','Script / storyboard','textarea'],['audio','Audio / music'],['onscreen','On-screen text'],['cover','Cover frame idea'],['caption','Caption','textarea'],['hashtags','Hashtags'],['cta','Call to action']],
-STORY:[['frames','Number of frames','number'],['storyplan','Frame-by-frame plan','textarea'],['sticker','Interactive sticker','select',['None','Poll','Quiz','Question','Link','Countdown']],['link','Link (if any)'],['cta','Call to action']],
-CAROUSEL:[['slides','Number of slides','number'],['cover','Cover slide headline'],['outline','Slide-by-slide outline','textarea'],['caption','Caption','textarea'],['hashtags','Hashtags'],['cta','Call to action']]};
-const ALLOWED={INSTAGRAM:['POST','REEL','STORY','CAROUSEL'],FACEBOOK:['POST','REEL','STORY','CAROUSEL'],TIKTOK:['REEL','CAROUSEL','POST'],LINKEDIN:['POST','CAROUSEL'],YOUTUBE:['REEL']};
+STORY:[['frames','Number of frames','number'],['storyplan','Frame-by-frame plan','textarea'],['sticker','Interactive sticker','select',['None','Poll','Quiz','Question','Link','Countdown']],['caption','Caption','textarea'],['link','Link (if any)'],['cta','Call to action']]};
+const CONTENT_TYPES=['POST','REEL','STORY'];
+const ALLOWED={INSTAGRAM:CONTENT_TYPES,FACEBOOK:CONTENT_TYPES,TIKTOK:CONTENT_TYPES,LINKEDIN:CONTENT_TYPES,YOUTUBE:CONTENT_TYPES};
 const fld=([n,l,ty,o],v)=>ty==='textarea'?`<div class="fl" style="grid-column:1/-1"><label>${esc(l)}</label><textarea data-f="${esc(n)}">${esc(v[n])}</textarea></div>`:ty==='select'?`<div class="fl"><label>${esc(l)}</label><select data-f="${esc(n)}">${o.map(x=>`<option value="${esc(x)}" ${x===v[n]?'selected':''}>${esc(x)}</option>`).join('')}</select></div>`:`<div class="fl"><label>${esc(l)}</label><input data-f="${esc(n)}" type="${esc(ty||'text')}" value="${esc(v[n])}"></div>`;
-function itModal(pid,v,eid){const p=pl(pid),pr=D.platform.rows.find(r=>r.brandId===p.brand&&r.accountName===p.platform),ty=ALLOWED[pr&&pr.platform]||ALLOWED.INSTAGRAM,t=ty.includes(v.type)?v.type:ty[0];v.type=t;
- return `<div class="dlg"><h2>${eid?'Edit':'New'} content item</h2><p class="mute" style="margin:0 0 16px">${esc(p.platform)} · ${esc(p.title)}. The fields below change with the type.</p><div class="pg">${fld(['title','Title *'],v)}<div class="fl"><label>Type</label><select data-f="type" onchange="itType(${pid},this.value${eid?','+eid:''})">${ty.map(x=>`<option value="${esc(x)}" ${x===t?'selected':''}>${esc(x)}</option>`).join('')}</select></div>${fld(['campaign','Campaign','select',['—',...p.campaigns.map(c=>c.name)]],v)}${fld(['date','Scheduled date','date'],v)}${FS[t].map(f=>fld(f,v)).join('')}${fld(['notes','Notes','textarea'],v)}</div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="itSave(${pid}${eid?','+eid:''})">${eid?'Save':'Create'} ${esc(lab(t))}</button></div></div>`}
+function itModal(pid,v,eid){const p=pl(pid),ty=CONTENT_TYPES,t=ty.includes(v.type)?v.type:ty[0];v.type=t;
+ return `<div class="dlg"><h2>${eid?'Edit':'New'} content item</h2><p class="mute" style="margin:0 0 16px">${esc(p.platform)} · ${esc(p.title)}. Accepted types: POST, REEL, STORY.</p><div class="pg">${fld(['title','Title *'],v)}<div class="fl"><label>Type *</label><select data-f="type" onchange="itType(${pid},this.value${eid?','+eid:''})">${ty.map(x=>`<option value="${esc(x)}" ${x===t?'selected':''}>${esc(x)}</option>`).join('')}</select></div>${fld(['campaign','Campaign','select',['—',...p.campaigns.map(c=>c.name)]],v)}${fld(['date','Scheduled date','date'],v)}${fld(['reference','Reference'],v)}${fld(['toneOfVoice','Tone of voice'],v)}${FS[t].map(f=>fld(f,v)).join('')}${fld(['notes','Notes','textarea'],v)}</div><div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="itSave(${pid}${eid?','+eid:''})">${eid?'Save':'Create'} ${esc(lab(t))}</button></div></div>`}
 const itVals=()=>Object.fromEntries([...document.querySelectorAll('.dlg [data-f]')].map(x=>[x.dataset.f,x.value]));
-function itType(pid,t,eid){const v=itVals();v.type=t;const ov=$('.ov');if(ov)ov.innerHTML=itModal(pid,v,eid)}
-let itSave=function(pid,eid){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;const v=itVals();if(!(v.title||'').trim())return toast('Title is required');const p=pl(pid);if(!p)return;
+function itType(pid,t,eid){const v=itVals();v.type=CONTENT_TYPES.includes(t)?t:'POST';const ov=$('.ov');if(ov)ov.innerHTML=itModal(pid,v,eid)}
+let itSave=function(pid,eid){const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;clearDlgErrs(dlg);const v=itVals();let bad=false;if(!(v.title||'').trim()){setDlgErr(dlg,dlg.querySelector('[data-f="title"]'),'Title is required.');bad=true}if(!CONTENT_TYPES.includes(v.type)){setDlgErr(dlg,dlg.querySelector('[data-f="type"]'),'Only POST, REEL and STORY types are accepted.');bad=true}if(bad)return;const p=pl(pid);if(!p)return;
  dlg._submitted=true;
  if(eid){const it=fItem(eid)[0];Object.assign(it,v);if(it.stage==='APPROVED'){it.stage='IN_REVIEW';it.approvedAt='';it.approvedBy='';snapV(it);it.v=(it.v||1)+1;logH(it,'Edited after approval','Returned to internal review')}}else p.items.push({...v,id:++IDN,platform:p.platform,assignee:'',priority:'MEDIUM',status:'TODO'});closeM();toast(eid?'Changes saved':'Content item created');if(eid)view(false);else openSub('item',p.items[p.items.length-1].id)};
 function editItem(id){const[i,p]=fItem(id);modal(itModal(p.id,{...i},id))}
 const cfm=(t,js)=>modal(`<div class="dlg"><h2>${t}</h2><p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="${js}">Delete</button></div></div>`);
 function doDelItem(id){
+ if(S.role!=='cc')return toast('Only the Content Creator can edit or delete content items.');
  const found=fItem(id);
  const item=found?.[0];
  PLANS.forEach(p=>{p.items=p.items.filter(i=>i.id!==id)});
@@ -1735,8 +1975,13 @@ function doDelItem(id){
   apiCall('/content-items/'+item._id,{method:'DELETE'}).catch(err=>{if(err?.message)toast(err.message)});
  }
 }
-const delItem=id=>cfm('Delete this content item?',`doDelItem(${id})`);
+const delItem=id=>{if(S.role!=='cc')return toast('Only the Content Creator can edit or delete content items.');cfm('Delete this content item?',`doDelItem(${id})`)};
+const PLAN_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const PLAN_STATUSES=['DRAFT','IN_REVIEW','NEEDS_CHANGES','APPROVED'];
+function planYear(p){if(p?.year)return Number(p.year);const m=/\b(20\d{2})\b/.exec(String(p?.month||''));return m?Number(m[1]):2026}
+function planMonthNum(p){if(p?.monthNum)return Number(p.monthNum);const txt=String(p?.month||'');const idx=PLAN_MONTHS.findIndex(m=>txt.toLowerCase().includes(m.toLowerCase()));return idx>=0?idx+1:11}
 function doDelPlan(id){
+ if(S.role!=='cc')return toast('Only the Content Creator can edit or delete a plan.');
  const idx=PLANS.findIndex(p=>p.id===id);
  if(idx<0)return;
  const plan=PLANS[idx];
@@ -1748,40 +1993,58 @@ function doDelPlan(id){
   apiCall('/content-plans/'+plan._id,{method:'DELETE'}).catch(err=>{if(err?.message)toast(err.message)});
  }
 }
-const delPlan=id=>cfm('Delete this plan and its items?',`doDelPlan(${id})`);
+function delPlan(id){
+ if(S.role!=='cc')return toast('Only the Content Creator can edit or delete a plan.');
+ const p=pl(id);if(!p)return;
+ const cCount=(p.campaigns||[]).length,iCount=(p.items||[]).length;
+ const warn=cCount||iCount?`<div class="note wn" role="alert" style="margin:12px 0"><b>⚠</b><span>Warning: This plan has ${cCount} linked campaign${cCount===1?'':'s'} and ${iCount} linked content item${iCount===1?'':'s'}. Deleting it will permanently remove them.</span></div>`:'';
+ modal(`<div class="dlg"><h2>Delete “${esc(p.title)}”?</h2>${warn}<p class="mute">This can’t be undone.</p><div class="ft"><button class="btn" onclick="closeM()">Keep it</button><button class="btn p" style="background:var(--et);border-color:var(--et)" onclick="doDelPlan(${id})">Delete plan</button></div></div>`);
+}
 function parsePlanYm(ym){
  const m=/^(\d{4})-(\d{2})$/.exec(String(ym||'').trim());
  if(!m){const d=new Date();return{year:d.getFullYear(),month:d.getMonth()+1,label:d.toLocaleString('en',{month:'short',year:'numeric'})}}
  const yr=Number(m[1]),mo=Number(m[2]);
- const lbl=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo-1]+' '+yr;
+ const lbl=PLAN_MONTHS[mo-1]+' '+yr;
  return{year:yr,month:mo,label:lbl};
 }
 function editPlan(id){
+ if(S.role!=='cc')return toast('Only the Content Creator can edit or delete a plan.');
  const p=pl(id);if(!p)return;
- const ymVal=p.year&&p.month?`${p.year}-${String(p.month).padStart(2,'0')}`:'2026-11';
+ const yrVal=planYear(p),moVal=planMonthNum(p);
  modal(`<div class="dlg"><h2>Edit content plan</h2><p class="mute" style="margin:0 0 16px">${esc(p.platform)} · ${esc(p.brand)}</p>
   <div class="pg">
-   <div class="fl"><label>Plan title *</label><input id="ep-title" value="${esc(p.title)}"></div>
-   <div class="fl"><label>Month *</label><input id="ep-month" type="month" value="${esc(ymVal)}"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Plan title *</label><input id="ep-title" value="${esc(p.title)}"></div>
+   <div class="fl"><label>Year *</label><input id="ep-year" type="number" min="2000" max="2100" value="${esc(yrVal)}"></div>
+   <div class="fl"><label>Month (1–12) *</label><input id="ep-month-num" type="number" min="1" max="12" value="${esc(moVal)}"></div>
    <div class="fl" style="grid-column:1/-1"><label>Monthly goals</label><textarea id="ep-goals">${esc(p.monthlyGoals||'')}</textarea></div>
+   <div class="fl" style="grid-column:1/-1"><label>Notes</label><textarea id="ep-notes">${esc(p.notes||'')}</textarea></div>
   </div>
   <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="saveEditPlan(${p.id})">Save plan</button></div>
  </div>`);
 }
 async function saveEditPlan(id){
+ if(S.role!=='cc')return toast('Only the Content Creator can edit or delete a plan.');
  const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ clearDlgErrs(dlg);
  const p=pl(id);if(!p)return;
  const title=($('#ep-title')?.value||'').trim();
- const ym=parsePlanYm($('#ep-month')?.value);
+ const yr=Number($('#ep-year')?.value);
+ const mo=Number($('#ep-month-num')?.value);
  const monthlyGoals=($('#ep-goals')?.value||'').trim();
- if(!title)return toast('Plan title is required');
+ const notes=($('#ep-notes')?.value||'').trim();
+ let bad=false;
+ if(!title){setDlgErr(dlg,$('#ep-title'),'Plan title is required.');bad=true}
+ if(!Number.isInteger(yr)||yr<2000||yr>2100){setDlgErr(dlg,$('#ep-year'),'Enter a valid 4-digit year (2000–2100).');bad=true}
+ if(!Number.isInteger(mo)||mo<1||mo>12){setDlgErr(dlg,$('#ep-month-num'),'Month must be a number from 1 to 12.');bad=true}
+ if(bad)return;
+ const lbl=PLAN_MONTHS[mo-1]+' '+yr;
  dlg._submitted=true;
- const prev={title:p.title,month:p.month,year:p.year,monthNum:p.monthNum,monthlyGoals:p.monthlyGoals};
- p.title=title;p.month=ym.label;p.year=ym.year;p.monthNum=ym.month;p.monthlyGoals=monthlyGoals;
+ const prev={title:p.title,month:p.month,year:p.year,monthNum:p.monthNum,monthlyGoals:p.monthlyGoals,notes:p.notes};
+ p.title=title;p.month=lbl;p.year=yr;p.monthNum=mo;p.monthlyGoals=monthlyGoals;p.notes=notes;
  closeM();
  if(p._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
   try{
-   await apiCall('/content-plans/'+p._id,{method:'PATCH',body:{title,year:ym.year,month:ym.month,monthlyGoals:monthlyGoals||null}});
+   await apiCall('/content-plans/'+p._id,{method:'PATCH',body:{title,year:yr,month:mo,monthlyGoals:monthlyGoals||null}});
   }catch(err){
    Object.assign(p,prev);
    toast(err?.message||'Could not update content plan');
@@ -1792,6 +2055,7 @@ async function saveEditPlan(id){
  view(false);
 }
 async function setPlanStatus(id,status){
+ if(!PLAN_STATUSES.includes(status))return toast('Invalid plan status.');
  const p=pl(id);if(!p)return;
  const prev=p.status||'DRAFT';
  p.status=status;
@@ -1807,18 +2071,36 @@ async function setPlanStatus(id,status){
  toast('Plan status updated');
  view(false);
 }
-newItem=id=>modal(itModal(id,{}));
-let newPlanP=function(i){const a=D.platform.rows[i].accountName;ask('New monthly content plan for '+a,[['title','Plan title *'],['month','Month *','month'],['monthlyGoals','Monthly goals','textarea']],v=>{const ym=parsePlanYm(v.month);PLANS.push({id:++IDN,brand:S.brand,platform:a,title:v.title,month:ym.label,year:ym.year,monthNum:ym.month,monthlyGoals:(v.monthlyGoals||'').trim(),status:'DRAFT',campaigns:[],items:[]})})};
-function platformsPage(b){const E=D.platform,w=can('platform'),q=S.q.toLowerCase(),R=S.role,cc=R==='cc',am=R==='am',s=sg(b.name),ok=s.st==='forwarded'&&s.out==='approved',
- rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>r.brandId===b.name),
+newItem=(id,campName='')=>modal(itModal(id,campName?{campaign:campName}:{}));
+let newPlanP=function(i){const a=D.platform.rows[i].accountName;ask('New monthly content plan for '+a,[['title','Plan title *'],['year','Year * (2000–2100)','number'],['monthNum','Month * (1 to 12)','number'],['monthlyGoals','Monthly goals','textarea'],['notes','Notes','textarea']],v=>{const yr=Number(v.year),mo=Number(v.monthNum);PLANS.push({id:++IDN,brand:S.brand,platform:a,title:v.title.trim(),month:PLAN_MONTHS[mo-1]+' '+yr,year:yr,monthNum:mo,monthlyGoals:(v.monthlyGoals||'').trim(),notes:(v.notes||'').trim(),status:'DRAFT',campaigns:[],items:[]})})};
+function platformsPage(b){const E=D.platform,w=can('platform'),q=S.q.toLowerCase(),R=S.role,cc=R==='cc',am=R==='am',s=sg(b.name),ok=s.st==='forwarded'&&s.out==='approved',tf=S.itf||'all',
+ pf=S.pf||(S.pf={brand:b.name,status:'all',month:'all',year:'all'}),
+ brandFilter=pf.brand||b.name,
+ planYears=[...new Set([2025,2026,2027,...PLANS.map(planYear)])].sort(),
+ matchPlan=p=>{
+  if(brandFilter!=='all'&&p.brand!==brandFilter)return false;
+  if(pf.status!=='all'&&(p.status||'DRAFT')!==pf.status)return false;
+  if(pf.month!=='all'&&planMonthNum(p)!==Number(pf.month))return false;
+  if(pf.year!=='all'&&planYear(p)!==Number(pf.year))return false;
+  return true;
+ },
+ rows=E.rows.map((r,i)=>({r,i})).filter(({r})=>brandFilter==='all'?true:r.brandId===brandFilter),
+ planFilterBar=`<div class="card" style="padding:14px 16px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+  <div class="fl" style="margin:0;min-width:150px"><label>Brand</label><select aria-label="Filter plans by brand" onchange="S.pf.brand=this.value;view(false)"><option value="all" ${brandFilter==='all'?'selected':''}>All brands</option>${D.brands.rows.map(br=>`<option value="${esc(br.name)}" ${brandFilter===br.name?'selected':''}>${esc(br.name)}</option>`).join('')}</select></div>
+  <div class="fl" style="margin:0;min-width:140px"><label>Plan status</label><select aria-label="Filter plans by status" onchange="S.pf.status=this.value;view(false)"><option value="all" ${pf.status==='all'?'selected':''}>All statuses</option>${PLAN_STATUSES.map(st=>`<option value="${st}" ${pf.status===st?'selected':''}>${esc(lab(st))}</option>`).join('')}</select></div>
+  <div class="fl" style="margin:0;min-width:130px"><label>Month</label><select aria-label="Filter plans by month" onchange="S.pf.month=this.value;view(false)"><option value="all" ${pf.month==='all'?'selected':''}>All months</option>${PLAN_MONTHS.map((m,mi)=>`<option value="${mi+1}" ${String(pf.month)===String(mi+1)?'selected':''}>${mi+1} — ${m}</option>`).join('')}</select></div>
+  <div class="fl" style="margin:0;min-width:110px"><label>Year</label><select aria-label="Filter plans by year" onchange="S.pf.year=this.value;view(false)"><option value="all" ${pf.year==='all'?'selected':''}>All years</option>${planYears.map(y=>`<option value="${y}" ${String(pf.year)===String(y)?'selected':''}>${y}</option>`).join('')}</select></div>
+  <button class="btn sm t" onclick="S.pf={brand:'${esc(b.name)}',status:'all',month:'all',year:'all'};view(false)">Reset</button>
+ </div>`,
+ typeFilterBar=`<div class="seg" role="group" aria-label="Filter content items by type" style="width:max-content;margin:0 0 16px">${['all','POST','REEL','STORY'].map(x=>`<button class="${tf===x?'on':''}" onclick="S.itf='${x}';view(false)">${x==='all'?'All types':x}</button>`).join('')}</div>`,
  sel=(id,k,o,v)=>`<select style="border:1px solid var(--line);border-radius:10px;padding:5px 8px;background:#fff" onchange="setIt(${id},'${k}',this.value)">${o.map(x=>`<option value="${esc(x)}" ${x===v?'selected':''}>${esc(k==='status'?lab(x):x)}</option>`).join('')}</select>`,
- planH=p=>{const its=p.items.filter(i=>i.title.toLowerCase().includes(q)),pst=p.status||'DRAFT';return `<div style="border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;background:var(--canvas)"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><b style="font-size:16px"><a class="lk" onclick="openD({t:'plan',id:${p.id}})">${esc(p.title)}</a></b> <span class="mute">${esc(p.month)}</span> ${pill(pst)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm t" onclick="openD({t:'plan',id:${p.id}})">Full plan</button>${cc&&ok?`<button class="btn sm" onclick="newCamp(${p.id})">+ Campaign</button><button class="btn sm p" onclick="newItem(${p.id})">+ Content item</button><button class="btn sm" onclick="editPlan(${p.id})">Edit plan</button>${pst==='DRAFT'||pst==='NEEDS_CHANGES'?`<button class="btn sm" onclick="setPlanStatus(${p.id},'IN_REVIEW')">Submit for review</button>`:''}<button class="btn sm dg" onclick="delPlan(${p.id})">Delete plan</button>`:''}${am&&pst==='IN_REVIEW'?`<button class="btn sm p" onclick="setPlanStatus(${p.id},'APPROVED')">Approve plan</button><button class="btn sm dg" onclick="setPlanStatus(${p.id},'NEEDS_CHANGES')">Request changes</button>`:''}</div></div>
+ planH=p=>{const its=p.items.filter(i=>i.title.toLowerCase().includes(q)&&(tf==='all'||i.type===tf)),pst=p.status||'DRAFT';return `<div style="border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;background:var(--canvas)"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><b style="font-size:16px"><a class="lk" onclick="openD({t:'plan',id:${p.id}})">${esc(p.title)}</a></b> <span class="mute">${esc(p.month)} · ${esc(p.brand)}</span> ${pill(pst)}</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${cc||am?`<select aria-label="Plan status" style="border:1px solid var(--line);border-radius:10px;padding:5px 8px;background:#fff;font-size:12px" onchange="setPlanStatus(${p.id},this.value)">${PLAN_STATUSES.map(st=>`<option value="${st}" ${pst===st?'selected':''}>${esc(lab(st))}</option>`).join('')}</select>`:''}<button class="btn sm t" onclick="openD({t:'plan',id:${p.id}})">Full plan</button>${cc&&ok?`<button class="btn sm" onclick="newCamp(${p.id})">+ Campaign</button><button class="btn sm p" onclick="newItem(${p.id})">+ Content item</button><button class="btn sm" onclick="editPlan(${p.id})">Edit plan</button><button class="btn sm dg" onclick="delPlan(${p.id})">Delete plan</button>`:''}</div></div>
  <div style="margin:10px 0">${p.campaigns.length?p.campaigns.map((c,ci)=>`<span class="tag lc" style="cursor:pointer" onclick="openD({t:'camp',p:${p.id},n:${ci}})">${esc(c.name)}</span>`).join(''):'<span class="mute">No campaigns yet.</span>'}</div>
- ${its.length?`<div class="tw"><table><thead><tr><th scope="col">Item</th><th scope="col">Type</th><th scope="col">Campaign</th><th scope="col">Date</th><th scope="col">Assigned to</th><th scope="col">Priority</th><th scope="col">Stage</th><th scope="col"></th></tr></thead><tbody>${its.map(i=>`<tr><td><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a></td><td><span class="tag">${esc(i.type)}</span></td><td>${esc(i.campaign||'—')}</td><td><span class="mono">${esc(i.date||'—')}</span></td><td>${am?sel(i.id,'assignee',['Unassigned',...EMP],i.assignee||'Unassigned'):esc(i.assignee)||'—'}</td><td>${am?sel(i.id,'priority',PR,i.priority):pill(i.priority)}</td><td>${SP(i.stage||'DRAFT')}</td><td>${cc&&ok?`<div class="ra"><button class="btn sm" onclick="editItem(${i.id})">Edit</button><button class="btn sm dg" onclick="delItem(${i.id})">Delete</button></div>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No content items in this plan yet.</p>'}</div>`};
- return (cc||am?head(E,w,'platform').replace(/<div class="note wn"><b>🔒<\/b>[\s\S]*?<\/div>/,''):head(E,w,'platform'))+(!ok&&(cc||am)?'<div class="note wn" style="align-items:center"><b>🔒</b><span style="flex:1">New plans and content items open once the client approves the strategy.</span><button class="btn sm" onclick="S.sub=\'strategy\';view(false)">Open strategy</button></div>':'')+
- (rows.length?rows.map(({r,i})=>{const ps=PLANS.filter(p=>p.brand===b.name&&p.platform===r.accountName),n=ps.reduce((a,p)=>a+p.items.length,0);
- return `<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div style="display:flex;align-items:center"><span class="chip" style="background:var(--lilac)">${ic('link')}</span><div><h2><a class="lk" style="text-decoration:none" onclick="act('platform',${i},'view')">${esc(r.accountName)}</a></h2><div style="margin-top:4px"><span class="tag">${esc(r.platform)}</span>${pill(r.isActive)} <span class="mute">${ps.length} plan${ps.length===1?'':'s'} · ${n} item${n===1?'':'s'}</span></div></div></div><div class="ra">${cc&&ok?`<button class="btn sm p" onclick="newPlanP(${i})">+ New plan</button>`:''}<button class="btn sm t" onclick="act('platform',${i},'view')">View</button>${w?`<button class="btn sm" onclick="act('platform',${i},'edit')">Edit</button><button class="btn sm dg" onclick="act('platform',${i},'del')">Delete</button>`:''}</div></div>${ps.length?ps.map(planH).join(''):'<p class="mute" style="margin:14px 0 0">No content plans for this platform yet.</p>'}</div>`}).join(''):'<div class="card empty"><span class="chip">'+ic('link')+'</span><h2>No platforms yet</h2><p class="mute">Add a social account, then build its content plans.</p></div>')}
-const FL=Object.fromEntries(Object.values(FS).flat().concat([['notes','Notes']]).map(f=>[f[0],f[1]]));
+ ${its.length?`<div class="tw"><table><thead><tr><th scope="col">Item</th><th scope="col">Type</th><th scope="col">Campaign</th><th scope="col">Date</th><th scope="col">Assigned to</th><th scope="col">Priority</th><th scope="col">Stage</th><th scope="col"></th></tr></thead><tbody>${its.map(i=>`<tr><td><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a></td><td><span class="tag">${esc(i.type)}</span></td><td>${esc(i.campaign||'—')}</td><td><span class="mono">${esc(i.date||'—')}</span></td><td>${am?sel(i.id,'assignee',['Unassigned',...EMP],i.assignee||'Unassigned'):esc(i.assignee)||'—'}</td><td>${am?sel(i.id,'priority',PR,i.priority):pill(i.priority)}</td><td>${SP(i.stage||'DRAFT')}</td><td>${cc&&ok?`<div class="ra"><button class="btn sm" onclick="editItem(${i.id})">Edit</button><button class="btn sm dg" onclick="delItem(${i.id})">Delete</button></div>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No matching content items in this plan.</p>'}</div>`};
+ return (cc||am?head(E,w,'platform').replace(/<div class="note wn"><b>🔒<\/b>[\s\S]*?<\/div>/,''):head(E,w,'platform'))+(!ok&&(cc||am)?'<div class="note wn" style="align-items:center"><b>🔒</b><span style="flex:1">New plans and content items open once the client approves the strategy.</span><button class="btn sm" onclick="S.sub=\'strategy\';view(false)">Open strategy</button></div>':'')+planFilterBar+typeFilterBar+
+ (rows.length?rows.map(({r,i})=>{const ps=PLANS.filter(p=>p.brand===r.brandId&&p.platform===r.accountName&&matchPlan(p)),n=ps.reduce((a,p)=>a+p.items.length,0);
+ return `<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div style="display:flex;align-items:center"><span class="chip" style="background:var(--lilac)">${ic('link')}</span><div><h2><a class="lk" style="text-decoration:none" onclick="act('platform',${i},'view')">${esc(r.accountName)}</a></h2><div style="margin-top:4px"><span class="tag">${esc(r.platform)}</span>${pill(r.isActive)} <span class="mute">${esc(r.brandId)} · ${ps.length} plan${ps.length===1?'':'s'} · ${n} item${n===1?'':'s'}</span></div></div></div><div class="ra">${cc&&ok?`<button class="btn sm p" onclick="newPlanP(${i})">+ New plan</button>`:''}<button class="btn sm t" onclick="act('platform',${i},'view')">View</button>${w?`<button class="btn sm" onclick="act('platform',${i},'edit')">Edit</button><button class="btn sm dg" onclick="act('platform',${i},'del')">Delete</button>`:''}</div></div>${ps.length?ps.map(planH).join(''):'<p class="mute" style="margin:14px 0 0">No matching content plans for this platform.</p>'}</div>`}).join(''):'<div class="card empty"><span class="chip">'+ic('link')+'</span><h2>No platforms yet</h2><p class="mute">Add a social account, then build its content plans.</p></div>')}
+const FL=Object.fromEntries(Object.values(FS).flat().concat([['reference','Reference'],['toneOfVoice','Tone of voice'],['notes','Notes']]).map(f=>[f[0],f[1]]));
 function assignItemTasks(id){
  const f=fItem(id);if(!f)return;
  const [it,p]=f;
@@ -1842,16 +2124,18 @@ async function saveItemTasks(id){
  const [it,p]=f;
  dlg._submitted=true;
  if(creator)it.assignee=creator;
- const deadline=it.date||TODAY;
+ const schedDate=it.date||TODAY;
+ const creationPlanned=it.date?shiftDays(schedDate,-2):TODAY;
+ const reviewPlanned=it.date?shiftDays(schedDate,-1):shiftDays(TODAY,1);
  const ctx=[it.platform||'—',p.title,it.campaign||'—',it.title];
  let creationId=null;
  if(creator){
   creationId=++IDN;
-  TK.unshift(mk(creationId,'Create: '+it.title,'CREATION','TODO',it.priority||'MEDIUM',creator,MEN[S.role],p.brand,ctx,deadline,deadline,'Content creation task for '+it.title));
+  TK.unshift(mk(creationId,'Create: '+it.title,'CREATION','TODO',it.priority||'MEDIUM',creator,MEN[S.role],p.brand,ctx,creationPlanned,creationPlanned,'Content creation task for '+it.title));
  }
  if(reviewer){
   const reviewId=++IDN;
-  TK.unshift(mk(reviewId,'Review: '+it.title,'REVIEW','TODO',it.priority||'MEDIUM',reviewer,MEN[S.role],p.brand,ctx,deadline,deadline,'Review task for '+it.title,creationId));
+  TK.unshift(mk(reviewId,'Review: '+it.title,'REVIEW','TODO',it.priority||'MEDIUM',reviewer,MEN[S.role],p.brand,ctx,reviewPlanned,reviewPlanned,'Review task for '+it.title,creationId));
  }
  closeM();
  if(it._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
@@ -1875,7 +2159,7 @@ async function saveItemTasks(id){
 }
 let itemDet=function(id){const f=fItem(id);if(!f)return null;const[i,p]=f,
  pi=D.platform.rows.findIndex(r=>r.brandId===p.brand&&r.accountName===i.platform),c=p.campaigns.findIndex(x=>x.name===i.campaign),
- det=[...(FS[i.type]||[]).map(x=>x[0]),'notes'].filter(k=>i[k]).map(k=>[esc(FL[k]||k),esc(i[k]).replace(/\n/g,'<br>')]);
+ det=['reference','toneOfVoice',...(FS[i.type]||[]).map(x=>x[0]),'notes'].filter(k=>i[k]).map(k=>[esc(FL[k]||k),esc(i[k]).replace(/\n/g,'<br>')]);
  const canAssign=S.role==='am'||S.role==='admin';
  const topAct=canAssign?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" onclick="assignItemTasks(${i.id})">Assign creation &amp; review tasks</button></div>`:'';
  return dp(esc(i.title),`<span class="tag">${esc(i.type)}</span>`+SP(i.stage||'DRAFT')+pill(i.priority),kvh([['Brand',esc(p.brand)],['Platform',pi>=0?`<a class="lk" onclick="openD({t:'row',k:'platform',i:${pi}})">${esc(i.platform)}</a>`:'—'],['Content plan',esc(p.title)],['Campaign',c>=0?`<a class="lk" onclick="openD({t:'camp',p:${p.id},n:${c}})">${esc(i.campaign)}</a>`:'—'],['Scheduled',`<span class="mono">${esc(i.date||'—')}</span>`],['Assigned to',esc(i.assignee)||'Unassigned'],['Priority',pill(i.priority)]]),
@@ -2200,7 +2484,16 @@ PAGES.review=()=>{const R=S.role;
  }
  const pCrs=CHANGE_REQS.filter(cr=>cr.status==='PENDING'&&myBrands().includes(cr.brand));
  const crCard=pCrs.length?crd('Client change requests pending ('+pCrs.length+')',`<div class="tw"><table><thead><tr><th scope="col">Item</th><th scope="col">Brand</th><th scope="col">Client notes</th><th scope="col">Date</th><th scope="col"></th></tr></thead><tbody>${pCrs.map(cr=>`<tr><td><b>${esc(cr.itemTitle)}</b></td><td>${esc(cr.brand)}</td><td>${esc(cr.clientNotes)}</td><td><span class="mono">${esc(cr.createdAt)}</span></td><td><div class="ra"><button class="btn sm p" onclick="resolveChangeReq(${cr.id})">Resolve</button><button class="btn sm" onclick="forwardChangeReq(${cr.id})">Forward to team</button></div></td></tr>`).join('')}</tbody></table></div>`):'';
- return hdr('Internal review','Review content, approve it for the client or return it with comments.')+crCard+sec('Waiting for internal review',by('IN_REVIEW'))+sec('Waiting for the client',by('CLIENT_REVIEW'))+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Approved — ready to publish',by('APPROVED'))+sec('Published',by('PUBLISHED'))};
+ const stratRows=myBrands().map(bn=>({bn,s:sg(bn)})).filter(({s})=>s.file&&s.st!=='none');
+ const stratStatusBadge=s=>{
+  if(s.st==='am'||s.st==='uploaded')return `<span class="pill wn">Pending Internal Review</span>`;
+  if(s.st==='client')return `<span class="pill in">Sent to Client</span>`;
+  if(s.st==='answered')return `<span class="pill wn">${s.out==='approved'?'Client Approved':'Client Requested Changes'}</span>`;
+  if(s.st==='forwarded')return s.out==='approved'?`<span class="pill ok">Approved</span>`:`<span class="pill er">Requested Changes</span>`;
+  return `<span class="pill">${esc(s.st)}</span>`;
+ };
+ const stratCard=crd('Uploaded strategies for internal review <span class="mute">('+stratRows.length+')</span>',stratRows.length?`<div class="tw"><table><thead><tr><th scope="col">Brand</th><th scope="col">File</th><th scope="col">Version</th><th scope="col">Upload date</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>${stratRows.map(({bn,s})=>{const enc=encodeURIComponent(bn);return `<tr><td><b>${esc(bn)}</b></td><td>${esc(s.file)}</td><td><span class="tag">v${esc(s.v||1)}</span></td><td><span class="mono">${esc(s.uploadedAt||TODAY)}</span></td><td>${stratStatusBadge(s)}</td><td><div class="ra"><button class="btn sm t" onclick="pvS(decodeURIComponent('${enc}'))">Preview</button><button class="btn sm t" onclick="dlS(decodeURIComponent('${enc}'))">Download</button><button class="btn sm p" onclick="goTo({k:'strategy',brand:decodeURIComponent('${enc}')})">Review</button></div></td></tr>`}).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No uploaded strategies yet.</p>');
+ return hdr('Internal review','Review uploaded strategies and content, approve them for the client or return them with comments.')+stratCard+crCard+sec('Waiting for internal review',by('IN_REVIEW'))+sec('Waiting for the client',by('CLIENT_REVIEW'))+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Approved — ready to publish',by('APPROVED'))+sec('Published',by('PUBLISHED'))};
 /* calendar */
 S.cm='2026-11';
 S.cb='';
@@ -2918,32 +3211,9 @@ async function hydrateFromBackend(){
    }
   }
   if(notifsData){
-   const nList=Array.isArray(notifsData)?notifsData:(notifsData.notifications||[]);
-   if(nList.length){
-    D.notifications.rows=nList.map(n=>{
-     const title=n.title||n.message||'Notification';
-     const low=(String(n.type||'')+' '+title).toLowerCase();
-     const brandFromData=n.data?.brandName||D.brands.rows.find(b=>title.includes(b.name))?.name||'';
-     const link=low.includes('onboarding')||low.includes('brief')
-      ?{k:'onboarding',brand:brandFromData||BR[0]||''}
-      :low.includes('strategy')
-       ?{k:'strategy',brand:brandFromData||BR[0]||''}
-       :low.includes('client_request')||low.includes('client request')
-        ?{k:'requests'}
-        :low.includes('review')||low.includes('approved')||low.includes('published')||low.includes('change_request')
-         ?{k:'review',brand:brandFromData||BR[0]||''}
-         :{k:'tasks'};
-     return {
-      _id:n.id,title,
-      createdAt:n.createdAt?String(n.createdAt).slice(0,16).replace('T',' '):'just now',
-      isRead:Boolean(n.isRead),link
-     };
-    });
-    loadStoredNotifs().slice().reverse().forEach(sn=>{
-     if(sn?.title&&!D.notifications.rows.some(x=>x.title===sn.title))D.notifications.rows.unshift(sn);
-    });
-   }
+   applyApiNotifications(notifsData);
   }
+  startNotificationPolling();
   if(progressData&&typeof progressData==='object'){
    API_CACHE.progress=progressData;
   }
@@ -3079,8 +3349,55 @@ doLogin=async function(){
  _origDoLogin();
 };
 
+const NOTIF_POLL_MS=30000;
+let _notifPollTimer=null;
+function applyApiNotifications(notifsData){
+ if(!notifsData)return false;
+ const nList=Array.isArray(notifsData)?notifsData:(notifsData.notifications||[]);
+ if(!nList.length)return false;
+ D.notifications.rows=nList.map(n=>{
+  const title=n.title||n.message||'Notification';
+  const low=(String(n.type||'')+' '+title).toLowerCase();
+  const brandFromData=n.data?.brandName||D.brands.rows.find(b=>title.includes(b.name))?.name||'';
+  const link=low.includes('onboarding')||low.includes('brief')
+   ?{k:'onboarding',brand:brandFromData||BR[0]||''}
+   :low.includes('strategy')
+    ?{k:'strategy',brand:brandFromData||BR[0]||''}
+    :low.includes('client_request')||low.includes('client request')
+     ?{k:'requests'}
+     :low.includes('review')||low.includes('approved')||low.includes('published')||low.includes('change_request')
+      ?{k:'review',brand:brandFromData||BR[0]||''}
+      :{k:'tasks'};
+  return {
+   _id:n.id,title,
+   createdAt:n.createdAt?String(n.createdAt).slice(0,16).replace('T',' '):'just now',
+   isRead:Boolean(n.isRead),link
+  };
+ });
+ loadStoredNotifs().slice().reverse().forEach(sn=>{
+  if(sn?.title&&!D.notifications.rows.some(x=>x.title===sn.title))D.notifications.rows.unshift(sn);
+ });
+ return true;
+}
+async function refreshNotifications(){
+ if(!S.authed||S.offlineMode||!getApiToken())return false;
+ const notifsData=await apiCall('/notifications').catch(()=>null);
+ if(!applyApiNotifications(notifsData))return false;
+ render(false);
+ return true;
+}
+function stopNotificationPolling(){
+ if(_notifPollTimer){clearInterval(_notifPollTimer);_notifPollTimer=null}
+}
+function startNotificationPolling(){
+ stopNotificationPolling();
+ if(!S.authed||S.offlineMode||!getApiToken())return;
+ _notifPollTimer=setInterval(()=>{refreshNotifications().catch(()=>{})},NOTIF_POLL_MS);
+}
+
 const _origLogout=logout;
 logout=function(){
+ stopNotificationPolling();
  if(getApiToken()&&!S.offlineMode){
   apiCall('/auth/logout',{method:'POST'}).catch(()=>{});
  }
@@ -3883,6 +4200,7 @@ function cleanupOrviaListeners(){
  }
  document.removeEventListener('keydown',onKeyDown);
  stopResetTimers();
+ stopNotificationPolling();
  if(_searchTimer){clearTimeout(_searchTimer);_searchTimer=null}
 }
 function bindOrviaListeners(){
@@ -3903,4 +4221,4 @@ else if(window.location.hash==='#landing'||window.location.hash==='#home')S.auth
 
 applyTheme();
 render();
-Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,LANDING_MSGS,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,openLanding,sendLandingContact,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,reviewChangesModal,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,confirmPubRec,loadItemRevisions,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,loadCalendarMonth,reqNew,reqReview,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,calcMemberPerf,memberPerfDet,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
+Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,LANDING_MSGS,AUTH_LOCKOUT,AUTH_AUDIT,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,openLanding,sendLandingContact,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,pvS,dlS,sgo,newPlan,newCamp,editCamp,saveEditCamp,delCamp,doDelCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,reviewChangesModal,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,refreshNotifications,startNotificationPolling,stopNotificationPolling,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,confirmPubRec,loadItemRevisions,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,loadCalendarMonth,reqNew,reqReview,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,calcMemberPerf,memberPerfDet,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});

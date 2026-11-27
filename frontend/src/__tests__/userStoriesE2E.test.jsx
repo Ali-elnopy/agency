@@ -1060,4 +1060,760 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     expect(window.LANDING_MSGS.length).toBeGreaterThan(0);
     expect(document.getElementById('app')?.textContent || '').toContain('Your message has been received');
   });
+
+  it('17. Content Creator items: POST/REEL/STORY only, auto-link from campaign, edit all 8 fields (including reference & tone), delete confirmation, and filter by type', async () => {
+    window.STR['Lumen Skincare'].st = 'forwarded';
+    window.STR['Lumen Skincare'].out = 'approved';
+
+    loginAs('lina@agency-clean.co', 'Creator123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('cc');
+    });
+
+    const plan = window.PLANS[0];
+    // 1. Create from campaign -> auto-linked to that campaign, and only POST/REEL/STORY options exist
+    window.newItem(plan.id, 'Winter Glow');
+    const typeOpts = [...document.querySelectorAll('.dlg [data-f="type"] option')].map((o) => o.value);
+    expect(typeOpts).toEqual(['POST', 'REEL', 'STORY']);
+    expect(document.querySelector('.dlg [data-f="campaign"]').value).toBe('Winter Glow');
+
+    document.querySelector('.dlg [data-f="title"]').value = 'Holiday story teaser';
+    document.querySelector('.dlg [data-f="type"]').value = 'STORY';
+    document.querySelector('.dlg [data-f="date"]').value = '2026-11-29';
+    document.querySelector('.dlg [data-f="reference"]').value = 'https://ref.example.com/moodboard';
+    document.querySelector('.dlg [data-f="toneOfVoice"]').value = 'Warm & festive';
+    document.querySelector('.dlg [data-f="notes"]').value = 'Keep product centered';
+    window.itSave(plan.id);
+
+    const created = plan.items.find((i) => i.title === 'Holiday story teaser');
+    expect(created).toBeTruthy();
+    expect(created.campaign).toBe('Winter Glow');
+    expect(created.reference).toBe('https://ref.example.com/moodboard');
+    expect(created.toneOfVoice).toBe('Warm & festive');
+
+    // 2. Filter list by type (STORY shows new item, hides REEL)
+    window.S.det = null;
+    window.S.page = 'brands';
+    window.S.brand = 'Lumen Skincare';
+    window.S.sub = 'platforms';
+    window.S.itf = 'STORY';
+    window.view(false);
+    const vText = document.getElementById('view')?.textContent || '';
+    expect(vText).toContain('Holiday story teaser');
+    expect(vText).not.toContain('Serum routine reel');
+    window.S.itf = 'all';
+
+    // 3. Deleting requires confirmation modal
+    window.delItem(created.id);
+    expect(document.querySelector('.dlg')?.textContent || '').toContain('Delete this content item?');
+    expect(plan.items.some((i) => i.id === created.id)).toBe(true);
+    window.doDelItem(created.id);
+    expect(plan.items.some((i) => i.id === created.id)).toBe(false);
+  });
+
+  it('18. Client Onboarding category selection: blocks continuing without both Main Category and Activity Type, scopes Activity Types to selected category, and saves selection', async () => {
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('client');
+    });
+
+    window.OB.submitted = false;
+    window.OB.step = 'category';
+    window.OB.cat = '';
+    window.OB.act = '';
+    window.go('onboarding');
+    window.view(false);
+
+    // Cannot continue without selecting both
+    await window.obSelectCategory();
+    expect(window.OB.step).toBe('category');
+
+    // Selecting Main Category only -> still blocked, Activity Types scoped to Food only
+    window.OB.cat = 'Food';
+    window.view(false);
+    const actOpts = [...document.querySelectorAll('#view select')][1];
+    const actVals = [...actOpts.querySelectorAll('option')].map((o) => o.value).filter(Boolean);
+    expect(actVals).toEqual(['Cafe', 'Restaurant', 'Bakery']);
+    await window.obSelectCategory();
+    expect(window.OB.step).toBe('category');
+
+    // Selecting both -> saves and advances to form
+    window.OB.act = 'Cafe';
+    await window.obSelectCategory();
+    expect(window.OB.step).toBe('form');
+  });
+
+  it('19. Strategy upload linked to brief: shows Brand, Linked brief, File, Upload date, Version, Status + Preview & Download + keeps Previous versions', async () => {
+    loginAs('lina@agency-clean.co', 'Creator123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('cc');
+    });
+
+    window.S.page = 'brands';
+    window.S.brand = 'Nord Coffee';
+    window.S.sub = 'strategy';
+    window.view(false);
+
+    // Upload v2 (v1 already exists on Nord Coffee) -> keeps v1 in Previous versions
+    if (!URL.createObjectURL) URL.createObjectURL = () => 'blob:test-strategy';
+    const fakeFile = new File(['strategy content'], 'nord-strategy-v2.pdf', { type: 'application/pdf' });
+    window.upS({ files: [fakeFile] });
+
+    const viewText = document.getElementById('view')?.textContent || '';
+    expect(viewText).toContain('Linked brief');
+    expect(viewText).toContain('Upload date');
+    expect(viewText).toContain('nord-strategy-v2.pdf');
+    expect(viewText).toContain('Previous versions (1)');
+    expect(viewText).toContain('Preview');
+    expect(viewText).toContain('Download');
+
+    // Preview opens strategy preview modal
+    window.pvS();
+    expect(document.querySelector('.dlg')?.textContent || '').toContain('Strategy preview — nord-strategy-v2.pdf');
+    window.closeM();
+  });
+
+  it('20. AM internal strategy review: uploaded strategies appear in review list, preview & download work, returning requires comments and sets Requested Changes, internal approval moves to client sending', async () => {
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('am');
+    });
+
+    // Uploaded strategies appear in the AM Internal review list
+    window.STR['Nord Coffee'].st = 'am';
+    window.STR['Nord Coffee'].out = null;
+    const expectedFile = window.STR['Nord Coffee'].file;
+    window.go('review');
+    window.view(false);
+    const reviewText = document.getElementById('view')?.textContent || '';
+    expect(reviewText).toContain('Uploaded strategies for internal review');
+    expect(reviewText).toContain('Nord Coffee');
+    expect(reviewText).toContain(expectedFile);
+    expect(reviewText).toContain('Preview');
+    expect(reviewText).toContain('Download');
+
+    // AM can preview directly from the review list
+    window.pvS('Nord Coffee');
+    expect(document.querySelector('.dlg')?.textContent || '').toContain('Strategy preview — ' + expectedFile);
+    window.closeM();
+
+    // Open Nord Coffee strategy review screen
+    window.goTo({ k: 'strategy', brand: 'Nord Coffee' });
+    window.view(false);
+
+    // Returning without comments is blocked
+    document.getElementById('rs').value = '   ';
+    window.sgo('am_reject');
+    expect(window.STR['Nord Coffee'].st).toBe('am');
+
+    // Returning with comments sets status to Requested Changes
+    document.getElementById('rs').value = 'Clarify Q4 budget allocation and target KPIs.';
+    window.sgo('am_reject');
+    expect(window.STR['Nord Coffee'].st).toBe('forwarded');
+    expect(window.STR['Nord Coffee'].out).toBe('rejected');
+    expect(document.getElementById('view')?.textContent || '').toContain('Requested Changes');
+
+    // Simulate CC re-uploading and sending -> AM approves internally -> moves to client sending
+    window.STR['Nord Coffee'].st = 'am';
+    window.STR['Nord Coffee'].out = null;
+    window.view(false);
+    window.sgo('client');
+    expect(window.STR['Nord Coffee'].st).toBe('client');
+    expect(document.getElementById('view')?.textContent || '').toContain('Sent to Client');
+  });
+
+  it('21. AM notifications: navbar bell unread count, click bell to view list, mark one/all as read, periodic refresh, and Bearer token on all requests', async () => {
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('am');
+    });
+
+    const apiCalls = [];
+    window.S.offlineMode = false;
+    window.setApiTokens('am-access-token-123', 'am-refresh-token');
+    global.fetch = vi.fn(async (url, opts = {}) => {
+      apiCalls.push({ url: String(url), method: opts.method || 'GET', auth: opts.headers?.Authorization || '' });
+      if (String(url).endsWith('/notifications') && (opts.method || 'GET') === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: {
+              notifications: [
+                { id: 'n-1', title: 'Nord Coffee uploaded strategy v2', isRead: false, type: 'STRATEGY', createdAt: '2026-11-28T00:10:00Z' },
+                { id: 'n-2', title: 'Lumen Skincare submitted onboarding', isRead: false, type: 'ONBOARDING', createdAt: '2026-11-28T00:05:00Z' },
+              ],
+            },
+          }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({ success: true, data: {} }) };
+    });
+
+    // Periodic refresh fetches notifications with access token and updates bell unread count
+    await window.refreshNotifications();
+    const bellBtn = document.querySelector('button[aria-label="Notifications"]');
+    expect(bellBtn).toBeTruthy();
+    expect(bellBtn.textContent).toContain('2');
+
+    // Clicking the bell opens the notification list
+    expect(bellBtn.getAttribute('onclick')).toBe("go('notifications')");
+    window.go('notifications');
+    expect(window.S.page).toBe('notifications');
+    window.view(false);
+    const listText = document.getElementById('view')?.textContent || '';
+    expect(listText).toContain('Notifications');
+    expect(listText).toContain('Auto-refreshes every 30s');
+    expect(listText).toContain('Nord Coffee uploaded strategy v2');
+
+    // Mark one notification as read -> unread count drops to 1 and PATCH uses Bearer token
+    window.markRead(0);
+    expect(document.querySelector('button[aria-label="Notifications"]')?.textContent || '').toContain('1');
+
+    // Mark all as read -> unread count clears and PATCH /notifications/read-all uses Bearer token
+    window.markAllRead();
+    expect(document.querySelector('button[aria-label="Notifications"]')?.textContent || '').toBe('');
+
+    const getCall = apiCalls.find((c) => c.url.endsWith('/notifications') && c.method === 'GET');
+    const oneCall = apiCalls.find((c) => c.url.endsWith('/notifications/n-1/read') && c.method === 'PATCH');
+    const allCall = apiCalls.find((c) => c.url.endsWith('/notifications/read-all') && c.method === 'PATCH');
+    expect(getCall?.auth).toBe('Bearer am-access-token-123');
+    expect(oneCall?.auth).toBe('Bearer am-access-token-123');
+    expect(allCall?.auth).toBe('Bearer am-access-token-123');
+  });
+
+  it('22. Monthly content plans: filter by brand/status/month/year, validate title/year/month(1-12), CC-only edit/delete, 4 statuses, and linked campaign/item delete warning', async () => {
+    loginAs('lina@agency-clean.co', 'Creator123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('cc');
+    });
+
+    // Unlock Lumen Skincare strategy & open platforms/plans
+    window.STR['Lumen Skincare'].st = 'forwarded';
+    window.STR['Lumen Skincare'].out = 'approved';
+    window.S.page = 'brands';
+    window.S.brand = 'Lumen Skincare';
+    window.S.sub = 'platforms';
+    window.view(false);
+
+    // Filter controls for brand, status, month, year exist
+    expect(document.querySelector('select[aria-label="Filter plans by brand"]')).toBeTruthy();
+    expect(document.querySelector('select[aria-label="Filter plans by status"]')).toBeTruthy();
+    expect(document.querySelector('select[aria-label="Filter plans by month"]')).toBeTruthy();
+    expect(document.querySelector('select[aria-label="Filter plans by year"]')).toBeTruthy();
+
+    // Creating a plan validates title, year, and month (1 to 12)
+    const beforeCount = window.PLANS.length;
+    window.newPlanP(0);
+    document.querySelector('.dlg [data-f="title"]').value = 'Dec · Lumen Plan';
+    document.querySelector('.dlg [data-f="year"]').value = '2026';
+    document.querySelector('.dlg [data-f="monthNum"]').value = '13'; // invalid month
+    window.askOk();
+    expect(window.PLANS.length).toBe(beforeCount);
+
+    document.querySelector('.dlg [data-f="monthNum"]').value = '12'; // valid month
+    window.askOk();
+    expect(window.PLANS.length).toBe(beforeCount + 1);
+    const created = window.PLANS[window.PLANS.length - 1];
+    expect(created.year).toBe(2026);
+    expect(created.monthNum).toBe(12);
+
+    // Status can be set to Draft, In Review, Needs Changes, Approved
+    await window.setPlanStatus(created.id, 'IN_REVIEW');
+    expect(created.status).toBe('IN_REVIEW');
+    await window.setPlanStatus(created.id, 'NEEDS_CHANGES');
+    expect(created.status).toBe('NEEDS_CHANGES');
+    await window.setPlanStatus(created.id, 'APPROVED');
+    expect(created.status).toBe('APPROVED');
+    await window.setPlanStatus(created.id, 'DRAFT');
+    expect(created.status).toBe('DRAFT');
+
+    // Filter by month=12 shows only the December plan
+    window.S.pf = { brand: 'Lumen Skincare', status: 'DRAFT', month: '12', year: '2026' };
+    window.view(false);
+    const filteredText = document.getElementById('view')?.textContent || '';
+    expect(filteredText).toContain('Dec · Lumen Plan');
+    expect(filteredText).not.toContain('Nov · Lumen Skincare');
+
+    // Deleting a plan with linked campaigns/items shows a warning
+    window.delPlan(1); // Nov · Lumen Skincare has 1 campaign + items
+    const warnDlg = document.querySelector('.dlg')?.textContent || '';
+    expect(warnDlg).toContain('Warning:');
+    expect(warnDlg).toContain('linked campaign');
+    expect(warnDlg).toContain('linked content item');
+    window.closeM();
+
+    // Only Content Creator can edit or delete a plan (AM is blocked)
+    window.S.role = 'am';
+    const countBeforeAmDel = window.PLANS.length;
+    window.editPlan(created.id);
+    expect(document.querySelector('.dlg')).toBeFalsy();
+    window.delPlan(created.id);
+    expect(document.querySelector('.dlg')).toBeFalsy();
+    window.doDelPlan(created.id);
+    expect(window.PLANS.length).toBe(countBeforeAmDel);
+  });
+
+  it('23. Role-based visibility (hidden not disabled for non-CC), loading/empty/error/success states, and inline field errors preventing invalid submit', async () => {
+    // 1. Account Manager sees read-only plan/item views with create/edit/delete HIDDEN (not disabled)
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('am');
+    });
+    window.STR['Lumen Skincare'].st = 'forwarded';
+    window.STR['Lumen Skincare'].out = 'approved';
+    window.S.page = 'brands';
+    window.S.brand = 'Lumen Skincare';
+    window.S.sub = 'platforms';
+    window.view(false);
+
+    const amBtns = [...document.querySelectorAll('#view button')].map((b) => b.textContent.trim());
+    expect(amBtns).not.toContain('+ New plan');
+    expect(amBtns).not.toContain('+ Campaign');
+    expect(amBtns).not.toContain('+ Content item');
+    expect(amBtns).not.toContain('Edit plan');
+    expect(amBtns).not.toContain('Delete plan');
+
+    // 2. Loading skeleton renders when view(true) is called
+    window.view(true);
+    expect(document.querySelector('#view .sk')).toBeTruthy();
+
+    // 3. Content Creator sees create/edit/delete and gets inline field errors next to invalid fields without submitting
+    window.S.role = 'cc';
+    window.view(false);
+    const ccBtns = [...document.querySelectorAll('#view button')].map((b) => b.textContent.trim());
+    expect(ccBtns).toContain('+ New plan');
+    expect(ccBtns).toContain('Edit plan');
+    expect(ccBtns).toContain('Delete plan');
+
+    const beforePlans = window.PLANS.length;
+    window.newPlanP(0);
+    document.querySelector('.dlg [data-f="title"]').value = '';
+    document.querySelector('.dlg [data-f="year"]').value = '99';
+    document.querySelector('.dlg [data-f="monthNum"]').value = '15';
+    window.askOk();
+    expect(window.PLANS.length).toBe(beforePlans);
+    const errs = [...document.querySelectorAll('.dlg .ferr')].map((e) => e.textContent);
+    expect(errs.length).toBe(3);
+    expect(errs.join(' ')).toContain('Title is required.');
+    expect(errs.join(' ')).toContain('Month must be a number from 1 to 12.');
+    window.closeM();
+
+    // 4. Empty state renders when no plans match filters
+    window.S.pf = { brand: 'Lumen Skincare', status: 'APPROVED', month: '1', year: '2025' };
+    window.view(false);
+    expect(document.getElementById('view')?.textContent || '').toContain('No matching content plans');
+  });
+
+  it('24. Employee My Work: shows only own tasks, 5 summary cards (total/overdue/due soon/in progress/completed), filters (status/priority/type/deadline), and AM sees own tasks in My Work & Tasks', async () => {
+    loginAs('karim@agency-clean.co', 'Creative123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('emp');
+    });
+
+    window.go('tasks');
+    window.view(false);
+    const empText = document.getElementById('view')?.textContent || '';
+
+    // Only Karim Fouad's tasks appear, never Lina Aziz's or Omar Haddad's tasks
+    expect(empText).toContain('My Work');
+    expect(empText).toContain('Write captions');
+    expect(empText).toContain('Competitor research · Nord Coffee');
+    expect(empText).not.toContain('Design serum reel cover');
+    expect(empText).not.toContain('Media buying brief');
+
+    // Summary cards: Total tasks, Overdue, Due soon, In progress, Completed
+    expect(empText).toContain('Total tasks');
+    expect(empText).toContain('Overdue');
+    expect(empText).toContain('Due soon');
+    expect(empText).toContain('In progress');
+    expect(empText).toContain('Completed');
+
+    // Columns: Title, Type, Related content, Effective deadline, Priority, Status
+    expect(empText).toContain('Title');
+    expect(empText).toContain('Type');
+    expect(empText).toContain('Related content');
+    expect(empText).toContain('Effective deadline');
+    expect(empText).toContain('Priority');
+    expect(empText).toContain('Status');
+
+    // Filters for status, priority, task type, deadline exist and filter results
+    expect(document.querySelector('select[aria-label="Status"]')).toBeTruthy();
+    expect(document.querySelector('select[aria-label="Priority"]')).toBeTruthy();
+    expect(document.querySelector('select[aria-label="Task type"]')).toBeTruthy();
+    expect(document.querySelector('select[aria-label="Deadline"]')).toBeTruthy();
+
+    window.S.tp = 'URGENT';
+    window.view(false);
+    const urgentText = document.getElementById('view')?.textContent || '';
+    expect(urgentText).toContain('Competitor research · Nord Coffee');
+    expect(urgentText).not.toContain('Write captions');
+    window.S.tp = 'all';
+
+    // Account Manager sees own tasks in My Work as well as in Tasks
+    window.S.role = 'am';
+    window.S.tw = 'mine';
+    window.view(false);
+    const amMine = document.getElementById('view')?.textContent || '';
+    expect(amMine).toContain('Media buying brief');
+    expect(amMine).not.toContain('Competitor research · Nord Coffee');
+
+    window.S.tw = 'team';
+    window.view(false);
+    const amTeam = document.getElementById('view')?.textContent || '';
+    expect(amTeam).toContain('Media buying brief');
+    expect(amTeam).toContain('Competitor research · Nord Coffee');
+  });
+
+  it('25. Task context path: linked tasks show Brand > Platform > Content Plan > Campaign > Content Item > Task with role-aware clickable links; direct tasks show no content path', async () => {
+    loginAs('karim@agency-clean.co', 'Creative123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('emp');
+    });
+
+    window.go('tasks');
+    window.view(false);
+    const rows = [...document.querySelectorAll('#view tbody tr')];
+    const linkedRow = rows.find((r) => r.textContent.includes('Write captions'));
+    const directRow = rows.find((r) => r.textContent.includes('Competitor research · Nord Coffee'));
+    expect(linkedRow).toBeTruthy();
+    expect(directRow).toBeTruthy();
+
+    // Linked task shows full Brand > Platform > Plan > Campaign > Item > Task path
+    const linkedPath = linkedRow.querySelector('.ctx-path')?.textContent || '';
+    expect(linkedPath).toContain('Lumen Skincare > Instagram > Nov plan > Winter Glow > Gift-set carousel > Write captions');
+
+    // Employee has clickable links for Content Item & Task, but NOT Brand (no brands access)
+    const empLinks = [...linkedRow.querySelectorAll('.ctx-path a.lk')].map((a) => a.textContent);
+    expect(empLinks).toContain('Gift-set carousel');
+    expect(empLinks).toContain('Write captions');
+    expect(empLinks).not.toContain('Lumen Skincare');
+
+    // Direct task shows no content path
+    expect(directRow.querySelector('.ctx-path')).toBeFalsy();
+
+    // Account Manager (who has brands access) gets clickable links for all path segments
+    window.S.role = 'am';
+    window.S.tw = 'team';
+    window.view(false);
+    const amLinkedRow = [...document.querySelectorAll('#view tbody tr')].find((r) => r.textContent.includes('Write captions'));
+    const amLinks = [...amLinkedRow.querySelectorAll('.ctx-path a.lk')].map((a) => a.textContent);
+    expect(amLinks).toContain('Lumen Skincare');
+    expect(amLinks).toContain('Instagram');
+    expect(amLinks).toContain('Nov plan');
+    expect(amLinks).toContain('Winter Glow');
+    expect(amLinks).toContain('Gift-set carousel');
+    expect(amLinks).toContain('Write captions');
+  });
+
+  it('26. Browse brands and platform accounts: search & filters on brands list, brand details list linked platform accounts, opening a platform shows its content plans, and breadcrumbs show location', async () => {
+    loginAs('lina@agency-clean.co', 'Creator123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('cc');
+    });
+
+    // Brands list supports search and status/team filters
+    window.go('brands');
+    window.view(false);
+    expect(document.querySelector('select[aria-label="Filter brands by status"]')).toBeTruthy();
+    expect(document.querySelector('select[aria-label="Filter brands by team"]')).toBeTruthy();
+
+    window.S.q = 'Lumen';
+    window.view(false);
+    expect(document.getElementById('view')?.textContent || '').toContain('Lumen Skincare');
+    expect(document.getElementById('view')?.textContent || '').not.toContain('Nord Coffee');
+    window.S.q = '';
+
+    // Brand details show breadcrumb and list linked platform accounts
+    window.S.brand = 'Lumen Skincare';
+    window.S.sub = null;
+    window.view(false);
+    const brandText = document.getElementById('view')?.textContent || '';
+    expect(document.querySelector('nav[aria-label="Breadcrumb"]')?.textContent || '').toContain('Lumen Skincare');
+    expect(brandText).toContain('Linked platform accounts');
+    expect(brandText).toContain('@lumen.skin');
+
+    // Opening a platform account shows its content plans + breadcrumb
+    const platIdx = window.D.platform.rows.findIndex((p) => p.accountName === '@lumen.skin');
+    window.act('platform', platIdx, 'view');
+    const platText = document.getElementById('view')?.textContent || '';
+    expect(document.querySelector('nav[aria-label="Breadcrumb"]')?.textContent || '').toContain('@lumen.skin');
+    expect(platText).toContain('Content plans on this platform');
+    expect(platText).toContain('Nov · Lumen Skincare');
+  });
+
+  it('27. Full monthly plan page: header shows title/month/year/status/goals/notes, campaigns show dates & objective, unassigned items separate, and empty states when no campaigns/items', async () => {
+    loginAs('lina@agency-clean.co', 'Creator123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('cc');
+    });
+
+    // Open full monthly plan (id=1: Nov · Lumen Skincare)
+    window.openD({ t: 'plan', id: 1 });
+    const planText = document.getElementById('view')?.textContent || '';
+    expect(planText).toContain('Nov · Lumen Skincare');
+    expect(planText).toContain('Nov (11)');
+    expect(planText).toContain('2026');
+    expect(planText).toContain('Monthly goals');
+    expect(planText).toContain('Increase holiday gift-set conversions by 25%');
+    expect(planText).toContain('Notes');
+    expect(planText).toContain('Coordinate reel drops with Meta ad bursts.');
+    expect(planText).toContain('Winter Glow');
+    expect(planText).toContain('2026-11-10 → 2026-11-30');
+    expect(planText).toContain('Objective: Drive holiday gift-set sales');
+    expect(planText).toContain('Unassigned to a campaign');
+
+    // Empty plan shows empty states for campaigns and unassigned items
+    window.PLANS.push({
+      id: 777,
+      brand: 'Lumen Skincare',
+      platform: '@lumen.skin',
+      title: 'Jan · Empty Plan',
+      month: 'Jan 2027',
+      year: 2027,
+      monthNum: 1,
+      status: 'DRAFT',
+      monthlyGoals: 'Launch new year campaign',
+      notes: 'Draft notes',
+      campaigns: [],
+      items: [],
+    });
+    window.openD({ t: 'plan', id: 777 });
+    const emptyPlanText = document.getElementById('view')?.textContent || '';
+    expect(emptyPlanText).toContain('No campaigns yet');
+    expect(emptyPlanText).toContain('No content items yet.');
+  });
+
+  it('28. Campaigns within a plan: require name & dates with endDate > startDate, show items on details page, CC can edit, and deleting with linked items warns & requires confirmation on unassigning', async () => {
+    loginAs('lina@agency-clean.co', 'Creator123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('cc');
+    });
+
+    window.STR['Lumen Skincare'].st = 'forwarded';
+    window.STR['Lumen Skincare'].out = 'approved';
+
+    // Create campaign validates name, startDate, endDate, and endDate > startDate
+    const p = window.PLANS[0];
+    const startCount = p.campaigns.length;
+    window.newCamp(p.id);
+    document.querySelector('.dlg [data-f="title"]').value = 'Black Friday Push';
+    document.querySelector('.dlg [data-f="startDate"]').value = '2026-11-25';
+    document.querySelector('.dlg [data-f="endDate"]').value = '2026-11-20'; // invalid: before start
+    window.askOk();
+    expect(p.campaigns.length).toBe(startCount);
+    expect(document.querySelector('.dlg .ferr')?.textContent || '').toContain('End date must be after start date.');
+
+    document.querySelector('.dlg [data-f="endDate"]').value = '2026-11-30'; // valid
+    window.askOk();
+    expect(p.campaigns.length).toBe(startCount + 1);
+
+    // Campaign details page shows its content items and Edit/Delete actions for CC
+    window.openD({ t: 'camp', p: p.id, n: 0 });
+    const campText = document.getElementById('view')?.textContent || '';
+    expect(campText).toContain('Winter Glow');
+    expect(campText).toContain('Serum routine reel');
+    expect(campText).toContain('Edit campaign');
+    expect(campText).toContain('Delete campaign');
+
+    // CC can edit campaign name & dates (updates linked items too)
+    window.editCamp(p.id, 0);
+    document.getElementById('ec-name').value = 'Winter Glow Updated';
+    document.getElementById('ec-start').value = '2026-11-12';
+    document.getElementById('ec-end').value = '2026-11-29';
+    window.saveEditCamp(p.id, 0);
+    expect(p.campaigns[0].name).toBe('Winter Glow Updated');
+    expect(p.items.some((i) => i.campaign === 'Winter Glow Updated')).toBe(true);
+
+    // Deleting a campaign with linked items shows warning and requires confirmation on unassigning
+    window.delCamp(p.id, 0);
+    const delText = document.querySelector('.dlg')?.textContent || '';
+    expect(delText).toContain('Warning:');
+    expect(delText).toContain('linked content item');
+    // Without choosing option, deletion is blocked
+    window.doDelCamp(p.id, 0);
+    expect(p.campaigns[0].name).toBe('Winter Glow Updated');
+    // Choose "unassign" -> campaign deleted and linked items moved to Unassigned ('—')
+    document.getElementById('dc-mode').value = 'unassign';
+    window.doDelCamp(p.id, 0);
+    expect(p.campaigns.some((c) => c.name === 'Winter Glow Updated')).toBe(false);
+    expect(p.items.some((i) => i.title === 'Serum routine reel' && i.campaign === '—')).toBe(true);
+  });
+
+  it('29. Task status workflow: 7 statuses, blocks invalid transitions, action buttons only (no free status dropdown), and records every status change in audit log', async () => {
+    loginAs('karim@agency-clean.co', 'Creative123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('emp');
+    });
+
+    window.go('tasks');
+    window.view(false);
+
+    // No free status dropdown on task rows (only the filter dropdown in toolbar)
+    expect(document.querySelectorAll('#view tbody select').length).toBe(0);
+
+    // Invalid transition: Direct task #4 is TODO -> jumping directly to COMPLETED is blocked
+    const task4 = window.TK.find((t) => t.id === 4);
+    expect(task4.status).toBe('TODO');
+    window.tset(4, 'COMPLETED');
+    expect(task4.status).toBe('TODO');
+
+    // Valid transition: TODO -> IN_PROGRESS -> COMPLETED
+    window.tset(4, 'IN_PROGRESS');
+    expect(task4.status).toBe('IN_PROGRESS');
+    window.tset(4, 'COMPLETED');
+    expect(task4.status).toBe('COMPLETED');
+
+    // Terminal status COMPLETED blocks further transitions
+    window.tset(4, 'IN_PROGRESS');
+    expect(task4.status).toBe('COMPLETED');
+
+    // Audit log records every status change and renders on task details
+    expect(task4.auditLog.length).toBe(2);
+    expect(task4.auditLog[0]).toMatchObject({ from: 'IN_PROGRESS', to: 'COMPLETED' });
+    expect(task4.auditLog[1]).toMatchObject({ from: 'TODO', to: 'IN_PROGRESS' });
+
+    window.openD({ t: 'task', id: 4 });
+    const detText = document.getElementById('view')?.textContent || '';
+    expect(detText).toContain('Required action');
+    expect(detText).toContain('Waiting on');
+    expect(detText).toContain('Status audit log (2)');
+    expect(detText).toContain('TODO → IN_PROGRESS');
+    expect(detText).toContain('IN_PROGRESS → COMPLETED');
+  });
+
+  it('30. Task page states: loading skeleton, clear empty state, error state with Retry, highlighted Overdue & Needs Changes rows, and field-specific validation errors', async () => {
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('am');
+    });
+
+    window.go('tasks');
+
+    // 1. Loading state renders skeleton
+    window.view(true);
+    expect(document.querySelector('#view .sk')).toBeTruthy();
+
+    // 2. Overdue and Needs Changes rows are visually highlighted
+    window.S.tw = 'team';
+    window.view(false);
+    expect(document.querySelector('tr[data-highlight="overdue"]')).toBeTruthy();
+    expect(document.querySelector('tr[data-highlight="needs-changes"]')).toBeTruthy();
+
+    // 3. Error state shows message with Retry button
+    window.S.taskErr = 'Could not load tasks from server.';
+    window.view(false);
+    const errText = document.getElementById('view')?.textContent || '';
+    expect(errText).toContain('Could not load tasks from server.');
+    expect(errText).toContain('Retry');
+    window.S.taskErr = '';
+
+    // 4. Empty state shows clear message when no tasks match
+    window.S.tw = 'mine';
+    window.S.ts = 'CANCELLED';
+    window.view(false);
+    expect(document.getElementById('view')?.textContent || '').toContain('No tasks assigned to you right now.');
+    window.S.ts = 'all';
+
+    // 5. Validation errors point to the specific fields in New direct task modal
+    window.newTask();
+    document.getElementById('dt1').value = '';
+    document.getElementById('dt5').value = '';
+    window.saveTask();
+    const errs = [...document.querySelectorAll('.dlg .ferr')].map((e) => e.textContent);
+    expect(errs).toContain('Title is required.');
+    expect(errs).toContain('Planned deadline is required.');
+    window.closeM();
+  });
+
+  it('31. Client login security: inline validation, generic wrong-credentials error, 5 failed attempts lockout, deactivated block, own-brand-only redirect, logout protection, and auth audit log', async () => {
+    // 1. 5 failed attempts lock the Client account temporarily and record LOGIN_FAILED / LOGIN_LOCKED in audit log
+    for (let i = 0; i < 4; i++) {
+      loginAs('sara@lumen.com', 'WrongPass123!');
+      await vi.waitFor(() => {
+        expect(window.S.err.password).toBe('Invalid email or password.');
+        expect(window.S.authed).toBe(false);
+      });
+    }
+    loginAs('sara@lumen.com', 'WrongPass123!');
+    await vi.waitFor(() => {
+      expect(window.S.err.password).toContain('temporarily locked');
+      expect(window.S.authed).toBe(false);
+    });
+    // Even with the right password while locked, login is blocked
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => {
+      expect(window.S.err.password).toContain('temporarily locked');
+      expect(window.S.authed).toBe(false);
+    });
+    expect(window.AUTH_AUDIT.some((e) => e.event === 'LOGIN_FAILED' && e.email === 'sara@lumen.com')).toBe(true);
+    expect(window.AUTH_AUDIT.some((e) => e.event === 'LOGIN_LOCKED' && e.email === 'sara@lumen.com')).toBe(true);
+
+    // 2. After lockout expires, valid Client login succeeds, records LOGIN_SUCCESS, and redirects to own brand only
+    delete window.AUTH_LOCKOUT['sara@lumen.com'];
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('client');
+      expect(window.S.brand).toBe('Lumen Skincare');
+    });
+    expect(window.AUTH_AUDIT[0]).toMatchObject({ event: 'LOGIN_SUCCESS', email: 'sara@lumen.com' });
+
+    // 3. Logout ends session and returns to login screen
+    window.logout();
+    expect(window.S.authed).toBe(false);
+    expect(document.getElementById('app')?.textContent || '').toContain('Welcome back');
+  });
+
+  it('32. Deadlines: planned from content schedule, effective recalculated on handoff so Creator delay is not counted against Reviewer, Completed At recorded, and planned vs effective diff shown', async () => {
+    loginAs('lina@agency-clean.co', 'Creator123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(window.S.role).toBe('cc');
+    });
+
+    // Task #1 (Design serum reel cover) is overdue (eff=2026-11-17 < TODAY=2026-11-18)
+    // Linked Review task #2 has planned=2026-11-18
+    const creation = window.TK.find((t) => t.id === 1);
+    const review = window.TK.find((t) => t.id === 2);
+    expect(creation.eff).toBe('2026-11-17');
+    expect(review.planned).toBe('2026-11-18');
+
+    // Creator submits late -> Reviewer's effective deadline is recalculated from receipt (TODAY + 1d = 2026-11-19)
+    window.tset(1, 'SUBMITTED');
+    expect(review.status).toBe('IN_REVIEW');
+    expect(review.eff).toBe('2026-11-19');
+    expect(review.eff > review.planned).toBe(true); // fair window, NOT overdue!
+
+    // Reviewer sees planned vs effective difference clearly in Tasks
+    window.S.role = 'am';
+    window.go('tasks');
+    window.S.tw = 'mine';
+    window.view(false);
+    const amTasksText = document.getElementById('view')?.textContent || '';
+    expect(amTasksText).toContain('2026-11-19');
+    expect(amTasksText).toContain('planned 2026-11-18 (+1d shifted)');
+
+    // Approving records Completed At timestamp and shows it on task details
+    window.tset(2, 'COMPLETED');
+    expect(review.completedAt).toBeTruthy();
+    window.openD({ t: 'task', id: 2 });
+    const detText = document.getElementById('view')?.textContent || '';
+    expect(detText).toContain('Completed at');
+  });
 });
