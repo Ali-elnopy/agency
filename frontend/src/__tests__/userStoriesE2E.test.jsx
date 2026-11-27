@@ -422,4 +422,183 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     window.markAllRead();
     expect(calls.some((c) => c.method === 'PATCH' && c.path === '/notifications/read-all')).toBe(true);
   });
+
+  it('7. Sprint 4: Progress Tracking (AM), Workflow Rules (Internal -> Client -> Approve/Changes -> Edit after Approval -> Publish), and Client Requests API wiring', async () => {
+    const calls = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, opts = {}) => {
+        const path = String(url).replace(/^\/api/, '');
+        const method = opts.method || 'GET';
+        const body = typeof opts.body === 'string' ? JSON.parse(opts.body) : opts.body;
+        calls.push({ method, path, body });
+
+        if (path === '/auth/login') {
+          const isClient = body?.email === 'sara@lumen.com';
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              success: true,
+              data: {
+                accessToken: isClient ? 'jwt-client-token' : 'jwt-am-token',
+                refreshToken: 'ref-token',
+                user: isClient
+                  ? { id: 5, fullName: 'Sara Mansour', email: 'sara@lumen.com', isActive: true, role: { name: 'CLIENT' } }
+                  : { id: 2, fullName: 'Omar Haddad', email: 'omar@agency-clean.co', isActive: true, role: { name: 'ACCOUNT_MANAGER' } },
+              },
+            }),
+          };
+        }
+        if (path === '/dashboard/progress') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              success: true,
+              data: {
+                totalTasks: 10,
+                todoTasks: 2,
+                inProgressTasks: 3,
+                submittedTasks: 1,
+                inReviewTasks: 1,
+                needsChangesTasks: 0,
+                completedTasks: 3,
+                cancelledTasks: 0,
+                overdueTasks: 2,
+                completionRate: 30,
+              },
+            }),
+          };
+        }
+        if (path === '/dashboard/team-performance') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              success: true,
+              data: {
+                members: [
+                  {
+                    user: { id: 3, fullName: 'Lina Aziz', role: 'CONTENT_CREATOR' },
+                    totalAssignedTasks: 5,
+                    completedTasks: 3,
+                    inProgressTasks: 2,
+                    overdueTasks: 1,
+                    onTimeRate: 80,
+                  },
+                ],
+                totalMembers: 1,
+              },
+            }),
+          };
+        }
+        if (path === '/client-requests' && method === 'POST') {
+          return {
+            ok: true,
+            status: 201,
+            json: async () => ({
+              success: true,
+              data: { id: 91, type: body.type, description: body.description, status: 'PENDING', brandId: 1 },
+            }),
+          };
+        }
+        if (path === '/client-requests/91/accept' && method === 'PATCH') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              success: true,
+              data: {
+                request: { id: 91, status: 'ACCEPTED', employeeId: body.assignedTo },
+                task: { id: 501, title: 'Client Request: EXTRA_CONTENT', status: 'TODO', priority: body.priority || 'MEDIUM' },
+              },
+            }),
+          };
+        }
+        if (path === '/content-items/201/client-review' && method === 'POST') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              success: true,
+              data: { contentItem: { id: 201, clientReviewStatus: body.decision === 'APPROVE' ? 'APPROVED' : 'CHANGES_REQUESTED' } },
+            }),
+          };
+        }
+        if (path === '/content-items/201/publishing' && method === 'PATCH') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              success: true,
+              data: { id: 201, publishStatus: 'PUBLISHED', publishUrl: body.publishUrl },
+            }),
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({ success: true, data: {} }) };
+      }),
+    );
+
+    // 1. AM logs in -> Progress Tracking hydrates /dashboard/progress & /dashboard/team-performance
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => {
+      expect(window.S.authed).toBe(true);
+      expect(calls.some((c) => c.path === '/dashboard/progress')).toBe(true);
+      expect(calls.some((c) => c.path === '/dashboard/team-performance')).toBe(true);
+    });
+
+    window.go('reports');
+    window.view(false);
+    expect(document.body.textContent).toContain('Client plan execution progress');
+    expect(document.body.textContent).toContain('Overdue tasks');
+    expect(document.body.textContent).toContain('Content awaiting review');
+    expect(document.body.textContent).toContain('Workload by employee');
+    expect(document.body.textContent).toContain('Workload by team');
+
+    // 2. Client logs in -> submits a Client Request (POST /client-requests) & approves a CLIENT_REVIEW item (POST /content-items/:id/client-review)
+    window.logout();
+    loginAs('sara@lumen.com', 'Client123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('client'));
+
+    window.reqNew();
+    document.querySelector('[data-f="kind"]').value = 'Extra content';
+    document.querySelector('[data-f="text"]').value = 'Need 2 extra Ramadan stories';
+    window.askOk();
+    await vi.waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST' && c.path === '/client-requests' && c.body.type === 'EXTRA_CONTENT')).toBe(true);
+    });
+
+    const item = window.PLANS[0].items[1];
+    item._id = 201;
+    item.stage = 'CLIENT_REVIEW';
+    await window.mv(item.id, 'APPROVED');
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/content-items/201/client-review' && c.body.decision === 'APPROVE')).toBe(true);
+    expect(item.stage).toBe('APPROVED');
+
+    // 3. Edit after approval -> resets APPROVED to IN_REVIEW & preserves previous version + history
+    window.logout();
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+
+    window.editItem(item.id);
+    const titleEl = document.querySelector('.dlg [data-i="title"]');
+    if (titleEl) titleEl.value = 'Gift-set carousel (updated)';
+    window.itSave(window.PLANS[0].id, item.id);
+    expect(item.stage).toBe('IN_REVIEW');
+    expect((item.vers || []).length).toBeGreaterThan(0);
+    expect(item.hist.some((h) => h.a === 'Edited after approval')).toBe(true);
+
+    // 4. Publishing record -> PATCH /content-items/201/publishing
+    item.stage = 'APPROVED';
+    window.pubRec(item.id);
+    document.querySelector('[data-f="d"]').value = '2026-11-28';
+    document.querySelector('[data-f="u"]').value = 'https://instagram.com/p/lumen-winter-1';
+    document.querySelector('[data-f="n"]').value = 'Published on IG feed';
+    window.askOk();
+    await vi.waitFor(() => {
+      expect(calls.some((c) => c.method === 'PATCH' && c.path === '/content-items/201/publishing' && c.body.publishStatus === 'PUBLISHED')).toBe(true);
+      expect(item.stage).toBe('PUBLISHED');
+    });
+  });
 });

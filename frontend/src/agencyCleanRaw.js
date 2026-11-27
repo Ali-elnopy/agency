@@ -1798,19 +1798,130 @@ let ens=function(){PLANS.forEach(p=>p.items.forEach(i=>{i.stage=i.stage||({REVIE
 ens();PLANS[0].items[0].stage='IN_REVIEW';PLANS[0].items[1].stage='CLIENT_REVIEW';
 function logH(i,a,r){i.hist.push({at:now(),by:ME[S.role][0],role:ROLES[S.role],a,r:r||'',v:i.v})}
 const note=(t,b,int,to)=>D.notifications.rows.unshift({title:t+(b?' · '+b:''),createdAt:'Just now',isRead:false,internal:!!int,to});const rl=n=>Object.keys(MEN).find(k=>MEN[k]===n);
-function mv(id,to,reason){const[i,p]=fItem(id);if(!can2(i,to))return toast('That transition isn’t allowed');if(i.stage==='CHANGES_REQUESTED'){snapV(i);i.v++}const f=i.stage;i.stage=to;logH(i,STG[f]+' → '+STG[to],reason);note('“'+i.title+'” moved to '+STG[to].toLowerCase(),p.brand,!['CLIENT_REVIEW','APPROVED','PUBLISHED'].includes(to),{IN_REVIEW:['am','admin'],CLIENT_REVIEW:['client','cc','admin'],CHANGES_REQUESTED:['cc','am','admin'],APPROVED:['am','cc','admin'],PUBLISHED:['client','cc','admin']}[to]);toast('Moved to '+STG[to]);view(false)}
+let CHANGE_REQS=[];
+function loadItemRevisions(id){
+ const f=fItem(id);if(!f)return;
+ const [it]=f;
+ if(!it?._id||it._revsLoading||!getApiToken()||S.offlineMode)return;
+ it._revsLoading=true;
+ apiCall('/content-items/'+it._id+'/revisions').then(res=>{
+  const list=Array.isArray(res)?res:(res?.revisions||[]);
+  if(list.length){
+   const mapped=list.map(r=>({
+    v:r.revisionNumber||1,
+    at:r.createdAt?String(r.createdAt).slice(0,16).replace('T',' '):now(),
+    by:r.creator?.fullName||'',
+    reason:r.changeReason||r.source||'',
+    s:{title:r.title,type:r.type,date:r.scheduledDate?String(r.scheduledDate).slice(0,10):'',caption:r.caption||'',notes:r.notes||'',reference:r.reference||'',materialUrl:r.materialUrl||'',toneOfVoice:r.toneOfVoice||''}
+   }));
+   it.vers=mapped;
+   const maxV=Math.max(it.v||1,...mapped.map(x=>x.v||1));
+   it.v=maxV;
+   it._revsLoaded=true;
+   if(S.det&&S.det.t==='item'&&S.det.id===id)view(false);
+  }
+ }).catch(()=>{}).finally(()=>{it._revsLoading=false});
+}
+async function mv(id,to,reason){
+ const f=fItem(id);if(!f)return;
+ const [i,p]=f;
+ if(!can2(i,to))return toast('That transition isn’t allowed');
+ const prevStage=i.stage,prevV=i.v,prevVersLen=(i.vers||[]).length,prevHistLen=(i.hist||[]).length;
+ const isClientReview=S.role==='client'&&prevStage==='CLIENT_REVIEW'&&(to==='APPROVED'||to==='CHANGES_REQUESTED');
+ if(isClientReview&&i._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   const res=await apiCall('/content-items/'+i._id+'/client-review',{
+    method:'POST',
+    body:{decision:to==='APPROVED'?'APPROVE':'REQUEST_CHANGES',notes:to==='CHANGES_REQUESTED'?(reason||''):null}
+   });
+   if(res?.changeRequest){
+    const cr=res.changeRequest;
+    CHANGE_REQS.unshift({
+     _id:cr.id,id:cr.id,contentItemId:cr.contentItemId,itemTitle:cr.contentItem?.title||i.title,
+     brand:cr.brand?.name||p.brand,status:cr.status||'PENDING',
+     clientNotes:cr.clientNotes||reason||'',accountManagerNotes:cr.accountManagerNotes||'',
+     createdAt:cr.createdAt?String(cr.createdAt).slice(0,16).replace('T',' '):now()
+    });
+   }
+  }catch(err){
+   toast(err?.message||'Could not submit review decision');
+   return;
+  }
+ }
+ if(i.stage==='CHANGES_REQUESTED'){snapV(i);i.v++}
+ const from=i.stage;
+ i.stage=to;
+ logH(i,STG[from]+' → '+STG[to],reason);
+ note('“'+i.title+'” moved to '+STG[to].toLowerCase(),p.brand,!['CLIENT_REVIEW','APPROVED','PUBLISHED'].includes(to),{IN_REVIEW:['am','admin'],CLIENT_REVIEW:['client','cc','admin'],CHANGES_REQUESTED:['cc','am','admin'],APPROVED:['am','cc','admin'],PUBLISHED:['client','cc','admin']}[to]);
+ toast('Moved to '+STG[to]);
+ view(false);
+}
 function mvAsk(id,to){if(to!=='CHANGES_REQUESTED')return mv(id,to);ask('Request changes',[['reason','What needs to change? *','textarea']],v=>(v.reason||'').trim()?mv(id,to,v.reason.trim()):toast('A reason is required'))}
 function cmt(id){ask('Add a comment',[['t','Comment','textarea']],v=>{if(!(v.t||'').trim())return;const[i]=fItem(id);i.comments.push({at:now(),by:ME[S.role][0],role:ROLES[S.role],v:i.v,t:v.t.trim()});view(false)})}
-function setLink(id){ask('Link to an external file',[['u','File URL (Drive, Dropbox…)']],v=>{const u=(v.u||'').trim();if(u&&!safeUrl(u))return toast('Use an http:// or https:// URL');fItem(id)[0].link=u;view(false)})}
-function pubRec(id){ask('Record publishing',[['d','Publish date','date'],['u','Post link'],['n','Notes','textarea']],v=>{const u=(v.u||'').trim();if(u&&!safeUrl(u))return toast('Post link must start with http:// or https://');const[i]=fItem(id);i.pub={d:v.d||'',u,n:v.n||''};if(v.d)i.date=v.d;mv(id,'PUBLISHED')})}
+function setLink(id){ask('Link to an external file',[['u','File URL (Drive, Dropbox…)']],async v=>{const u=(v.u||'').trim();if(u&&!safeUrl(u))return toast('Use an http:// or https:// URL');const [i]=fItem(id);const prev=i.link;i.link=u;i.materialUrl=u;if(i._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{await apiCall('/content-items/'+i._id,{method:'PATCH',body:{materialUrl:u||null}})}catch(err){i.link=prev;i.materialUrl=prev;toast(err?.message||'Could not save link');return view(false)}}toast('External link saved');view(false)})}
+function pubRec(id){ask('Record publishing',[['d','Publish date','date'],['u','Post link *'],['n','Notes','textarea']],async v=>{const u=(v.u||'').trim();if(!u||!safeUrl(u))return toast('Enter a valid http:// or https:// post link');const[i,p]=fItem(id);if(i._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{await apiCall('/content-items/'+i._id+'/publishing',{method:'PATCH',body:{publishStatus:'PUBLISHED',publishUrl:u,publishedAt:v.d?new Date(v.d).toISOString():new Date().toISOString(),publishNotes:(v.n||'').trim()||null}})}catch(err){toast(err?.message||'Could not record publishing');return}}i.pub={d:v.d||TODAY,u,n:(v.n||'').trim()};if(v.d)i.date=v.d;await mv(id,'PUBLISHED')})}
+function resolveChangeReq(crId){
+ const cr=CHANGE_REQS.find(x=>x.id===crId||x._id===crId);if(!cr)return;
+ ask('Resolve change request & send back to client',[['notes','Account manager notes','textarea']],async v=>{
+  const notes=(v.notes||'').trim();
+  if(cr._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+   try{await apiCall('/client-change-requests/'+cr._id+'/resolve',{method:'PATCH',body:{notes:notes||null}})}
+   catch(err){return toast(err?.message||'Could not resolve change request')}
+  }
+  cr.status='RESOLVED';cr.accountManagerNotes=notes;
+  const f=allI().find(([it])=>it._id===cr.contentItemId||it.id===cr.contentItemId||it.title===cr.itemTitle);
+  if(f){const[it]=f;it.stage='CLIENT_REVIEW';logH(it,'Change request resolved → Client review',notes)}
+  toast('Change request resolved · sent back to client');
+  view(false);
+ });
+}
+function forwardChangeReq(crId){
+ const cr=CHANGE_REQS.find(x=>x.id===crId||x._id===crId);if(!cr)return;
+ const staff=[...new Set([...EMP,...D.users.rows.filter(u=>u.roleId!=='Client'&&u.isActive!==false).map(u=>u.fullName)])];
+ const defDate=new Date(Date.now()+3*864e5).toISOString().slice(0,10);
+ modal(`<div class="dlg"><h2>Forward change request to team</h2><p class="mute" style="margin:0 0 14px">“${esc(cr.itemTitle)}” — ${esc(cr.clientNotes)}</p>
+  <div class="pg">
+   <div class="fl"><label>Assign to</label><select id="fcr-to">${staff.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('')}</select></div>
+   <div class="fl"><label>Priority</label><select id="fcr-pr">${['LOW','MEDIUM','HIGH','URGENT'].map(p=>`<option value="${p}" ${p==='HIGH'?'selected':''}>${p}</option>`).join('')}</select></div>
+   <div class="fl"><label>Planned deadline</label><input id="fcr-dl" type="date" value="${defDate}"></div>
+   <div class="fl" style="grid-column:1/-1"><label>Instructions for team</label><textarea id="fcr-notes" placeholder="Additional guidance…"></textarea></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="confirmForwardChangeReq(${cr.id})">Forward &amp; create task</button></div>
+ </div>`);
+}
+async function confirmForwardChangeReq(crId){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const cr=CHANGE_REQS.find(x=>x.id===crId||x._id===crId);if(!cr)return;
+ const assignee=$('#fcr-to')?.value||EMP[0]||'';
+ const priority=$('#fcr-pr')?.value||'HIGH';
+ const planned=$('#fcr-dl')?.value||TODAY;
+ const notes=($('#fcr-notes')?.value||'').trim();
+ dlg._submitted=true;
+ if(cr._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  const body={notes:notes||null,priority,plannedDeadline:new Date(planned).toISOString()};
+  const uid=API_CACHE.usersByName[assignee];
+  if(uid)body.assignedTo=uid;
+  try{await apiCall('/client-change-requests/'+cr._id+'/forward',{method:'PATCH',body})}
+  catch(err){dlg._submitted=false;return toast(err?.message||'Could not forward change request')}
+ }
+ cr.status='ACCEPTED';cr.accountManagerNotes=notes;
+ const f=allI().find(([it])=>it._id===cr.contentItemId||it.id===cr.contentItemId||it.title===cr.itemTitle);
+ if(f){const[it]=f;it.stage='CHANGES_REQUESTED';logH(it,'Forwarded change request to '+assignee,notes||cr.clientNotes)}
+ TK.unshift(mk(++IDN,'Modify: '+cr.itemTitle,'CREATION','TODO',priority,assignee,MEN[S.role],cr.brand,[cr.itemTitle],planned,planned,cr.clientNotes+(notes?'\n\nAM: '+notes:'')));
+ closeM();
+ toast('Forwarded to '+assignee+' · modification task created');
+ view(false);
+}
 const _id=itemDet;
 itemDet=function(id){const b=_id(id);if(!b)return b;const[i]=fItem(id),R=S.role,cd=(h,x)=>`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:10px">${h}</h2>${x}</div>`,lk=u=>{if(!u)return '—';const su=safeUrl(u);return su?`<a class="lk" href="${esc(su)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`:esc(u)},
  bt=(TRN[i.stage]||[]).filter(t=>can2(i,t)).map(t=>`<button class="btn ${t==='CHANGES_REQUESTED'?'dg':'p'}" onclick="${t==='PUBLISHED'?`pubRec(${id})`:`mvAsk(${id},'${t}')`}">${BTN[t]}</button>`).join('');
- return b+cd('Workflow',`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${SP(i.stage)}<span class="tag">Version ${esc(i.v)}</span>${bt||'<span class="mute">No action needed from your role right now.</span>'}</div>`+ow(i))
- +cd('External file',`<dl class="kv" style="margin:0">${kvh([['Link',lk(i.link)]])}</dl>${R==='cc'?`<button class="btn sm" style="margin-top:10px" onclick="setLink(${id})">${i.link?'Change':'Attach'} link</button>`:''}`)
+ if(i._id&&!i._revsLoaded&&!i._revsLoading)loadItemRevisions(id);
+ const pendingCr=(R==='am'||R==='admin')?CHANGE_REQS.filter(cr=>cr.status==='PENDING'&&(cr.contentItemId===i._id||cr.contentItemId===i.id||cr.itemTitle===i.title)):[];
+ return b+cd('Workflow',`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${SP(i.stage)}<span class="tag">Version ${esc(i.v)}</span>${bt||'<span class="mute">No action needed from your role right now.</span>'}</div>`+ow(i)+(pendingCr.length?`<div class="note wn" style="margin-top:12px;flex-direction:column;align-items:flex-start;gap:8px"><b>Client change request pending</b>${pendingCr.map(cr=>`<div>${esc(cr.clientNotes)} <span class="mute">(${esc(cr.createdAt)})</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm p" onclick="resolveChangeReq(${cr.id})">Resolve &amp; resend to client</button><button class="btn sm" onclick="forwardChangeReq(${cr.id})">Forward to team</button></div>`).join('')}</div>`:''))
+ +cd('External file',`<dl class="kv" style="margin:0">${kvh([['Link',lk(i.link||i.materialUrl)]])}</dl>${R==='cc'?`<button class="btn sm" style="margin-top:10px" onclick="setLink(${id})">${i.link||i.materialUrl?'Change':'Attach'} link</button>`:''}`)
  +(i.pub?cd('Publishing',`<dl class="kv" style="margin:0">${kvh([['Status','Published'],['Date',esc(i.pub.d)||'—'],['Link',lk(i.pub.u)],['Notes',esc(i.pub.n)||'—']])}</dl>`):i.stage==='APPROVED'?cd('Publishing','<p class="mute" style="margin:0">Approved — waiting to be published.</p>'):'')
  +cd('Comments ('+i.comments.length+')',(i.comments.map(c=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(c.by)}</b> <span class="mute" style="font-size:12px">${esc(c.role)} · v${esc(c.v)} · ${esc(c.at)}</span><div>${esc(c.t)}</div></div>`).join('')||'<p class="mute" style="margin:0">No comments yet.</p>')+`<button class="btn sm" style="margin-top:12px" onclick="cmt(${id})">+ Add comment</button>`)
- +cd('Previous versions ('+(i.vers||[]).length+')',(i.vers||[]).slice().reverse().map(x=>`<details style="padding:8px 0;border-top:1px solid var(--line)"><summary><b>Version ${esc(x.v)}</b> <span class="mute">${esc(x.at)}</span></summary><dl class="kv" style="margin:8px 0 0">${kvh(Object.entries(x.s).filter(([k,v])=>v&&typeof v!=='object'&&!['id','platform','assignee','priority','status'].includes(k)).map(([k,v])=>[esc(FL[k]||k),esc(v).replace(/\n/g,'<br>')]))}</dl></details>`).join('')||'<p class="mute" style="margin:0">No earlier versions yet.</p>')+cd('Decision history',i.hist.slice().reverse().map(h=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(h.a)}</b> <span class="mute" style="font-size:12px">${esc(h.by)} · ${esc(h.role)} · v${esc(h.v)} · ${esc(h.at)}</span>${h.r?`<div>${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet. Earlier versions and comments are always kept.</p>')};
+ +cd('Previous versions ('+(i.vers||[]).length+')',(i.vers||[]).slice().reverse().map(x=>`<details style="padding:8px 0;border-top:1px solid var(--line)"><summary><b>Version ${esc(x.v)}</b> <span class="mute">${esc(x.at)}${x.by?' · '+esc(x.by):''}${x.reason?' · '+esc(x.reason):''}</span></summary><dl class="kv" style="margin:8px 0 0">${kvh(Object.entries(x.s||{}).filter(([k,v])=>v&&typeof v!=='object'&&!['id','_id','platform','assignee','priority','status'].includes(k)).map(([k,v])=>[esc(FL[k]||k),esc(v).replace(/\n/g,'<br>')]))}</dl></details>`).join('')||'<p class="mute" style="margin:0">No earlier versions yet.</p>')+cd('Decision history',i.hist.slice().reverse().map(h=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(h.a)}</b> <span class="mute" style="font-size:12px">${esc(h.by)} · ${esc(h.role)} · v${esc(h.v)} · ${esc(h.at)}</span>${h.r?`<div>${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet. Earlier versions and comments are always kept.</p>')};
 /* shared helpers */
 const allI=()=>PLANS.flatMap(p=>p.items.map(i=>[i,p]));
 const myBrands=()=>{if(S.role==='client')return[curClientBrand()];const m=S.role==='am'?D.brands.rows.filter(b=>b.accountManagerId===MEN.am).map(b=>b.name):[];return m.length?m:D.brands.rows.map(b=>b.name)};
@@ -1824,7 +1935,9 @@ PAGES.review=()=>{const R=S.role;
  if(R==='client'){const cb=curClientBrand(),d=allI().filter(vis).flatMap(([i])=>i.hist.filter(h=>h.role==='Client').map(h=>[i,h]));
   return hdr('Content review','Content delivered to you for approval.')+crd('Content plan shared with you',PLANS.filter(p=>p.brand===cb).map(p=>bar(p.platform+' · '+p.title,p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,p.items.length)).join('')||'<p class="mute" style="margin:0">No plan shared yet.</p>')+sec('Awaiting your review',by('CLIENT_REVIEW'))+sec('Approved',by('APPROVED'))+sec('Published',by('PUBLISHED'))+crd('Your review history',d.map(([i,h])=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><a class="lk" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}</a> · ${esc(h.a)} <span class="mute">${esc(h.at)}</span>${h.r?`<div class="mute">${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')}
  if(R==='cc'||R==='emp')return hdr('My review queue','Drafts to send and content returned with changes.')+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Drafts ready to send',by('DRAFT'))+sec('In internal review',by('IN_REVIEW'));
- return hdr('Internal review','Review content, approve it for the client or return it with comments.')+sec('Waiting for internal review',by('IN_REVIEW'))+sec('Waiting for the client',by('CLIENT_REVIEW'))+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Approved — ready to publish',by('APPROVED'))+sec('Published',by('PUBLISHED'))};
+ const pCrs=CHANGE_REQS.filter(cr=>cr.status==='PENDING'&&myBrands().includes(cr.brand));
+ const crCard=pCrs.length?crd('Client change requests pending ('+pCrs.length+')',`<div class="tw"><table><thead><tr><th scope="col">Item</th><th scope="col">Brand</th><th scope="col">Client notes</th><th scope="col">Date</th><th scope="col"></th></tr></thead><tbody>${pCrs.map(cr=>`<tr><td><b>${esc(cr.itemTitle)}</b></td><td>${esc(cr.brand)}</td><td>${esc(cr.clientNotes)}</td><td><span class="mono">${esc(cr.createdAt)}</span></td><td><div class="ra"><button class="btn sm p" onclick="resolveChangeReq(${cr.id})">Resolve</button><button class="btn sm" onclick="forwardChangeReq(${cr.id})">Forward to team</button></div></td></tr>`).join('')}</tbody></table></div>`):'';
+ return hdr('Internal review','Review content, approve it for the client or return it with comments.')+crCard+sec('Waiting for internal review',by('IN_REVIEW'))+sec('Waiting for the client',by('CLIENT_REVIEW'))+sec('Returned with changes',by('CHANGES_REQUESTED'))+sec('Approved — ready to publish',by('APPROVED'))+sec('Published',by('PUBLISHED'))};
 /* calendar */
 S.cm='2026-11';
 function cmv(d){const[y,m]=S.cm.split('-').map(Number),x=new Date(y,m-1+d,1);S.cm=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0');view(false)}
@@ -1833,17 +1946,65 @@ PAGES.calendar=()=>{const q=(S.q||'').trim().toLowerCase(),[y,m]=S.cm.split('-')
  for(let d=1;d<=dn;d++){const ds=S.cm+'-'+String(d).padStart(2,'0');c+=`<div style="min-height:92px;border:1px solid var(--line);border-radius:12px;padding:6px;background:${ds===TODAY?'var(--lilac)':'#fff'}"><div class="mono mute">${d}</div>${on.filter(([i])=>i.date===ds).map(([i])=>`<div class="tag" title="${esc(i.title)} · ${esc(i.platform||'')} · ${esc(i.assignee||'Unassigned')} · ${esc(STG[i.stage]||i.stage)}" style="display:block;cursor:pointer;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openD({t:'item',id:${i.id}})">${esc(i.title)}<br><small>${esc(i.platform||'—')} · ${esc(i.assignee||'Unassigned')} · ${esc(STG[i.stage]||i.stage)}</small></div>`).join('')}</div>`}
  return hdr('Calendar',S.role==='am'?'Content by publish date for your brands.':'Content by publish date.')+`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><button class="btn sm" onclick="cmv(-1)">← Prev</button><h2>${new Date(y,m-1,1).toLocaleString('en',{month:'long',year:'numeric'})}</h2><button class="btn sm" onclick="cmv(1)">Next →</button></div><div style="overflow-x:auto"><div style="display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:6px;min-width:790px">${c}</div></div><p class="mute" style="margin:12px 0 0">${un} item${un===1?'':'s'} without a publish date are kept off the calendar.</p></div>`};
 /* client requests */
-let REQ=[{id:1,brand:CLB,kind:'Extra content',text:'Two extra stories for the winter launch week.',st:'SUBMITTED',team:'',reason:'',at:'2026-11-18'}];
+const REQ_KIND_TO_API={'Extra content':'EXTRA_CONTENT','Plan change':'PLAN_CHANGE','New idea':'NEW_IDEA'};
+const REQ_API_TO_KIND={EXTRA_CONTENT:'Extra content',PLAN_CHANGE:'Plan change',NEW_IDEA:'New idea'};
+let REQ=[{id:1,brand:CLB,kind:'Extra content',text:'Two extra stories for the winter launch week.',st:'SUBMITTED',team:'',assignee:'',reason:'',at:'2026-11-18'}];
 const RQP=s=>`<span class="pill ${{ASSIGNED:'wn',ACCEPTED:'ok',REJECTED:'er',SUBMITTED:'in'}[s]}">${esc(lab(s))}</span>`;
-function reqNew(){ask('New request',[['kind','Request type','select',['Extra content','Plan change','New idea']],['text','Describe what you need','textarea']],v=>{if(!(v.text||'').trim())return toast('Please describe the request');const cb=curClientBrand();REQ.unshift({id:++IDN,brand:cb,kind:v.kind,text:v.text.trim(),st:'SUBMITTED',team:'',reason:'',at:TODAY});note('New client request: '+v.kind,cb,true,['am','admin']);view(false)})}
-function reqOk(id){ask('Assign to a team',[['t','Responsible team','select',T]],v=>{const r=REQ.find(x=>x.id===id);r.st='ASSIGNED';r.team=v.t;note('Your request was accepted and assigned to '+v.t,r.brand,false,['client','am','admin']);view(false)})}
-function reqNo(id){ask('Reject request',[['r','Reason *','textarea']],v=>{if(!(v.r||'').trim())return toast('A reason is required');const r=REQ.find(x=>x.id===id);r.st='REJECTED';r.reason=v.r.trim();note('Your request could not be executed: '+r.reason,r.brand,false,['client','am','admin']);view(false)})}
+function reqNew(){ask('New request',[['kind','Request type','select',['Extra content','Plan change','New idea']],['text','Describe what you need','textarea']],async v=>{if(!(v.text||'').trim())return toast('Please describe the request');const cb=curClientBrand();const item={id:++IDN,brand:cb,kind:v.kind,text:v.text.trim(),st:'SUBMITTED',team:'',assignee:'',reason:'',at:TODAY};if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{const res=await apiCall('/client-requests',{method:'POST',body:{type:REQ_KIND_TO_API[v.kind]||'EXTRA_CONTENT',description:v.text.trim()}});if(res?.id){item._id=res.id;item.id=res.id}}catch(err){return toast(err?.message||'Could not submit request')}}REQ.unshift(item);note('New client request: '+v.kind,cb,true,['am','admin']);toast('Request submitted');view(false)})}
+function reqOk(id){
+ const r=REQ.find(x=>x.id===id||x._id===id);if(!r)return;
+ const bObj=D.brands.rows.find(b=>b.name===r.brand);
+ const defTeam=(bObj&&bObj.teamId&&T.includes(bObj.teamId))?bObj.teamId:(T[0]||'');
+ const teamEmps=D.users.rows.filter(u=>u.roleId!=='Client'&&u.roleId!=='Admin'&&u.isActive!==false&&(u.teamId===defTeam||!defTeam)).map(u=>u.fullName);
+ const allEmps=[...new Set([...teamEmps,...EMP])];
+ const defDate=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
+ modal(`<div class="dlg"><h2>Accept &amp; assign client request</h2><p class="mute" style="margin:0 0 14px">${esc(r.brand)} · ${esc(r.kind)}</p>
+  <div class="pg">
+   <div class="fl"><label>Responsible team</label><select id="rq-team">${T.map(t=>`<option value="${esc(t)}" ${t===defTeam?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
+   <div class="fl"><label>Assign to employee *</label><select id="rq-emp">${allEmps.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('')}</select></div>
+   <div class="fl"><label>Priority</label><select id="rq-pr">${['LOW','MEDIUM','HIGH','URGENT'].map(p=>`<option value="${p}" ${p==='MEDIUM'?'selected':''}>${p}</option>`).join('')}</select></div>
+   <div class="fl"><label>Planned deadline *</label><input id="rq-dl" type="date" value="${defDate}"></div>
+  </div>
+  <div class="ft"><button class="btn" onclick="closeM()">Cancel</button><button class="btn p" onclick="confirmReqOk(${r.id})">Accept &amp; assign</button></div>
+ </div>`);
+}
+async function confirmReqOk(id){
+ const dlg=$('.ov .dlg');if(!dlg||dlg._submitted)return;
+ const r=REQ.find(x=>x.id===id||x._id===id);if(!r)return;
+ const team=$('#rq-team')?.value||T[0]||'';
+ const emp=$('#rq-emp')?.value||EMP[0]||'';
+ const priority=$('#rq-pr')?.value||'MEDIUM';
+ const planned=$('#rq-dl')?.value||'';
+ if(!planned)return toast('Planned deadline is required');
+ dlg._submitted=true;
+ if(r._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  const assignedTo=API_CACHE.usersByName[emp];
+  if(!assignedTo){dlg._submitted=false;return toast('Select a valid employee to assign')}
+  try{
+   const res=await apiCall('/client-requests/'+r._id+'/accept',{method:'PATCH',body:{assignedTo,plannedDeadline:new Date(planned).toISOString(),priority}});
+   if(res?.task){
+    const tk=res.task;
+    const item=mk(tk.id,tk.title,'DIRECT',(tk.status||'TODO').toUpperCase(),(tk.priority||priority).toUpperCase(),emp,MEN[S.role],r.brand,[],planned,planned,tk.description||r.text);
+    item._id=tk.id;
+    TK.unshift(item);
+   }
+  }catch(err){dlg._submitted=false;return toast(err?.message||'Could not accept request')}
+ }else{
+  TK.unshift(mk(++IDN,'Client Request: '+r.kind,'DIRECT','TODO',priority,emp,MEN[S.role],r.brand,[],planned,planned,r.text));
+ }
+ r.st='ASSIGNED';r.team=team;r.assignee=emp;
+ closeM();
+ note('Your request was accepted and assigned to '+team+(emp?' ('+emp+')':''),r.brand,false,['client','am','admin']);
+ toast('Request accepted · assigned to '+team);
+ view(false);
+}
+function reqNo(id){ask('Reject request',[['r','Reason *','textarea']],async v=>{if(!(v.r||'').trim())return toast('A reason is required');const r=REQ.find(x=>x.id===id||x._id===id);if(!r)return;if(r._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){try{await apiCall('/client-requests/'+r._id+'/reject',{method:'PATCH',body:{reason:v.r.trim()}})}catch(err){return toast(err?.message||'Could not reject request')}}r.st='REJECTED';r.reason=v.r.trim();note('Your request could not be executed: '+r.reason,r.brand,false,['client','am','admin']);toast('Request rejected');view(false)})}
 function reqTask(id){const r=REQ.find(x=>x.id===id);TASKS.unshift({title:r.kind+': '+r.text.slice(0,50),brand:r.brand,priority:'MEDIUM',assignee:MEN[S.role],deadline:'2026-11-30',status:'TODO',by:MEN.am});r.st='ACCEPTED';toast('Task created from the request');view(false)}
-PAGES.requests=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mq=r=>!q||[r.text,r.brand,r.kind,r.st,r.team,r.reason,r.at].join(' ').toLowerCase().includes(q),u=D.users.rows.find(x=>x.fullName===MEN[R])||{},mt=[u.teamId,...T.filter(t=>TX[t]&&TX[t].lead===MEN[R])],
- tb=(l,ac)=>l.length?`<div class="tw"><table><thead><tr><th scope="col">Request</th><th scope="col">Brand</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Team / reason</th><th scope="col"></th></tr></thead><tbody>${l.map(r=>`<tr><td>${esc(r.text)}<div class="mute" style="font-size:12px">${esc(r.at)}</div></td><td>${esc(r.brand)}</td><td><span class="tag">${esc(r.kind)}</span></td><td>${RQP(r.st)}</td><td>${esc(r.team||r.reason)||'—'}</td><td>${ac(r)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">'+(q?'No matching requests.':'Nothing here.')+'</p>';
+PAGES.requests=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mq=r=>!q||[r.text,r.brand,r.kind,r.st,r.team,r.assignee,r.reason,r.at].join(' ').toLowerCase().includes(q),u=D.users.rows.find(x=>x.fullName===MEN[R])||{},mt=[u.teamId,...T.filter(t=>TX[t]&&TX[t].lead===MEN[R])],
+ tb=(l,ac)=>l.length?`<div class="tw"><table><thead><tr><th scope="col">Request</th><th scope="col">Brand</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Team / assignee / reason</th><th scope="col"></th></tr></thead><tbody>${l.map(r=>`<tr><td>${esc(r.text)}<div class="mute" style="font-size:12px">${esc(r.at)}</div></td><td>${esc(r.brand)}</td><td><span class="tag">${esc(r.kind)}</span></td><td>${RQP(r.st)}</td><td>${esc(r.reason||(r.team&&r.assignee?r.team+' · '+r.assignee:r.team||r.assignee))||'—'}</td><td>${ac(r)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">'+(q?'No matching requests.':'Nothing here.')+'</p>';
  if(R==='client')return hdr('Requests','Ask for extra content, a plan change or a new idea, and track where it stands.')+`<button class="btn p" style="margin-bottom:16px" onclick="reqNew()">+ New request</button>`+crd('My requests',tb(REQ.filter(r=>r.brand===curClientBrand()&&mq(r)),()=>''));
- if(R==='am'||R==='admin')return hdr('Client requests','Decide whether each request is feasible.')+crd('To review',tb(REQ.filter(r=>r.st==='SUBMITTED'&&mq(r)),r=>R!=='am'?'':`<div class="ra"><button class="btn sm p" onclick="reqOk(${r.id})">Feasible</button><button class="btn sm dg" onclick="reqNo(${r.id})">Reject</button></div>`))+crd('Decided',tb(REQ.filter(r=>r.st!=='SUBMITTED'&&mq(r)),()=>''));
- return hdr('Requests','Work requested from you, and client requests assigned to your team.')+crd('Client requests assigned to my team',tb(REQ.filter(r=>mt.includes(r.team)&&mq(r)),r=>r.st==='ASSIGNED'?`<div class="ra"><button class="btn sm p" onclick="reqTask(${r.id})">Turn into task</button><button class="btn sm" onclick="reqItem(${r.id})">Turn into content item</button></div>`:''))};
+ if(R==='am'||R==='admin')return hdr('Client requests','Decide whether each request is feasible and assign accepted requests to the right team.')+crd('To review',tb(REQ.filter(r=>r.st==='SUBMITTED'&&mq(r)),r=>!(R==='am'||R==='admin')?'':`<div class="ra"><button class="btn sm p" onclick="reqOk(${r.id})">Accept &amp; assign</button><button class="btn sm dg" onclick="reqNo(${r.id})">Reject</button></div>`))+crd('Decided',tb(REQ.filter(r=>r.st!=='SUBMITTED'&&mq(r)),()=>''));
+ return hdr('Requests','Work requested from you, and client requests assigned to your team.')+crd('Client requests assigned to my team',tb(REQ.filter(r=>(mt.includes(r.team)||r.assignee===MEN[R])&&mq(r)),r=>r.st==='ASSIGNED'?`<div class="ra"><button class="btn sm p" onclick="reqTask(${r.id})">Turn into task</button><button class="btn sm" onclick="reqItem(${r.id})">Turn into content item</button></div>`:''))};
 /* reports */
 let MR=[{id:1,brand:CLB,month:'2026-09',m:{Reach:42000,Impressions:98000,Engagement:3100,Conversions:210},ai:'A steady month with no major campaigns.',ok:true,sh:true},{id:2,brand:CLB,month:'2026-10',m:{Reach:51500,Impressions:120400,Engagement:4020,Conversions:265},ai:'Reach and engagement grew after the serum reel campaign.',ok:true,sh:true}];
 const MET=['Reach','Impressions','Engagement','Conversions'],pmo=s=>{const[y,m]=s.split('-').map(Number),d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
@@ -1861,17 +2022,34 @@ const repTxt=(id,t)=>{const r=MR.find(x=>x.id===id);r.ai=t;r.ok=false};
 const repOk=id=>{const r=MR.find(x=>x.id===id);if(!r.ai.trim())return toast('Add an analysis first');r.ok=!r.ok;if(!r.ok)r.sh=false;view(false)};
 const repSh=id=>{const r=MR.find(x=>x.id===id);if(!r.ok)return toast('Approve the report before sharing');r.sh=!r.sh;view(false)};
 const repCard=(r,w)=>crd(esc(r.brand)+' · '+esc(r.month)+' '+(r.ok?'<span class="pill ok">Approved</span>':'<span class="pill lc">Draft</span>')+(r.sh?' <span class="pill in">Shared</span>':''),`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">${MET.map(k=>{const d=dlt(r,k);return `<div style="border:1px solid var(--line);border-radius:14px;padding:12px"><div class="mono mute">${k}</div><b style="font-size:20px">${Number(r.m[k]||0).toLocaleString()}</b><div class="mute" style="font-size:12px">${d===null?'No previous month':(d>=0?'▲ ':'▼ ')+Math.abs(d)+'% vs '+esc(pmo(r.month))}</div></div>`}).join('')}</div>${w?`<textarea style="width:100%;margin-top:12px;min-height:70px" oninput="repTxt(${r.id},this.value)" placeholder="AI analysis">${esc(r.ai)}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sm" onclick="repAi(${r.id})">Run AI analysis</button><button class="btn sm p" onclick="repOk(${r.id})">${r.ok?'Unapprove':'Approve'}</button><button class="btn sm" onclick="repSh(${r.id})">${r.sh?'Stop sharing':'Share with client'}</button></div>`:`<p style="margin:12px 0 0">${esc(r.ai)}</p>`}`);
-PAGES.reports=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mgr=R==='am'||R==='admin',L=allI().filter(vis),tk=TK.filter(t=>mgr||t.assignee===MEN[R]),dn=t=>DONE4.includes(t.status),od=t=>!dn(t)&&dl(t)&&String(dl(t))<TODAY;
- const perf=(n)=>{const x=TK.filter(t=>t.assignee===n),d=x.filter(dn).length,o=x.filter(od).length,ui=D.users.rows.findIndex(u=>u.fullName===n),u=D.users.rows[ui]||{};return `<tr><td>${ui>=0?`<a class="lk" onclick="openD({t:'row',k:'users',i:${ui}})">${esc(n)}</a>`:esc(n)}</td><td>${esc(u.roleId||'—')}</td><td>${esc(u.teamId||'—')}</td><td>${x.length-d}</td><td>${d}</td><td>${o}</td><td>${d+o?Math.round(d/(d+o)*100)+'%':'—'}</td></tr>`};
+PAGES.reports=()=>{const R=S.role,q=(S.q||'').trim().toLowerCase(),mgr=R==='am'||R==='admin',L=allI().filter(vis),tk=TK.filter(t=>mgr||t.assignee===MEN[R]),dn=t=>DONE4.includes(t.status),od=isOd;
+ const apiProg=API_CACHE.progress;
+ const apiTeamPerf=API_CACHE.teamPerformance;
+ const perf=(n)=>{
+  const srv=apiTeamPerf&&Array.isArray(apiTeamPerf.members)?apiTeamPerf.members.find(m=>m.user?.fullName===n):null;
+  const x=TK.filter(t=>t.assignee===n),d=srv?srv.completedTasks:x.filter(dn).length,o=srv?srv.overdueTasks:x.filter(od).length,op=srv?(srv.totalAssignedTasks-srv.completedTasks):(x.length-d),ot=srv&&srv.completedTasks>0?(srv.onTimeRate+'%'):(d+o?Math.round(d/(d+o)*100)+'%':'—');
+  const ui=D.users.rows.findIndex(u=>u.fullName===n),u=D.users.rows[ui]||{};
+  return `<tr><td>${ui>=0?`<a class="lk" onclick="openD({t:'row',k:'users',i:${ui}})">${esc(n)}</a>`:esc(n)}</td><td>${esc(u.roleId||srv?.user?.role||'—')}</td><td>${esc(u.teamId||'—')}</td><td>${op}</td><td>${d}</td><td>${o}</td><td>${ot}</td></tr>`;
+ };
  const teamMem=()=>{const ts=new Set(D.brands.rows.filter(b=>myBrands().includes(b.name)).map(b=>b.teamId));return D.users.rows.filter(u=>u.roleId!=='Client'&&(R==='admin'||ts.has(u.teamId)||TK.some(t=>t.assignee===u.fullName&&myBrands().includes(t.brand)))).filter(u=>!q||[u.fullName,u.email,u.roleId,u.teamId].join(' ').toLowerCase().includes(q)).map(u=>u.fullName).sort((p,q2)=>String((D.users.rows.find(u=>u.fullName===p)||{}).roleId).localeCompare(String((D.users.rows.find(u=>u.fullName===q2)||{}).roleId)))};
- const perfT=crd(mgr?'Team performance':'My performance',`<div class="tw"><table><thead><tr><th scope="col">Member</th><th scope="col">Role</th><th scope="col">Team</th><th scope="col">Open</th><th scope="col">Done</th><th scope="col">Overdue</th><th scope="col">On-time delivery</th></tr></thead><tbody>${(mgr?teamMem():[MEN[R]]).map(perf).join('')||'<tr><td colspan="7" class="mute">No matching members.</td></tr>'}</tbody></table></div>`);
- const prog=crd('Content plan progress',PLANS.filter(p=>myBrands().includes(p.brand)&&(!q||(p.brand+' '+p.title).toLowerCase().includes(q))).map(p=>bar(p.brand+' · '+p.title,p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,p.items.length)).join('')||'<p class="mute" style="margin:0">No matching plans.</p>');
+ const perfT=crd(mgr?'Team performance & employee workload':'My performance',`<div class="tw"><table><thead><tr><th scope="col">Member</th><th scope="col">Role</th><th scope="col">Team</th><th scope="col">Open</th><th scope="col">Done</th><th scope="col">Overdue</th><th scope="col">On-time delivery</th></tr></thead><tbody>${(mgr?teamMem():[MEN[R]]).map(perf).join('')||'<tr><td colspan="7" class="mute">No matching members.</td></tr>'}</tbody></table></div>`);
+ const prog=crd('Client plan execution progress',PLANS.filter(p=>myBrands().includes(p.brand)&&(!q||(p.brand+' '+p.title).toLowerCase().includes(q))).map(p=>{const doneCount=p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,pct=p.items.length?Math.round(doneCount/p.items.length*100):0;return bar(`${p.brand} · ${p.title} (${pct}%)`,doneCount,p.items.length)}).join('')||'<p class="mute" style="margin:0">No matching plans.</p>');
  if(R==='emp')return hdr('My performance','Your own tasks and on-time delivery.')+perfT;
  if(R==='cc')return hdr('Reports','Your content and tasks.')+prog+perfT;
  const rep=MR.filter(r=>(mgr?myBrands().includes(r.brand):r.brand===curClientBrand()&&r.ok&&r.sh)&&(!q||(r.brand+' '+r.month+' '+(r.ai||'')).toLowerCase().includes(q))).sort((a,b)=>b.month.localeCompare(a.month));
  if(R==='client')return hdr('Reports','Plan progress, published content and monthly performance.')+prog+sec('Approved and published content',L.filter(([i])=>['APPROVED','PUBLISHED'].includes(i.stage)))+rep.map(r=>repCard(r,false)).join('');
- const st={};tk.forEach(t=>st[t.status]=(st[t.status]||0)+1);const wl={};tk.filter(t=>!dn(t)).forEach(t=>wl[t.assignee]=(wl[t.assignee]||0)+1);const ac={};L.forEach(([i])=>i.hist.forEach(h=>ac[h.a]=(ac[h.a]||0)+1));
- return hdr('Reports & analytics','Tasks, content, workload, approvals and monthly performance.')+crd('Tasks by status · '+tk.filter(dn).length+' completed · '+tk.filter(od).length+' overdue',Object.entries(st).map(([k,v])=>bar(lab(k),v,tk.length)).join('')||'<p class="mute" style="margin:0">No tasks.</p>')+crd('Content by stage',Object.keys(STG).map(s=>bar(STG[s],L.filter(([i])=>i.stage===s).length,L.length)).join(''))+prog+crd('Workload (open tasks)',Object.entries(wl).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>')+crd('Workload by team',(()=>{const w={};tk.filter(t=>!dn(t)).forEach(t=>{const u=D.users.rows.find(x=>x.fullName===t.assignee),k=(u&&u.teamId)||'No team';w[k]=(w[k]||0)+1});return Object.entries(w).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>'})())+crd('Approval activity',Object.entries(ac).map(([k,v])=>bar(k,v,L.length||1)).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')+perfT
+ const totalTasks=apiProg?apiProg.totalTasks:tk.length;
+ const completedCount=apiProg?apiProg.completedTasks:tk.filter(dn).length;
+ const inProgCount=apiProg?(apiProg.inProgressTasks+apiProg.todoTasks+apiProg.submittedTasks+apiProg.inReviewTasks+apiProg.needsChangesTasks):tk.filter(t=>!dn(t)).length;
+ const overdueCount=apiProg?apiProg.overdueTasks:tk.filter(od).length;
+ const compRate=apiProg?apiProg.completionRate:(totalTasks?Math.round(completedCount/totalTasks*100):0);
+ const awaitReviewCount=L.filter(([i])=>i.stage==='IN_REVIEW'||i.stage==='CLIENT_REVIEW').length;
+ const summaryCards=`<div class="stats" style="margin-bottom:16px"><div class="stat"><span class="mono mute">Completed tasks</span><b>${completedCount}</b></div><div class="stat"><span class="mono mute">In progress / open</span><b>${inProgCount}</b></div><div class="stat ${overdueCount?'al':''}"><span class="mono mute">Overdue tasks</span><b>${overdueCount}</b></div><div class="stat"><span class="mono mute">Awaiting review</span><b>${awaitReviewCount}</b></div><div class="stat"><span class="mono mute">Completion rate</span><b>${compRate}%</b></div></div>`;
+ const st={};if(apiProg){[['TODO',apiProg.todoTasks],['IN_PROGRESS',apiProg.inProgressTasks],['SUBMITTED',apiProg.submittedTasks],['IN_REVIEW',apiProg.inReviewTasks],['NEEDS_CHANGES',apiProg.needsChangesTasks],['COMPLETED',apiProg.completedTasks],['CANCELLED',apiProg.cancelledTasks]].forEach(([k,v])=>{if(v>0)st[k]=v})}else{tk.forEach(t=>st[t.status]=(st[t.status]||0)+1)}
+ const odList=tk.filter(od);
+ const odCard=crd('Overdue tasks ('+overdueCount+')',odList.length?`<div class="tw"><table><thead><tr><th scope="col">Task</th><th scope="col">Brand</th><th scope="col">Assignee</th><th scope="col">Deadline</th><th scope="col">Status</th></tr></thead><tbody>${odList.map(t=>`<tr><td><a class="lk" onclick="tdet(${t.id})">${esc(t.title)}</a></td><td>${esc(t.brand)}</td><td>${esc(t.assignee)}</td><td>${dl(t)}</td><td>${pill(t.status)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="mute" style="margin:0">No overdue tasks right now.</p>');
+ const wl={};tk.filter(t=>!dn(t)).forEach(t=>wl[t.assignee]=(wl[t.assignee]||0)+1);const ac={};L.forEach(([i])=>i.hist.forEach(h=>ac[h.a]=(ac[h.a]||0)+1));
+ return hdr('Reports & progress tracking','Client plan progress, completed vs. active tasks, overdue alerts, team workload and content awaiting review.')+summaryCards+prog+crd('Tasks by status · '+completedCount+' completed · '+overdueCount+' overdue',Object.entries(st).map(([k,v])=>bar(lab(k),v,totalTasks)).join('')||'<p class="mute" style="margin:0">No tasks.</p>')+odCard+crd('Content awaiting review & workflow stages',Object.keys(STG).map(s=>bar(STG[s],L.filter(([i])=>i.stage===s).length,L.length)).join(''))+crd('Workload by employee (open tasks)',Object.entries(wl).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>')+crd('Workload by team',(()=>{const w={};tk.filter(t=>!dn(t)).forEach(t=>{const u=D.users.rows.find(x=>x.fullName===t.assignee),k=(u&&u.teamId)||'No team';w[k]=(w[k]||0)+1});return Object.entries(w).map(([k,v])=>bar(k,v,tk.length)).join('')||'<p class="mute" style="margin:0">No open tasks.</p>'})())+crd('Approval activity',Object.entries(ac).map(([k,v])=>bar(k,v,L.length||1)).join('')||'<p class="mute" style="margin:0">No decisions yet.</p>')+perfT
  +`<h2 style="margin:24px 0 12px">Monthly performance reports</h2>${R==='am'?`<div class="card" style="margin-bottom:16px"><b>Upload the monthly Meta performance file</b><p class="mute" style="margin:4px 0 10px">CSV with Reach, Impressions, Engagement and Conversions. You review the numbers before anything is saved.</p><input type="file" accept=".csv,.txt" onchange="repUp(this.files[0])"></div>`:''}`+rep.map(r=>repCard(r,R==='am')).join('')};
 Object.assign(N,{workflow:['Workflow','check'],review:['Review','check'],calendar:['Calendar','cal'],requests:['Requests','clip'],reports:['Reports','bolt']});
 {const add=(r,l)=>{const a=NAV[r];a.splice(a.indexOf('account'),0,...l)};add('admin',['workflow','calendar','requests','reports']);add('am',['review','calendar','requests','reports']);add('cc',['review','requests','reports']);add('emp',['requests','reports']);add('client',['review','requests','reports'])}
@@ -1883,14 +2061,16 @@ function ow(i){const o={DRAFT:i.assignee||'Content Creator',CHANGES_REQUESTED:i.
  return `<dl class="kv" style="margin:14px 0 0">${kvh([['Current owner',esc(o)],['Since',since],['Delay',dly?'<span class="pill er">Delayed</span>':'<span class="pill ok">On track</span>']])}</dl>`}
 function reqItem(id){const r=REQ.find(x=>x.id===id),p=PLANS.find(x=>x.brand===r.brand);if(!p)return toast('No content plan exists for this brand yet');p.items.push({id:++IDN,title:r.kind+': '+r.text.slice(0,50),type:'POST',campaign:'',platform:p.platform,notes:r.text,assignee:'',priority:'MEDIUM',status:'TODO',stage:'DRAFT',v:1,comments:[],hist:[]});r.st='ACCEPTED';toast('Content item created in “'+p.title+'”');view(false)}
 /* reminders for approaching / missed due dates */
-function remind(){TK.forEach(t=>{if(t._rem||DONE4.includes(t.status)||!dl(t))return;const d=String(dl(t)),diff=Math.round((new Date(d)-new Date(TODAY))/864e5);if(diff<0){t._rem=1;note('Task “'+t.title+'” is overdue',t.brand,true,[rl(t.assignee),'am','admin'].filter(Boolean))}else if(diff<=2){t._rem=1;note('Task “'+t.title+'” is due soon ('+d+')',t.brand,true,[rl(t.assignee),'am','admin'].filter(Boolean))}})}
+function remind(){TK.forEach(t=>{if(t._rem||DONE4.includes(t.status)||!t.eff)return;const d=String(t.eff),diff=Math.round((new Date(d)-new Date(TODAY))/864e5);if(diff<0){t._rem=1;note('Task “'+t.title+'” is overdue',t.brand,true,[rl(t.assignee),'am','admin'].filter(Boolean))}else if(diff<=2){t._rem=1;note('Task “'+t.title+'” is due soon ('+d+')',t.brand,true,[rl(t.assignee),'am','admin'].filter(Boolean))}})}
 {const _e=ens;ens=function(){_e();try{remind()}catch{/* ignore */}}}
 /* dashboards: final overview per role */
 function kp(){const R=S.role,cb=curClientBrand(),L=allI().filter(vis).filter(([i])=>R!=='emp'||i.assignee===MEN[R]),n=s=>L.filter(([i])=>i.stage===s).length,all=R==='admin'||R==='am',tk=TK.filter(t=>all||t.assignee===MEN[R]||(R==='client'&&t.brand===cb)),dn=t=>DONE4.includes(t.status),
- od=tk.filter(t=>!dn(t)&&dl(t)&&String(dl(t))<TODAY),up=tk.filter(t=>!dn(t)&&dl(t)&&String(dl(t))>=TODAY).sort((p,q)=>String(dl(p)).localeCompare(String(dl(q)))),
- pr=PLANS.filter(p=>myBrands().includes(p.brand)),g=pr.reduce((s,p)=>s+p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,0),tot=pr.reduce((s,p)=>s+p.items.length,0),pc=tot?Math.round(g/tot*100)+'%':'—',rq=REQ.filter(r=>r.st==='SUBMITTED').length,cd=tk.filter(dn).length,
- t=R==='admin'?[['Content awaiting review',n('IN_REVIEW')+n('CLIENT_REVIEW')],['Approved / published',n('APPROVED')+n('PUBLISHED')],['Overdue tasks',od.length],['Open client requests',rq],['Plan completion',pc]]
- :R==='am'?[['Waiting for my review',n('IN_REVIEW')],['Waiting for the client',n('CLIENT_REVIEW')],['Returned with changes',n('CHANGES_REQUESTED')],['Requests to review',rq],['Overdue tasks',od.length]]
+ od=tk.filter(isOd),up=tk.filter(t=>!dn(t)&&t.eff&&t.eff>=TODAY).sort((p,q)=>String(p.eff).localeCompare(String(q.eff))),
+ apiProg=all?API_CACHE.progress:null,
+ odCnt=apiProg?apiProg.overdueTasks:od.length,
+ pr=PLANS.filter(p=>myBrands().includes(p.brand)),g=pr.reduce((s,p)=>s+p.items.filter(i=>['APPROVED','PUBLISHED'].includes(i.stage)).length,0),tot=pr.reduce((s,p)=>s+p.items.length,0),pc=tot?Math.round(g/tot*100)+'%':'—',rq=REQ.filter(r=>r.st==='SUBMITTED').length,cd=apiProg?apiProg.completedTasks:tk.filter(dn).length,
+ t=R==='admin'?[['Content awaiting review',n('IN_REVIEW')+n('CLIENT_REVIEW')],['Approved / published',n('APPROVED')+n('PUBLISHED')],['Overdue tasks',odCnt],['Open client requests',rq],['Plan completion',pc]]
+ :R==='am'?[['Waiting for my review',n('IN_REVIEW')],['Waiting for the client',n('CLIENT_REVIEW')],['Returned with changes',n('CHANGES_REQUESTED')],['Requests to review',rq],['Overdue tasks',odCnt]]
  :R==='client'?[['Plan progress',pc],['Awaiting my approval',n('CLIENT_REVIEW')],['Approved',n('APPROVED')],['Published',n('PUBLISHED')],['My open requests',REQ.filter(r=>r.brand===cb&&['SUBMITTED','ASSIGNED'].includes(r.st)).length]]
  :[['Overdue',od.length],['Upcoming',up.length],['Returned with changes',n('CHANGES_REQUESTED')],['Completed',cd],['On-time delivery',cd+od.length?Math.round(cd/(cd+od.length)*100)+'%':'—']];
  return `<div style="margin-top:24px"><h2 style="margin-bottom:12px">Content & delivery overview</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">${t.map(x=>`<div style="border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff"><div class="mono mute">${x[0]}</div><b style="font-size:26px">${x[1]}</b></div>`).join('')}</div>${R==='client'?'':crd('Upcoming deadlines',up.slice(0,5).map(x=>`<div style="padding:6px 0;border-top:1px solid var(--line)">${esc(x.title)} <span class="mute">· ${esc(x.assignee)} · ${dl(x)}</span></div>`).join('')||'<p class="mute" style="margin:0">Nothing due soon.</p>')}</div>`}
@@ -2008,7 +2188,7 @@ ld();
 /* ===== v12: admin Workflow page, split by brand ===== */
 S.wf='';
 const wfGo=i=>{S.wf=i<0?'':D.brands.rows[i].name;view(false)};
-PAGES.workflow=()=>{const q=(S.q||'').trim().toLowerCase(),B=D.brands.rows,bi=B.findIndex(b=>b.name===S.wf),dn=t=>DONE4.includes(t.status),od=t=>!dn(t)&&dl(t)&&String(dl(t))<TODAY,
+PAGES.workflow=()=>{const q=(S.q||'').trim().toLowerCase(),B=D.brands.rows,bi=B.findIndex(b=>b.name===S.wf),dn=t=>DONE4.includes(t.status),od=isOd,
  inf=b=>({L:allI().filter(([,p])=>p.brand===b.name),tk:TK.filter(t=>t.brand===b.name),rq:REQ.filter(r=>r.brand===b.name),s:sg(b.name)});
  if(bi<0){const bf=B.map((b,i)=>({b,i})).filter(({b})=>!q||[b.name,b.industry,b.teamId,b.accountManagerId,b.status].join(' ').toLowerCase().includes(q));return hdr('Workflow','Everything happening in each brand. Pick a brand to see the detail.')+(bf.length?`<div class="cards">${bf.map(({b,i})=>{const f=inf(b);return `<div class="card tc" style="cursor:pointer" onclick="wfGo(${i})"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b style="font-size:16px">${esc(b.name)}</b>${pill(b.status)}</div><div class="mute" style="font-size:12px">${esc(b.teamId)} · ${esc(b.accountManagerId)}</div><div>${Object.keys(STG).filter(s=>f.L.some(([x])=>x.stage===s)).map(s=>`${SP(s)}<span class="mute">×${f.L.filter(([x])=>x.stage===s).length}</span> `).join('')||'<span class="mute">No content yet</span>'}</div><div class="dash" style="margin:2px 0"></div><div><span class="tag">${f.tk.filter(t=>!dn(t)).length} open tasks</span><span class="tag">${f.tk.filter(od).length} overdue</span><span class="tag">${f.rq.filter(r=>['SUBMITTED','ASSIGNED'].includes(r.st)).length} requests</span></div></div>`}).join('')}</div>`:`<div class="card empty"><h2>Nothing here yet</h2><p class="mute">No brands match your search.</p></div>`)}
  const b=B[bi],f=inf(b),ev=f.L.flatMap(([i])=>i.hist.map(h=>({...h,t:i.title}))).sort((p,q)=>q.at.localeCompare(p.at)).slice(0,10),em=t=>`<p class="mute" style="margin:0">${t}</p>`;
@@ -2043,7 +2223,7 @@ function onKeyDown(e){
 
 /* ===== v9: Express / Prisma Backend API Integration Bridge ===== */
 const API_BASE=(window.__ORVIA_API_BASE__||'/api').replace(/\/+$/,'');
-const API_CACHE={roles:{},jobTitles:{},usersByName:{},usersById:{},teamsByName:{},brandsByName:{},platformsByAccount:{},plansByTitle:{},campaignsByName:{},strategiesByBrand:{}};
+const API_CACHE={roles:{},jobTitles:{},usersByName:{},usersById:{},teamsByName:{},brandsByName:{},platformsByAccount:{},plansByTitle:{},campaignsByName:{},strategiesByBrand:{},progress:null,teamPerformance:null};
 const ROLE_API_TO_UI={ADMIN:'admin',ACCOUNT_MANAGER:'am',CONTENT_CREATOR:'cc',CREATIVE:'emp',EMPLOYEE:'emp',CLIENT:'client'};
 const ROLE_UI_TO_API={Admin:'ADMIN','Account Manager':'ACCOUNT_MANAGER','Content Creator':'CONTENT_CREATOR',Creative:'CREATIVE','Team Leader':'CONTENT_CREATOR',Client:'CLIENT'};
 const ROLE_API_TO_LABEL={ADMIN:'Admin',ACCOUNT_MANAGER:'Account Manager',CONTENT_CREATOR:'Content Creator',CREATIVE:'Creative',EMPLOYEE:'Creative',CLIENT:'Client'};
@@ -2129,7 +2309,7 @@ async function hydrateFromBackend(){
    const stored=loadProfilesMap()[String(me.email).trim().toLowerCase()]||{};
    if(me.phone&&stored.phone===undefined)saveProfileStore(me.email,{phone:me.phone});
   }
-  const [rolesData,jobsData,teamsData,usersData,brandsData,platformsData,plansData,campaignsData,itemsData,briefsData,stratsData,tasksData,notifsData]=await Promise.all([
+  const [rolesData,jobsData,teamsData,usersData,brandsData,platformsData,plansData,campaignsData,itemsData,briefsData,stratsData,tasksData,notifsData,clientReqsData,changeReqsData,progressData,teamPerfData]=await Promise.all([
    apiCall('/meta/roles').catch(()=>null),
    apiCall('/meta/job-titles').catch(()=>null),
    apiCall('/teams').catch(()=>null),
@@ -2142,7 +2322,11 @@ async function hydrateFromBackend(){
    apiCall('/brand-briefs').catch(()=>null),
    apiCall('/strategies').catch(()=>null),
    apiCall('/tasks').catch(()=>null),
-   apiCall('/notifications').catch(()=>null)
+   apiCall('/notifications').catch(()=>null),
+   apiCall('/client-requests').catch(()=>null),
+   apiCall('/client-change-requests').catch(()=>null),
+   S.role!=='client'?apiCall('/dashboard/progress').catch(()=>null):Promise.resolve(null),
+   S.role!=='client'?apiCall('/dashboard/team-performance').catch(()=>null):Promise.resolve(null)
   ]);
 
   if(rolesData){
@@ -2227,12 +2411,25 @@ async function hydrateFromBackend(){
      API_CACHE.plansByTitle[p.title]=p.id;
      D.plans.rows.push({_id:p.id,title:p.title,brandId:bName,month:mLabel,status:(p.status||'DRAFT').toUpperCase(),assignedToId:p.assignedTo?.fullName||MEN.cc});
      const pCamps=cList.filter(c=>c.contentPlanId===p.id).map(c=>{API_CACHE.campaignsByName[c.name]=c.id;return {_id:c.id,name:c.name,objective:c.objective||''}});
-     const pItems=iList.filter(it=>it.contentPlanId===p.id).map(it=>({
-      id:it.id,_id:it.id,title:it.title,type:(it.type||'POST').toUpperCase(),platform:platAcc,
-      campaign:pCamps.find(c=>c._id===it.campaignId)?.name||'—',
-      date:it.scheduledDate?String(it.scheduledDate).slice(0,10):'',
-      caption:it.caption||'',notes:it.notes||'',reference:it.reference||'',materialUrl:it.materialUrl||it.material_url||'',toneOfVoice:it.toneOfVoice||it.tone_of_voice||'',assignee:it.creator?.fullName||MEN.cc,priority:'MEDIUM',status:'TODO'
-     }));
+     const pItems=iList.filter(it=>it.contentPlanId===p.id).map(it=>{
+      const pubSt=String(it.publishStatus||'NOT_PUBLISHED').toUpperCase();
+      const revSt=String(it.clientReviewStatus||'NOT_READY').toUpperCase();
+      let stage='DRAFT';
+      if(pubSt==='PUBLISHED')stage='PUBLISHED';
+      else if(revSt==='APPROVED')stage='APPROVED';
+      else if(revSt==='PENDING_CLIENT_REVIEW')stage='CLIENT_REVIEW';
+      else if(revSt==='CHANGES_REQUESTED'||revSt==='IN_MODIFICATION')stage='CHANGES_REQUESTED';
+      const pub=pubSt==='PUBLISHED'?{d:it.publishedAt?String(it.publishedAt).slice(0,10):'',u:it.publishUrl||'',n:it.publishNotes||''}:null;
+      return {
+       id:it.id,_id:it.id,title:it.title,type:(it.type||'POST').toUpperCase(),platform:platAcc,
+       campaign:pCamps.find(c=>c._id===it.campaignId)?.name||'—',
+       date:it.scheduledDate?String(it.scheduledDate).slice(0,10):'',
+       caption:it.caption||'',notes:it.notes||'',reference:it.reference||'',
+       materialUrl:it.materialUrl||it.material_url||'',link:it.materialUrl||it.material_url||it.reference||'',
+       toneOfVoice:it.toneOfVoice||it.tone_of_voice||'',assignee:it.creator?.fullName||MEN.cc,priority:'MEDIUM',status:'TODO',
+       stage,clientReviewStatus:revSt,publishStatus:pubSt,pub,v:1,comments:[],hist:[],vers:[]
+      };
+     });
      PLANS.push({id:p.id,_id:p.id,brand:bName,platform:platAcc,title:p.title,month:mLabel,campaigns:pCamps,items:pItems});
     });
    }
@@ -2310,6 +2507,37 @@ async function hydrateFromBackend(){
      if(sn?.title&&!D.notifications.rows.some(x=>x.title===sn.title))D.notifications.rows.unshift(sn);
     });
    }
+  }
+  if(progressData&&typeof progressData==='object'){
+   API_CACHE.progress=progressData;
+  }
+  if(teamPerfData&&typeof teamPerfData==='object'){
+   API_CACHE.teamPerformance=teamPerfData;
+  }
+  if(clientReqsData){
+   const rList=Array.isArray(clientReqsData)?clientReqsData:(clientReqsData.requests||clientReqsData.clientRequests||clientReqsData.data||[]);
+   REQ=rList.map(r=>{
+    const bName=D.brands.rows.find(b=>b._id===r.brandId)?.name||BR[0]||'—';
+    const empName=r.employee?.fullName||API_CACHE.usersById[r.employeeId]||'';
+    const bTeam=D.brands.rows.find(b=>b._id===r.brandId)?.teamId||'';
+    const stMap={PENDING:'SUBMITTED',ACCEPTED:'ASSIGNED',REJECTED:'REJECTED'};
+    return {
+     _id:r.id,id:r.id,brand:bName,kind:REQ_API_TO_KIND[r.type]||r.type||'Extra content',
+     text:r.description||'',st:stMap[r.status]||r.status||'SUBMITTED',
+     team:r.status==='ACCEPTED'?bTeam:'',assignee:empName,reason:r.rejectionReason||'',
+     at:r.createdAt?String(r.createdAt).slice(0,10):TODAY
+    };
+   });
+  }
+  if(changeReqsData){
+   const crList=Array.isArray(changeReqsData)?changeReqsData:(changeReqsData.changeRequests||changeReqsData.data||[]);
+   CHANGE_REQS=crList.map(cr=>({
+    _id:cr.id,id:cr.id,contentItemId:cr.contentItemId,
+    itemTitle:cr.contentItem?.title||('Content #'+cr.contentItemId),
+    brand:cr.brand?.name||D.brands.rows.find(b=>b._id===cr.brandId)?.name||BR[0]||'—',
+    status:cr.status||'PENDING',clientNotes:cr.clientNotes||'',accountManagerNotes:cr.accountManagerNotes||'',
+    createdAt:cr.createdAt?String(cr.createdAt).slice(0,16).replace('T',' '):TODAY
+   }));
   }
   if(S.role==='client'){
    const [catData,obData]=await Promise.all([
@@ -2617,7 +2845,9 @@ itSave=function(pid,eid){
   ...(item.toneOfVoice?{toneOfVoice:item.toneOfVoice}:{}),
  };
  if(eid&&item._id){
-  apiCall('/content-items/'+item._id,{method:'PATCH',body:payload}).catch(err=>{if(err?.message)toast(err.message)});
+  const lastHist=(item.hist||[])[(item.hist||[]).length-1];
+  const patchBody=lastHist&&lastHist.a==='Edited after approval'?{...payload,changeReason:'Edited after approval — returned to internal review'}:payload;
+  apiCall('/content-items/'+item._id,{method:'PATCH',body:patchBody}).catch(err=>{if(err?.message)toast(err.message)});
  }else if(!eid&&p._id){
   apiCall('/content-items',{method:'POST',body:{contentPlanId:p._id,...payload}}).then(res=>{if(res?.id)item._id=res.id}).catch(err=>{if(err?.message)toast(err.message)});
  }
@@ -3214,4 +3444,4 @@ if(window.location.hash.startsWith('#reset'))applyResetHash();
 
 applyTheme();
 render();
-Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,cmv,reqNew,reqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
+Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,dlS,sgo,newPlan,newCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,loadItemRevisions,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,reqNew,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
