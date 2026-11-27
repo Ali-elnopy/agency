@@ -400,6 +400,7 @@ model ContentItem {
   title         String   @db.VarChar(200)
 
   reference   String? @db.Text
+  materialUrl String? @map("material_url") @db.Text
   toneOfVoice String? @map("tone_of_voice") @db.Text
   caption     String? @db.Text
   notes       String? @db.Text
@@ -444,6 +445,7 @@ model ContentItemRevision {
   type          String   @db.VarChar(50)
   scheduledDate DateTime @map("scheduled_date") @db.Timestamptz(6)
   reference     String?  @db.Text
+  materialUrl   String?  @map("material_url") @db.Text
   toneOfVoice   String?  @map("tone_of_voice") @db.Text
   caption       String?  @db.Text
   notes         String?  @db.Text

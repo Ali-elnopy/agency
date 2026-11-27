@@ -112,6 +112,8 @@ export const updateContentItemSchema = z
       .nullable()
       .optional(),
 
+    materialUrl: httpUrlSchema.nullable().optional(),
+
     toneOfVoice: z
       .string()
       .trim()

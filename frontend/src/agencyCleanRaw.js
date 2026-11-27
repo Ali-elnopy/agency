@@ -1745,12 +1745,76 @@ function subHtml(d){const k=d.kind,f=k==='item'?fItem(d.id):null,o=k==='task'?TK
  +bx('Added ('+A.a.length+')',A.a.length?A.a.map((x,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)"><span style="overflow:hidden;text-overflow:ellipsis">${x.kind==='link'?'🔗':'📄'} ${esc(x.name)} ${x.size?`<span class="mute">${kb(x.size)}</span>`:''}</span><button class="btn sm dg" onclick="subRm(${i})">Remove</button></div>`).join(''):'<p class="mute" style="margin:0">Nothing added yet.</p>')
  +bx('Notes',`<textarea ${inp.replace('flex:1;','width:100%;box-sizing:border-box;min-height:90px;')} oninput="S.sd.note=this.value" placeholder="Anything the reviewer should know">${esc(A.note)}</textarea>`)
  +`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">${k==='task'?`<button class="btn p" onclick="subDone(true)">Submit for review</button>`:`<button class="btn p" onclick="subDone(false)">Save</button>${can2(o,'IN_REVIEW')?`<button class="btn" onclick="subDone(true)">Save & send to internal review</button>`:''}`}<button class="btn" onclick="subBack()">${k==='task'?'Cancel':'Skip for now'}</button></div>`}
-function subDone(send){const d=S.det,A=S.sd;if(!d||!A||A._submitted)return;if(d.kind==='task'&&!A.a.length)return toast('Add at least one link or file first');if(d.kind==='item'&&!A.a.length&&!(A.note||'').trim())return toast('Add a link, a file or a note first');
+async function subDone(send){const d=S.det,A=S.sd;if(!d||!A||A._submitted)return;if(d.kind==='task'&&!A.a.length)return toast('Add at least one link or file first');if(d.kind==='item'&&!A.a.length&&!(A.note||'').trim())return toast('Add a link, a file or a note first');
  A._submitted=true;const at=now(),by=ME[S.role][0],add=A.a.map(x=>({...x,at,by}));
- if(d.kind==='task'){const t=TK.find(x=>x.id===d.id);t.atts=(t.atts||[]).concat(add);if(A.note)t.sub=A.note;S.sd=null;S.det=null;window._pass=1;return tset(d.id,'SUBMITTED')}
- const i=fItem(d.id)[0];i.atts=(i.atts||[]).concat(add.map(x=>({...x,v:i.v})));if(A.note)i.notes=(i.notes?i.notes+'\n':'')+A.note;if(add.length||A.note)logH(i,'Added '+(add.length?add.length+' file'+(add.length===1?'':'s')+'/link'+(add.length===1?'':'s'):'a note'),A.note||'');
- S.sd=null;S.det={t:'item',id:d.id};if(send&&can2(i,'IN_REVIEW'))mv(d.id,'IN_REVIEW');else{toast('Saved');view(false)}}
-{const _ts=tset;tset=function(id,s){if(s==='SUBMITTED'&&!window._pass&&S.role==='emp')return openSub('task',id);window._pass=0;return _ts(id,s)}}
+ if(d.kind==='task'){
+  const t=TK.find(x=>x.id===d.id);
+  const link=add.find(x=>x.kind==='link'&&safeUrl(x.url));
+  let submissionUrl=link?safeUrl(link.url):'';
+  // If only local files were attached, upload first file to backend to get a persistent URL.
+  if(!submissionUrl){
+   const file=add.find(x=>x.kind==='file'&&x.url&&String(x.url).startsWith('data:'));
+   if(file&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+    try{
+     const res=await fetch(String(file.url));
+     const blob=await res.blob();
+     const fd=new FormData();
+     fd.append('file', new File([blob], file.name||'attachment', {type:file.type||blob.type||'application/octet-stream'}));
+     const up=await apiCall('/files/upload',{method:'POST',body:fd});
+     submissionUrl=up?.url||up?.data?.url||up?.fileUrl||up?.data?.fileUrl||'';
+     if(submissionUrl&&!/^https?:\/\//i.test(submissionUrl))submissionUrl=new URL(submissionUrl,location.origin).href;
+    }catch(err){A._submitted=false;toast(err?.message||'Could not upload file. Please add an external link instead.');return}
+   }
+  }
+  if(!submissionUrl){A._submitted=false;return toast('Add an external http/https link (file hosted outside the system) before submitting.')}
+  t.atts=(t.atts||[]).concat(add);
+  if(A.note)t.sub=A.note;
+  const notes=(A.note||'').trim();
+  // Persist to backend when task is linked to DB
+  if(t._id&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+   try{
+    await apiCall('/tasks/'+t._id+'/submit',{method:'POST',body:{submissionUrl,submissionNotes:notes||null}});
+   }catch(err){A._submitted=false;toast(err?.message||'Could not submit task to server');return}
+  }
+  t.submissionUrl=submissionUrl;
+  t.submissionNotes=notes;
+  S.sd=null;S.det=null;window._pass=1;return tset(d.id,'SUBMITTED')
+ }
+ const i=fItem(d.id)[0];
+ const link=add.find(x=>x.kind==='link'&&safeUrl(x.url));
+ const noteText=(A.note||'').trim();
+ i.atts=(i.atts||[]).concat(add.map(x=>({...x,v:i.v})));
+ if(noteText)i.notes=(i.notes?i.notes+'\n':'')+noteText;
+ if(link&&safeUrl(link.url))i.reference=safeUrl(link.url);
+ if(add.length||noteText)logH(i,'Added '+(add.length?add.length+' file'+(add.length===1?'':'s')+'/link'+(add.length===1?'':'s'):'a note'),noteText||'');
+ // Persist content item text/link to backend (DB), not only localStorage
+ if(typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   if(!i._id){
+    const plan=PLANS.find(pp=>(pp.items||[]).some(x=>x.id===i.id));
+    if(plan&&plan._id){
+     const list=await apiCall('/content-items?contentPlanId='+plan._id).catch(()=>null);
+     const arr=Array.isArray(list)?list:(list?.contentItems||list?.items||list?.data||[]);
+     const match=arr.find(x=>String(x.title||'').trim()===String(i.title||'').trim()&&String(x.type||'').toUpperCase()===String(i.type||'').toUpperCase());
+     if(match&&match.id)i._id=match.id;
+    }
+   }
+   if(i._id){
+    const payload={};
+    if(noteText||i.notes)payload.notes=i.notes||noteText;
+    if(i.reference)payload.reference=i.reference;
+    if(link&&safeUrl(link.url))payload.materialUrl=safeUrl(link.url);
+    if(Object.keys(payload).length)await apiCall('/content-items/'+i._id,{method:'PATCH',body:payload});
+   }else{
+    console.warn('Content item has no server id; attachment saved locally only');
+    toast('Saved locally. Open item again after sync to persist link to DB.');
+   }
+  }catch(err){console.warn('Content item attachment save failed',err);toast('Saved locally, but server sync failed: '+(err?.message||'unknown error'))}
+ }
+ S.sd=null;S.det={t:'item',id:d.id};
+ if(send&&can2(i,'IN_REVIEW'))mv(d.id,'IN_REVIEW');
+ else{toast('Saved');view(false)}}
+{const _ts=tset;tset=function(id,s){if(s==='SUBMITTED'&&!window._pass&&S.role==='emp'){const t=TK.find(x=>x.id===id);if(t&&t.kind==='CREATION')return submitTaskModal(id);return openSub('task',id)}window._pass=0;return _ts(id,s)}}
 {const _td=taskDet;taskDet=function(id){const b=_td(id);if(!b)return b;const t=TK.find(x=>x.id===id),p=t.after&&TK.find(x=>x.id===t.after),s=t.atts&&t.atts.length?t:p&&p.atts&&p.atts.length?p:null;
  return b+(s?`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:6px">Submitted work</h2>${s.sub?`<p style="margin:0 0 6px">${esc(s.sub)}</p>`:''}${attList(s.atts)}</div>`:'')}}
 {const _i3=itemDet;itemDet=function(id){const b=_i3(id);if(!b)return b;const i=fItem(id)[0],ed=['cc','am','admin'].includes(S.role)&&i.stage!=='PUBLISHED';
@@ -1988,7 +2052,7 @@ async function hydrateFromBackend(){
       id:it.id,_id:it.id,title:it.title,type:(it.type||'POST').toUpperCase(),platform:platAcc,
       campaign:pCamps.find(c=>c._id===it.campaignId)?.name||'—',
       date:it.scheduledDate?String(it.scheduledDate).slice(0,10):'',
-      caption:it.caption||'',notes:it.notes||'',assignee:it.creator?.fullName||MEN.cc,priority:'MEDIUM',status:'TODO'
+      caption:it.caption||'',notes:it.notes||'',reference:it.reference||'',materialUrl:it.materialUrl||it.material_url||'',toneOfVoice:it.toneOfVoice||it.tone_of_voice||'',assignee:it.creator?.fullName||MEN.cc,priority:'MEDIUM',status:'TODO'
      }));
      PLANS.push({id:p.id,_id:p.id,brand:bName,platform:platAcc,title:p.title,month:mLabel,campaigns:pCamps,items:pItems});
     });
@@ -2355,6 +2419,7 @@ itSave=function(pid,eid){
   notes:item.notes||null,
   ...(campaignId?{campaignId}:{}),
   ...(item.reference?{reference:item.reference}:{}),
+  ...(item.materialUrl?{materialUrl:item.materialUrl}:{}),
   ...(item.toneOfVoice?{toneOfVoice:item.toneOfVoice}:{}),
  };
  if(eid&&item._id){

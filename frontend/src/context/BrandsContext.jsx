@@ -407,7 +407,10 @@ export function BrandsProvider({ children }) {
               typeof item.reference === 'string' && /^https?:\/\//i.test(item.reference)
                 ? item.reference
                 : '',
-            materialUrl: '',
+            materialUrl:
+              typeof item.materialUrl === 'string' && /^https?:\/\//i.test(item.materialUrl)
+                ? item.materialUrl
+                : '',
             pillar: '',
             campaignId: item.campaignId ? String(item.campaignId) : '',
             platform: '',
@@ -687,6 +690,7 @@ export function BrandsProvider({ children }) {
           ? `${item.publishDate}T${item.publishTime || '09:00'}:00`
           : new Date().toISOString(),
         reference: item.referenceUrl || null,
+        materialUrl: item.materialUrl || null,
         toneOfVoice: item.tov || null,
         caption: item.caption || null,
         notes: item.notes || null,
@@ -732,6 +736,7 @@ export function BrandsProvider({ children }) {
     if (patch.notes !== undefined) payload.notes = patch.notes || null;
     if (patch.tov !== undefined) payload.toneOfVoice = patch.tov || null;
     if (patch.referenceUrl !== undefined) payload.reference = patch.referenceUrl || null;
+    if (patch.materialUrl !== undefined) payload.materialUrl = patch.materialUrl || null;
     if (patch.publishDate !== undefined || patch.publishTime !== undefined) {
       const date = patch.publishDate ?? current.publishDate;
       const time = patch.publishTime ?? current.publishTime;
