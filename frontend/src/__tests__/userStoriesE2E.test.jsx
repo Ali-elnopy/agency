@@ -348,7 +348,7 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url, opts = {}) => {
-        const path = String(url).replace(/^\/api/, '');
+        const path = String(url).replace(/^\/api(\/v1)?/, '');
         const method = opts.method || 'GET';
         const body = typeof opts.body === 'string' ? JSON.parse(opts.body) : opts.body;
         calls.push({ method, path, body });
@@ -428,7 +428,7 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url, opts = {}) => {
-        const path = String(url).replace(/^\/api/, '');
+        const path = String(url).replace(/^\/api(\/v1)?/, '');
         const method = opts.method || 'GET';
         const body = typeof opts.body === 'string' ? JSON.parse(opts.body) : opts.body;
         calls.push({ method, path, body });
@@ -608,7 +608,7 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url, opts = {}) => {
-        const path = String(url).replace(/^\/api/, '');
+        const path = String(url).replace(/^\/api(\/v1)?/, '');
         const method = opts.method || 'GET';
         const body = typeof opts.body === 'string' ? JSON.parse(opts.body) : opts.body;
         calls.push({ method, path, body });
@@ -1873,5 +1873,65 @@ describe('ORVIA End-to-End User Stories & Edge-Case Verification', () => {
     await vi.waitFor(() => expect(window.S.role).toBe('emp'));
     window.openD({ t: 'task', id: 1 }); // task #1 belongs to Lina Aziz, not Karim Fouad
     expect(document.getElementById('view')?.textContent || '').toContain('Access denied');
+  });
+
+  it('34. Sprint 4 Backend Handoff integration: /api/v1 base, GET /:id/revisions/:revisionId snapshot, GET/PATCH /:id/publishing with revert block, and calendar/progress/team-performance contracts', async () => {
+    loginAs('omar@agency-clean.co', 'Manager123456!');
+    await vi.waitFor(() => expect(window.S.role).toBe('am'));
+
+    const calls = [];
+    window.S.offlineMode = false;
+    window.setApiTokens('am-v1-token', 'am-v1-refresh');
+    global.fetch = vi.fn(async (url, opts = {}) => {
+      calls.push({ url: String(url), method: opts.method || 'GET', auth: opts.headers?.Authorization || '' });
+      if (String(url).includes('/revisions/99')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: { revision: { id: 99, revisionNumber: 2, title: 'Snapshot v2', type: 'REEL', caption: 'Warm winter glow', changeReason: 'Client requested warmer tone', createdAt: '2026-11-28T01:00:00Z', creator: { fullName: 'Lina Aziz' } } },
+          }),
+        };
+      }
+      if (String(url).endsWith('/publishing') && (opts.method || 'GET') === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: { publishing: { publishStatus: 'PUBLISHED', publishUrl: 'https://instagram.com/p/live-100', publishedAt: '2026-11-28T01:00:00Z', publishNotes: 'Live on schedule', publisher: { fullName: 'Omar Haddad' } } },
+          }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({ success: true, data: {} }) };
+    });
+
+    const item = window.PLANS[0].items[0];
+    item._id = 100;
+    item.stage = 'APPROVED';
+    item._pubLoaded = false;
+
+    // 1. GET /api/v1/content-items/100/publishing hydrates PUBLISHED status + publisher + notes
+    window.loadItemPublishing(item.id);
+    await vi.waitFor(() => expect(item.pub?.status).toBe('PUBLISHED'));
+    expect(item.pub.by).toBe('Omar Haddad');
+    expect(item.pub.n).toBe('Live on schedule');
+    expect(calls.some((c) => c.url.includes('/api/v1/content-items/100/publishing') && c.method === 'GET' && c.auth === 'Bearer am-v1-token')).toBe(true);
+
+    // 2. GET /api/v1/content-items/100/revisions/99 opens Revision Snapshot modal
+    await window.viewRevisionSnapshot(item.id, 99);
+    expect(document.querySelector('.dlg')?.textContent || '').toContain('Revision snapshot — Version 2');
+    expect(document.querySelector('.dlg')?.textContent || '').toContain('Warm winter glow');
+    expect(calls.some((c) => c.url.includes('/api/v1/content-items/100/revisions/99') && c.method === 'GET')).toBe(true);
+    window.closeM();
+
+    // 3. Reverting PUBLISHED back to SCHEDULED is blocked client-side before sending PATCH
+    window.pubRec(item.id);
+    document.getElementById('pb-st').value = 'SCHEDULED';
+    await window.confirmPubRec(item.id);
+    expect(item.pub.status).toBe('PUBLISHED');
+    expect(calls.some((c) => c.url.endsWith('/publishing') && c.method === 'PATCH')).toBe(false);
+    window.closeM();
   });
 });

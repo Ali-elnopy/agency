@@ -2292,6 +2292,7 @@ function loadItemRevisions(id){
   const list=Array.isArray(res)?res:(res?.revisions||[]);
   if(list.length){
    const mapped=list.map(r=>({
+    _id:r.id,
     v:r.revisionNumber||1,
     at:r.createdAt?String(r.createdAt).slice(0,16).replace('T',' '):now(),
     by:r.creator?.fullName||'',
@@ -2305,6 +2306,40 @@ function loadItemRevisions(id){
    if(S.det&&S.det.t==='item'&&S.det.id===id)view(false);
   }
  }).catch(()=>{}).finally(()=>{it._revsLoading=false});
+}
+async function viewRevisionSnapshot(itemId,revId){
+ const f=fItem(itemId);if(!f)return;
+ const [it]=f;
+ let snap=(it.vers||[]).find(x=>String(x._id)===String(revId)||String(x.v)===String(revId));
+ if(it._id&&revId&&typeof getApiToken==='function'&&getApiToken()&&!S.offlineMode){
+  try{
+   const res=await apiCall(`/content-items/${it._id}/revisions/${revId}`);
+   const r=res?.revision||res;
+   if(r){
+    snap={_id:r.id,v:r.revisionNumber||snap?.v||1,at:r.createdAt?String(r.createdAt).slice(0,16).replace('T',' '):now(),by:r.creator?.fullName||'',reason:r.changeReason||r.source||'',s:{title:r.title,type:r.type,date:r.scheduledDate?String(r.scheduledDate).slice(0,10):'',caption:r.caption||'',notes:r.notes||'',reference:r.reference||'',materialUrl:r.materialUrl||'',toneOfVoice:r.toneOfVoice||''}};
+   }
+  }catch(err){if(err?.message)toast(err.message)}
+ }
+ if(!snap)return toast('Revision snapshot not found');
+ modal(`<div class="dlg" style="max-width:620px"><h2>Revision snapshot — Version ${esc(snap.v)}</h2><p class="mute" style="margin:0 0 14px">${esc(snap.at)}${snap.by?' · '+esc(snap.by):''}${snap.reason?' · '+esc(snap.reason):''}</p><dl class="kv" style="margin:0">${kvh(Object.entries(snap.s||{}).filter(([,v])=>v&&typeof v!=='object').map(([k,v])=>[esc(FL[k]||k),esc(v).replace(/\n/g,'<br>')]))}</dl><div class="ft"><button class="btn p" onclick="closeM()">Close</button></div></div>`);
+}
+function loadItemPublishing(id){
+ const f=fItem(id);if(!f)return;
+ const [it]=f;
+ if(!it?._id||it._pubLoading||!getApiToken()||S.offlineMode)return;
+ it._pubLoading=true;
+ apiCall('/content-items/'+it._id+'/publishing').then(res=>{
+  const p=res?.publishing||res;
+  if(!p||!p.publishStatus)return;
+  const st=String(p.publishStatus).toUpperCase();
+  it.publishStatus=st;
+  if(st!=='NOT_PUBLISHED'||p.publishUrl||p.publishNotes||p.publishedAt){
+   it.pub={status:st,d:p.publishedAt?String(p.publishedAt).slice(0,10):'',u:p.publishUrl||'',n:p.publishNotes||'',by:p.publisher?.fullName||''};
+  }
+  if(st==='PUBLISHED')it.stage='PUBLISHED';
+  it._pubLoaded=true;
+  if(S.det&&S.det.t==='item'&&S.det.id===id)view(false);
+ }).catch(()=>{}).finally(()=>{it._pubLoading=false});
 }
 async function mv(id,to,reason){
  const f=fItem(id);if(!f)return;
@@ -2423,6 +2458,7 @@ async function confirmPubRec(id){
  const d=($('#pb-d')?.value||'').trim();
  const u=($('#pb-u')?.value||'').trim();
  const n=($('#pb-n')?.value||'').trim();
+ if((i.publishStatus==='PUBLISHED'||i.pub?.status==='PUBLISHED')&&status!=='PUBLISHED')return toast('Published content cannot be reverted to an earlier status.');
  if(status==='PUBLISHED'&&(!u||!safeUrl(u)))return toast('Enter a valid http:// or https:// post link');
  if(u&&!safeUrl(u))return toast('Post link must start with http:// or https://');
  dlg._submitted=true;
@@ -2434,7 +2470,7 @@ async function confirmPubRec(id){
    });
   }catch(err){dlg._submitted=false;return toast(err?.message||'Could not save publishing record')}
  }
- i.pub={status,d:d||'',u,n};
+ i.pub={status,d:d||'',u,n,by:MEN[S.role]||ROLES[S.role]};
  i.publishStatus=status;
  if(d)i.date=d;
  closeM();
@@ -2502,6 +2538,7 @@ const _id=itemDet;
 itemDet=function(id){const b=_id(id);if(!b)return b;const[i]=fItem(id),R=S.role,cd=(h,x)=>`<div class="card" style="margin-top:16px"><h2 style="margin-bottom:10px">${h}</h2>${x}</div>`,lk=u=>{if(!u)return '—';const su=safeUrl(u);return su?`<a class="lk" href="${esc(su)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`:esc(u)},
  bt=(TRN[i.stage]||[]).filter(t=>can2(i,t)).map(t=>`<button class="btn ${t==='CHANGES_REQUESTED'?'dg':'p'}" onclick="${t==='PUBLISHED'?`pubRec(${id})`:`mvAsk(${id},'${t}')`}">${BTN[t]}</button>`).join('');
  if(i._id&&!i._revsLoaded&&!i._revsLoading)loadItemRevisions(id);
+ if(i._id&&!i._pubLoaded&&!i._pubLoading)loadItemPublishing(id);
  const pendingCr=(R==='am'||R==='admin')?CHANGE_REQS.filter(cr=>cr.status==='PENDING'&&(cr.contentItemId===i._id||cr.contentItemId===i.id||cr.itemTitle===i.title)):[];
  const lnkTasks=findLinkedTasks(i);
  const taskDoneNotApproved=lnkTasks.creation?.status==='COMPLETED'&&!['APPROVED','PUBLISHED'].includes(i.stage);
@@ -2509,9 +2546,9 @@ itemDet=function(id){const b=_id(id);if(!b)return b;const[i]=fItem(id),R=S.role,
  const auditSummary=`<dl class="kv" style="margin:12px 0 0">${kvh([['Current version','Version '+esc(i.v)],['Approved by',esc(i.approvedBy||'Not approved by client yet')],['Approved at',esc(i.approvedAt||'—')],['Last changes requested by',lastChangeReq?`${esc(lastChangeReq.by)} (${esc(lastChangeReq.role)}) · v${esc(lastChangeReq.v)} · ${esc(lastChangeReq.at)}${lastChangeReq.r?' — '+esc(lastChangeReq.r):''}`:'None']])}</dl>`;
  return b+cd('Workflow',`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${SP(i.stage)}<span class="tag">Version ${esc(i.v)}</span>${bt||'<span class="mute">No action needed from your role right now.</span>'}${(R==='cc'||R==='emp')&&i.stage==='CHANGES_REQUESTED'?`<button class="btn sm" onclick="editItem(${id})">Edit content</button>`:''}</div>`+ow(i)+auditSummary+(taskDoneNotApproved?'<div class="note" style="margin-top:12px"><b>ℹ</b><span>Internal task is completed, but this content is not approved by the client yet.</span></div>':'')+(pendingCr.length?`<div class="note wn" style="margin-top:12px;flex-direction:column;align-items:flex-start;gap:8px"><b>Client change request pending</b>${pendingCr.map(cr=>`<div>${esc(cr.clientNotes)} <span class="mute">(${esc(cr.createdAt)})</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm p" onclick="resolveChangeReq(${cr.id})">Resolve &amp; resend to client</button><button class="btn sm" onclick="forwardChangeReq(${cr.id})">Forward to team</button></div>`).join('')}</div>`:''))
  +cd('External file',`<dl class="kv" style="margin:0">${kvh([['Link',lk(i.link||i.materialUrl)]])}</dl>${R==='cc'||R==='emp'?`<button class="btn sm" style="margin-top:10px" onclick="setLink(${id})">${i.link||i.materialUrl?'Change':'Attach'} link</button>`:''}`)
- +(i.pub?cd('Publishing tracking',`<p class="mute" style="margin:0 0 10px;font-size:12px">Manual publishing record (not automatic social media posting).</p><dl class="kv" style="margin:0">${kvh([['Publish status',pill(i.pub.status||'PUBLISHED')],['Publish date',esc(i.pub.d)||'—'],['Post link',lk(i.pub.u)],['Notes',esc(i.pub.n)||'—']])}</dl>`+(R!=='client'&&can2(i,'PUBLISHED')?`<button class="btn sm" style="margin-top:10px" onclick="pubRec(${id})">Update publishing</button>`:'')):i.stage==='APPROVED'?cd('Publishing tracking','<p class="mute" style="margin:0">Approved by client — waiting for manual publishing record.</p>'):'')
+ +(i.pub?cd('Publishing tracking',`<p class="mute" style="margin:0 0 10px;font-size:12px">Manual publishing record (not automatic social media posting).</p><dl class="kv" style="margin:0">${kvh([['Publish status',pill(i.pub.status||'PUBLISHED')],['Publish date',esc(i.pub.d)||'—'],['Post link',lk(i.pub.u)],['Published by',esc(i.pub.by||'—')],['Notes',esc(i.pub.n)||'—']])}</dl>`+(R!=='client'&&can2(i,'PUBLISHED')&&i.pub.status!=='PUBLISHED'?`<button class="btn sm" style="margin-top:10px" onclick="pubRec(${id})">Update publishing</button>`:'')):i.stage==='APPROVED'?cd('Publishing tracking','<p class="mute" style="margin:0">Approved by client — waiting for manual publishing record.</p>'):'')
  +cd('Comments ('+i.comments.length+')',(i.comments.map(c=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(c.by)}</b> <span class="mute" style="font-size:12px">${esc(c.role)} · v${esc(c.v)} · ${esc(c.at)}</span><div>${esc(c.t)}</div></div>`).join('')||'<p class="mute" style="margin:0">No comments yet.</p>')+`<button class="btn sm" style="margin-top:12px" onclick="cmt(${id})">+ Add comment</button>`)
- +cd('Previous versions ('+(i.vers||[]).length+')',(i.vers||[]).slice().reverse().map(x=>`<details style="padding:8px 0;border-top:1px solid var(--line)"><summary><b>Version ${esc(x.v)}</b> <span class="mute">${esc(x.at)}${x.by?' · '+esc(x.by):''}${x.reason?' · '+esc(x.reason):''}</span></summary><dl class="kv" style="margin:8px 0 0">${kvh(Object.entries(x.s||{}).filter(([k,v])=>v&&typeof v!=='object'&&!['id','_id','platform','assignee','priority','status'].includes(k)).map(([k,v])=>[esc(FL[k]||k),esc(v).replace(/\n/g,'<br>')]))}</dl></details>`).join('')||'<p class="mute" style="margin:0">No earlier versions yet.</p>')+cd('Decision history',i.hist.slice().reverse().map(h=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(h.a)}</b> <span class="mute" style="font-size:12px">${esc(h.by)} · ${esc(h.role)} · v${esc(h.v)} · ${esc(h.at)}</span>${h.r?`<div>${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet. Earlier versions and comments are always kept.</p>')};
+ +cd('Previous versions ('+(i.vers||[]).length+')',(i.vers||[]).slice().reverse().map(x=>`<details style="padding:8px 0;border-top:1px solid var(--line)"><summary><b>Version ${esc(x.v)}</b> <span class="mute">${esc(x.at)}${x.by?' · '+esc(x.by):''}${x.reason?' · '+esc(x.reason):''}</span> <button type="button" class="btn sm t" style="margin-left:8px" onclick="event.preventDefault();viewRevisionSnapshot(${id},'${esc(x._id||x.v)}')">View snapshot</button></summary><dl class="kv" style="margin:8px 0 0">${kvh(Object.entries(x.s||{}).filter(([k,v])=>v&&typeof v!=='object'&&!['id','_id','platform','assignee','priority','status'].includes(k)).map(([k,v])=>[esc(FL[k]||k),esc(v).replace(/\n/g,'<br>')]))}</dl></details>`).join('')||'<p class="mute" style="margin:0">No earlier versions yet.</p>')+cd('Decision history',i.hist.slice().reverse().map(h=>`<div style="padding:10px 0;border-top:1px solid var(--line)"><b>${esc(h.a)}</b> <span class="mute" style="font-size:12px">${esc(h.by)} · ${esc(h.role)} · v${esc(h.v)} · ${esc(h.at)}</span>${h.r?`<div>${esc(h.r)}</div>`:''}</div>`).join('')||'<p class="mute" style="margin:0">No decisions yet. Earlier versions and comments are always kept.</p>')};
 /* shared helpers */
 const allI=()=>PLANS.flatMap(p=>p.items.map(i=>[i,p]));
 const myBrands=()=>{if(S.role==='client')return[curClientBrand()];const m=S.role==='am'?D.brands.rows.filter(b=>b.accountManagerId===MEN.am).map(b=>b.name):[];return m.length?m:D.brands.rows.map(b=>b.name)};
@@ -2881,7 +2918,7 @@ async function subDone(send){const d=S.det,A=S.sd;if(!d||!A||A._submitted)return
      const blob=await res.blob();
      const fd=new FormData();
      fd.append('file', new File([blob], file.name||'attachment', {type:file.type||blob.type||'application/octet-stream'}));
-     const up=await apiCall('/files/upload',{method:'POST',body:fd});
+     const up=await apiCall('/files/upload',{method:'POST',body:fd,isForm:true});
      submissionUrl=up?.url||up?.data?.url||up?.fileUrl||up?.data?.fileUrl||'';
      if(submissionUrl&&!/^https?:\/\//i.test(submissionUrl))submissionUrl=new URL(submissionUrl,location.origin).href;
     }catch(err){A._submitted=false;toast(err?.message||'Could not upload file. Please add an external link instead.');return}
@@ -2984,7 +3021,7 @@ function onKeyDown(e){
 }
 
 /* ===== v9: Express / Prisma Backend API Integration Bridge ===== */
-const API_BASE=(window.__ORVIA_API_BASE__||'/api').replace(/\/+$/,'');
+const API_BASE=(window.__ORVIA_API_BASE__||'/api/v1').replace(/\/+$/,'');
 const API_CACHE={roles:{},jobTitles:{},usersByName:{},usersById:{},teamsByName:{},brandsByName:{},platformsByAccount:{},plansByTitle:{},campaignsByName:{},strategiesByBrand:{},progress:null,teamPerformance:null};
 const ROLE_API_TO_UI={ADMIN:'admin',ACCOUNT_MANAGER:'am',CONTENT_CREATOR:'cc',CREATIVE:'emp',EMPLOYEE:'emp',CLIENT:'client'};
 const ROLE_UI_TO_API={Admin:'ADMIN','Account Manager':'ACCOUNT_MANAGER','Content Creator':'CONTENT_CREATOR',Creative:'CREATIVE','Team Leader':'CONTENT_CREATOR',Client:'CLIENT'};
@@ -3181,7 +3218,7 @@ async function hydrateFromBackend(){
       else if(revSt==='APPROVED')stage='APPROVED';
       else if(revSt==='PENDING_CLIENT_REVIEW')stage='CLIENT_REVIEW';
       else if(revSt==='CHANGES_REQUESTED'||revSt==='IN_MODIFICATION')stage='CHANGES_REQUESTED';
-      const pub=pubSt==='PUBLISHED'?{d:it.publishedAt?String(it.publishedAt).slice(0,10):'',u:it.publishUrl||'',n:it.publishNotes||''}:null;
+      const pub=pubSt!=='NOT_PUBLISHED'?{status:pubSt,d:it.publishedAt?String(it.publishedAt).slice(0,10):'',u:it.publishUrl||'',n:it.publishNotes||'',by:it.publisher?.fullName||''}:null;
       return {
        id:it.id,_id:it.id,title:it.title,type:(it.type||'POST').toUpperCase(),platform:platAcc,
        campaign:pCamps.find(c=>c._id===it.campaignId)?.name||'—',
@@ -4268,4 +4305,4 @@ else if(window.location.hash==='#landing'||window.location.hash==='#home')S.auth
 
 applyTheme();
 render();
-Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,LANDING_MSGS,AUTH_LOCKOUT,AUTH_AUDIT,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,openLanding,sendLandingContact,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,pvS,dlS,sgo,newPlan,newCamp,editCamp,saveEditCamp,delCamp,doDelCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,reviewChangesModal,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,addActivityQGroup,ACTIVITY_QGROUPS,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,refreshNotifications,startNotificationPolling,stopNotificationPolling,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,confirmPubRec,loadItemRevisions,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,loadCalendarMonth,reqNew,reqReview,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,calcMemberPerf,memberPerfDet,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
+Object.assign(window,{S,D,OB,PLANS,TASKS,TK,T,TX,CATS,OBS,ROLES,ME,MEN,N,NAV,PAGES,CLIENT_BRAND,EMP,BR,PR,ST,TS,TS2,DONE4,STR,REQ,CHANGE_REQS,MR,WRK,STG,SP,LANDING_MSGS,AUTH_LOCKOUT,AUTH_AUDIT,esc,safeUrl,isAllowedPage,onSearch,clearSearch,pickSearchResult,openSearchDD,closeSearchDD,getApiToken,setApiTokens,clearApiTokens,toast,go,setRole,logout,view,render,act,E_del,gen,chg,editProfile,saveProfile,onProfilePhoto,removeProfilePhoto,togPw,openLanding,sendLandingContact,doLogin,doForgot,doVerifyOtp,doResendOtp,doResetPassword,updatePwMeter,syncOtpBoxes,onOtpBoxInput,onOtpBoxKey,onOtpBoxPaste,loadMailStatus,saveMailCfg,toggleTheme,closeM,ask,askOk,arch,delB,upS,pvS,dlS,sgo,newPlan,newCamp,editCamp,saveEditCamp,delCamp,doDelCamp,newItem,setIt,setTS,newTask,saveTask,editTask,saveEditTask,submitTaskModal,confirmSubmitTask,reviewChangesModal,attachTaskModal,confirmAttachTask,roleCh,save,obSelectCategory,obSubmit,obFinish,addActivityQGroup,ACTIVITY_QGROUPS,tset,tdet,teamView,teamNew,teamSave,teamEdit,teamUpd,teamDel,teamRm,teamEditAbout,teamSaveAbout,teamEditMem,teamSaveMem,teamEditBr,teamSaveBr,nview,markRead,markAllRead,refreshNotifications,startNotificationPolling,stopNotificationPolling,goTo,openD,itType,itSave,editItem,delItem,doDelItem,delPlan,doDelPlan,editPlan,saveEditPlan,setPlanStatus,newPlanP,assignItemTasks,saveItemTasks,mv,mvAsk,cmt,setLink,pubRec,confirmPubRec,loadItemRevisions,loadItemPublishing,viewRevisionSnapshot,resolveChangeReq,forwardChangeReq,confirmForwardChangeReq,cmv,loadCalendarMonth,reqNew,reqReview,reqOk,confirmReqOk,reqNo,reqTask,reqItem,repUp,repRev,repSave,repAi,repTxt,repOk,repSh,calcMemberPerf,memberPerfDet,startWork,wrkOpen,wrkNew,openSub,subBack,subLink,subFiles,subRm,subDone,wfGo,leaveDet,applyResetHash});
